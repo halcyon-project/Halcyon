@@ -1,0 +1,21 @@
+# http://editorconfig.org
+
+root = true
+
+[*]
+indent_style = space
+indent_size = 2
+tab_width = 2
+end_of_line = lf
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+max_line_length = 120
+quote_type = single
+curly_bracket_next_line = false
+spaces_around_operators = true
+indent_brace_style = Horstmann
+
+[{*.bash,*.sh,*.zsh}]
+indent_size = 4
+tab_width = 4

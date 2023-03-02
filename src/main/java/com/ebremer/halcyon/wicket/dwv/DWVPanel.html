@@ -1,0 +1,44 @@
+<html xmlns:wicket="http://wicket.apache.org">
+ 
+<wicket:panel>
+<!-- Main container div -->
+<div id="dwv">
+    <div class="layerContainer">
+        <canvas class="imageLayer"></canvas>
+    </div>
+</div>
+
+<input type="range" id="sliceRange" value="0">
+
+<script>
+    // base function to get elements
+dwv.gui.getElement = dwv.gui.base.getElement;
+dwv.gui.displayProgress = function (percent) {};
+
+// create the dwv app
+var app = new dwv.App();
+// initialise with the id of the container div
+app.init({
+    "containerDivId": "dwv",
+    "tools": ["Scroll"]
+});
+// load dicom data
+app.loadURLs(["http://localhost:8080/web/dcm/bbmri-53323851.dcm","http://localhost:8080/web/dcm/bbmri-53323707.dcm","http://localhost:8080/web/dcm/bbmri-53323563.dcm"]);
+
+var range = document.getElementById("sliceRange");
+range.min = 0;
+app.addEventListener("load-end", function () {
+    range.max = app.getImage().getGeometry().getSize().getNumberOfSlices() - 1;
+});
+app.addEventListener("slice-change", function () {
+    range.value = app.getViewController().getCurrentPosition().k;
+});
+range.oninput = function () {
+    var pos = app.getViewController().getCurrentPosition();
+    pos.k = this.value;
+    app.getViewController().setCurrentPosition(pos);
+};
+</script>
+
+</wicket:panel>
+</html>

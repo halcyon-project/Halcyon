@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns:wicket="http://wicket.apache.org/dtds.data/wicket-xhtml1.3-strict.dtd" >
+    <head>  
+	    <title>Wicket Examples - trees</title>
+		<style>
+			.tree p {
+			  margin: 0px;
+			}
+		</style>
+    </head>
+    <body>
+		<wicket:extend>
+                    <br>
+Collection :
+                      <span wicket:id="collection" id="message">Message goes here</span>
+
+			<form wicket:id="form">
+                            	<p><a wicket:id="collapseAll">collapse all</a>  <a wicket:id="expandAll">expand all</a>	<a wicket:id="clearAll">clear all</a>	</p>
+                                <input type="submit" wicket:id="submit" value="Save Changes"/>
+				<p>
+					<wicket:child/>
+				</p>
+				
+				
+			</form>             
+		</wicket:extend>			
+    </body>
+</html>
+
+

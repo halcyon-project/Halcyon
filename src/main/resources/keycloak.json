@@ -1,0 +1,10 @@
+{
+  "realm": "master",
+  "auth-server-url": "/auth/",
+  "ssl-required": "none",
+  "resource": "account",
+  "public-client": true,
+  "verify-token-audience": true,
+  "use-resource-role-mappings": false,
+  "confidential-port": 0
+}

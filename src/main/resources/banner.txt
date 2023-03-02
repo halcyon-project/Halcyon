@@ -1,0 +1,15 @@
+${AnsiColor.BRIGHT_YELLOW}
+============================================================
+  _    _          _      _______     _______  __   __ 
+ | |  | |   /\   | |    / ____\ \   / / ___ \|  \ |  |
+ | |__| |  /  \  | |   | |     \ \_/ / |   | |   \|  |
+ |  __  | / /\ \ | |   | |      \   /| |   | |  . `  |
+ | |  | |/ ____ \| |___| |____   | | | |___| |  |\   |
+ |_|  |_/_/    \_\______\_____|  |_|  \_____/|__| \__|
+
+${AnsiColor.BRIGHT_RED}
+${application.title} Version : ${application.formatted-version}
+Spring Boot Version: ${spring-boot.formatted-version}
+${AnsiColor.BRIGHT_YELLOW}
+============================================================
+

@@ -1,0 +1,29 @@
+<html>
+    <body>
+        <wicket:panel xmlns:wicket="http://wicket.apache.org">
+            <div class="navbar">
+                <a wicket:id="home">Home</a>
+                <a wicket:id="security">Security</a>
+                <div class="dropdown">
+                    <button class="dropbtn">Collections<i class="fa fa-caret-down"></i>
+                    </button>
+                    <div class="dropdown-content">
+                        <a wicket:id="collections">List Collections</a>
+                        <a wicket:id="images">List Images</a>
+                    </div>
+                </div>
+                <a wicket:id="sparql">SPARQL</a>
+                <a wicket:id="threed">3D</a>
+                <a wicket:id="account">Account</a> 
+                <div class="dropdown">
+                    <button class="dropbtn">Help<i class="fa fa-caret-down"></i>
+                    </button>
+                    <div class="dropdown-content">
+                        <a wicket:id="about">About</a>
+                    </div>
+                </div>
+                <a wicket:id="logout">Logout</a>
+            </div>
+        </wicket:panel>
+    </body>
+</html>
