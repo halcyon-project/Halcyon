@@ -147,7 +147,7 @@
                 lod.addLevel(low,w);
                 low.onBeforeRender = function() {
                     if (w>1024) {
-                    if (!this.booted) {
+                        if (!this.booted) {
                         this.booted = true;
                         const offx = Math.trunc(w/2);
                         const offy = Math.trunc(h/2);

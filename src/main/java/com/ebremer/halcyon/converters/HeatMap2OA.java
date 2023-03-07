@@ -80,12 +80,6 @@ public class HeatMap2OA {
         ch.qos.logback.classic.Logger root = (ch.qos.logback.classic.Logger)LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME);
         root.setLevel(ch.qos.logback.classic.Level.INFO);
         ImageMeta im = new ImageMeta();
-        //String[] temp = new String[] {"d:\\heatmaps\\vgg16\\brca", "brca", "1"};
-        //String[] temp = new String[] {"D:\\luke\\luke", "paad", "1"};
-        //String[] temp = new String[] {"D:\\luke\\src2\\cluster_20_json_kmeans", "paad", "1"};
-        //String[] temp = new String[] {"D:\\luke\\load2\\cluster_20_json_kmeans", "paad", "1"};
-        String[] temp = new String[] {"D:\\luke\\load2\\cluster_20_json_gmm", "paad", "1"};
-        args = temp;
         String base = args[0].trim();
         String type = args[1].trim();
         HeatMap2OA heatmap2oa;
@@ -105,7 +99,6 @@ public class HeatMap2OA {
                 return !p.toFile().getName().startsWith("meta_");
             })
             .forEach(p->{
-               // Path t = Path.of(base, p.getFileName().toString(), p.getFileName().toString());
                 String name = p.getFileName().toString();
                 name = name.substring(0, name.length()-".json.gz".length());
                 name = name.substring(8)+".svs";
