@@ -97,12 +97,7 @@ public class Ingest {
     public static void main(String[] args) throws FileNotFoundException, IOException {     
         ch.qos.logback.classic.Logger root = (ch.qos.logback.classic.Logger)LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME);
         root.setLevel(ch.qos.logback.classic.Level.OFF);
-        //String[] temp = {"D:\\spiros","D:\\spiros\\rdf","heatmap"};
-        //String[] temp = {"D:\\luke\\rdf\\paad\\TCGA-2J-AAB1-01Z-00-DX1.F3B4818F-9C3B-4C66-8241-0570B2873EC9.ttl.gz","D:\\luke\\zip\\paad\\TCGA-2J-AAB1-01Z-00-DX1.F3B4818F-9C3B-4C66-8241-0570B2873EC9.zip","heatmap"};
-        //String[] temp = {"D:\\luke\\src2\\gmmrdf","D:\\luke\\src2\\zip-cluster_20_json_gmm","heatmap"};
-        //String[] temp = {"D:\\luke\\load2\\rdf.kmeans","D:\\luke\\load2\\zip-cluster_20_json_kmeans","heatmap"};
         //String[] temp = {"D:\\luke\\load2\\rdf.gmm","D:\\luke\\load2\\zip-cluster_20_json_gmm","heatmap"};
-        //String[] temp = {"D:\\tcga\\cvpr-data\\rdf\\ucec\\TCGA-4E-A92E-01Z-00-DX3.F8F74B7E-0601-4084-AE3B-F1C1BFD0B7FE.ttl.gz","D:\\tcga\\cvpr-data\\zip","segmentation"};
         //String[] temp = {"D:\\tcga\\nuclearsegmentation2019\\rdf","D:\\tcga\\nuclearsegmentation2019\\zip","segmentation"};
         //args = temp;
         if (args.length == 3) {

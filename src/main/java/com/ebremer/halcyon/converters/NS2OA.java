@@ -81,8 +81,6 @@ public class NS2OA {
     }
     
      public static void main(String[] args) throws FileNotFoundException, UnsupportedEncodingException, IOException {
-        //String[] temp = new String[] {"D:\\tcga\\nuclearsegmenation2019\\coad_polygon", "ucec", "1"};
-        //args = temp;
         String base = args[0].trim();
         String type = args[1].trim();
         NS2OA ns2oa;
