@@ -83,8 +83,8 @@ public class ListFeatures extends Panel {
         pss.setNsPrefix("so", SchemaDO.NS);
         pss.setNsPrefix("exif", EXIF.NS);
         pss.setIri("car", HAL.CollectionsAndResources.getURI());
-        //Dataset ds = DatabaseLocator.getDatabase().getSecuredDataset();
-        Dataset ds = DatabaseLocator.getDatabase().getDataset();
+        Dataset ds = DatabaseLocator.getDatabase().getSecuredDataset();
+        //Dataset ds = DatabaseLocator.getDatabase().getDataset();
         //System.out.println("F1 ---> "+pss.toString());
         rdfsdf = new SelectDataProvider(ds,pss.toString());
         ParameterizedSparqlString pss2 = rdfsdf.getPSS();
@@ -116,7 +116,7 @@ public class ListFeatures extends Panel {
             protected void onAfterSubmit(AjaxRequestTarget target) {
                 ParameterizedSparqlString pss = rdfsdf.getPSS();
                 pss.setIri("collection", ddc.getModelObject().toString());
-                System.out.println("F2X ---> "+pss.toString());
+                //System.out.println("F2X ---> "+pss.toString());
                 rdfsdf.SetSPARQL(pss.toString());
                 target.add(table);
             }

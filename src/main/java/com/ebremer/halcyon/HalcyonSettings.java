@@ -27,6 +27,7 @@ import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.Property;
 import org.apache.jena.rdf.model.ResIterator;
 import org.apache.jena.rdf.model.Resource;
+import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.vocabulary.RDF;
@@ -47,15 +48,17 @@ public class HalcyonSettings {
     private Property RDFStoreLocation = null;
     private Property RDFSecurityStoreLocation = null;
     private Model m;
-    public static String realm = "master";
+    public static final String realm = "master";
     private final Property urlpathprefix;
     private static final int DEFAULTSPARQLPORT = 8887;
     private final Property SPARQLPORT;
     private final Property MULTIVIEWERLOCATION;
-    private final String Version = "0.0.0";
+    public static final String VERSION = "0.1.0";
+    public static Resource HALCYONAGENT = ResourceFactory.createResource(HAL.NS+"/VERSION/"+VERSION);
     private static final String MasterSettingsLocation = "settings.ttl";
     private Resource Master;
     private final HashMap<String,String> mappings;
+    private final String Realm = "master";
     
     private HalcyonSettings() {
         File f = new File(MasterSettingsLocation);
@@ -84,7 +87,11 @@ public class HalcyonSettings {
     }
     
     public String getVersion() {
-        return Version;
+        return VERSION;
+    }
+    
+    public String getRealm() {
+        return Realm;
     }
 
     public String getHostName() {

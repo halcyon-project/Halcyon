@@ -1,5 +1,6 @@
 package com.ebremer.halcyon.gui;
 
+import com.ebremer.halcyon.keycloak.KeycloakTokenFilter;
 import com.ebremer.halcyon.HalcyonSettings;
 import com.ebremer.halcyon.datum.DataCore;
 import com.ebremer.halcyon.datum.HalcyonPrincipal;
@@ -10,7 +11,7 @@ import jakarta.json.JsonObject;
 import jakarta.json.JsonReader;
 import java.io.StringReader;
 import java.util.Locale;
-import java.util.Map;
+import java.util.UUID;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Invocation;
 import javax.ws.rs.core.Response;
@@ -20,6 +21,8 @@ import org.apache.jena.query.ResultSet;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.Resource;
+import org.apache.jena.riot.RDFDataMgr;
+import org.apache.jena.riot.RDFFormat;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.SchemaDO;
 import org.apache.wicket.Session;
@@ -45,61 +48,70 @@ public final class HalcyonSession extends WebSession {
         setLocale(Locale.ENGLISH);
         ServletWebRequest req = (ServletWebRequest) request;
         KeycloakSecurityContext securityContext = (KeycloakSecurityContext) req.getContainerRequest().getAttribute(KeycloakSecurityContext.class.getName());
-        AccessToken token2 = securityContext.getToken();
-        this.token = securityContext.getTokenString();
-        //realm = securityContext.getRealm();
-        //uid = token2.getSubject();
-        //name = token2.getName();
-        //email = token2.getEmail(); 
-        uuid = "urn:uuid:"+token2.getSubject();
-        principal = new HalcyonPrincipal(uuid);
-        //Map<String, Object> other = token2.getOtherClaims();
-        //webid = (String) other.get("webid");
-        ResteasyClientBuilder builder =  (ResteasyClientBuilder) ClientBuilder.newBuilder();
-        builder.disableTrustManager();
-	ResteasyClient client = builder.build();
-	client.register(KeycloakTokenFilter.class);
-        String cmd = s.getProxyHostName()+"/auth/admin/realms/"+HalcyonSettings.realm+"/users";
-        ResteasyWebTarget target = client.target(cmd);
-        Invocation.Builder zam = target.request();
-        Response r = zam.get();
-        Model da = ModelFactory.createDefaultModel();
-        if (r.getStatus()==200) {
-            String json = r.readEntity(String.class);
-            da.add(ParseUsers(json));    
+        if (securityContext==null) {
+            uuid = "urn:uuid:"+UUID.randomUUID().toString();
+            token = null;
+            principal = new HalcyonPrincipal(uuid, true);
         } else {
-            System.out.println("not able to update/Parse users...");
+            AccessToken token2 = securityContext.getToken();
+            this.token = securityContext.getTokenString();
+            uuid = "urn:uuid:"+token2.getSubject();
+            principal = new HalcyonPrincipal(uuid, false);
         }
-        r = client.target(s.getProxyHostName()+"/auth/admin/realms/"+HalcyonSettings.realm+"/groups").request().get();
-        if (r.getStatus()==200) {
-            String json = r.readEntity(String.class);
-            da.add(ParseGroups(json));
-            ParameterizedSparqlString pss = new ParameterizedSparqlString("select distinct ?s where {?s a so:Organization}");
-            pss.setNsPrefix("so", SchemaDO.NS);
-            ResultSet rs = QueryExecutionFactory.create(pss.toString(),da).execSelect();
-            rs.forEachRemaining(qs ->{
-                Resource gg = qs.getResource("s");
-                Response rr = client.target(s.getProxyHostName()+"/auth/admin/realms/"+HalcyonSettings.realm+"/groups/"+gg.getURI().substring(9)+"/members").request().get();
-                if (rr.getStatus()==200) {
-                    String json2 = rr.readEntity(String.class);
-                    JsonReader jr = Json.createReader(new StringReader(json2));
-                    JsonArray ja = jr.readArray();
-                    ja.forEach(p->{
-                        Resource pp = da.createResource("urn:uuid:"+p.asJsonObject().getString("id"));
-                        da.add(gg,SchemaDO.member,pp);
-                        da.add(pp,SchemaDO.memberOf,gg);
-                    });
-                }
-            });
-            DataCore dc = DataCore.getInstance();
-            if (dc.getDataset()!=null) {
-                System.out.println("DataCore online....\nUpdating Groups and Users...");
-                DataCore.getInstance().replaceNamedGraph(HAL.GroupsAndUsers, da);
+
+        if (securityContext!=null) {
+            ResteasyClientBuilder builder =  (ResteasyClientBuilder) ClientBuilder.newBuilder();
+            builder.disableTrustManager();
+            ResteasyClient client = builder.build();
+            client.register(KeycloakTokenFilter.class);        
+            String cmd = s.getProxyHostName()+"/auth/admin/realms/"+HalcyonSettings.realm+"/users";
+            ResteasyWebTarget target = client.target(cmd);
+            Invocation.Builder zam = target.request();
+            Response r = zam.get();
+            Model da = ModelFactory.createDefaultModel();
+            if (r.getStatus()==200) {
+                String json = r.readEntity(String.class);
+                da.add(ParseUsers(json));    
             } else {
-                System.out.println("DataCore NOT online....");
+                System.out.println("not able to update/Parse users...");
             }
-        } else {
-            System.out.println("not able to update/Parse groups...");
+            r = client.target(s.getProxyHostName()+"/auth/admin/realms/"+HalcyonSettings.realm+"/groups").request().get();
+            if (r.getStatus()==200) {
+                String json = r.readEntity(String.class);
+                da.add(ParseGroups(json));
+                ParameterizedSparqlString pss = new ParameterizedSparqlString("select distinct ?s where {?s a so:Organization}");
+                pss.setNsPrefix("so", SchemaDO.NS);
+                ResultSet rs = QueryExecutionFactory.create(pss.toString(),da).execSelect();
+                rs.forEachRemaining(qs ->{
+                    Resource gg = qs.getResource("s");
+                    Response rr = client.target(s.getProxyHostName()+"/auth/admin/realms/"+HalcyonSettings.realm+"/groups/"+gg.getURI().substring(9)+"/members").request().get();
+                    if (rr.getStatus()==200) {
+                        String json2 = rr.readEntity(String.class);
+                        JsonReader jr = Json.createReader(new StringReader(json2));
+                        JsonArray ja = jr.readArray();
+                        ja.forEach(p->{
+                            Resource pp = da.createResource("urn:uuid:"+p.asJsonObject().getString("id"));
+                            da.add(gg,SchemaDO.member,pp);
+                            da.add(pp,SchemaDO.memberOf,gg);
+                        });
+                    }
+                });
+                da.createResource(HAL.Anonymous.toString())
+                        .addProperty(RDF.type, SchemaDO.Organization)
+                        .addProperty(SchemaDO.name, "Anonymous Sessions");
+                System.out.println("================================");
+                RDFDataMgr.write(System.out, da, RDFFormat.TURTLE_PRETTY);
+                System.out.println("================================");
+                DataCore dc = DataCore.getInstance();
+                if (dc.getDataset()!=null) {
+                    System.out.println("DataCore online....\nUpdating Groups and Users...");
+                    DataCore.getInstance().replaceNamedGraph(HAL.GroupsAndUsers, da);
+                } else {
+                    System.out.println("DataCore NOT online....");
+                }
+            } else {
+                System.out.println("not able to update/Parse groups...");
+            }
         }
     }
     

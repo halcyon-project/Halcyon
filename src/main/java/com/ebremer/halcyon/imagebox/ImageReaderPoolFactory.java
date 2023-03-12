@@ -23,7 +23,9 @@ public class ImageReaderPoolFactory extends BaseKeyedPooledObjectFactory<String,
 
     @Override
     public void destroyObject(String key, PooledObject p, DestroyMode mode) throws Exception {
-        //System.out.println("Destroying Image Reader ");
+        System.out.println("Destroying Image Reader ---> "+key);
+        NeoTiler nt = (NeoTiler) p.getObject();
+        nt.close();
         super.destroyObject(key, p, mode);
     }   
 }

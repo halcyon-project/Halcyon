@@ -1,7 +1,7 @@
 package com.ebremer.halcyon.converters;
 
 import com.ebremer.beakgraph.rdf.BeakWriter;
-import com.ebremer.halcyon.HalcyonDefaults;
+import com.ebremer.halcyon.HalcyonSettings;
 import com.ebremer.ns.EXIF;
 import com.ebremer.ns.HAL;
 import com.ebremer.rocrate4j.ROCrate;
@@ -107,7 +107,7 @@ public class Ingest {
             new Ingest().Process(src, optimize, dest);
         } else {
             System.out.println("Halcyon ----------------------------------------------------");
-            System.out.println("ingest - version : "+HalcyonDefaults.VERSION);
+            System.out.println("ingest - version : "+HalcyonSettings.VERSION);
             System.out.println("""
                                 Usage:
                                 ingest <source> <destination> (heatmap|segmentation)

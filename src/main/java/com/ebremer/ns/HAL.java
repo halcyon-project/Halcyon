@@ -16,7 +16,9 @@ public class HAL {
  */
     private static final Model m = ModelFactory.createDefaultModel();
     public static final String NS = "https://www.ebremer.com/halcyon/ns/";
+    public static final Resource Anonymous = m.createResource(NS+"Anonymous");  // Identifier for a group of unidentified things
     public static final Resource DataFile = m.createResource(NS+"DataFile");
+    public static final Resource FileManagerArtifact = m.createResource(NS+"FileManagerArtifact");
     public static final Resource LayerSet = m.createResource(NS+"LayerSet");
     public static final Resource ProbabilityBody = m.createResource(NS+"ProbabilityBody");
     public static final Resource SecurityGraph = m.createResource(NS+"SecurityGraph");
@@ -55,7 +57,6 @@ public class HAL {
     public static final Property object = m.createProperty(NS+"object");
     public static final Property ascending = m.createProperty(NS+"ascending");
     public static final Property gspo = m.createProperty(NS+"gspo");
-    public static final Property dateRegistered = m.createProperty(NS+"dateRegistered");
     public static final Property columns = m.createProperty(NS+"columns");
     public static final Property begin = m.createProperty(NS+"begin");
     public static final Property hasCertainty = m.createProperty(NS+"hasCertainty");

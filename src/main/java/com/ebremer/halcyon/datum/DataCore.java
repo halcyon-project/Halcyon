@@ -1,9 +1,8 @@
 package com.ebremer.halcyon.datum;
 
+import com.ebremer.halcyon.fuseki.SPARQLEndPoint;
 import com.ebremer.halcyon.HalcyonSettings;
 import com.ebremer.halcyon.filesystem.FileManager;
-import com.ebremer.halcyon.gui.HalcyonSession;
-import org.apache.jena.fuseki.main.FusekiServer;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.DatasetFactory;
 import org.apache.jena.query.Query;
@@ -25,23 +24,11 @@ public class DataCore {
     private static DataCore core = null;
     private static Dataset ds = null;
     private static HalcyonSettings hs = null;
-    private FusekiServer server = null;
-    private final FileManager fm;
-    
+
     private DataCore() {
         hs = HalcyonSettings.getSettings();
         System.out.println("Starting TDB2...");
         ds = TDB2Factory.connectDataset(hs.getRDFStoreLocation());
-       
-        System.out.println("Starting Fuseki...");
-        server = FusekiServer.create()
-                .add("/rdf", ds)
-                .enableCors(true)
-                .port(HalcyonSettings.getSettings().GetSPARQLPort())
-                .build();
-        server.start();
-        System.out.println("Starting File Manager...");
-        fm = FileManager.getInstance();
     }
     
     public synchronized static DataCore getInstance() {
@@ -52,22 +39,14 @@ public class DataCore {
     }
     
     public synchronized void shutdown() {
+        FileManager.getInstance().pause();
+        SPARQLEndPoint.getSPARQLEndPoint().shutdown();
         ds.close();
-        if (server!=null) {
-            server.stop();
-        }
     }
+
     
-    //public synchronized Dataset getSecuredDataset(String uuid) {
-//        WACSecurityEvaluator evaluator = new WACSecurityEvaluator();
-//        evaluator.setPrincipal(uuid);
-//        return DatasetFactory.wrap(new SecuredDatasetGraph(getDataset().asDatasetGraph(),evaluator));
-//    }
-    
-    public synchronized Dataset getSecuredDataset() {
-        WACSecurityEvaluator evaluator = new WACSecurityEvaluator();
-        evaluator.setPrincipal(HalcyonSession.get().getHalcyonPrincipal());
-        return DatasetFactory.wrap(new SecuredDatasetGraph(getDataset().asDatasetGraph(),evaluator));
+    public Dataset getSecuredDataset() {
+        return DatasetFactory.wrap(new SecuredDatasetGraph(getDataset().asDatasetGraph(), new WACSecurityEvaluator()));
     }
     
     public void replaceNamedGraph(Resource k, Model m) {

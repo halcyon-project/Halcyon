@@ -12,13 +12,13 @@
         <script>
             Yasgui.defaults.tabName = "Query";
             Yasgui.defaults.yasqe.value =  "select *\nwhere {graph ?g {?s ?p ?o}}\nlimit 20";
-            const yasgui = new Yasgui(document.getElementById("yasgui"), {
-                requestConfig: {
-                    //endpoint: 'http://localhost:8887/rdf' },
-                    //endpoint: host+":8887/rdf" },
-                    endpoint: "/sparql" },
-                    copyEndpointOnNewTab: false
-                });
+            Yasgui.defaults.requestConfig.headers = {'token': token};
+            const yasgui = new Yasgui(document.getElementById("yasgui"),
+                {   requestConfig: {
+                        endpoint: "/sparql"},
+                        copyEndpointOnNewTab: false
+                }
+            );
             var tab = yasgui.getTab();
             //tab.setQuery("select *\nwhere {graph ?g {?s ?p ?o}}\nlimit 20");
             tab.yasqe.addPrefixes({ so: "https://schema.org/" });

@@ -62,9 +62,9 @@ public class FeatureManager {
 
     public String getFeatures(HashSet<String> features, String urn) {
         System.out.println("getFeatures : "+urn);
-        features.forEach(d->{
-            System.out.println("YAH  : "+d);
-        });
+       // features.forEach(d->{
+         //   System.out.println("YAH  : "+d);
+        //});
         Iterator<String> ii = features.iterator();
         Model wow = ModelFactory.createDefaultModel();
         ArrayList<RDFNode> createactions = new ArrayList<>();
@@ -236,7 +236,7 @@ public class FeatureManager {
                 layer.addProperty(HAL.colorscheme,COLORSCHEME);
                 LayerSet.addProperty(HAL.haslayer, layer);
             }
-            System.out.println("Add a color class layer "+COLORSCHEME.toString()+"  "+qs.get("label").asLiteral().getString()+"  "+qs.get("value").asLiteral().getInt());
+            //System.out.println("Add a color class layer "+COLORSCHEME.toString()+"  "+qs.get("label").asLiteral().getString()+"  "+qs.get("value").asLiteral().getInt());
             COLORSCHEME.addProperty(HAL.colors, m.createResource()
                     .addLiteral(SchemaDO.name, qs.get("label").asLiteral().getString())
                     .addLiteral(HAL.classid, qs.get("value").asLiteral().getInt())
@@ -244,9 +244,9 @@ public class FeatureManager {
             );
         }
         ds.end();
-        System.out.println("===================================================== Features ======================================");
-        RDFDataMgr.write(System.out, m, Lang.TURTLE);
-        System.out.println("==========XXXXXXXXXXXXXXXXXX======================== Features ============XXXXXXXXXXXXX==============");
+        //System.out.println("===================================================== Features ======================================");
+        //RDFDataMgr.write(System.out, m, Lang.TURTLE);
+        //System.out.println("==========XXXXXXXXXXXXXXXXXX======================== Features ============XXXXXXXXXXXXX==============");
         Dataset dss = DatasetFactory.createGeneral();
         dss.getDefaultModel().add(m);
         RdfDataset rds = JenaTitanium.convert(dss.asDatasetGraph());

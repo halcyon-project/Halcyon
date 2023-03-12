@@ -1,6 +1,8 @@
 package com.ebremer.halcyon.datum;
 
+import com.ebremer.halcyon.gui.HalcyonSession;
 import com.ebremer.ns.HAL;
+import io.jsonwebtoken.Claims;
 import java.security.Principal;
 import java.util.HashMap;
 import java.util.Set;
@@ -14,15 +16,17 @@ import org.apache.jena.query.ReadWrite;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.shared.AuthenticationRequiredException;
+import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.SchemaDO;
 import org.apache.jena.vocabulary.WAC;
+import org.apache.shiro.SecurityUtils;
+import org.apache.shiro.subject.Subject;
 
 /**
  * 
  * @author erich
  */
 public class WACSecurityEvaluator implements SecurityEvaluator {
-    private HalcyonPrincipal principal;
     private final Model secm;
     private final HashMap<Node,HashMap> cache;
     
@@ -38,29 +42,21 @@ public class WACSecurityEvaluator implements SecurityEvaluator {
         ds.end();
     }
     
-    public void setPrincipal( HalcyonPrincipal principal ) {
-        this.principal = principal;
-    }
-    
     public Model getSecurityModel() {
         return secm;
     }
 
     @Override
     public boolean evaluate(Object principal, Action action, Node graphIRI) {
-        return true;
-        /*
         HalcyonPrincipal hp = (HalcyonPrincipal) principal;
         if (graphIRI.matches(HAL.CollectionsAndResources.asNode())) {
             return true;
         }
         if (cache.containsKey(graphIRI)) {
             if (cache.get(graphIRI).containsKey(action)) {
-                //System.out.println("CACHE HIT!!!");
                 return true;
             }
         }
-        //System.out.println("CACHE MISS!!!");
         HashMap<Action,Boolean> set = new HashMap<>();
         cache.put(graphIRI, set);
         ParameterizedSparqlString pss = new ParameterizedSparqlString("""
@@ -78,7 +74,7 @@ public class WACSecurityEvaluator implements SecurityEvaluator {
         pss.setIri("member", hp.getURNUUID());
         boolean ha = QueryExecutionFactory.create(pss.toString(), secm).execAsk();
         set.put(action, ha);
-        return ha;*/
+        return ha;
     }
     
     private boolean evaluate( Object principal, Triple triple ) {
@@ -121,7 +117,14 @@ public class WACSecurityEvaluator implements SecurityEvaluator {
 
     @Override
     public Principal getPrincipal() {
-        return principal;
+        try {
+            Claims dc = (Claims) SecurityUtils.getSubject().getPrincipal();
+  //          System.out.println(dc.getId());
+            return new HalcyonPrincipal(dc);
+        } catch (org.apache.shiro.UnavailableSecurityManagerException ex) {
+            //System.out.println(ex.toString());
+        }
+        return HalcyonSession.get().getHalcyonPrincipal();
     }
 
     @Override

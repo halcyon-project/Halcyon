@@ -4,6 +4,7 @@ import com.ebremer.halcyon.datum.DataCore;
 import com.ebremer.halcyon.datum.EB;
 import com.ebremer.halcyon.datum.Scan;
 import com.ebremer.ns.HAL;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -43,19 +44,14 @@ public class DirectoryProcessor {
     public static final int TIF = 6;
     public static final int NDPI = 7;
     public static final int DFIX = 1701;
-    public int cores = 5;
+    public final int cores;
     private final Dataset buffer;
     private CopyOnWriteArrayList list = null;
     
     public DirectoryProcessor(Dataset buffer) {
         this.buffer = buffer;
         list = GetExisting();
-    }    
-    
-    public DirectoryProcessor(Dataset buffer, int numcores) {
-        this.buffer = buffer;
-        cores = numcores;
-        list = GetExisting();
+        cores = 4;
     }
     
     public Model PathInfo(String s) {
@@ -85,8 +81,7 @@ public class DirectoryProcessor {
             Stream<Path> yay = Files.walk(src);
             ForkJoinPool fjp = null;
             try {
-                //fjp = new ForkJoinPool(cores);
-                fjp = new ForkJoinPool(1);
+                fjp = new ForkJoinPool(cores);
                 fjp.submit(()->yay.collect(toList()).parallelStream()
                     .filter(Objects::nonNull)
                     .filter(fff -> {
@@ -108,19 +103,14 @@ public class DirectoryProcessor {
                         System.out.println("Processing : "+xxx);
                         FileMetaExtractor fe = new FileMetaExtractor(e.toFile());
                         Model m = fe.getDataset().getNamedModel(xxx);
-                        //System.out.println("SIZE : "+m.size());
-                        
-                        if (m!=null) {
-                            buffer.begin(ReadWrite.WRITE);
-                            buffer.getDefaultModel().add(fe.getCoreMeta());
-                            Model pathinfo = PathInfo(xxx);
-                            buffer.addNamedModel(HAL.CollectionsAndResources, pathinfo);
-                            buffer.addNamedModel(xxx, m);
-                            buffer.commit();
-                            buffer.end();                            
-                        } else {
-                            System.out.println("NULLLLLLLLLLLLLLLLL");
-                        }
+                        m.createResource(xxx).addProperty(RDF.type, HAL.FileManagerArtifact);
+                        buffer.begin(ReadWrite.WRITE);
+                        buffer.getDefaultModel().add(fe.getCoreMeta());
+                        Model pathinfo = PathInfo(xxx);
+                        buffer.addNamedModel(HAL.CollectionsAndResources, pathinfo);
+                        buffer.addNamedModel(xxx, m);
+                        buffer.commit();
+                        buffer.end();                            
                     })
                 ).get();
             } catch (InterruptedException | ExecutionException ex) {
@@ -160,27 +150,8 @@ public class DirectoryProcessor {
         while (results.hasNext()) {
             QuerySolution sol = results.nextSolution();
             cur.add(sol.get("g").toString());
-            //System.out.println("existing : "+sol.get("g").toString());
         }
         ds.end();
         return cur;
     }
-    
-    /*
-    
-    public static void main(String[] args) throws FileNotFoundException {
-        ch.qos.logback.classic.Logger root = (ch.qos.logback.classic.Logger)(org.slf4j.Logger)LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME);
-        root.setLevel(ch.qos.logback.classic.Level.OFF);       
-        String[] tmp = {"D:\\HalcyonStorage", "D:\\legacy\\images.nq"};
-        args = tmp;
-        Dataset ds = DatasetFactory.createTxnMem();
-        DirectoryProcessor dp = new DirectoryProcessor(ds);
-        dp.Traverse(Path.of(args[0]), GetExtensions(DirectoryProcessor.ZIP), DirectoryProcessor.ZIP);
-        FileOutputStream fos = new FileOutputStream(new File(args[1]));
-        ds.begin();
-        RDFDataMgr.write(fos, ds, RDFFormat.TRIG_PRETTY);
-        ds.end();
-        //dc.shutdown();
-        System.out.println("DONE.");
-    }*/
 }

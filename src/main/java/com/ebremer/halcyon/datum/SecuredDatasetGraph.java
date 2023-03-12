@@ -46,6 +46,7 @@ public class SecuredDatasetGraph implements DatasetGraph {
     
     private boolean hasReadAccess(Node node) {
         return securityEvaluator.evaluate(securityEvaluator.getPrincipal(), SecurityEvaluator.Action.Read, node);
+        //return securityEvaluator.evaluate(securityEvaluator.getPrincipal(), SecurityEvaluator.Action.Read, node);
     }
 
     @Override
