@@ -12,8 +12,6 @@ import com.ebremer.halcyon.wicket.BasePage;
 import com.ebremer.halcyon.wicket.ethereal.Graph3D;
 import com.ebremer.halcyon.wicket.ethereal.Zephyr;
 import com.ebremer.multiviewer.MultiViewer;
-import javax.servlet.http.Cookie;
-import javax.servlet.http.HttpServletRequest;
 import org.apache.wicket.RuntimeConfigurationType;
 import org.apache.wicket.Session;
 import org.apache.wicket.devutils.stateless.StatelessChecker;
@@ -21,7 +19,6 @@ import org.apache.wicket.markup.html.WebPage;
 import org.apache.wicket.protocol.http.WebApplication;
 import org.apache.wicket.request.Request;
 import org.apache.wicket.request.Response;
-import org.apache.wicket.request.cycle.RequestCycle;
 
 public class HalcyonApplication extends WebApplication {
     private static final HalcyonSettings settings = HalcyonSettings.getSettings();
@@ -50,13 +47,14 @@ public class HalcyonApplication extends WebApplication {
     
     @Override
     public Session newSession(Request request, Response response) {
-        HalcyonSession hs = new HalcyonSession(request);
+        return new HalcyonSession(request);
+        /*
         HttpServletRequest req = (HttpServletRequest) request.getContainerRequest();
         Cookie[] cookies = req.getCookies();
         for (Cookie cookie: cookies) {
             System.out.println("NR : "+cookie.getName()+" ==== "+cookie.getValue());
-        }
-        return hs;
+        }*/
+
     }
 
     @Override
@@ -87,8 +85,9 @@ public class HalcyonApplication extends WebApplication {
         mountPage("/gui/sparql", Sparql.class);
         mountPage("/gui/about", About.class);
         mountPage("/gui/threed", Graph3D.class);
+        mountPage("/gui/revisionhistory", RevisionHistory.class);
         mountPage("/gui/zephyr", Zephyr.class);
-        mountPage("/gui/public", Public.class);
+        mountPage("/gui/login", LogHal.class);
         //mountPage("/gui/dicom", DICOM.class);
         //mountPage("/gui/dicom2", DCM.class);
     }
@@ -96,6 +95,5 @@ public class HalcyonApplication extends WebApplication {
     @Override
     public RuntimeConfigurationType getConfigurationType() {
         return RuntimeConfigurationType.DEVELOPMENT;
-        //return RuntimeConfigurationType.DEPLOYMENT;
     }
 }

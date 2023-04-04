@@ -38,7 +38,7 @@ import org.apache.wicket.request.resource.CssResourceReference;
  * @author erich
  */
 public class Collections extends BasePage {
-    private SelectDataProvider rdfsdf;
+    private final SelectDataProvider rdfsdf;
     
     public Collections() {
         add(new FeedbackPanel("feedback"));

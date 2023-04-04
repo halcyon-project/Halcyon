@@ -1,10 +1,7 @@
 package com.ebremer.halcyon.gui;
 
 import com.ebremer.ethereal.LDModel;
-import com.ebremer.halcyon.wicket.DatabaseLocator;
 import com.ebremer.ethereal.RDFTextField;
-import org.apache.jena.query.Dataset;
-import org.apache.jena.query.ReadWrite;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.vocabulary.RDFS;
@@ -36,9 +33,9 @@ public class CollectionPanel extends Form<Model> {
     @Override
     public void onSubmit() {
         System.out.println("SAVING!");
-        Dataset ds = DatabaseLocator.getDatabase().getSecuredDataset();
-        ds.begin(ReadWrite.READ);
+        //Dataset ds = DatabaseLocator.getDatabase().getSecuredDataset();
+        //ds.begin(ReadWrite.READ);
         //RDFDataMgr.write(System.out, ds.getNamedModel(HAL.Collections.getURI()), RDFFormat.TURTLE_PRETTY);
-        ds.end();
+        //ds.end();
     }   
 }

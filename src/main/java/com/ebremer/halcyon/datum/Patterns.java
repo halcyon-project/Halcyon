@@ -1,6 +1,7 @@
 package com.ebremer.halcyon.datum;
 
 import com.ebremer.ethereal.MakeList;
+import static com.ebremer.halcyon.datum.DataCore.Level.OPEN;
 import com.ebremer.ns.HAL;
 import java.util.List;
 import org.apache.jena.graph.Node;
@@ -11,6 +12,8 @@ import org.apache.jena.query.QueryExecutionFactory;
 import org.apache.jena.query.ReadWrite;
 import org.apache.jena.query.ResultSet;
 import org.apache.jena.rdf.model.Model;
+import org.apache.jena.riot.Lang;
+import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.vocabulary.SchemaDO;
 
 /**
@@ -42,12 +45,12 @@ public class Patterns {
         """);
         pss.setNsPrefix("hal", HAL.NS);
         pss.setNsPrefix("so", SchemaDO.NS);
-        Dataset ds = DataCore.getInstance().getSecuredDataset();
+        //Dataset ds = DataCore.getInstance().getSecuredDataset(OPEN);
         QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m);
-        ds.begin(ReadWrite.READ);
+        //ds.begin(ReadWrite.READ);
         ResultSet rs = qe.execSelect();
         List<Node> list = MakeList.Of(rs, "s");
-        ds.end();
+        //ds.end();
         return list;
     }
     
@@ -58,9 +61,10 @@ public class Patterns {
         """);
         pss.setNsPrefix("hal", HAL.NS);
         pss.setNsPrefix("so", SchemaDO.NS);
+        System.out.println(pss.toString());
         QueryExecution qe = QueryExecutionFactory.create(pss.toString(), ds);
         ds.begin(ReadWrite.READ);
-        ResultSet rs = qe.execSelect();
+        ResultSet rs = qe.execSelect().materialise();
         List<Node> list = MakeList.Of(rs, "s");
         ds.end();
         return list;
@@ -73,11 +77,13 @@ public class Patterns {
         """);
         pss.setNsPrefix("hal", HAL.NS);
         pss.setNsPrefix("so", SchemaDO.NS);
-        Dataset ds = DataCore.getInstance().getSecuredDataset();
+        System.out.println("getCollectionRDF()\n"+pss.toString());
+        Dataset ds = DataCore.getInstance().getSecuredDataset(OPEN);
         QueryExecution qe = QueryExecutionFactory.create(pss.toString(), ds);
         ds.begin(ReadWrite.READ);
         Model m = qe.execConstruct();
         ds.end();
+        RDFDataMgr.write(System.out, m, Lang.TURTLE);
         return m;
     }
 }

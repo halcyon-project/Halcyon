@@ -1,6 +1,8 @@
-package com.ebremer.halcyon.fuseki.jwt;
+package com.ebremer.halcyon.fuseki.shiro;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jws;
+import io.jsonwebtoken.Jwts;
 import org.apache.shiro.authc.AuthenticationInfo;
 import org.apache.shiro.authc.AuthenticationToken;
 import org.apache.shiro.authc.SimpleAuthenticationInfo;
@@ -29,12 +31,32 @@ public class JwtRealm extends AuthorizingRealm {
     @Override
     protected AuthenticationInfo doGetAuthenticationInfo(AuthenticationToken token) {
         JwtToken jwtToken = (JwtToken) token;
-        Claims claims = jwtToken.getClaims();
+        String jwt = jwtToken.getJwt();
+        try {
+            Jws<Claims> jws = Jwts.parserBuilder()
+                    .setSigningKey(KeycloakPublicKeyFetcher.getKeycloakPublicKeyFetcher().getPublicKey())
+                    .build()
+                    .parseClaimsJws(jwt);
+
+            String subject = jws.getBody().getSubject();
+            Claims claims = jws.getBody();
+            SimplePrincipalCollection principalCollection = new SimplePrincipalCollection(jwtToken, getName());
+            return new SimpleAuthenticationInfo(principalCollection, jwt);
+        } catch (Exception e) {
+            throw new Error("Invalid JWT token", e);
+        }
+    }
+    
+}
+
+        /*
+        
+        //Claims claims = jwtToken.getClaims();
         SimplePrincipalCollection principalCollection = new SimplePrincipalCollection(claims, getName());
         return new SimpleAuthenticationInfo(principalCollection, token.getCredentials());
     }
 }
-
+*/
 
 /*
 public class JwtRealm extends AuthenticatingRealm {

@@ -49,7 +49,7 @@ public class EditCollection extends BasePage {
         ds.begin(ReadWrite.READ);
         m.add(ds.getNamedModel(uuid));
         ds.end();
-        RDFDataMgr.write(System.out, m, RDFFormat.TURTLE_PRETTY);
+        //RDFDataMgr.write(System.out, m, RDFFormat.TURTLE_PRETTY);
         Resource s = ResourceFactory.createResource(uuid);
         mod = new RDFDetachableModel(m);
         LDModel ldm = new LDModel(mod);

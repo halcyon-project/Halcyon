@@ -1,4 +1,4 @@
-package com.ebremer.halcyon.fuseki.jwt;
+package com.ebremer.halcyon.fuseki.shiro;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jws;

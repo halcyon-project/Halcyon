@@ -12,7 +12,7 @@
         <script>
             Yasgui.defaults.tabName = "Query";
             Yasgui.defaults.yasqe.value =  "select *\nwhere {graph ?g {?s ?p ?o}}\nlimit 20";
-            Yasgui.defaults.requestConfig.headers = {'token': token};
+            Yasgui.defaults.requestConfig.headers = {'AUTHORIZATION': 'Bearer '+token};
             const yasgui = new Yasgui(document.getElementById("yasgui"),
                 {   requestConfig: {
                         endpoint: "/sparql"},

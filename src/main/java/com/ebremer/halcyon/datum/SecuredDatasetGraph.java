@@ -46,7 +46,6 @@ public class SecuredDatasetGraph implements DatasetGraph {
     
     private boolean hasReadAccess(Node node) {
         return securityEvaluator.evaluate(securityEvaluator.getPrincipal(), SecurityEvaluator.Action.Read, node);
-        //return securityEvaluator.evaluate(securityEvaluator.getPrincipal(), SecurityEvaluator.Action.Read, node);
     }
 
     @Override
@@ -73,7 +72,7 @@ public class SecuredDatasetGraph implements DatasetGraph {
 
     @Override
     public Graph getUnionGraph() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     @Override
@@ -87,7 +86,7 @@ public class SecuredDatasetGraph implements DatasetGraph {
         if (HalSec.canCreateCollection(hp.getURNUUID())) {
             base.addGraph(node, graph);
         } else {
-            throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+            throw new UnsupportedOperationException("Not supported yet.");
         }
     }
 
@@ -145,7 +144,7 @@ public class SecuredDatasetGraph implements DatasetGraph {
 
     @Override
     public void deleteAny(Node node, Node node1, Node node2, Node node3) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     @Override
@@ -228,7 +227,7 @@ public class SecuredDatasetGraph implements DatasetGraph {
 
     @Override
     public long size() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     @Override
@@ -302,6 +301,6 @@ public class SecuredDatasetGraph implements DatasetGraph {
 
     @Override
     public void setDefaultGraph(Graph g) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 }

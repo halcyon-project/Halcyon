@@ -4,12 +4,17 @@ import com.ebremer.halcyon.keycloak.KeycloakTokenFilter;
 import com.ebremer.halcyon.HalcyonSettings;
 import com.ebremer.halcyon.datum.DataCore;
 import com.ebremer.halcyon.datum.HalcyonPrincipal;
+import com.ebremer.halcyon.fuseki.shiro.JwtToken;
+import com.ebremer.halcyon.fuseki.shiro.JwtVerifier;
+import com.ebremer.halcyon.fuseki.shiro.KeycloakPublicKeyFetcher;
 import com.ebremer.ns.HAL;
+import io.jsonwebtoken.Claims;
 import jakarta.json.Json;
 import jakarta.json.JsonArray;
 import jakarta.json.JsonObject;
 import jakarta.json.JsonReader;
 import java.io.StringReader;
+import java.security.PublicKey;
 import java.util.Locale;
 import java.util.UUID;
 import javax.ws.rs.client.ClientBuilder;
@@ -39,7 +44,7 @@ public final class HalcyonSession extends WebSession {
     private String user;
     private String mv;
     private final String uuid;
-    private final String token;
+    //private final String token;
     private final HalcyonPrincipal principal;
 
     public HalcyonSession(Request request) {
@@ -50,13 +55,14 @@ public final class HalcyonSession extends WebSession {
         KeycloakSecurityContext securityContext = (KeycloakSecurityContext) req.getContainerRequest().getAttribute(KeycloakSecurityContext.class.getName());
         if (securityContext==null) {
             uuid = "urn:uuid:"+UUID.randomUUID().toString();
-            token = null;
+      //      token = null;
             principal = new HalcyonPrincipal(uuid, true);
         } else {
             AccessToken token2 = securityContext.getToken();
-            this.token = securityContext.getTokenString();
+        //    this.token = securityContext.getTokenString();
             uuid = "urn:uuid:"+token2.getSubject();
-            principal = new HalcyonPrincipal(uuid, false);
+            principal = new HalcyonPrincipal(new JwtToken(securityContext.getTokenString()),false);
+            //principal = new HalcyonPrincipal(uuid, false);
         }
 
         if (securityContext!=null) {
@@ -113,10 +119,6 @@ public final class HalcyonSession extends WebSession {
                 System.out.println("not able to update/Parse groups...");
             }
         }
-    }
-    
-    public String getToken() {
-        return token;
     }
     
     public String getUUID() {

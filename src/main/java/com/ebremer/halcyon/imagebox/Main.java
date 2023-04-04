@@ -5,18 +5,13 @@ import com.ebremer.halcyon.HalcyonSettings;
 import com.ebremer.halcyon.INIT;
 import com.ebremer.halcyon.fuseki.HalcyonProxyServlet;
 import com.ebremer.halcyon.datum.SessionsManager;
-import com.ebremer.halcyon.fuseki.jwt.GetPublicKey;
-import com.ebremer.halcyon.fuseki.jwt.KeycloakPublicKeyFetcher;
 import com.ebremer.halcyon.gui.HalcyonApplication;
 import io.undertow.UndertowOptions;
-import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.KeyStore;
 import java.security.NoSuchAlgorithmException;
-import java.security.PublicKey;
-import java.security.spec.InvalidKeySpecException;
 import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -61,10 +56,8 @@ public class Main {
     public ServletRegistrationBean proxyServletRegistrationBean() {
         ServletRegistrationBean bean = new ServletRegistrationBean(new HalcyonProxyServlet(), "/sparql/*");
         bean.addInitParameter("targetUri", "http://localhost:8887/rdf");
-        //bean.addInitParameter("targetUri", "https://e1d0d1f2f7f7ecfb2e5ff7faef143702.m.pipedream.net");
         bean.addInitParameter(ProxyServlet.P_PRESERVECOOKIES, "true");
         bean.addInitParameter(ProxyServlet.P_HANDLEREDIRECTS, "true");
-        //bean.addInitParameter(ProxyServlet.P_HANDLECOMPRESSION, "true");
         return bean;
     }
     
@@ -119,7 +112,7 @@ public class Main {
 	    registration.addUrlPatterns("/*");
             registration.setOrder(0);
             registration.addInitParameter(KeycloakOIDCFilter.CONFIG_FILE_PARAM, "keycloak.json");
-            registration.addInitParameter(KeycloakOIDCFilter.SKIP_PATTERN_PARAM, "(^/sparql.*|^/wicket/resource/com.*\\.css|^/gui/public|^/gui/vendor/openseadragon/.*|^/auth/.*|^/favicon.ico|^/auth/.*$)");
+            registration.addInitParameter(KeycloakOIDCFilter.SKIP_PATTERN_PARAM, "(^/multi-viewer.*|^/iiif.*|^/gui/viewer.*|^/gui|^/gui/about|^/gui/ListImages.*|^/sparql.*|^/wicket/resource/com.*\\.css|^/gui/public|^/gui/vendor/openseadragon/.*|^/auth/.*|^/favicon.ico|^/auth/.*$)");
             registration.setEnabled(true);
         return registration;
     }

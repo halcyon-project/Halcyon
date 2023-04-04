@@ -2,6 +2,7 @@ package com.ebremer.halcyon.datum;
 
 import com.ebremer.halcyon.fuseki.SPARQLEndPoint;
 import com.ebremer.halcyon.HalcyonSettings;
+import static com.ebremer.halcyon.datum.DataCore.Level.CLOSED;
 import com.ebremer.halcyon.filesystem.FileManager;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.DatasetFactory;
@@ -24,6 +25,7 @@ public class DataCore {
     private static DataCore core = null;
     private static Dataset ds = null;
     private static HalcyonSettings hs = null;
+    public static enum Level { CLOSED, OPEN };
 
     private DataCore() {
         hs = HalcyonSettings.getSettings();
@@ -46,7 +48,11 @@ public class DataCore {
 
     
     public Dataset getSecuredDataset() {
-        return DatasetFactory.wrap(new SecuredDatasetGraph(getDataset().asDatasetGraph(), new WACSecurityEvaluator()));
+        return DatasetFactory.wrap(new SecuredDatasetGraph(getDataset().asDatasetGraph(), new WACSecurityEvaluator(CLOSED)));
+    }
+
+    public Dataset getSecuredDataset(Level level) {
+        return DatasetFactory.wrap(new SecuredDatasetGraph(getDataset().asDatasetGraph(), new WACSecurityEvaluator(level)));
     }
     
     public void replaceNamedGraph(Resource k, Model m) {

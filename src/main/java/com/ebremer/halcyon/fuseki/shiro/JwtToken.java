@@ -1,4 +1,5 @@
-package com.ebremer.halcyon.fuseki.jwt;
+package com.ebremer.halcyon.fuseki.shiro;
+
 
 import io.jsonwebtoken.Claims;
 import java.security.PublicKey;
@@ -17,7 +18,11 @@ public class JwtToken implements AuthenticationToken {
 
     @Override
     public Object getPrincipal() {
-        return getClaims().getSubject();
+        return token; //getClaims().getSubject();
+    }
+    
+    public String getJwt() {
+        return token;
     }
 
     @Override
@@ -30,3 +35,16 @@ public class JwtToken implements AuthenticationToken {
     }
 }
 
+
+
+/*
+        this.token = token;
+        PublicKey publicKey = KeycloakPublicKeyFetcher.getKeycloakPublicKeyFetcher().getPublicKey();
+        Claims claimsx = null;
+        try {
+            claimsx = new JwtVerifier(publicKey).verify(token);
+        } catch (Exception ex) {
+            System.out.println(ex.toString());
+        }
+        this.claims = claimsx;
+*/

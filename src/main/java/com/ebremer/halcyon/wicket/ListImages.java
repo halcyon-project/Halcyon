@@ -8,6 +8,8 @@ import com.ebremer.ethereal.Solution;
 import com.ebremer.halcyon.datum.Patterns;
 import com.ebremer.ns.HAL;
 import com.ebremer.ethereal.NodeColumn;
+import com.ebremer.halcyon.datum.DataCore;
+import static com.ebremer.halcyon.datum.DataCore.Level.OPEN;
 import com.ebremer.halcyon.gui.HalcyonSession;
 import com.ebremer.multiviewer.MultiViewer;
 import com.ebremer.ns.EXIF;
@@ -82,7 +84,7 @@ public class ListImages extends BasePage {
         pss.setNsPrefix("so", SchemaDO.NS);
         pss.setNsPrefix("exif", EXIF.NS);
         pss.setIri("car", HAL.CollectionsAndResources.getURI());
-        Dataset ds = DatabaseLocator.getDatabase().getSecuredDataset();
+        Dataset ds = DatabaseLocator.getDatabase().getSecuredDataset(OPEN);
         //Dataset ds = DatabaseLocator.getDatabase().getDataset();
         rdfsdf = new SelectDataProvider(ds,pss.toString());
         rdfsdf.SetSPARQL(pss.toString());
@@ -95,8 +97,10 @@ public class ListImages extends BasePage {
                     new LoadableDetachableModel<List<Node>>() {
                         @Override
                         protected List<Node> load() {
-                            List<Node> list = Patterns.getCollectionList(rdg.load());
-                            list.add(NodeFactory.createURI("urn:halcyon:nocollections"));
+                            //List<Node> list = Patterns.getCollectionList(rdg.load());
+                            Dataset ww = DataCore.getInstance().getSecuredDataset(OPEN);
+                            List<Node> list = Patterns.getCollectionList(ww);
+                            //list.add(NodeFactory.createURI("urn:halcyon:nocollections"));
                             return list;
                         }
                     },
