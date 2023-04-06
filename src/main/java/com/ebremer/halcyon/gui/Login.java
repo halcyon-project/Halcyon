@@ -35,6 +35,7 @@ public class Login extends WebPage implements IMarkupResourceStreamProvider {
             System.out.println("===============");
             System.out.println(securityContext!=null);
             System.out.println("===============");
+            getSession().invalidate();
     }
     
     

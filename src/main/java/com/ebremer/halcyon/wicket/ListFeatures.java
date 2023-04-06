@@ -83,13 +83,10 @@ public class ListFeatures extends Panel {
         pss.setNsPrefix("so", SchemaDO.NS);
         pss.setNsPrefix("exif", EXIF.NS);
         pss.setIri("car", HAL.CollectionsAndResources.getURI());
-        //Dataset ds = DatabaseLocator.getDatabase().getSecuredDataset();
-        Dataset ds = DatabaseLocator.getDatabase().getDataset();
-        //System.out.println("F1 ---> "+pss.toString());
+        Dataset ds = DatabaseLocator.getDatabase().getSecuredDataset();
         rdfsdf = new SelectDataProvider(ds,pss.toString());
         ParameterizedSparqlString pss2 = rdfsdf.getPSS();
         pss2.setIri("collection", "urn:halcyon:nothing");
-        //System.out.println("F2 ---> "+pss2.toString());
         rdfsdf.SetSPARQL(pss2.toString());
         AjaxFallbackDefaultDataTable table = new AjaxFallbackDefaultDataTable<>("table", columns, rdfsdf, 25);
         add(table);
@@ -116,7 +113,6 @@ public class ListFeatures extends Panel {
             protected void onAfterSubmit(AjaxRequestTarget target) {
                 ParameterizedSparqlString pss = rdfsdf.getPSS();
                 pss.setIri("collection", ddc.getModelObject().toString());
-                System.out.println("F2X ---> "+pss.toString());
                 rdfsdf.SetSPARQL(pss.toString());
                 target.add(table);
             }

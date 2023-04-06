@@ -196,13 +196,13 @@ public class HeatMap2OA {
                 //body.addProperty(HAL.assertedClass, classuri)
                 Float yay = (Float)p.neovalue;
                 int clazz = yay.intValue();
-                Resource blah = m.createResource("urn:gmm:"+clazz);
+                //Resource blah = m.createResource("urn:gmm:"+clazz);
                 //Resource blah = m.createResource("urn:kmeans:"+clazz);
-                //body.addProperty(HAL.assertedClass, classuri)
-                body.addProperty(HAL.assertedClass, blah)
+                body.addProperty(HAL.assertedClass, classuri)
+                //body.addProperty(HAL.assertedClass, blah)
                     .addProperty(RDF.type, HAL.ProbabilityBody)
-                    //.addLiteral(HAL.hasCertainty, (Float) p.neovalue);
-                    .addLiteral(HAL.hasCertainty, (Float) 1.0f);
+                    .addLiteral(HAL.hasCertainty, (Float) p.neovalue);
+                    //.addLiteral(HAL.hasCertainty, (Float) 1.0f);
             });
         } catch (IOException ex) {
             Logger.getLogger(HeatMap2OA.class.getName()).log(Level.SEVERE, null, ex);

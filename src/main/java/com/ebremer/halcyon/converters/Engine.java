@@ -40,6 +40,7 @@ import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.Property;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.riot.Lang;
+import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.riot.RDFParserBuilder;
 import org.apache.jena.riot.RDFWriter;
 import org.apache.jena.riot.RIOT;
@@ -239,7 +240,7 @@ public class Engine {
             list.forEach(f->{
                 if (f.isDone()) {
                     try {
-                        System.out.println("Adding : "+(engine.getQueue().size()+engine.getActiveCount()));
+                        //System.out.println("Adding : "+(engine.getQueue().size()+engine.getActiveCount()));
                         bw.Add(f.get());
                         list.remove(f);
                     } catch (InterruptedException ex) {
@@ -428,7 +429,7 @@ public class Engine {
             """
             construct where {
                 ?roc
-                    a hal:HalcyonROCrate;
+                    a so:Dataset;
                     hal:hasCreateAction ?ca;
                     ?rocp ?roco .
                 ?ca
@@ -437,13 +438,15 @@ public class Engine {
             }
             """, Standard.getStandardPrefixes());
         pss.setIri("newroc", r.getURI());
-        //System.out.println("================== META 1 ===============================");
-        //System.out.println(pss.toString());
+        pss.setNsPrefix("hal", HAL.NS);
+        pss.setNsPrefix("so", SchemaDO.NS);
+        System.out.println("================== META 1 ===============================");
+        System.out.println(pss.toString());
         QueryExecution qe = QueryExecutionFactory.create(pss.toString(),m);
         Model k = qe.execConstruct();
-        //System.out.println("================== META 1 dump ===============================");
-        //RDFDataMgr.write(System.out, k, Lang.TURTLE);
-        //System.out.println("================== META 1 dump end ===============================");
+        System.out.println("================== META 1 dump ===============================");
+        RDFDataMgr.write(System.out, k, Lang.TURTLE);
+        System.out.println("================== META 1 dump end ===============================");
         UpdateRequest update = UpdateFactory.create();
         pss = new ParameterizedSparqlString(
         """
@@ -471,11 +474,18 @@ public class Engine {
         }
         """, Standard.getStandardPrefixes());
         pss.setIri("newroc", r.getURI());
+        pss.setNsPrefix("hal", HAL.NS);
+        pss.setNsPrefix("so", SchemaDO.NS);
         update.add(pss.toString());
         pss = new ParameterizedSparqlString("delete where {?roc a hal:HalcyonROCrate}", Standard.getStandardPrefixes());
         pss.setIri("newroc", r.getURI());
+        pss.setNsPrefix("hal", HAL.NS);
+        pss.setNsPrefix("so", SchemaDO.NS);
         update.add(pss.toString());
         UpdateAction.execute(update, k);
+        System.out.println("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
+        RDFDataMgr.write(System.out, k, Lang.TURTLE);
+        System.out.println("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
         return k;
     }
     

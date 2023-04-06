@@ -41,11 +41,9 @@ import loci.formats.MetadataTools;
 import loci.formats.gui.AWTImageTools;
 import loci.formats.in.NDPIReader;
 import loci.formats.in.SVSReader;
-//import loci.formats.in.TiffReader;
 import com.ebremer.halcyon.imagebox.experimental.TiffReader;
 import java.nio.file.Path;
 import java.util.HashMap;
-import java.util.Iterator;
 import loci.formats.meta.IMetadata;
 import loci.formats.meta.MetadataStore;
 import loci.formats.services.OMEXMLService;
@@ -88,21 +86,16 @@ public class NeoTiler {
     private String cookie = null;
     
     public NeoTiler(String f) {
-        //System.out.println("NEOTILER : "+f);
         DebugTools.enableLogging("ERROR");
-        //DebugTools.enableLogging("ALL");
         lastaccessed = System.nanoTime();
         String getthis;
-        //HalcyonSession session = HalcyonSession.get();
         HalcyonSettings settings = HalcyonSettings.getSettings();
         String mainpath = settings.getHostName();
         Path x = null;
         if (f.startsWith(mainpath)) {
             String cut = f.substring(mainpath.length());
             HashMap<String, String> mappings = settings.getmappings();
-            Iterator<String> i = mappings.keySet().iterator();
-            while (i.hasNext()) {
-                String key = i.next();
+            for (String key : mappings.keySet()) {
                 if (cut.startsWith(key)) {
                     String chunk = cut.substring(key.length());
                     x = Path.of(mappings.get(key), chunk);
@@ -110,17 +103,13 @@ public class NeoTiler {
             }
         }
         if (x !=null) {
-            //System.out.println("SUPER LOCAL PROTOCOL ACCESS");
             getthis = x.toString();
         } else if ((f.startsWith("https://")||f.startsWith("http://"))) {
-            //System.out.println("WEB PROTOCOL ACCESS : "+f);
             HTTPIRandomAccess bbb = new HTTPIRandomAccess(f);
-            //bbb.setCookie(cookie);
             bbb.init();
             getthis = "charm";
             Location.mapFile(getthis, bbb); 
         } else {
-            //System.out.println("LOCAL PROTOCOL ACCESS");
             getthis = f;
         }
         String fileType = f.substring(f.lastIndexOf('.') + 1);
@@ -153,6 +142,7 @@ public class NeoTiler {
         if (!borked) {
             newRoot = (OMEXMLMetadataRoot) meta.getRoot();
             numi = reader.getSeriesCount();
+         //   System.out.println("getSeriesCount : "+numi);
             if (getthis.endsWith(".vsi")) {
                 lowerbound = MaxImage(reader);
             }
@@ -167,9 +157,9 @@ public class NeoTiler {
             py = new int[numi];
             pr = new int[numi];
             pi = new int[numi];
-            for (int j=0;j<reader.getSeriesCount()-1;j++) {
+            for (int j=0;j<numi;j++) {
                 big = reader.getCoreMetadataList().get(j);
-                //System.out.println(j+" >>> "+big.sizeX+","+big.sizeY+" aspect ratio : "+(((float) big.sizeX)/((float)big.sizeY)));
+               // System.out.println(j+" >>> "+big.sizeX+","+big.sizeY+" aspect ratio : "+(((float) big.sizeX)/((float)big.sizeY)));
             }
             big = reader.getCoreMetadataList().get(lowerbound);
             float ratio = ((float) big.sizeX)/((float) big.sizeY);
@@ -209,6 +199,27 @@ public class NeoTiler {
         }
     }
     
+    public void SortImages() {
+        boolean sorted = false;
+        while (!sorted) {
+            sorted = true;
+            for (int i = 0; i<numi-1; i++) {
+                if (px[i]<px[i+1]) {
+                    int temp = px[i];
+                    px[i] = px[i+1];
+                    px[i+1] = temp;
+                    temp = py[i];
+                    py[i] = py[i+1];
+                    py[i+1] = temp;
+                    temp = pi[i];
+                    pi[i] = pi[i+1];
+                    pi[i+1] = temp;
+                    sorted = false;
+                }
+            }
+        }
+    }
+    
     public void setCookie(String cookie) {
         this.cookie = cookie;
     }
@@ -216,6 +227,14 @@ public class NeoTiler {
     public void setURL(String r) {
         //System.out.println("setURL : "+r);
         url = r;
+    }
+    
+    public void close() {
+        try {
+            reader.close();
+        } catch (IOException ex) {
+            Logger.getLogger(NeoTiler.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
     
     public int GetWidth() {
@@ -253,28 +272,7 @@ public class NeoTiler {
             }
             ii++;
         }
-    return maxseries;
-  }
-
-    public void SortImages() {
-        boolean sorted = false;
-        while (!sorted) {
-            sorted = true;
-            for (int i = 0; i<numi-1; i++) {
-                if (px[i]<px[i+1]) {
-                    int temp = px[i];
-                    px[i] = px[i+1];
-                    px[i+1] = temp;
-                    temp = py[i];
-                    py[i] = py[i+1];
-                    py[i+1] = temp;
-                    temp = pi[i];
-                    pi[i] = pi[i+1];
-                    pi[i+1] = temp;
-                    sorted = false;
-                }
-            }
-        }
+        return maxseries;
     }
 
     public String GetImageInfo() {
@@ -286,7 +284,7 @@ public class NeoTiler {
         m.addLiteral(s, EXIF.yResolution, Math.round(10000/mppy));
         m.addLiteral(s, EXIF.resolutionUnit, 3);
         Resource scale = m.createResource();
-        for (int j=numi;j>=0;j--) {
+        for (int j=upperbound;j>=0;j--) {
             reader.setSeries(j);
             Resource size = m.createResource();
             m.addLiteral(size,IIIF.width,reader.getSizeX());
@@ -347,6 +345,7 @@ public class NeoTiler {
             jj++;
         }
         if (jj>numi) {jj--;}
+        //System.out.println("selecting series : "+pi[jj]);
        	reader.setSeries(pi[jj]);
        	double rr = ((double) reader.getSizeX())/((double) iWidth);
         int gx=(int) (x*rr);
@@ -369,7 +368,7 @@ public class NeoTiler {
     }
     
     private BufferedImage GrabImage(int xpos, int ypos, int width, int height, String type) {
-        //System.out.println("grab image : "+xpos+ " "+ypos+" "+width+" "+height+"=== "+type);
+        //System.out.println("grab image : "+xpos+ " "+ypos+" "+width+" "+height+" === "+type);
         meta.setRoot(newRoot);
         meta.setPixelsSizeX(new PositiveInteger(width), 0);
         meta.setPixelsSizeY(new PositiveInteger(height), 0);

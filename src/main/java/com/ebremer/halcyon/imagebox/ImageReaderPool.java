@@ -16,11 +16,12 @@ public class ImageReaderPool {
     public static synchronized ImageReaderKeyedPool<String, NeoTiler> getPool() {
         if (pool == null) {
             GenericKeyedObjectPoolConfig<NeoTiler> config = new GenericKeyedObjectPoolConfig<>();
-            config.setMaxTotalPerKey(6);
+            config.setMaxTotalPerKey(1);
             config.setMinIdlePerKey(0);
-            config.setMaxWait(Duration.ofMillis(10000));
+            config.setMaxWait(Duration.ofMillis(60000));
             config.setBlockWhenExhausted(true);
-            config.setTimeBetweenEvictionRuns(Duration.ofMillis(10000));
+            config.setMinEvictableIdleTime(Duration.ofMillis(60000));
+            config.setTimeBetweenEvictionRuns(Duration.ofMillis(60000));
             pool = new ImageReaderKeyedPool<>(new ImageReaderPoolFactory(),config);
         }
         return pool;

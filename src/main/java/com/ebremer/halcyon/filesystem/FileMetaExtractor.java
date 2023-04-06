@@ -1,5 +1,6 @@
 package com.ebremer.halcyon.filesystem;
 
+import com.ebremer.halcyon.HalcyonSettings;
 import com.ebremer.halcyon.datum.EB;
 import com.ebremer.ns.HAL;
 import com.ebremer.ns.LOC;
@@ -82,10 +83,10 @@ public final class FileMetaExtractor {
                     ROCrateReader roc = new ROCrateReader(file.toURI());
                     //z = roc.getManifest(fixe);
                     z = roc.getManifest();
-                    System.out.println("LOADED : "+z.size());
-                    System.out.println("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
-                    RDFDataMgr.write(System.out, z, RDFFormat.TURTLE_PRETTY);
-                    System.out.println("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
+                    //System.out.println("LOADED : "+z.size());
+                    //System.out.println("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
+                    //RDFDataMgr.write(System.out, z, RDFFormat.TURTLE_PRETTY);
+                    //System.out.println("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
                     UpdateRequest update = UpdateFactory.create();
                     ParameterizedSparqlString pss = new ParameterizedSparqlString("""
                         delete {?s ?p ?o}
@@ -109,9 +110,9 @@ public final class FileMetaExtractor {
                     update.add(pss.toString());
                     UpdateAction.execute(update, z);
                     m.add(z);
-                    System.out.println("Extracted ========================================================\n");
-                    RDFDataMgr.write(System.out, m, Lang.TURTLE);
-                    System.out.println("Extracted END END END ============================================");
+                    //System.out.println("Extracted ========================================================\n");
+                    //RDFDataMgr.write(System.out, m, Lang.TURTLE);
+                    //System.out.println("Extracted END END END ============================================");
                    // roc.close();
                 } catch (IOException ex) {
                     Logger.getLogger(FileMetaExtractor.class.getName()).log(Level.SEVERE, null, ex);
@@ -130,9 +131,10 @@ public final class FileMetaExtractor {
                 System.out.println("Unknown file type : "+extension);
         }
         ZonedDateTime dateTime = ZonedDateTime.now();
-        m.addLiteral(s, HAL.dateRegistered, dateTime.format(formatter));
+        m.addLiteral(s, SchemaDO.datePublished, dateTime.format(formatter));
         m.add(s, SchemaDO.name, s.getLocalName());
         m.addLiteral(s,SchemaDO.contentSize,file.length());
+        s.addProperty(SchemaDO.instrument, HalcyonSettings.HALCYONAGENT);
     }
     
     public void CalculateMD5() {
@@ -161,18 +163,10 @@ public final class FileMetaExtractor {
             m.add(ss,RDF.type,SchemaDO.ImageObject);
             m.addLiteral(ss,EXIF.width,reader.getSizeX());
             m.addLiteral(ss,EXIF.height,reader.getSizeY());
+            reader.close();
         } catch (FormatException | IOException ex) {
             
         }
         return m;
     }
-    
-    /*
-    public static void main(String[] args) {
-        DebugTools.setRootLevel("WARN");
-        File f = new File("D:\\HalcyonStorage\\demo2\\coad_CM-5348\\Cdysplasia_heatmap_TCGA-CM-5348-01Z-00-DX1.2ad0b8f6-684a-41a7-b568-26e97675cce9.zip");
-        FileMetaExtractor fe = new FileMetaExtractor(f);
-        RDFDataMgr.write(System.out, fe.getDataset(), RDFFormat.TRIG_PRETTY);     
-    } 
-*/
 }

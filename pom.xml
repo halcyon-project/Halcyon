@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.ebremer</groupId>
     <artifactId>Halcyon</artifactId>
-    <version>0.0.0</version>
+    <version>0.1.0</version>
     <packaging>jar</packaging>
     <name>Halcyon</name>
     <description>A whole slide image annotation, management, and visualization system</description>
@@ -73,7 +73,7 @@
         <commons-pool2.ver>2.11.1</commons-pool2.ver>
         <jakarta.json.version>2.0.1</jakarta.json.version> 
         <titanium-json-ld.ver>1.3.0</titanium-json-ld.ver>
-        <dcm4che.ver>5.29.1</dcm4che.ver>
+        <dcm4che.ver>5.29.2</dcm4che.ver>
         <resteasy.version>4.7.4.Final</resteasy.version>
         <infinispan.version>13.0.12.Final</infinispan.version>
         <jgroups.version>4.2.21.Final</jgroups.version>
@@ -232,7 +232,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-enforcer-plugin</artifactId>
-                        <version>3.1.0</version>
+                        <version>3.2.1</version>
                         <configuration>
                             <rules><dependencyConvergence/></rules>
                         </configuration>
@@ -284,7 +284,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-enforcer-plugin</artifactId>
-                        <version>3.1.0</version>
+                        <version>3.2.1</version>
                         <configuration>
                             <rules><dependencyConvergence/></rules>
                         </configuration>
@@ -292,7 +292,7 @@
                     <plugin>
                         <groupId>org.springframework.experimental</groupId>
                         <artifactId>spring-aot-maven-plugin</artifactId>
-                        <version>0.12.1</version>
+                        <version>0.12.2</version>
                         <executions>
                             <execution>
                                 <id>generate</id>
@@ -305,7 +305,7 @@
                     <plugin>
                         <groupId>org.graalvm.buildtools</groupId>
                         <artifactId>native-maven-plugin</artifactId>
-                        <version>0.9.13</version>
+                        <version>0.9.20</version>
                         <extensions>true</extensions>
                         <executions>
                             <execution>
@@ -375,7 +375,7 @@
                 <dependency>
                     <groupId>org.springframework.experimental</groupId>
                     <artifactId>spring-native</artifactId>
-                    <version>0.12.1</version>
+                    <version>0.12.2</version>
                 </dependency>
             </dependencies>
         </profile>
@@ -386,7 +386,7 @@
                     <plugin>
                         <groupId>org.graalvm.buildtools</groupId>
                         <artifactId>native-maven-plugin</artifactId>
-                        <version>0.9.19</version>
+                        <version>0.9.20</version>
                         <extensions>true</extensions>
                         <executions>
                             <execution>
@@ -661,13 +661,12 @@
             <version>${jena.ver}</version>
             <type>jar</type>
         </dependency>
-        <!--
         <dependency>
             <groupId>org.apache.jena</groupId>
             <artifactId>jena-querybuilder</artifactId>
             <version>${jena.ver}</version>
             <type>jar</type>
-        </dependency>-->
+        </dependency>
         <dependency>
             <groupId>org.apache.jena</groupId>
             <artifactId>jena-permissions</artifactId>
@@ -685,6 +684,12 @@
             <artifactId>jena-fuseki-main</artifactId>
             <version>${jena.ver}</version>
         </dependency>
+        <!--
+        <dependency>
+            <groupId>org.apache.jena</groupId>
+            <artifactId>jena-fuseki-fulljar</artifactId>
+            <version>${jena.ver}</version>
+        </dependency>-->
         <!--  OTHER DEPENDENCIES -->
         <dependency>
             <groupId>com.github.davidmoten</groupId>
@@ -758,6 +763,102 @@
             <groupId>com.ebremer</groupId>
             <artifactId>BeakGraph</artifactId>
             <version>0.0.0</version>
+        </dependency>
+        <!-- DICOM DCM4CHEE
+        <dependency>
+            <groupId>org.dcm4che</groupId>
+            <artifactId>dcm4che-core</artifactId>
+            <version>${dcm4che.ver}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.dcm4che</groupId>
+            <artifactId>dcm4che-json</artifactId>
+            <version>${dcm4che.ver}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.dcm4che</groupId>
+            <artifactId>dcm4che-dict</artifactId>
+            <version>${dcm4che.ver}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.dcm4che.tool</groupId>
+            <artifactId>dcm4che-tool-common</artifactId>
+            <version>${dcm4che.ver}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.dcm4che.tool</groupId>
+            <artifactId>dcm4che-tool-dcm2jpg</artifactId>
+            <version>${dcm4che.ver}</version>
+        </dependency>        
+        <dependency>
+            <groupId>org.dcm4che</groupId>
+            <artifactId>dcm4che-imageio</artifactId>
+            <version>${dcm4che.ver}</version>
+        </dependency>    
+        <dependency>
+            <groupId>org.dcm4che</groupId>
+            <artifactId>dcm4che-imageio-opencv</artifactId>
+            <version>${dcm4che.ver}</version>
+        </dependency> 
+        <dependency>
+            <groupId>org.dcm4che</groupId>
+            <artifactId>dcm4che-image</artifactId>
+            <version>${dcm4che.ver}</version>
+        </dependency> -->
+        <!-- Shiro -->
+        <dependency>
+            <groupId>org.apache.shiro</groupId>
+            <artifactId>shiro-core</artifactId>
+            <version>1.11.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.shiro</groupId>
+            <artifactId>shiro-web</artifactId>
+            <version>1.11.0</version>
+        </dependency>
+        <!--
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>1.18.26</version>
+            <type>jar</type>
+        </dependency>
+                -->
+        <dependency>
+            <groupId>com.jcabi</groupId>
+            <artifactId>jcabi-aspects</artifactId>
+            <version>0.24.1</version>
+            <type>jar</type>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.jena</groupId>
+            <artifactId>jena-tdb</artifactId>
+            <version>${jena.ver}</version>
+            <type>jar</type>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-api</artifactId>
+            <version>0.11.5</version>
+            <type>jar</type>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-impl</artifactId>
+            <version>0.11.5</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-jackson</artifactId>
+            <version>0.11.5</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>1.18.26</version>
+            <type>jar</type>
         </dependency>
     </dependencies>
     <pluginRepositories>

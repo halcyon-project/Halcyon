@@ -108,7 +108,7 @@ public class iboxServlet extends HttpServlet {
                     JPEGImageWriteParam jpegParams = new JPEGImageWriteParam(null);
                     jpegParams.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
                     jpegParams.setCompressionQuality(0.7f);
-                    ImageOutputStream imageOut=ImageIO.createImageOutputStream(baos);
+                    ImageOutputStream imageOut = ImageIO.createImageOutputStream(baos);
                     writer.setOutput(imageOut);
                     writer.write(null,new IIOImage(originalImage,null,null),jpegParams);                
                     baos.flush();
@@ -140,10 +140,10 @@ public class iboxServlet extends HttpServlet {
                 nt.setURL(settings.getProxyHostName()+request.getRequestURI()+"?"+request.getQueryString());
                 response.setContentType("application/json");
                 response.setHeader("Access-Control-Allow-Origin", "*");
-                PrintWriter writer = response.getWriter();
-                writer.append(nt.GetImageInfo());
-                writer.flush();
-                writer.close();
+                try (PrintWriter writer = response.getWriter()) {
+                    writer.append(nt.GetImageInfo());
+                    writer.flush();
+                }
             } else {
                 System.out.println("unknown IIIF request");
             }

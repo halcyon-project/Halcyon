@@ -132,7 +132,7 @@ public class NS2OA {
                     so:license <https://creativecommons.org/licenses/by-nc-sa/3.0/au/>;
                     so:name "cnn-nuclear-segmentations-2019";
                     hal:hasCreateAction <https://bmi.stonybrookmedicine.edu/nuclearsegmentation/tcga/2019>;
-                    a hal:HalcyonROCrate;
+                    a so:Dataset, hal:HalcyonROCrate;
                     so:publisher <https://ror.org/05qghxh33>, <https://ror.org/01882y777> .
                         
                     <https://bmi.stonybrookmedicine.edu/nuclearsegmentation/tcga/2019> a so:CreateAction;

@@ -10,7 +10,7 @@
   <groupId>com.ebremer</groupId>
   <artifactId>Halcyon</artifactId>
   <name>Halcyon</name>
-  <version>0.0.0</version>
+  <version>0.1.0</version>
   <description>A whole slide image annotation, management, and visualization system</description>
   <issueManagement>
     <system>github</system>
@@ -342,7 +342,6 @@
         <plugins>
           <plugin>
             <artifactId>maven-shade-plugin</artifactId>
-            <version>3.2.4</version>
             <executions>
               <execution>
                 <phase>package</phase>
@@ -368,43 +367,9 @@
                       <mainClass>com.ebremer.halcyon.converters.NS2OA</mainClass>
                     </transformer>
                   </transformers>
-                  <keepDependenciesWithProvidedScope>true</keepDependenciesWithProvidedScope>
-                  <createDependencyReducedPom>true</createDependencyReducedPom>
-                  <filters>
-                    <filter>
-                      <artifact>*:*</artifact>
-                      <excludes>
-                        <exclude>META-INF/*.SF</exclude>
-                        <exclude>META-INF/*.DSA</exclude>
-                        <exclude>META-INF/*.RSA</exclude>
-                      </excludes>
-                    </filter>
-                  </filters>
                 </configuration>
               </execution>
             </executions>
-            <dependencies>
-              <dependency>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-                <version>2.6.13</version>
-                <scope>compile</scope>
-              </dependency>
-            </dependencies>
-            <configuration>
-              <keepDependenciesWithProvidedScope>true</keepDependenciesWithProvidedScope>
-              <createDependencyReducedPom>true</createDependencyReducedPom>
-              <filters>
-                <filter>
-                  <artifact>*:*</artifact>
-                  <excludes>
-                    <exclude>META-INF/*.SF</exclude>
-                    <exclude>META-INF/*.DSA</exclude>
-                    <exclude>META-INF/*.RSA</exclude>
-                  </excludes>
-                </filter>
-              </filters>
-            </configuration>
           </plugin>
         </plugins>
       </build>
@@ -455,6 +420,7 @@
         <plugins>
           <plugin>
             <artifactId>maven-shade-plugin</artifactId>
+            <version>3.2.4</version>
             <executions>
               <execution>
                 <phase>package</phase>
@@ -480,9 +446,43 @@
                       <mainClass>com.ebremer.halcyon.converters.Ingest</mainClass>
                     </transformer>
                   </transformers>
+                  <keepDependenciesWithProvidedScope>true</keepDependenciesWithProvidedScope>
+                  <createDependencyReducedPom>true</createDependencyReducedPom>
+                  <filters>
+                    <filter>
+                      <artifact>*:*</artifact>
+                      <excludes>
+                        <exclude>META-INF/*.SF</exclude>
+                        <exclude>META-INF/*.DSA</exclude>
+                        <exclude>META-INF/*.RSA</exclude>
+                      </excludes>
+                    </filter>
+                  </filters>
                 </configuration>
               </execution>
             </executions>
+            <dependencies>
+              <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <version>2.6.13</version>
+                <scope>compile</scope>
+              </dependency>
+            </dependencies>
+            <configuration>
+              <keepDependenciesWithProvidedScope>true</keepDependenciesWithProvidedScope>
+              <createDependencyReducedPom>true</createDependencyReducedPom>
+              <filters>
+                <filter>
+                  <artifact>*:*</artifact>
+                  <excludes>
+                    <exclude>META-INF/*.SF</exclude>
+                    <exclude>META-INF/*.DSA</exclude>
+                    <exclude>META-INF/*.RSA</exclude>
+                  </excludes>
+                </filter>
+              </filters>
+            </configuration>
           </plugin>
         </plugins>
       </build>

@@ -17,7 +17,6 @@ public class FLPoolFactory extends BaseKeyedPooledObjectFactory<URI, FL> {
     private final String base;
     
     public FLPoolFactory(String base) {
-        System.out.println("Building FL Factory X...");
         this.base = base;
     }
 
@@ -32,7 +31,6 @@ public class FLPoolFactory extends BaseKeyedPooledObjectFactory<URI, FL> {
     
     @Override
     public PooledObject<FL> wrap(FL value) {
-        //System.out.println("wrap FL...");
         return new DefaultPooledObject<>(value);
     }
 

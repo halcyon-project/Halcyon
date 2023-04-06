@@ -8,8 +8,9 @@ import com.ebremer.ethereal.Solution;
 import com.ebremer.halcyon.datum.Patterns;
 import com.ebremer.ns.HAL;
 import com.ebremer.ethereal.NodeColumn;
+import com.ebremer.halcyon.datum.DataCore;
+import static com.ebremer.halcyon.datum.DataCore.Level.OPEN;
 import com.ebremer.halcyon.gui.HalcyonSession;
-//import com.ebremer.halcyon.utils.StopWatch;
 import com.ebremer.multiviewer.MultiViewer;
 import com.ebremer.ns.EXIF;
 import java.util.HashSet;
@@ -50,7 +51,7 @@ public class ListImages extends BasePage {
     private static final long serialVersionUID = 1L;
     private SelectDataProvider rdfsdf;
     private final ListFeatures lf;
-    private boolean FeatureFilter = false;
+    //private boolean FeatureFilter = false;
     
     public ListImages() {
         List<IColumn<Solution, String>> columns = new LinkedList<>();
@@ -83,21 +84,23 @@ public class ListImages extends BasePage {
         pss.setNsPrefix("so", SchemaDO.NS);
         pss.setNsPrefix("exif", EXIF.NS);
         pss.setIri("car", HAL.CollectionsAndResources.getURI());
-        //Dataset ds = DatabaseLocator.getDatabase().getSecuredDataset();
-        Dataset ds = DatabaseLocator.getDatabase().getDataset();
+        Dataset ds = DatabaseLocator.getDatabase().getSecuredDataset(OPEN);
+        //Dataset ds = DatabaseLocator.getDatabase().getDataset();
         rdfsdf = new SelectDataProvider(ds,pss.toString());
         rdfsdf.SetSPARQL(pss.toString());
         AjaxFallbackDefaultDataTable table = new AjaxFallbackDefaultDataTable<>("table", columns, rdfsdf, 25);
         add(table);
         RDFDetachableModel rdg = new RDFDetachableModel(Patterns.getCollectionRDF());
         LDModel ldm = new LDModel(rdg);
-        //StopWatch ddct = new StopWatch(true);
         DropDownChoice<Node> ddc = 
             new DropDownChoice<>("collection", ldm,
                     new LoadableDetachableModel<List<Node>>() {
                         @Override
                         protected List<Node> load() {
-                            List<Node> list = Patterns.getCollectionList(rdg.load());
+                            //List<Node> list = Patterns.getCollectionList(rdg.load());
+                            Dataset ww = DataCore.getInstance().getSecuredDataset(OPEN);
+                            List<Node> list = Patterns.getCollectionList(ww);
+                            //list.add(NodeFactory.createURI("urn:halcyon:nocollections"));
                             return list;
                         }
                     },
@@ -176,23 +179,3 @@ public class ListImages extends BasePage {
         }
     }
 }
-                /*
-                Query q = rdfsdf.getQuery();
-                Q.removeAllFilters(q);
-                WhereHandler wh = new WhereHandler(q);
-                try {   
-                    String filter;
-                    switch (ddc.getModelObject().toString()) {
-                        case "urn:halcyon:nocollections":
-                            filter = "!bound(?collection)";
-                            wh.addFilter(filter);
-                            break;
-                        case "urn:halcyon:allcollections":
-                            break;
-                        default:
-                            filter = "(?collection=<"+ddc.getModelObject().toString()+">)";   // "bound(?collection)&&(?collection=<"+ddc.getModelObject().toString()+">)"
-                            wh.addFilter(filter);
-                            break;
-                    }
-                    rdfsdf.setQuery(q);
-*/

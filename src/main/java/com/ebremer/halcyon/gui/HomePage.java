@@ -5,7 +5,7 @@ import org.apache.wicket.MarkupContainer;
 import org.apache.wicket.devutils.stateless.StatelessComponent;
 import org.apache.wicket.markup.IMarkupCacheKeyProvider;
 
-@StatelessComponent
+//@StatelessComponent
 public class HomePage extends BasePage implements IMarkupCacheKeyProvider {  // IMarkupResourceStreamProvider, 
     private static final long serialVersionUID = 1L;
         

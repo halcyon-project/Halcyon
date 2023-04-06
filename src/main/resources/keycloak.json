@@ -1,6 +1,6 @@
 {
   "realm": "master",
-  "auth-server-url": "/auth/",
+  "auth-server-url": "http://localhost:8888/auth/",
   "ssl-required": "none",
   "resource": "account",
   "public-client": true,

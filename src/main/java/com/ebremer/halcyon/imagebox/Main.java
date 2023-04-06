@@ -1,13 +1,17 @@
 package com.ebremer.halcyon.imagebox;
 
+import com.ebremer.halcyon.keycloak.HALKeycloakOIDCFilter;
 import com.ebremer.halcyon.HalcyonSettings;
 import com.ebremer.halcyon.INIT;
+import com.ebremer.halcyon.fuseki.HalcyonProxyServlet;
+import com.ebremer.halcyon.datum.SessionsManager;
 import com.ebremer.halcyon.gui.HalcyonApplication;
 import io.undertow.UndertowOptions;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.KeyStore;
+import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -21,6 +25,7 @@ import org.apache.wicket.RuntimeConfigurationType;
 import org.apache.wicket.protocol.http.ContextParamWebApplicationFactory;
 import org.apache.wicket.protocol.http.WicketFilter;
 import org.keycloak.adapters.servlet.KeycloakOIDCFilter;
+import org.keycloak.adapters.spi.SessionIdMapper;
 import org.mitre.dsmiley.httpproxy.ProxyServlet;
 import org.springframework.boot.Banner.Mode;
 import org.springframework.boot.SpringApplication;
@@ -29,21 +34,30 @@ import org.springframework.boot.autoconfigure.liquibase.LiquibaseAutoConfigurati
 import org.springframework.boot.web.embedded.undertow.UndertowServletWebServerFactory;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.boot.web.servlet.ServletRegistrationBean;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
-import org.springframework.web.servlet.config.annotation.WebMvcConfigurerAdapter;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @SpringBootApplication(exclude = LiquibaseAutoConfiguration.class)
 public class Main {
     private final HalcyonSettings settings = HalcyonSettings.getSettings();
+    private static final SessionIdMapper sessionidmapper = SessionsManager.getSessionsManager().getSessionIdMapper();
+    
+    public static SessionIdMapper getSessionIdMapper() {
+        return sessionidmapper;
+    }
 
     @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
     public ServletRegistrationBean proxyServletRegistrationBean() {
-        ServletRegistrationBean bean = new ServletRegistrationBean(new ProxyServlet(), "/sparql/*");
+        ServletRegistrationBean bean = new ServletRegistrationBean(new HalcyonProxyServlet(), "/sparql/*");
         bean.addInitParameter("targetUri", "http://localhost:8887/rdf");
+        bean.addInitParameter(ProxyServlet.P_PRESERVECOOKIES, "true");
+        bean.addInitParameter(ProxyServlet.P_HANDLEREDIRECTS, "true");
         return bean;
     }
     
@@ -78,7 +92,6 @@ public class Main {
     }  
     
     @Bean
-    @Order(Ordered.LOWEST_PRECEDENCE)
     ServletRegistrationBean iboxServletRegistration () {
         System.out.println("iboxServletRegistration order: "+Ordered.LOWEST_PRECEDENCE);
         ServletRegistrationBean srb = new ServletRegistrationBean();
@@ -86,33 +99,34 @@ public class Main {
         srb.setUrlMappings(Arrays.asList("/iiif/*"));
         return srb;
     }
-
-    @Bean
-    @Order(20)
-    ServletRegistrationBean HalcyonServletRegistration () {
-        ServletRegistrationBean srb = new ServletRegistrationBean();
-        srb.setServlet(new HalcyonServlet());
-        srb.setUrlMappings(Arrays.asList("/halcyon/*"));
-        return srb;
-    }
     
     @Bean
-    @Order(Ordered.HIGHEST_PRECEDENCE)
     public FilterRegistrationBean<HALKeycloakOIDCFilter> KeycloakOIDCFilterFilterRegistration(){
         System.out.println("KeycloakOIDCFilterFilterRegistration order: "+Ordered.HIGHEST_PRECEDENCE);
+            HALKeycloakOIDCFilter filter = new HALKeycloakOIDCFilter();
+            //filter.setSessionIdMapper(SessionsManager.getSessionsManager().getSessionIdMapper());
+            filter.setSessionIdMapper(getSessionIdMapper());
 	    FilterRegistrationBean<HALKeycloakOIDCFilter> registration = new FilterRegistrationBean<>();
-	    registration.setFilter(new HALKeycloakOIDCFilter());
+	    registration.setFilter(filter);
             registration.setName("keycloak");
 	    registration.addUrlPatterns("/*");
+            registration.setOrder(0);
             registration.addInitParameter(KeycloakOIDCFilter.CONFIG_FILE_PARAM, "keycloak.json");
-            //registration.addInitParameter(KeycloakOIDCFilter.SKIP_PATTERN_PARAM, "(^/HalcyonStorage/.*svs$|^/gui/vendor/openseadragon/.*|^/auth/.*|^/favicon.ico|^/iiif/.*|^/auth/.*|^/halcyon/.*|^/HalcyonStorage/.*$)");
-            registration.addInitParameter(KeycloakOIDCFilter.SKIP_PATTERN_PARAM, "(^/gui/vendor/openseadragon/.*|^/auth/.*|^/favicon.ico|^/auth/.*$)");
+            registration.addInitParameter(KeycloakOIDCFilter.SKIP_PATTERN_PARAM, "(^/multi-viewer.*|^/iiif.*|^/gui/viewer.*|^/gui|^/gui/about|^/gui/ListImages.*|^/sparql.*|^/wicket/resource/com.*\\.css|^/gui/public|^/gui/vendor/openseadragon/.*|^/auth/.*|^/favicon.ico|^/auth/.*$)");
             registration.setEnabled(true);
         return registration;
     }
     
     @Bean
-    @Order(1)
+    public FilterRegistrationBean<JwtInterceptor> headerAddingFilter() {
+        FilterRegistrationBean<JwtInterceptor> registrationBean = new FilterRegistrationBean<>();
+        registrationBean.setFilter(new JwtInterceptor());
+        registrationBean.addUrlPatterns("/*");
+        registrationBean.setOrder(1);
+        return registrationBean;
+    }
+    
+    @Bean
     public FilterRegistrationBean<WicketFilter> wicketFilterRegistration(){
         HalcyonApplication hal = new HalcyonApplication();
         hal.setConfigurationType(RuntimeConfigurationType.DEPLOYMENT);
@@ -120,15 +134,25 @@ public class Main {
         filter.setFilterPath("/");
         FilterRegistrationBean<WicketFilter> registration = new FilterRegistrationBean<>();
         registration.setFilter(filter);
+        registration.setOrder(2);
         registration.addInitParameter(ContextParamWebApplicationFactory.APP_CLASS_PARAM, HalcyonApplication.class.getName());
         registration.addInitParameter(WicketFilter.FILTER_MAPPING_PARAM, "/");
         registration.setDispatcherTypes(DispatcherType.REQUEST, DispatcherType.FORWARD);
         return registration;
     }
-            
+    
+    @Bean
+    ServletRegistrationBean HalcyonServletRegistration () {
+        ServletRegistrationBean srb = new ServletRegistrationBean();
+        srb.setServlet(new HalcyonServlet());
+        srb.setOrder(20);
+        srb.setUrlMappings(Arrays.asList("/halcyon/*"));
+        return srb;
+    }
     
     @Configuration
-    public class StaticResourceConfiguration extends WebMvcConfigurerAdapter {
+    public class HalcyonResourceConfiguration implements WebMvcConfigurer {
+        
         @Override
         public void addResourceHandlers(ResourceHandlerRegistry registry) {
             String mv = settings.getMultiewerLocation();
@@ -183,16 +207,17 @@ public class Main {
         }
     }
 
-    public static void main(String[] args) {
-        //ch.qos.logback.classic.Logger root = (ch.qos.logback.classic.Logger)LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME);
-        //root.setLevel(ch.qos.logback.classic.Level.ALL);
-     //   System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", "debug");
-      //  System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", "debug");
-
+    public static void main(String[] args) throws NoSuchAlgorithmException {
         INIT i = new INIT();
         i.init();
         SpringApplication app = new SpringApplication(Main.class);
         app.setBannerMode(Mode.CONSOLE);
-        app.run(args);
+        ApplicationContext yay = app.run(args);
+        System.out.println("===================== " +app.getWebApplicationType());
+        //ApplicationContext ha = (ApplicationContext) yay;
+        //WebServerApplicationContext webContext = (WebServerApplicationContext) ha;
+        //System.out.println(webContext.getWebServer());
+        //UndertowServletWebServer ut = (UndertowServletWebServer) webContext.getWebServer();
+        //SessionManager sm = ut.getDeploymentManager().getDeployment().getSessionManager();
     }
 }

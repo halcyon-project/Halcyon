@@ -4,6 +4,8 @@ import com.ebremer.halcyon.sparql.Sparql;
 import com.ebremer.halcyon.wicket.ListImages;
 import com.ebremer.halcyon.HalcyonSettings;
 import com.ebremer.halcyon.datum.DataCore;
+import com.ebremer.halcyon.fuseki.SPARQLEndPoint;
+import com.ebremer.halcyon.filesystem.FileManager;
 import com.ebremer.halcyon.wicket.AccountPage;
 import com.ebremer.halcyon.wicket.AdminPage;
 import com.ebremer.halcyon.wicket.BasePage;
@@ -20,7 +22,15 @@ import org.apache.wicket.request.Response;
 
 public class HalcyonApplication extends WebApplication {
     private static final HalcyonSettings settings = HalcyonSettings.getSettings();
-    private final DataCore datacore = DataCore.getInstance();
+    private final DataCore datacore;
+    private final FileManager fm;
+    private final SPARQLEndPoint sep;
+    
+    public HalcyonApplication() {
+        datacore = DataCore.getInstance();
+        fm = FileManager.getInstance();
+        sep = SPARQLEndPoint.getSPARQLEndPoint();
+    }
     
     public HalcyonSettings getSettings() {
         return settings;
@@ -37,8 +47,14 @@ public class HalcyonApplication extends WebApplication {
     
     @Override
     public Session newSession(Request request, Response response) {
-        System.out.println("NEW SESSION CREATED!!!!!!!");
         return new HalcyonSession(request);
+        /*
+        HttpServletRequest req = (HttpServletRequest) request.getContainerRequest();
+        Cookie[] cookies = req.getCookies();
+        for (Cookie cookie: cookies) {
+            System.out.println("NR : "+cookie.getName()+" ==== "+cookie.getValue());
+        }*/
+
     }
 
     @Override
@@ -50,10 +66,6 @@ public class HalcyonApplication extends WebApplication {
         jena.setLevel(ch.qos.logback.classic.Level.ERROR);
         ch.qos.logback.classic.Logger XX = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(org.apache.wicket.util.thread.Task.class);
         XX.setLevel(ch.qos.logback.classic.Level.ERROR);
-        
-        //System.setProperty("arrow.memory.debug.allocator", "true");
-        //ch.qos.logback.classic.Logger arrow = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger("org.apache.arrow");
-        //arrow.setLevel(ch.qos.logback.classic.Level.TRACE);
               
         this.getRequestLoggerSettings().setRequestLoggerEnabled(true);
         this.getRequestLoggerSettings().setRecordSessionSize(true);
@@ -73,7 +85,9 @@ public class HalcyonApplication extends WebApplication {
         mountPage("/gui/sparql", Sparql.class);
         mountPage("/gui/about", About.class);
         mountPage("/gui/threed", Graph3D.class);
+        mountPage("/gui/revisionhistory", RevisionHistory.class);
         mountPage("/gui/zephyr", Zephyr.class);
+        mountPage("/gui/login", LogHal.class);
         //mountPage("/gui/dicom", DICOM.class);
         //mountPage("/gui/dicom2", DCM.class);
     }
@@ -81,6 +95,5 @@ public class HalcyonApplication extends WebApplication {
     @Override
     public RuntimeConfigurationType getConfigurationType() {
         return RuntimeConfigurationType.DEVELOPMENT;
-        //return RuntimeConfigurationType.DEPLOYMENT;
     }
 }
