@@ -8,6 +8,9 @@ import com.ebremer.halcyon.wicket.DatabaseLocator;
 import com.ebremer.ethereal.RDFTextField;
 import com.ebremer.ethereal.SelectDataProvider;
 import com.ebremer.ethereal.Solution;
+import com.ebremer.halcyon.datum.DataCore;
+import com.ebremer.halcyon.datum.Patterns;
+import com.ebremer.halcyon.pools.AccessCachePool;
 import com.ebremer.ns.HAL;
 import java.util.ArrayList;
 import java.util.List;
@@ -21,6 +24,9 @@ import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.riot.RDFFormat;
+import org.apache.jena.update.UpdateAction;
+import org.apache.jena.update.UpdateFactory;
+import org.apache.jena.update.UpdateRequest;
 import org.apache.jena.vocabulary.SchemaDO;
 import org.apache.jena.vocabulary.WAC;
 import org.apache.wicket.extensions.ajax.markup.html.repeater.data.table.AjaxFallbackDefaultDataTable;
@@ -49,7 +55,6 @@ public class EditCollection extends BasePage {
         ds.begin(ReadWrite.READ);
         m.add(ds.getNamedModel(uuid));
         ds.end();
-        //RDFDataMgr.write(System.out, m, RDFFormat.TURTLE_PRETTY);
         Resource s = ResourceFactory.createResource(uuid);
         mod = new RDFDetachableModel(m);
         LDModel ldm = new LDModel(mod);
@@ -123,21 +128,3 @@ public class EditCollection extends BasePage {
         add(table);
     }
 }
-
-
-
-
-                // Add owner/creator ACL
-                //Model acl = ModelFactory.createDefaultModel();
-                //Resource bnode = acl.createResource();
-                //HalcyonPrincipal hp = HalcyonSession.get().getHalcyonPrincipal();
-                //acl.add(bnode, WAC.agent, acl.createResource(hp.getWebID()));
-                //acl.add(bnode, WAC.accessTo, acl.createResource(uuid));
-                //acl.add(bnode, WAC.mode, WAC.Read);
-                //acl.add(bnode, WAC.mode, WAC.Write);
-                //Dataset rawds = DatabaseLocator.getDatabase().getDataset();
-                //rawds.begin(ReadWrite.WRITE);
-                //Model sec = rawds.getNamedModel(HAL.SecurityGraph.getURI());
-                //sec.add(acl);
-                //rawds.commit();
-                //rawds.end();

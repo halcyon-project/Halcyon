@@ -25,7 +25,7 @@ public class HalcyonFactory {
         Model m = ModelFactory.createDefaultModel();
         m.add(r, SchemaDO.name,"BLANK COLLECTION NAME");
         m.add(r, RDF.type, SchemaDO.Collection);
-        RDFDataMgr.write(System.out, m, RDFFormat.TURTLE_PRETTY);
+        //RDFDataMgr.write(System.out, m, RDFFormat.TURTLE_PRETTY);
         System.out.println(r.getURI());
         return m;
     }   

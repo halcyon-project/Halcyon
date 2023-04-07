@@ -2,6 +2,7 @@ package com.ebremer.halcyon.gui.tree;
 
 import com.ebremer.ethereal.xNode;
 import com.ebremer.halcyon.datum.DataCore;
+import com.ebremer.halcyon.datum.Patterns;
 import com.ebremer.halcyon.gui.Collections;
 import com.ebremer.halcyon.gui.tree.content.NodeCheckedSelectableFolderContent;
 import com.ebremer.halcyon.gui.tree.content.NodeContent;
@@ -11,6 +12,7 @@ import java.util.Set;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.ParameterizedSparqlString;
 import org.apache.jena.query.ReadWrite;
+import org.apache.jena.rdf.model.Model;
 import org.apache.jena.update.UpdateAction;
 import org.apache.jena.update.UpdateFactory;
 import org.apache.jena.update.UpdateRequest;

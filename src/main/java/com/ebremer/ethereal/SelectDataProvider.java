@@ -25,7 +25,6 @@ public class SelectDataProvider extends SortableDataProvider<Solution, String> {
     private final DetachableDataset dds;
    
     public SelectDataProvider(Dataset ds, String s) {
-        System.out.println("SelectDataProvider "+s);
         this.dds = new DetachableDataset(ds);
         this.sparql = s;
     }
@@ -43,22 +42,20 @@ public class SelectDataProvider extends SortableDataProvider<Solution, String> {
     }
     
     public void SetSPARQL(String sparql) {
-        System.out.println("\nsetSPARQL =====================================================================\n"+sparql+"\n===============================================================================\n");
         activesparql = sparql;
         updateCount();
     }
     
     public void setQuery(Query q) {
         activesparql = q.toString();
-        System.out.println("\nsetQuery =====================================================================\n"+activesparql+"\n===============================================================================\n");
         updateCount();
     }
 
     private void updateCount() {
-        StopWatch w = new StopWatch(true);
+        StopWatch w = new StopWatch();
         Query q = getQuery();
         Dataset ds = dds.load();
-        ds.begin(ReadWrite.READ);  // threw a "Caused by: java.lang.Error: Maximum lock count exceeded"
+        ds.begin(ReadWrite.READ);
         QueryExecution qe = QueryExecutionFactory.create(q,ds);
         ResultSet rs = qe.execSelect().materialise();
         ds.end();
@@ -72,7 +69,6 @@ public class SelectDataProvider extends SortableDataProvider<Solution, String> {
 
     @Override
     public Iterator<Solution> iterator(long first, long count) {
-        //StopWatch w = new StopWatch(true);
         ArrayList<Solution> list = new ArrayList<>((int) count);
         Query q = getQuery();
         q.setLimit(count);
@@ -84,7 +80,6 @@ public class SelectDataProvider extends SortableDataProvider<Solution, String> {
         resultset.forEachRemaining(qs->{
             list.add(new Solution(qs));       
         });
-        //w.getTime("Iterator<Solution> iterator(long first, long count) "+first+" "+count);
         return list.iterator();
     }
 
@@ -98,12 +93,3 @@ public class SelectDataProvider extends SortableDataProvider<Solution, String> {
         return new SolutionModel(new SolutionLoadableDetachableModel(object));
     }
 }
-
-
-        //q.setDistinct(false);
-        //q.getProject().clear();
-        //Aggregator agg = AggregatorFactory.createCount(false);
-        //Expr exprAgg = q.allocAggregate(agg) ;
-        //q.getProjectVars().clear();
-        //q.addResultVar("count", exprAgg);
-        //System.out.println("BOOM\n"+q.toString());

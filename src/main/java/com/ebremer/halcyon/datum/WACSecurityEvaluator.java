@@ -4,20 +4,18 @@ import com.ebremer.halcyon.datum.DataCore.Level;
 import static com.ebremer.halcyon.datum.DataCore.Level.OPEN;
 import com.ebremer.halcyon.fuseki.shiro.JwtToken;
 import com.ebremer.halcyon.gui.HalcyonSession;
+import com.ebremer.halcyon.pools.AccessCache;
+import com.ebremer.halcyon.pools.AccessCachePool;
 import com.ebremer.ns.HAL;
 import java.security.Principal;
 import java.util.HashMap;
 import java.util.Set;
+import java.util.logging.Logger;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.Triple;
 import org.apache.jena.permissions.SecurityEvaluator;
-import org.apache.jena.query.Dataset;
 import org.apache.jena.query.ParameterizedSparqlString;
 import org.apache.jena.query.QueryExecutionFactory;
-import org.apache.jena.query.ReadWrite;
-import org.apache.jena.rdf.model.Model;
-import org.apache.jena.rdf.model.ModelFactory;
-import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.shared.AuthenticationRequiredException;
 import org.apache.jena.vocabulary.SchemaDO;
 import org.apache.jena.vocabulary.WAC;
@@ -28,62 +26,72 @@ import org.apache.shiro.subject.Subject;
  * 
  * @author erich
  */
-public class WACSecurityEvaluator implements SecurityEvaluator {
-    private final Model secm;
-    private final HashMap<Node,HashMap> cache;
+public final class WACSecurityEvaluator implements SecurityEvaluator {
     private final Level level;
     
     public WACSecurityEvaluator(Level level) {
         this.level = level;
-        System.out.println("==================================== WACSecurityEvaluator ======================================================");
-        cache = new HashMap<>();
-        secm = ModelFactory.createDefaultModel();
-        Dataset ds = DataCore.getInstance().getDataset();
-        ds.begin(ReadWrite.READ);
-        secm.add(ds.getNamedModel(HAL.SecurityGraph.getURI()));
-        secm.add(ds.getNamedModel(HAL.CollectionsAndResources.getURI()));
-        secm.add(ds.getNamedModel(HAL.GroupsAndUsers.getURI()));
-        ds.end();
-    }
-    
-    public Model getSecurityModel() {
-        return secm;
+        //System.out.println("==================================== WACSecurityEvaluator ======================================================");
     }
 
     @Override
     public boolean evaluate(Object principal, Action action, Node graphIRI) {
-        HalcyonPrincipal hp = (HalcyonPrincipal) principal;
+        //System.out.println("evaluate(Object principal, Action action, Node graphIRI) --> "+action+"   "+graphIRI);
         if (level == OPEN) {
             if (graphIRI.matches(HAL.CollectionsAndResources.asNode())) {
                 return true;
             }
         }
-         /*
-        if (cache.containsKey(graphIRI)) {
-            if (cache.get(graphIRI).containsKey(action)) {
+        HalcyonPrincipal hp = (HalcyonPrincipal) principal;
+        AccessCache ac;
+        try {
+            ac = AccessCachePool.getPool().borrowObject(hp.getURNUUID());
+            if (ac.getCache().containsKey(graphIRI)) {
+                if (ac.getCache().get(graphIRI).containsKey(action)) {
+                    AccessCachePool.getPool().returnObject(hp.getURNUUID(), ac);
+                    return true;
+                }
+            }
+            HashMap<Action,Boolean> set = new HashMap<>();
+            ac.getCache().put(graphIRI, set);
+            ParameterizedSparqlString pss = new ParameterizedSparqlString("""
+                ASK {?rule acl:accessTo/so:hasPart* ?target;
+                           acl:mode ?mode;
+                           acl:agent ?group
+                }
+            """);
+            pss.setNsPrefix("acl", WAC.NS);
+            pss.setNsPrefix("so", SchemaDO.NS);
+            pss.setNsPrefix("hal", HAL.NS);
+            pss.setIri("target", graphIRI.toString());
+            pss.setIri("mode", WACUtil.WAC(action));
+            pss.setIri("group", HAL.Anonymous.toString());
+            if (QueryExecutionFactory.create(pss.toString(), ac.getSECM()).execAsk()) {
+                set.put(action, true);
+                AccessCachePool.getPool().returnObject(hp.getURNUUID(), ac);
                 return true;
             }
+            pss = new ParameterizedSparqlString("""
+                ASK {?rule acl:accessTo/so:hasPart* ?target;
+                           acl:mode ?mode;
+                           acl:agent ?group .
+                     ?group so:member ?member
+                }
+            """);
+            pss.setNsPrefix("acl", WAC.NS);
+            pss.setNsPrefix("so", SchemaDO.NS);
+            pss.setNsPrefix("hal", HAL.NS);
+            pss.setIri("target", graphIRI.toString());
+            pss.setIri("mode", WACUtil.WAC(action));
+            pss.setIri("member", hp.getURNUUID());
+            boolean ha = QueryExecutionFactory.create(pss.toString(), ac.getSECM()).execAsk();
+            set.put(action, ha);
+            AccessCachePool.getPool().returnObject(hp.getURNUUID(), ac);
+            return ha;
+        } catch (Exception ex) {
+            Logger.getLogger(WACSecurityEvaluator.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
         }
-        HashMap<Action,Boolean> set = new HashMap<>();
-        cache.put(graphIRI, set);
-*/
-        ParameterizedSparqlString pss = new ParameterizedSparqlString("""
-            ASK {?rule acl:accessTo/so:hasPart* ?target;
-                       acl:mode ?mode;
-                       acl:agent ?group .
-                 ?group so:member ?member
-            }
-        """);
-        pss.setNsPrefix("acl", WAC.NS);
-        pss.setNsPrefix("so", SchemaDO.NS);
-        pss.setNsPrefix("hal", HAL.NS);
-        pss.setIri("target", graphIRI.toString());
-        pss.setIri("mode", WACUtil.WAC(action));
-        pss.setIri("member", hp.getURNUUID());
-        boolean ha = QueryExecutionFactory.create(pss.toString(), secm).execAsk();
-      //  set.put(action, ha);
-      //System.out.println(graphIRI+" ---> "+ha);
-        return ha;
+        return false;
     }
     
     private boolean evaluate( Object principal, Triple triple ) {
@@ -135,11 +143,6 @@ public class WACSecurityEvaluator implements SecurityEvaluator {
             // assume and try for a Keycloak Servlet Filter Auth
         }
         HalcyonPrincipal p = HalcyonSession.get().getHalcyonPrincipal();
-        if (p.isAnon()) {
-            Resource au = secm.createResource(p.getURNUUID());
-            Resource as = secm.createResource(HAL.Anonymous.toString()).addProperty(SchemaDO.member,au);
-            au.addProperty(SchemaDO.memberOf, as);
-        }
         //System.out.println("PRINCIPAL --> "+p.getURNUUID());
         return p;
     }
