@@ -19,8 +19,6 @@ import org.apache.jena.query.ReadWrite;
 import org.apache.jena.query.ResultSet;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
-import org.apache.jena.riot.RDFDataMgr;
-import org.apache.jena.riot.RDFFormat;
 import org.apache.jena.vocabulary.SchemaDO;
 
 /**
@@ -79,17 +77,21 @@ public class Patterns {
     public static Model getCollectionRDF2(Dataset ds) {
         ParameterizedSparqlString pss = new ParameterizedSparqlString( """
             construct {?s a so:Collection}
-            where {graph ?s {?s a so:Collection}}
+            where {
+                graph ?g {?s a so:Collection}
+                graph ?s {?s a so:Collection}
+            }
         """);
         pss.setNsPrefix("hal", HAL.NS);
         pss.setNsPrefix("so", SchemaDO.NS);
+        pss.setIri("g", HAL.CollectionsAndResources.getURI());
         QueryExecution qe = QueryExecutionFactory.create(pss.toString(), ds);
         ds.begin(ReadWrite.READ);
         Model m = qe.execConstruct();
         ds.end();
-        System.out.println("------------------------------------------------------------------------------------------------------------");
-        RDFDataMgr.write(System.out, m, RDFFormat.TURTLE_PRETTY);
-        System.out.println("------------------------------------------------------------------------------------------------------------");
+        //System.out.println("------------------------------------------------------------------------------------------------------------");
+        //RDFDataMgr.write(System.out, m, RDFFormat.TURTLE_PRETTY);
+        //System.out.println("------------------------------------------------------------------------------------------------------------");
         return m;
     }
     

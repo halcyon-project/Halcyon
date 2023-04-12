@@ -104,28 +104,28 @@ public class ListImages extends BasePage {
                     new LoadableDetachableModel<List<Node>>() {
                         @Override
                         protected List<Node> load() {
-                            StopWatch sw = new StopWatch();
+                            //StopWatch sw = new StopWatch();
                             org.apache.jena.rdf.model.Model ccc = ModelFactory.createDefaultModel();
                             try {
                                 HalcyonPrincipal p = HalcyonSession.get().getHalcyonPrincipal();
                                 String uuid = p.getURNUUID();
                                 AccessCache ac = AccessCachePool.getPool().borrowObject(uuid);
                                 if (ac.getCollections().size()==0) {
-                                    sw.getTime("getting collection RDF");
+                                   // sw.getTime("getting collection RDF");
                                     Dataset dsx = DataCore.getInstance().getSecuredDataset(OPEN);
                                     ac.getCollections().add(Patterns.getCollectionRDF2(dsx));  
-                                    sw.getTime("GOT collection RDF");
+                                  //  sw.getTime("GOT collection RDF");
                                 } else {
-                                    System.out.println("REPEAT=====");
+                                   // System.out.println("REPEAT=====");
                                 }
                                 ccc.add(ac.getCollections());
                                 AccessCachePool.getPool().returnObject(uuid, ac);
                             } catch (Exception ex) {
                                 Logger.getLogger(Patterns.class.getName()).log(Level.SEVERE, null, ex);
                             }
-                            sw.getTime("preGen - ListImages");
+                            //sw.getTime("preGen - ListImages");
                             List<Node> list = Patterns.getCollectionList45X(ccc);
-                            sw.getTime("getCollections - ListImages");
+                            //sw.getTime("getCollections - ListImages");
                             //list.add(NodeFactory.createURI("urn:halcyon:nocollections"));
                             return list;
                         }

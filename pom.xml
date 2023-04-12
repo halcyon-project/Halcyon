@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.ebremer</groupId>
     <artifactId>Halcyon</artifactId>
-    <version>0.2.0</version>
+    <version>0.2.1</version>
     <packaging>jar</packaging>
     <name>Halcyon</name>
     <description>A whole slide image annotation, management, and visualization system</description>
@@ -549,7 +549,7 @@
                     <copyright>Copyright 2022 Erich Bremer - Stony Brook University</copyright>
                     <licenseFile>LICENSE</licenseFile>
                     <input>target</input>
-                    <mainJar>Halcyon-0.0.0.jar</mainJar>
+                    <mainJar>Halcyon-0.2.0.jar</mainJar>
                     <verbose>true</verbose>
                     <winMenu>true</winMenu>
                     <winShortcutPrompt>true</winShortcutPrompt>

@@ -45,7 +45,7 @@ public class HTTPIRandomAccess implements IRandomAccess {
     private String cookie = null;
     
     public HTTPIRandomAccess(String url) {
-        //System.out.println("HTTPIRandomAccess4 " +url);
+        System.out.println("HTTPIRandomAccess4 " +url);
         tm = new TreeMap<>();
         this.url = url;
     }

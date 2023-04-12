@@ -1,8 +1,6 @@
 package com.ebremer.halcyon.imagebox;
 
 import com.ebremer.halcyon.HalcyonSettings;
-import com.ebremer.halcyon.gui.HalcyonSession;
-import com.ebremer.halcyon.utils.StopWatch;
 import com.ebremer.halcyon.imagebox.Enums.ImageFormat;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
@@ -73,7 +71,7 @@ public class iboxServlet extends HttpServlet {
                 } catch (Exception ex) {
                     Logger.getLogger(iboxServlet.class.getName()).log(Level.SEVERE, null, ex);
                 }
-                nt.setCookie(cookie);
+               // nt.setCookie(cookie);
             } else {
                 System.out.println("I'm so confused as to what I am looking at....");
             }

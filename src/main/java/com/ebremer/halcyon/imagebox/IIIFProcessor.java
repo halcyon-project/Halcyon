@@ -35,31 +35,38 @@ public class IIIFProcessor {
     public ImageFormat imageformat;
 
     IIIFProcessor(String url) throws URISyntaxException {
+        //System.out.println("IIIFProcessor --> "+url);
         matcher = PATTERN1.matcher(url);
         if (matcher.find()) {
             //System.out.println("grab a tile....");
             tilerequest = true;
-            uri = new URI(matcher.group(1));
+            uri = new URI(matcher.group(1).replace(" ", "%20"));
             x = Integer.parseInt(matcher.group(2));
             y = Integer.parseInt(matcher.group(3));
             w = Integer.parseInt(matcher.group(4));
             h = Integer.parseInt(matcher.group(5));
             tx = Integer.parseInt(matcher.group(6));
             rotation = Integer.parseInt(matcher.group(7));
-            if ("jpg".equals(matcher.group(8))) {
-                imageformat = ImageFormat.JPG;
-            } else if ("png".equals(matcher.group(8))) {
-                imageformat = ImageFormat.PNG;
-            } else if ("json".equals(matcher.group(8))) {
-                imageformat = ImageFormat.JSON;
+            if (null != matcher.group(8)) switch (matcher.group(8)) {
+                case "jpg":
+                    imageformat = ImageFormat.JPG;
+                    break;
+                case "png":
+                    imageformat = ImageFormat.PNG;
+                    break;
+                case "json":
+                    imageformat = ImageFormat.JSON;
+                    break;
+                default:
+                    break;
             }
         } else {
-            //System.out.println("not a tile request");
             matcher = INFO.matcher(url);
             if (matcher.find()) {
-                //System.out.println("info request");
+                String xw = matcher.group(1);
+                //System.out.println("info request --> "+w);
                 inforequest = true;
-                uri = new URI(matcher.group(1));
+                uri = new URI(xw.replace(" ", "%20"));
             } else {
                 matcher = PATTERN2.matcher(url);
                 if (matcher.find()) {
@@ -73,12 +80,18 @@ public class IIIFProcessor {
                     tx = Integer.parseInt(matcher.group(2));
                     rotation = Integer.parseInt(matcher.group(3));
                     fullrequest = true;
-                    if ("jpg".equals(matcher.group(4))) {
-                        imageformat = ImageFormat.JPG;
-                    } else if ("png".equals(matcher.group(4))) {
-                        imageformat = ImageFormat.PNG;
-                    } else if ("json".equals(matcher.group(4))) {
-                        imageformat = ImageFormat.JSON;
+                    if (null != matcher.group(4)) switch (matcher.group(4)) {
+                        case "jpg":
+                            imageformat = ImageFormat.JPG;
+                            break;
+                        case "png":
+                            imageformat = ImageFormat.PNG;
+                            break;
+                        case "json":
+                            imageformat = ImageFormat.JSON;
+                            break;
+                        default:
+                            break;
                     }
                 }
             }
