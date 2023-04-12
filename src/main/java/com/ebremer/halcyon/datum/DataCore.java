@@ -4,6 +4,7 @@ import com.ebremer.halcyon.fuseki.SPARQLEndPoint;
 import com.ebremer.halcyon.HalcyonSettings;
 import static com.ebremer.halcyon.datum.DataCore.Level.CLOSED;
 import com.ebremer.halcyon.filesystem.FileManager;
+import com.ebremer.ns.HAL;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.DatasetFactory;
 import org.apache.jena.query.Query;
@@ -12,6 +13,7 @@ import org.apache.jena.query.QueryExecutionFactory;
 import org.apache.jena.query.QueryFactory;
 import org.apache.jena.query.ReadWrite;
 import org.apache.jena.rdf.model.Model;
+import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.riot.RDFFormat;
@@ -21,20 +23,36 @@ import org.apache.jena.tdb2.TDB2Factory;
  *
  * @author erich
  */
-public class DataCore {
+public final class DataCore {
     private static DataCore core = null;
     private static Dataset ds = null;
     private static HalcyonSettings hs = null;
     public static enum Level { CLOSED, OPEN };
+    private final Model secm;
 
     private DataCore() {
         hs = HalcyonSettings.getSettings();
         System.out.println("Starting TDB2...");
         ds = TDB2Factory.connectDataset(hs.getRDFStoreLocation());
+        secm = ModelFactory.createDefaultModel();
+        ReloadSECM();
+    }
+    
+    public Model getSECM() {
+        return secm;
+    }
+    
+    public synchronized void ReloadSECM() {
+        secm.removeAll();
+        ds.begin(ReadWrite.READ);
+        secm.add(ds.getNamedModel(HAL.SecurityGraph.getURI()));
+        secm.add(ds.getNamedModel(HAL.CollectionsAndResources.getURI()));
+        secm.add(ds.getNamedModel(HAL.GroupsAndUsers.getURI()));
+        ds.end();
     }
     
     public synchronized static DataCore getInstance() {
-        if (core==null) {
+        if (core == null) {
             core = new DataCore();
         }
         return core;

@@ -24,10 +24,8 @@ public class HalcyonPrincipal implements Principal, Serializable {
     private String firstname;
     private ArrayList<String> groups;
  
-   
     public HalcyonPrincipal(String uuid, boolean anonymous) {
         this.uuid = uuid;
-        System.out.println("BUUID --> "+uuid);
         this.anonymous = anonymous;
         groups = new ArrayList<>();
         groups.add(HAL.Anonymous.toString());
@@ -36,9 +34,6 @@ public class HalcyonPrincipal implements Principal, Serializable {
     public HalcyonPrincipal(JwtToken jwttoken, boolean anonymous) {
         this.token = (String) jwttoken.getCredentials();
         Claims claims = getClaims(token);
-        //claims.keySet().forEach(k->{
-          //  System.out.println("CLAIM : "+k+" ==== "+claims.get(k));
-        //});
         uuid = "urn:uuid:"+claims.get("sub");
         //System.out.println("AUUID --> "+uuid);
         this.anonymous = anonymous;
@@ -58,8 +53,6 @@ public class HalcyonPrincipal implements Principal, Serializable {
             firstname = "";
         }
         if (claims.keySet().contains("HalcyonGroups")) {
-           // Object wow = claims.get("HalcyonGroups");
-            //System.out.println("HalcyonGroups : "+wow.getClass().toGenericString());
             groups = (ArrayList) claims.get("HalcyonGroups");
         } else {
             firstname = "";

@@ -10,12 +10,18 @@ import com.ebremer.ns.HAL;
 import com.ebremer.ethereal.NodeColumn;
 import com.ebremer.halcyon.datum.DataCore;
 import static com.ebremer.halcyon.datum.DataCore.Level.OPEN;
+import com.ebremer.halcyon.datum.HalcyonPrincipal;
 import com.ebremer.halcyon.gui.HalcyonSession;
+import com.ebremer.halcyon.pools.AccessCache;
+import com.ebremer.halcyon.pools.AccessCachePool;
+import com.ebremer.halcyon.utils.StopWatch;
 import com.ebremer.multiviewer.MultiViewer;
 import com.ebremer.ns.EXIF;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.apache.jena.arq.querybuilder.handlers.ValuesHandler;
 import org.apache.jena.arq.querybuilder.handlers.WhereHandler;
 import org.apache.jena.graph.Node;
@@ -25,6 +31,7 @@ import org.apache.jena.query.Dataset;
 import org.apache.jena.query.ParameterizedSparqlString;
 import org.apache.jena.query.Query;
 import org.apache.jena.query.QueryFactory;
+import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.sparql.core.TriplePath;
 import org.apache.jena.sparql.core.Var;
 import org.apache.jena.vocabulary.OWL;
@@ -51,7 +58,6 @@ public class ListImages extends BasePage {
     private static final long serialVersionUID = 1L;
     private SelectDataProvider rdfsdf;
     private final ListFeatures lf;
-    //private boolean FeatureFilter = false;
     
     public ListImages() {
         List<IColumn<Solution, String>> columns = new LinkedList<>();
@@ -84,22 +90,42 @@ public class ListImages extends BasePage {
         pss.setNsPrefix("so", SchemaDO.NS);
         pss.setNsPrefix("exif", EXIF.NS);
         pss.setIri("car", HAL.CollectionsAndResources.getURI());
-        Dataset ds = DatabaseLocator.getDatabase().getSecuredDataset(OPEN);
-        //Dataset ds = DatabaseLocator.getDatabase().getDataset();
+        //Dataset ds = DatabaseLocator.getDatabase().getSecuredDataset(OPEN);
+        Dataset ds = DatabaseLocator.getDatabase().getDataset();
         rdfsdf = new SelectDataProvider(ds,pss.toString());
+        pss.setIri("collection", "urn:halcyon:nocollections");
         rdfsdf.SetSPARQL(pss.toString());
         AjaxFallbackDefaultDataTable table = new AjaxFallbackDefaultDataTable<>("table", columns, rdfsdf, 25);
         add(table);
-        RDFDetachableModel rdg = new RDFDetachableModel(Patterns.getCollectionRDF());
+        RDFDetachableModel rdg = new RDFDetachableModel(Patterns.getALLCollectionRDF());
         LDModel ldm = new LDModel(rdg);
         DropDownChoice<Node> ddc = 
             new DropDownChoice<>("collection", ldm,
                     new LoadableDetachableModel<List<Node>>() {
                         @Override
                         protected List<Node> load() {
-                            //List<Node> list = Patterns.getCollectionList(rdg.load());
-                            Dataset ww = DataCore.getInstance().getSecuredDataset(OPEN);
-                            List<Node> list = Patterns.getCollectionList(ww);
+                            StopWatch sw = new StopWatch();
+                            org.apache.jena.rdf.model.Model ccc = ModelFactory.createDefaultModel();
+                            try {
+                                HalcyonPrincipal p = HalcyonSession.get().getHalcyonPrincipal();
+                                String uuid = p.getURNUUID();
+                                AccessCache ac = AccessCachePool.getPool().borrowObject(uuid);
+                                if (ac.getCollections().size()==0) {
+                                    sw.getTime("getting collection RDF");
+                                    Dataset dsx = DataCore.getInstance().getSecuredDataset(OPEN);
+                                    ac.getCollections().add(Patterns.getCollectionRDF2(dsx));  
+                                    sw.getTime("GOT collection RDF");
+                                } else {
+                                    System.out.println("REPEAT=====");
+                                }
+                                ccc.add(ac.getCollections());
+                                AccessCachePool.getPool().returnObject(uuid, ac);
+                            } catch (Exception ex) {
+                                Logger.getLogger(Patterns.class.getName()).log(Level.SEVERE, null, ex);
+                            }
+                            sw.getTime("preGen - ListImages");
+                            List<Node> list = Patterns.getCollectionList45X(ccc);
+                            sw.getTime("getCollections - ListImages");
                             //list.add(NodeFactory.createURI("urn:halcyon:nocollections"));
                             return list;
                         }

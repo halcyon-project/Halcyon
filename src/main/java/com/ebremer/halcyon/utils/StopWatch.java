@@ -1,15 +1,13 @@
 package com.ebremer.halcyon.utils;
 
-public class StopWatch {
+public final class StopWatch {
 
 private long startTime = 0;
 private long stopTime = 0;
 private boolean running = false;
 
-public StopWatch(boolean start) {
-    if (start) {
-        start();
-    }
+public StopWatch() {
+    start();
 }
 
   public StopWatch start() {
@@ -31,17 +29,7 @@ public StopWatch(boolean start) {
     return this;
   }
 
-  public long getElapsedTime() {
-    long elapsed;
-    if (running) {
-      elapsed = (System.nanoTime() - startTime);
-    } else {
-      elapsed = (stopTime - startTime);
-    }
-    return elapsed;
-  }
-
-  public double getElapsedTimeSecs() {
+  private double getElapsedTimeSecs() {
     double elapsed;
     if (running) {
       elapsed = (((double) (System.nanoTime() - startTime)) / 1000000000d);
@@ -55,10 +43,5 @@ public StopWatch(boolean start) {
     String stat = "Elapsed: "+getElapsedTimeSecs()+" - "+message;
     System.out.println(stat);
     return stat;
-  }
-  
-  public StopWatch getTime() {
-    System.out.println("Elapsed: "+getElapsedTimeSecs());
-    return this;
   }
 }

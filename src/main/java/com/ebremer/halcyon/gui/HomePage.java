@@ -2,7 +2,6 @@ package com.ebremer.halcyon.gui;
 
 import com.ebremer.halcyon.wicket.BasePage;
 import org.apache.wicket.MarkupContainer;
-import org.apache.wicket.devutils.stateless.StatelessComponent;
 import org.apache.wicket.markup.IMarkupCacheKeyProvider;
 
 //@StatelessComponent

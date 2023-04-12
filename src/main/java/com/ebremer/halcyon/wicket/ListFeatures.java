@@ -6,12 +6,20 @@ import com.ebremer.ethereal.NodeColumn;
 import com.ebremer.ethereal.RDFDetachableModel;
 import com.ebremer.ethereal.RDFRenderer;
 import com.ebremer.ethereal.SelectDataProvider;
+import com.ebremer.halcyon.datum.DataCore;
+import static com.ebremer.halcyon.datum.DataCore.Level.OPEN;
+import com.ebremer.halcyon.datum.HalcyonPrincipal;
 import com.ebremer.halcyon.datum.Patterns;
+import com.ebremer.halcyon.gui.HalcyonSession;
+import com.ebremer.halcyon.pools.AccessCache;
+import com.ebremer.halcyon.pools.AccessCachePool;
 import com.ebremer.ns.EXIF;
 import com.ebremer.ns.HAL;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.apache.jena.query.Query;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.NodeFactory;
@@ -19,6 +27,7 @@ import org.apache.jena.query.Dataset;
 import org.apache.jena.query.ParameterizedSparqlString;
 import org.apache.jena.query.QueryExecutionFactory;
 import org.apache.jena.query.ResultSet;
+import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.vocabulary.OWL;
 import org.apache.jena.vocabulary.SchemaDO;
 import org.apache.wicket.MarkupContainer;
@@ -83,7 +92,8 @@ public class ListFeatures extends Panel {
         pss.setNsPrefix("so", SchemaDO.NS);
         pss.setNsPrefix("exif", EXIF.NS);
         pss.setIri("car", HAL.CollectionsAndResources.getURI());
-        Dataset ds = DatabaseLocator.getDatabase().getSecuredDataset();
+        //Dataset ds = DatabaseLocator.getDatabase().getSecuredDataset();
+        Dataset ds = DatabaseLocator.getDatabase().getDataset();
         rdfsdf = new SelectDataProvider(ds,pss.toString());
         ParameterizedSparqlString pss2 = rdfsdf.getPSS();
         pss2.setIri("collection", "urn:halcyon:nothing");
@@ -92,14 +102,30 @@ public class ListFeatures extends Panel {
         add(table);
         Form<?> form = new Form("form");
         add(form);
-        RDFDetachableModel rdg = new RDFDetachableModel(Patterns.getCollectionRDF());
+        RDFDetachableModel rdg = new RDFDetachableModel(Patterns.getALLCollectionRDF());
         LDModel ldm = new LDModel(rdg);
         DropDownChoice<Node> ddc = 
             new DropDownChoice<>("collection", ldm,
                     new LoadableDetachableModel<List<Node>>() {
                         @Override
                         protected List<Node> load() {
-                            List<Node> list = Patterns.getCollectionList(rdg.load());
+                           // List<Node> list = Patterns.getCollectionList(rdg.load());
+                            org.apache.jena.rdf.model.Model ccc = ModelFactory.createDefaultModel();
+                            try {
+                                HalcyonPrincipal p = HalcyonSession.get().getHalcyonPrincipal();
+                                String uuid = p.getURNUUID();
+                                AccessCache ac = AccessCachePool.getPool().borrowObject(uuid);
+                                if (ac.getCollections().size()==0) {
+                                    Dataset dsx = DataCore.getInstance().getSecuredDataset(OPEN);
+                                    org.apache.jena.rdf.model.Model cc = Patterns.getCollectionRDF2(dsx);
+                                    ac.getCollections().add(cc);  
+                                }
+                                ccc.add(ac.getCollections());
+                                AccessCachePool.getPool().returnObject(uuid, ac);
+                            } catch (Exception ex) {
+                                Logger.getLogger(Patterns.class.getName()).log(Level.SEVERE, null, ex);
+                            }
+                            List<Node> list = Patterns.getCollectionList45X(ccc);
                             list.add(NodeFactory.createURI("urn:halcyon:nocollections"));
                             //list.add(NodeFactory.createURI("urn:halcyon:allcollections"));
                             return list;
