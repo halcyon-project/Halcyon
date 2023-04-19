@@ -8,12 +8,16 @@ import com.ebremer.halcyon.wicket.DatabaseLocator;
 import com.ebremer.ethereal.NodeColumn;
 import com.ebremer.halcyon.datum.HalcyonFactory;
 import com.ebremer.halcyon.gui.tree.NodeNestedTreePage;
+import com.ebremer.ns.HAL;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.ParameterizedSparqlString;
 import org.apache.jena.query.ReadWrite;
 import org.apache.jena.rdf.model.ResourceFactory;
+import org.apache.jena.update.UpdateAction;
+import org.apache.jena.update.UpdateFactory;
+import org.apache.jena.update.UpdateRequest;
 import org.apache.jena.vocabulary.SchemaDO;
 import org.apache.wicket.ajax.AjaxEventBehavior;
 import org.apache.wicket.ajax.AjaxRequestTarget;
@@ -69,6 +73,24 @@ public class Collections extends BasePage {
                 ds.addNamedModel(uuid, HalcyonFactory.CreateCollection(ResourceFactory.createResource(uuid)));
                 ds.commit();
                 ds.end();
+                ds.begin(ReadWrite.WRITE);
+                ParameterizedSparqlString pss = new ParameterizedSparqlString(
+                        """
+                        insert {
+                            graph ?g {?s a so:Collection}
+                        }
+                        where {
+                            graph ?s {?s a so:Collection}
+                        }
+                        """
+                );                                                              
+                pss.setNsPrefix("so", SchemaDO.NS);
+                pss.setIri("g", HAL.CollectionsAndResources.getURI());
+                UpdateRequest updateRequest = UpdateFactory.create(pss.toString());
+                UpdateAction.execute(updateRequest, ds);
+                ds.commit();
+                ds.end();
+                
                 PageParameters pageParameters = new PageParameters();
                 pageParameters.add("collection", uuid);
                 setResponsePage(EditCollection.class, pageParameters);

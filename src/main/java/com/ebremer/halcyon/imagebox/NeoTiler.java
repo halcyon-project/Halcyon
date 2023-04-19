@@ -83,7 +83,6 @@ public class NeoTiler {
     private long lastaccessed;
     private CoreMetadata big;
     private String url;
-    private String cookie = null;
     
     public NeoTiler(String f) {
         DebugTools.enableLogging("ERROR");
@@ -103,7 +102,7 @@ public class NeoTiler {
             }
         }
         if (x !=null) {
-            getthis = x.toString();
+            getthis = x.toString().replace("%20", " ");
         } else if ((f.startsWith("https://")||f.startsWith("http://"))) {
             HTTPIRandomAccess bbb = new HTTPIRandomAccess(f);
             bbb.init();
@@ -218,10 +217,6 @@ public class NeoTiler {
                 }
             }
         }
-    }
-    
-    public void setCookie(String cookie) {
-        this.cookie = cookie;
     }
     
     public void setURL(String r) {

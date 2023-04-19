@@ -48,13 +48,6 @@ public class HalcyonApplication extends WebApplication {
     @Override
     public Session newSession(Request request, Response response) {
         return new HalcyonSession(request);
-        /*
-        HttpServletRequest req = (HttpServletRequest) request.getContainerRequest();
-        Cookie[] cookies = req.getCookies();
-        for (Cookie cookie: cookies) {
-            System.out.println("NR : "+cookie.getName()+" ==== "+cookie.getValue());
-        }*/
-
     }
 
     @Override
