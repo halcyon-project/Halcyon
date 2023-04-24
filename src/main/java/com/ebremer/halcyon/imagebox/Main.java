@@ -95,7 +95,7 @@ public class Main {
     ServletRegistrationBean iboxServletRegistration () {
         System.out.println("iboxServletRegistration order: "+Ordered.LOWEST_PRECEDENCE);
         ServletRegistrationBean srb = new ServletRegistrationBean();
-        srb.setServlet(new iboxServlet());
+        srb.setServlet(new ImageServer());
         srb.setUrlMappings(Arrays.asList("/iiif/*"));
         return srb;
     }
@@ -144,7 +144,7 @@ public class Main {
     @Bean
     ServletRegistrationBean HalcyonServletRegistration () {
         ServletRegistrationBean srb = new ServletRegistrationBean();
-        srb.setServlet(new HalcyonServlet());
+        srb.setServlet(new FeatureServer());
         srb.setOrder(20);
         srb.setUrlMappings(Arrays.asList("/halcyon/*"));
         return srb;

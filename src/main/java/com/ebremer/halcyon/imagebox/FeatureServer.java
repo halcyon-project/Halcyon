@@ -29,12 +29,12 @@ import javax.servlet.http.HttpServletResponse;
  *
  * @author erich
  */
-public class HalcyonServlet extends HttpServlet {
+public class FeatureServer extends HttpServlet {
     
     HalcyonSettings settings = HalcyonSettings.getSettings(); 
     private final FLKeyedPool frp;
     
-    public HalcyonServlet() {
+    public FeatureServer() {
         FLKeyedPoolConfig<FL> config = new FLKeyedPoolConfig<>();
         config.setBase(settings.getProxyHostName()+"/halcyon/?iiif=");
         frp = FLPool.getPool(config);
@@ -49,7 +49,7 @@ public class HalcyonServlet extends HttpServlet {
             try {
                 i = new IIIFProcessor(iiif);
             } catch (URISyntaxException ex) {
-                Logger.getLogger(HalcyonServlet.class.getName()).log(Level.SEVERE, null, ex);
+                Logger.getLogger(FeatureServer.class.getName()).log(Level.SEVERE, null, ex);
             }
             FL fr = null;
             File f = new File(i.uri);

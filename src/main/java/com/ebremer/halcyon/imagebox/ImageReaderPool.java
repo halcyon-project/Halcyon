@@ -9,13 +9,13 @@ import org.apache.commons.pool2.impl.GenericKeyedObjectPoolConfig;
  * @author erich
  */
 public class ImageReaderPool {
-    private static ImageReaderKeyedPool<String,NeoTiler> pool;
+    private static ImageReaderKeyedPool<String,ImageTiler> pool;
     
     public ImageReaderPool() {}
     
-    public static synchronized ImageReaderKeyedPool<String, NeoTiler> getPool() {
+    public static synchronized ImageReaderKeyedPool<String, ImageTiler> getPool() {
         if (pool == null) {
-            GenericKeyedObjectPoolConfig<NeoTiler> config = new GenericKeyedObjectPoolConfig<>();
+            GenericKeyedObjectPoolConfig<ImageTiler> config = new GenericKeyedObjectPoolConfig<>();
             config.setMaxTotalPerKey(1);
             config.setMinIdlePerKey(0);
             config.setMaxWait(Duration.ofMillis(60000));

@@ -1,5 +1,7 @@
 # Halcyon
 
+ https://arxiv.org/abs/2304.10612
+
 **adjective:**<br>
 &nbsp;&nbsp;&nbsp;&nbsp;denoting a period of time in the past that was idyllically happy and peaceful.<br>
 &nbsp;&nbsp;&nbsp;&nbsp;"the halcyon days of the mid-1980s, when profits were soaring"<br>

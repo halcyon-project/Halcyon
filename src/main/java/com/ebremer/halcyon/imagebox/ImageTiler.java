@@ -60,7 +60,7 @@ import org.apache.jena.riot.RDFDataMgr;
  *
  * @author erich
  */
-public class NeoTiler {
+public class ImageTiler {
     IFormatReader reader;
     private ServiceFactory factory;
     private OMEXMLService service;
@@ -84,7 +84,7 @@ public class NeoTiler {
     private CoreMetadata big;
     private String url;
     
-    public NeoTiler(String f) {
+    public ImageTiler(String f) {
         DebugTools.enableLogging("ERROR");
         lastaccessed = System.nanoTime();
         String getthis;
@@ -133,7 +133,7 @@ public class NeoTiler {
             String xml = service.getOMEXML(service.asRetrieve(store));
             meta = service.createOMEXMLMetadata(xml);
         } catch (DependencyException | ServiceException | IOException ex) {
-            Logger.getLogger(NeoTiler.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(ImageTiler.class.getName()).log(Level.SEVERE, null, ex);
         } catch (FormatException ex) {
             borked = true;
             status = ex.getMessage();
@@ -228,7 +228,7 @@ public class NeoTiler {
         try {
             reader.close();
         } catch (IOException ex) {
-            Logger.getLogger(NeoTiler.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(ImageTiler.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
     
@@ -326,7 +326,7 @@ public class NeoTiler {
             out.writeObject(jo);
             return IIIFAdjust(IIIFUtils.NSFixes(new String(baos.toByteArray(), UTF_8)));
         } catch (JsonLdError ex) {
-            Logger.getLogger(NeoTiler.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(ImageTiler.class.getName()).log(Level.SEVERE, null, ex);
         }
         return null;
     }
@@ -374,7 +374,7 @@ public class NeoTiler {
             bb = AWTImageTools.makeImage(buf, reader.isInterleaved(), meta, 0);
         } catch (FormatException | IOException ex) {
             System.out.println("I'm dying....ERROR");
-            Logger.getLogger(NeoTiler.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(ImageTiler.class.getName()).log(Level.SEVERE, null, ex);
         } 
         return bb;
     }
