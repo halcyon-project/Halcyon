@@ -29,7 +29,7 @@ import javax.servlet.http.HttpServletResponse;
  *
  * @author erich
  */
-public class iboxServlet extends HttpServlet {
+public class ImageServer extends HttpServlet {
     HalcyonSettings settings = HalcyonSettings.getSettings(); 
     private static final long serialVersionUID = 1L;
     static final ImageReaderKeyedPool pool = ImageReaderPool.getPool();
@@ -44,33 +44,34 @@ public class iboxServlet extends HttpServlet {
             try {
                 i = new IIIFProcessor(iiif);
             } catch (URISyntaxException ex) {
-                Logger.getLogger(iboxServlet.class.getName()).log(Level.SEVERE, null, ex);
+                Logger.getLogger(ImageServer.class.getName()).log(Level.SEVERE, null, ex);
             }
-            NeoTiler nt = null;
+            ImageTiler nt = null;
             String target = null;
             if (i.uri.getScheme()==null) {
                 File image = Paths.get(fpath+"/"+i.uri.getPath()).toFile();
                 target = image.getPath();
                 try {
-                    nt = (NeoTiler) pool.borrowObject(target);
+                    nt = (ImageTiler) pool.borrowObject(target);
                 } catch (Exception ex) {
-                    Logger.getLogger(iboxServlet.class.getName()).log(Level.SEVERE, null, ex);
+                    Logger.getLogger(ImageServer.class.getName()).log(Level.SEVERE, null, ex);
                 }
             } else if (i.uri.getScheme().startsWith("http")) {
                 target = i.uri.toString();
                 try {                
-                    nt = (NeoTiler) pool.borrowObject(target);
+                    nt = (ImageTiler) pool.borrowObject(target);
                 } catch (Exception ex) {
-                    Logger.getLogger(iboxServlet.class.getName()).log(Level.SEVERE, null, ex);
+                    Logger.getLogger(ImageServer.class.getName()).log(Level.SEVERE, null, ex);
                 }
             } else if (i.uri.getScheme().startsWith("file")) {
                 File image = FileSystems.getDefault().provider().getPath(i.uri).toAbsolutePath().toFile();
                 target = image.getPath();
                 try {
-                    nt = (NeoTiler) pool.borrowObject(target);
+                    nt = (ImageTiler) pool.borrowObject(target);
                 } catch (Exception ex) {
-                    Logger.getLogger(iboxServlet.class.getName()).log(Level.SEVERE, null, ex);
+                    Logger.getLogger(ImageServer.class.getName()).log(Level.SEVERE, null, ex);
                 }
+               // nt.setCookie(cookie);
                // nt.setCookie(cookie);
             } else {
                 System.out.println("I'm so confused as to what I am looking at....");

@@ -6,9 +6,9 @@ package com.ebremer.halcyon.imagebox;
  */
 class IRO {
     private long lastaccessed;
-    private final NeoTiler nt;
+    private final ImageTiler nt;
     
-    IRO(NeoTiler reader) {
+    IRO(ImageTiler reader) {
         lastaccessed = System.nanoTime();
         nt = reader;
     }
@@ -21,7 +21,7 @@ class IRO {
         lastaccessed = System.nanoTime();
     }
     
-    public NeoTiler getNeoTiler() {
+    public ImageTiler getNeoTiler() {
         return nt;
     }
 }
