@@ -2,16 +2,19 @@
   "resources":{
   "includes":[
     {
+      "pattern":"\\QMETA-INF/services/jakarta.json.spi.JsonProvider\\E"
+    }, 
+    {
       "pattern":"\\QMETA-INF/services/java.net.spi.URLStreamHandlerProvider\\E"
+    }, 
+    {
+      "pattern":"\\QMETA-INF/services/javax.xml.datatype.DatatypeFactory\\E"
     }, 
     {
       "pattern":"\\QMETA-INF/services/org.apache.jena.sys.JenaSubsystemLifecycle\\E"
     }, 
     {
-      "pattern":"\\Qmozilla/public-suffix-list.txt\\E"
-    }, 
-    {
-      "pattern":"\\Qorg/apache/http/client/version.properties\\E"
+      "pattern":"\\Qorg/apache/arrow/memory/DefaultAllocationManagerFactory.class\\E"
     }, 
     {
       "pattern":"\\Qorg/apache/jena/arq/arq-properties.xml\\E"

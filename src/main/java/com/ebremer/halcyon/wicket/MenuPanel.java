@@ -67,9 +67,8 @@ public class MenuPanel extends Panel {
                 System.out.println("GROUP : "+k);
             });
             if (hp.getGroups().contains("/admin")) {
-                System.out.println("ADMIN DETECTED");
                 security.setVisible(true);
-                threed.setVisible(true);
+                //threed.setVisible(true);
                 account.setVisible(true);
                 collections.setVisible(true);
             }

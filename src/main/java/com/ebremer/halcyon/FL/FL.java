@@ -550,7 +550,7 @@ PREFIX oa: <http://www.w3.org/ns/oa#>
         //String base = "http://www.ebremer.com/YAY";
         String base = "http://localhost:8888/halcyon/?iiif=";
         //URI uri = new URI("file:///D:/data2/halcyon/hm.zip");
-        URI uri = new URI("file:///D:/data2/halcyon/j4.zip");
+        URI uri = new URI("file:///D:/HalcyonStorage/nuclearsegmentation2019/coad/TCGA-AA-3872-01Z-00-DX1.eb3732ee-40e3-4ff0-a42b-d6a85cfbab6a.zip");
         BeakGraph g = new BeakGraph(uri);
         Model m = ModelFactory.createModelForGraph(g);
         
