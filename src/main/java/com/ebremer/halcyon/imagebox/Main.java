@@ -117,6 +117,7 @@ public class Main {
         return registration;
     }
     
+    /*
     @Bean
     public FilterRegistrationBean<JwtInterceptor> headerAddingFilter() {
         FilterRegistrationBean<JwtInterceptor> registrationBean = new FilterRegistrationBean<>();
@@ -125,6 +126,7 @@ public class Main {
         registrationBean.setOrder(1);
         return registrationBean;
     }
+    */
     
     @Bean
     public FilterRegistrationBean<WicketFilter> wicketFilterRegistration(){
@@ -214,10 +216,5 @@ public class Main {
         app.setBannerMode(Mode.CONSOLE);
         ApplicationContext yay = app.run(args);
         System.out.println("===================== " +app.getWebApplicationType());
-        //ApplicationContext ha = (ApplicationContext) yay;
-        //WebServerApplicationContext webContext = (WebServerApplicationContext) ha;
-        //System.out.println(webContext.getWebServer());
-        //UndertowServletWebServer ut = (UndertowServletWebServer) webContext.getWebServer();
-        //SessionManager sm = ut.getDeploymentManager().getDeployment().getSessionManager();
     }
 }

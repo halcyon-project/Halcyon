@@ -20,8 +20,6 @@ public class DICOM extends WebPage implements IMarkupResourceStreamProvider, IMa
             DWVPanel dwv = new DWVPanel("viewer1", "GRAH!");
             dwv.setVisible(true);
             add(dwv);
-            
-            
         }
         
     @Override

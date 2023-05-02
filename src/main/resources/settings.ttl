@@ -3,7 +3,6 @@
 <http://localhost>
     a :HalcyonSettingsFile;
     :RDFStoreLocation "RDFSTORE";
-    :MasterStorageLocation  "dcore";
     :HostName "http://localhost:8888";
     :HTTPPort 8888;
     :HTTPSPort 9999;

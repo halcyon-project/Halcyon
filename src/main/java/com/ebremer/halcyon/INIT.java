@@ -1,17 +1,21 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package com.ebremer.halcyon;
 
+import com.ebremer.halcyon.datum.EB;
+import com.ebremer.ns.HAL;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.apache.jena.rdf.model.Model;
+import org.apache.jena.rdf.model.ModelFactory;
+import org.apache.jena.riot.RDFDataMgr;
+import org.apache.jena.riot.RDFFormat;
+import org.apache.jena.vocabulary.RDF;
 import org.springframework.core.io.ClassPathResource;
 
 /**
@@ -34,7 +38,60 @@ public class INIT {
             }
         }
     }
-
+    
+    public Model getDefaultSettings() {
+        Model m = ModelFactory.createDefaultModel();
+        m.setNsPrefix("", HAL.NS);
+        m.createResource("http://localhost")
+                .addProperty(RDF.type, HAL.HalcyonSettingsFile)
+                .addProperty(HAL.RDFStoreLocation, "TDB2")
+                .addProperty(HAL.HostName, "http://localhost:8888")
+                .addLiteral(HAL.HTTPPort, 8888)
+                .addLiteral(HAL.HTTPSPort, 9999)
+                .addProperty(HAL.ProxyHostName, "http://localhost:8888")
+                .addLiteral(HAL.HTTPSenabled, false)
+                .addLiteral(HAL.SPARQLport, 8887);
+        return m;
+    }
+    
+    public Model getDefaultWindowsSettings() {
+        Model m = getDefaultSettings();
+        m.createResource(EB.fix(Paths.get("Storage").toUri()))
+                .addProperty(RDF.type, HAL.StorageLocation)
+                .addProperty(HAL.urlpathprefix, "/Storage");
+        return m;
+    }
+    
+    public Model getDefaultLinuxSettings() {
+        Model m = getDefaultSettings();
+        m.createResource(EB.fix(Paths.get("Storage").toUri()))
+                .addProperty(RDF.type, HAL.StorageLocation)
+                .addProperty(HAL.urlpathprefix, "/Storage");
+        return m;
+    }
+    
+    public Model getDefaultMacOSXSettings() {
+        Model m = getDefaultSettings();
+        m.createResource(EB.fix(Paths.get("Storage").toUri()))
+                .addProperty(RDF.type, HAL.StorageLocation)
+                .addProperty(HAL.urlpathprefix, "/Storage");
+        return m;
+    }
+    
+    public void CreateDefaultSettingsFile(File file, Model m) {
+        if (!file.exists()) {
+            File storage = Paths.get("Storage").toFile();
+            if (!storage.exists()) {
+                storage.mkdir();
+            }
+            try (FileOutputStream fos = new FileOutputStream(file)) {
+                RDFDataMgr.write(fos, m, RDFFormat.TURTLE_PRETTY);
+            } catch (IOException ex) {
+                Logger.getLogger(INIT.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
+    }
+    
     public void init() {
         if (!(new File("data").exists())) {
             if (!(new File("keycloak-realm-config.json").exists())) {
@@ -47,13 +104,28 @@ public class INIT {
             }
         }
         dump("keycloak.json");
-        dump("settings.ttl");
+        
+        // OS Specific Settings
+        
+        File settings = new File("settings.ttl");
+        switch (OperatingSystemInfo.getName()) {
+                case "Windows 11":
+                case "Windows 10":
+                    CreateDefaultSettingsFile(settings,getDefaultWindowsSettings());
+                    break;
+                case "Linux":
+                    CreateDefaultSettingsFile(settings,getDefaultLinuxSettings());
+                    break;
+                case "Mac OS X":
+                    CreateDefaultSettingsFile(settings,getDefaultMacOSXSettings());
+                    break;
+                default:
+                    throw new Error("What Operating System are you running?!  Sorry, but Halcyon does not support it right now...");
+        }
     }
     
     public static void main(String[] args) {
         INIT i = new INIT();
         i.init();
-      //  System.out.println(getPath());
     }
-    
 }

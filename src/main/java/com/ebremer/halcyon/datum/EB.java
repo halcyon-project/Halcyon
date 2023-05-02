@@ -1,10 +1,7 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package com.ebremer.halcyon.datum;
 
 import java.io.File;
+import java.net.URI;
 
 /**
  *
@@ -20,6 +17,17 @@ public class EB {
         //if (f.endsWith(".zip")) {
         //    f = f + "/";
        // }
+        return f;
+    } 
+
+    public static String fix(URI furi) {
+        String f = furi.toString();
+        if (!f.startsWith("file://")) {
+            f = "file:///"+ f.substring("file:/".length());
+        }
+        //if (f.endsWith(".zip")) {
+          //  f = f + "/";
+        //}
         return f;
     } 
     

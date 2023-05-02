@@ -11,18 +11,16 @@ import org.apache.wicket.util.resource.StringResourceStream;
 
 public class DCM extends WebPage implements IMarkupResourceStreamProvider, IMarkupCacheKeyProvider {
 
-        private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-        public DCM() {
-            System.out.println("DICOM View");
-            final Label l = new Label("msg", "Halcyon DICOM Integration");
-            add(l);
-            DCMPanel dwv = new DCMPanel("viewer1", "GRAH!");
-            dwv.setVisible(true);
-            add(dwv);
-            
-            
-        }
+    public DCM() {
+        System.out.println("DICOM View");
+        final Label l = new Label("msg", "Halcyon DICOM Integration");
+        add(l);
+        DCMPanel dwv = new DCMPanel("viewer1", "GRAH!");
+        dwv.setVisible(true);
+        add(dwv);            
+    }
         
     @Override
     public IResourceStream getMarkupResourceStream(MarkupContainer container, Class<?> containerClass) {

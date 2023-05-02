@@ -10,7 +10,7 @@ public class HALInMemorySessionIdMapper extends InMemorySessionIdMapper {
 
     @Override
     public boolean hasSession(String id) {
-        System.out.println("HASSESSION --> "+id+"  "+super.hasSession(id));
+        //System.out.println("HASSESSION --> "+id+"  "+super.hasSession(id));
         return super.hasSession(id);
     }
 }

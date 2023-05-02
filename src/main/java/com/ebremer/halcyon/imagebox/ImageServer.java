@@ -38,7 +38,6 @@ public class ImageServer extends HttpServlet {
     @Override
     protected void doGet( HttpServletRequest request, HttpServletResponse response ) throws ServletException, IOException {
         String iiif = request.getParameter("iiif");
-        String cookie = request.getHeader("Cookie");
         if (iiif!=null) {
             IIIFProcessor i = null;
             try {
@@ -71,8 +70,6 @@ public class ImageServer extends HttpServlet {
                 } catch (Exception ex) {
                     Logger.getLogger(ImageServer.class.getName()).log(Level.SEVERE, null, ex);
                 }
-               // nt.setCookie(cookie);
-               // nt.setCookie(cookie);
             } else {
                 System.out.println("I'm so confused as to what I am looking at....");
             }
