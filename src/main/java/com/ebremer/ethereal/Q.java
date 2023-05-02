@@ -85,11 +85,11 @@ public class Q {
         pss.setNsPrefix("exif", EXIF.NS);
         Query ha = QueryFactory.create(pss.toString());
         WhereHandler wh = new WhereHandler(ha);
-        try {
+    //    try {
             wh.addFilter("filter(!bound(?collection))");
-        } catch (ParseException ex) {
-            Logger.getLogger(Q.class.getName()).log(Level.SEVERE, null, ex);
-        }
+      //  } catch (ParseException ex) {
+        //    Logger.getLogger(Q.class.getName()).log(Level.SEVERE, null, ex);
+       // }
         //Q.getElementFilter(ha);
     }
 }

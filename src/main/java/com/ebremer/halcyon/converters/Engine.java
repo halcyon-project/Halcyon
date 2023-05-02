@@ -537,13 +537,13 @@ public class Engine {
         //StopWatch sw = new StopWatch();
         //Model yay = Engine.Load(good);
         //sw.Lapse("# of triples : "+yay.size());
-        BufferAllocator allocator = new RootAllocator();
-        BeakWriter bw = new BeakWriter(allocator, builder, "halcyon");
+        //BufferAllocator allocator = new RootAllocator();
+        BeakWriter bw = new BeakWriter(builder, "halcyon");
         bw.Register(src);
-        bw.CreateDictionary(allocator);
+        bw.CreateDictionary();
         engine.HilbertPhase(bw);
         bw.Add(src);
-        bw.Create(allocator);
+        bw.Create(builder);
         System.out.println("RDE : "+rde.getURI());
         rde.getModel().add(Engine.getMeta(src, rde));
         rde.getModel().add(Engine.getHalcyonFeatures(src, rde));

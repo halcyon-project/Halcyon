@@ -1,15 +1,30 @@
 [
 {
-  "name":"[B"
+  "name":"com.beust.jcommander.converters.FileConverter",
+  "queryAllDeclaredConstructors":true,
+  "methods":[{"name":"<init>","parameterTypes":[] }]
 },
 {
-  "name":"[Ljava.lang.String;"
+  "name":"com.beust.jcommander.validators.NoValidator",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
 },
 {
-  "name":"[Lsun.security.pkcs.SignerInfo;"
+  "name":"com.beust.jcommander.validators.NoValueValidator",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
 },
 {
-  "name":"com.apicatalog.jsonld.JsonLdVersion"
+  "name":"com.ebremer.halcyon.converters.BooleanConverter",
+  "queryAllDeclaredConstructors":true,
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"com.ebremer.halcyon.converters.IngestParameters",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true
+},
+{
+  "name":"com.fasterxml.jackson.databind.ext.Java7HandlersImpl",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
 },
 {
   "name":"com.fasterxml.jackson.databind.ext.Java7SupportImpl",
@@ -47,14 +62,6 @@
   "methods":[{"name":"<init>","parameterTypes":[] }]
 },
 {
-  "name":"com.sun.crypto.provider.HmacCore$HmacSHA256",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"com.sun.crypto.provider.HmacCore$HmacSHA384",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
   "name":"com.sun.crypto.provider.TlsMasterSecretGenerator",
   "methods":[{"name":"<init>","parameterTypes":[] }]
 },
@@ -67,27 +74,25 @@
     {"name":"builder"}, 
     {"name":"extAttributes"}
   ],
-  "queriedMethods":[{"name":"getMemoryUsageBeforeGc","parameterTypes":[] }]
+  "methods":[{"name":"getMemoryUsageBeforeGc","parameterTypes":[] }]
 },
 {
   "name":"com.sun.management.OperatingSystemMXBean",
-  "queriedMethods":[
+  "methods":[
     {"name":"getCpuLoad","parameterTypes":[] }, 
     {"name":"getProcessCpuLoad","parameterTypes":[] }
   ]
 },
 {
-  "name":"com.sun.management.UnixOperatingSystemMXBean"
+  "name":"com.sun.management.UnixOperatingSystemMXBean",
+  "methods":[
+    {"name":"getMaxFileDescriptorCount","parameterTypes":[] }, 
+    {"name":"getOpenFileDescriptorCount","parameterTypes":[] }
+  ]
 },
 {
-  "name":"jakarta.json.Json"
-},
-{
-  "name":"org.eclipse.parsson.JsonProviderImpl"
-},
-{
-  "name":"java.io.Closeable",
-  "queriedMethods":[{"name":"close","parameterTypes":[] }]
+  "name":"java.io.File",
+  "allDeclaredFields":true
 },
 {
   "name":"java.io.FilePermission"
@@ -135,9 +140,17 @@
   "fields":[{"name":"TYPE"}]
 },
 {
+  "name":"java.lang.management.ManagementFactory",
+  "methods":[{"name":"getRuntimeMXBean","parameterTypes":[] }]
+},
+{
   "name":"java.lang.management.MemoryUsage",
   "queryAllPublicMethods":true,
   "methods":[{"name":"from","parameterTypes":["javax.management.openmbean.CompositeData"] }]
+},
+{
+  "name":"java.lang.management.RuntimeMXBean",
+  "methods":[{"name":"getInputArguments","parameterTypes":[] }]
 },
 {
   "name":"java.math.BigDecimal"
@@ -156,6 +169,22 @@
   "methods":[{"name":"<init>","parameterTypes":["java.lang.String","java.lang.String"] }]
 },
 {
+  "name":"java.nio.Bits",
+  "fields":[{"name":"UNALIGNED"}]
+},
+{
+  "name":"java.nio.Buffer",
+  "fields":[{"name":"address"}]
+},
+{
+  "name":"java.nio.ByteBuffer",
+  "methods":[{"name":"alignedSlice","parameterTypes":["int"] }]
+},
+{
+  "name":"java.nio.DirectByteBuffer",
+  "methods":[{"name":"<init>","parameterTypes":["long","int"] }]
+},
+{
   "name":"java.security.AlgorithmParametersSpi"
 },
 {
@@ -169,18 +198,6 @@
 },
 {
   "name":"java.security.SecurityPermission"
-},
-{
-  "name":"java.security.interfaces.ECPrivateKey"
-},
-{
-  "name":"java.security.interfaces.ECPublicKey"
-},
-{
-  "name":"java.security.interfaces.RSAPrivateKey"
-},
-{
-  "name":"java.security.interfaces.RSAPublicKey"
 },
 {
   "name":"java.util.Date"
@@ -197,25 +214,47 @@
   "methods":[{"name":"<init>","parameterTypes":["sun.security.x509.X500Name"] }]
 },
 {
-  "name":"loci.common.LogbackTools",
-  "methods":[{"name":"setRootLevel","parameterTypes":["java.lang.String"] }]
+  "name":"jdk.internal.misc.Unsafe",
+  "methods":[{"name":"getUnsafe","parameterTypes":[] }]
 },
 {
-  "name":"org.apache.http.HttpMessage",
-  "methods":[
-    {"name":"getAllHeaders","parameterTypes":[] }, 
-    {"name":"getFirstHeader","parameterTypes":["java.lang.String"] }, 
-    {"name":"headerIterator","parameterTypes":["java.lang.String"] }, 
-    {"name":"removeHeaders","parameterTypes":["java.lang.String"] }
-  ]
+  "name":"org.apache.arrow.memory.DefaultAllocationManagerFactory",
+  "fields":[{"name":"FACTORY"}]
 },
 {
-  "name":"org.apache.http.HttpResponse",
-  "methods":[
-    {"name":"getEntity","parameterTypes":[] }, 
-    {"name":"getStatusLine","parameterTypes":[] }, 
-    {"name":"setEntity","parameterTypes":["org.apache.http.HttpEntity"] }
-  ]
+  "name":"org.apache.arrow.vector.types.pojo.ArrowType",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "queryAllDeclaredConstructors":true
+},
+{
+  "name":"org.apache.arrow.vector.types.pojo.ArrowType$Int",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "queryAllDeclaredConstructors":true
+},
+{
+  "name":"org.apache.arrow.vector.types.pojo.ArrowType$PrimitiveType",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true
+},
+{
+  "name":"org.apache.arrow.vector.types.pojo.DictionaryEncoding",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "queryAllDeclaredConstructors":true
+},
+{
+  "name":"org.apache.arrow.vector.types.pojo.Field",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "queryAllDeclaredConstructors":true
+},
+{
+  "name":"org.apache.arrow.vector.types.pojo.Schema",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "queryAllDeclaredConstructors":true
 },
 {
   "name":"org.apache.jena.ext.com.google.common.cache.Striped64",
@@ -240,17 +279,13 @@
   ]
 },
 {
-  "name":"org.apache.logging.log4j.spi.ExtendedLogger"
-},
-{
-  "name":"org.apache.logging.slf4j.SLF4JProvider"
-},
-{
-  "name":"org.slf4j.spi.LocationAwareLogger"
-},
-{
   "name":"sun.misc.Unsafe",
-  "allDeclaredFields":true
+  "allDeclaredFields":true,
+  "methods":[
+    {"name":"copyMemory","parameterTypes":["java.lang.Object","long","java.lang.Object","long","long"] }, 
+    {"name":"invokeCleaner","parameterTypes":["java.nio.ByteBuffer"] }, 
+    {"name":"storeFence","parameterTypes":[] }
+  ]
 },
 {
   "name":"sun.security.pkcs12.PKCS12KeyStore",
@@ -259,10 +294,6 @@
 {
   "name":"sun.security.pkcs12.PKCS12KeyStore$DualFormatPKCS12",
   "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"sun.security.provider.DRBG",
-  "methods":[{"name":"<init>","parameterTypes":["java.security.SecureRandomParameters"] }]
 },
 {
   "name":"sun.security.provider.DSA$SHA224withDSA",
@@ -278,6 +309,10 @@
 },
 {
   "name":"sun.security.provider.MD5",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"sun.security.provider.NativePRNG",
   "methods":[{"name":"<init>","parameterTypes":[] }]
 },
 {
@@ -305,10 +340,6 @@
   "methods":[{"name":"<init>","parameterTypes":[] }]
 },
 {
-  "name":"sun.security.provider.certpath.PKIXCertPathValidator",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
   "name":"sun.security.rsa.PSSParameters",
   "methods":[{"name":"<init>","parameterTypes":[] }]
 },
@@ -325,14 +356,6 @@
   "methods":[{"name":"<init>","parameterTypes":[] }]
 },
 {
-  "name":"sun.security.rsa.RSASignature$SHA256withRSA",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"sun.security.rsa.RSASignature$SHA384withRSA",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
   "name":"sun.security.ssl.KeyManagerFactoryImpl$SunX509",
   "methods":[{"name":"<init>","parameterTypes":[] }]
 },
@@ -343,9 +366,6 @@
 {
   "name":"sun.security.ssl.TrustManagerFactoryImpl$PKIXFactory",
   "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"sun.security.util.ObjectIdentifier"
 },
 {
   "name":"sun.security.x509.AuthorityInfoAccessExtension",
@@ -362,9 +382,6 @@
 {
   "name":"sun.security.x509.CRLDistributionPointsExtension",
   "methods":[{"name":"<init>","parameterTypes":["java.lang.Boolean","java.lang.Object"] }]
-},
-{
-  "name":"sun.security.x509.CertificateExtensions"
 },
 {
   "name":"sun.security.x509.CertificatePoliciesExtension",
