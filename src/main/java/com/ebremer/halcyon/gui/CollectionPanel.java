@@ -16,10 +16,7 @@ public class CollectionPanel extends Form<Model> {
     
     public CollectionPanel(String name, LDModel mo) {
         super(name, new LDModel<>(mo));
-        //Model m = (Model) mo.getInnermostModelOrObject();
         Resource s = null;
-       // Resource s = m.createResource(mo.GetIRI());
-       // Triple wow = m.getRequiredProperty(s, RDFS.label).asTriple();
         add(new RDFTextField<String>("CollectionName", s, RDFS.label));
         add(new Button("saveButton"));
         add(new Button("resetButton") {

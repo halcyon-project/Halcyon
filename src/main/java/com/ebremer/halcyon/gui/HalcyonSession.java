@@ -22,8 +22,6 @@ import org.apache.jena.query.ResultSet;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.Resource;
-import org.apache.jena.riot.RDFDataMgr;
-import org.apache.jena.riot.RDFFormat;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.SchemaDO;
 import org.apache.wicket.Session;
@@ -51,11 +49,9 @@ public final class HalcyonSession extends WebSession {
         KeycloakSecurityContext securityContext = (KeycloakSecurityContext) req.getContainerRequest().getAttribute(KeycloakSecurityContext.class.getName());
         if (securityContext==null) {
             uuid = "urn:uuid:"+UUID.randomUUID().toString();
-      //      token = null;
             principal = new HalcyonPrincipal(uuid, true);
         } else {
             AccessToken token2 = securityContext.getToken();
-        //    this.token = securityContext.getTokenString();
             uuid = "urn:uuid:"+token2.getSubject();
             principal = new HalcyonPrincipal(new JwtToken(securityContext.getTokenString()),false);
             //principal = new HalcyonPrincipal(uuid, false);
@@ -101,9 +97,6 @@ public final class HalcyonSession extends WebSession {
                 da.createResource(HAL.Anonymous.toString())
                         .addProperty(RDF.type, SchemaDO.Organization)
                         .addProperty(SchemaDO.name, "Anonymous Sessions");
-                System.out.println("================================");
-                RDFDataMgr.write(System.out, da, RDFFormat.TURTLE_PRETTY);
-                System.out.println("================================");
                 DataCore dc = DataCore.getInstance();
                 if (dc.getDataset()!=null) {
                     System.out.println("DataCore online....\nUpdating Groups and Users...");
@@ -123,8 +116,8 @@ public final class HalcyonSession extends WebSession {
     
     public Model ParseLab(JsonObject jo) {
         Model m = ModelFactory.createDefaultModel();
-        String uuid = jo.getString("id");
-        Resource s = m.createResource("urn:uuid:"+uuid);
+        String uuidx = jo.getString("id");
+        Resource s = m.createResource("urn:uuid:"+uuidx);
         m.add(m.createLiteralStatement(s, SchemaDO.name, jo.getString("name")));
         m.add(m.createLiteralStatement(s, SchemaDO.url, jo.getString("path")));
         m.add(s, RDF.type, SchemaDO.Organization);
@@ -140,8 +133,8 @@ public final class HalcyonSession extends WebSession {
 
     public Model ParseUser(JsonObject jo) {
         Model m = ModelFactory.createDefaultModel();
-        String uuid = jo.getString("id");
-        Resource s = m.createResource(uuid);
+        String uuidx = jo.getString("id");
+        Resource s = m.createResource(uuidx);
         if (jo.containsKey("lastName")) {
             m.add(m.createLiteralStatement(s, SchemaDO.familyName, jo.getString("lastName")));
         }

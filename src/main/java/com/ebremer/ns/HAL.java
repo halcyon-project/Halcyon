@@ -16,6 +16,8 @@ public class HAL {
  */
     private static final Model m = ModelFactory.createDefaultModel();
     public static final String NS = "https://www.ebremer.com/halcyon/ns/";
+    public static final Resource StorageLocation = m.createResource(NS+"StorageLocation");
+    public static final Resource HalcyonSettingsFile = m.createResource(NS+"HalcyonSettingsFile");
     public static final Resource Anonymous = m.createResource(NS+"Anonymous");  // Identifier for a group of unidentified things
     public static final Resource DataFile = m.createResource(NS+"DataFile");
     public static final Resource FileManagerArtifact = m.createResource(NS+"FileManagerArtifact");
@@ -78,4 +80,13 @@ public class HAL {
     public static final Property webid = m.createProperty(NS+"webid");
     public static final Property assertedClass = m.createProperty(NS+"assertedClass");
     public static final Property hasProperty = m.createProperty(NS+"hasProperty");
+    public static final Property RDFStoreLocation = m.createProperty(NS+"RDFStoreLocation");
+    public static final Property MasterStorageLocation = m.createProperty(NS+"MasterStorageLocation");
+    public static final Property HostName = m.createProperty(NS+"HostName");
+    public static final Property HTTPPort = m.createProperty(NS+"HTTPPort");
+    public static final Property HTTPSPort = m.createProperty(NS+"HTTPSPort");
+    public static final Property ProxyHostName = m.createProperty(NS+"ProxyHostName");
+    public static final Property HTTPSenabled = m.createProperty(NS+"HTTPSenabled");
+    public static final Property SPARQLport = m.createProperty(NS+"SPARQLport");
+    public static final Property urlpathprefix = m.createProperty(NS+"urlpathprefix");
 }

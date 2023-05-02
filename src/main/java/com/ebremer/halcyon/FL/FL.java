@@ -82,9 +82,6 @@ public class FL {
         this.classes = new HashMap<>();
         BeakGraph bg = (BeakGraph) m.getGraph();
         manifest = bg.getReader().getManifest();
-        //System.out.println("*********************************************************************");
-        //RDFDataMgr.write(System.out, manifest, RDFFormat.TURTLE_PRETTY);
-        //System.out.println("*********************************************************************");
         ParameterizedSparqlString pss = new ParameterizedSparqlString(
             """
             select * where {
@@ -482,7 +479,7 @@ public class FL {
             """);
         pss.setNsPrefix("so", SchemaDO.NS);
         pss.setNsPrefix("oa", OA.NS);
-        pss.setNsPrefix("hal", "https://www.ebremer.com/halcyon/ns/");
+        pss.setNsPrefix("hal", HAL.NS);
      //   System.out.println(pss.toString());
         QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m);
         ResultSet rs = qe.execSelect();
