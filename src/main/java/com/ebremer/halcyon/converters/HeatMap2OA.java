@@ -57,7 +57,7 @@ public class HeatMap2OA {
     public void shutdown() {
         System.out.println("All jobs submitted.");
         int totaljobs = engine.getQueue().size()+engine.getActiveCount();
-        while (engine.getActiveCount()>0) {
+        while (!engine.isTerminated()) {
             int c = engine.getQueue().size()+engine.getActiveCount();
             long ram = (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())/1024L/1024L;
             System.out.println("jobs completed : "+(totaljobs-c)+" remaining jobs: "+c+"  Total RAM used : "+ram+"MB  Maximum RAM : "+(Runtime.getRuntime().maxMemory()/1024L/1024L)+"MB");
