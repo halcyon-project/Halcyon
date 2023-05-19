@@ -68,7 +68,7 @@
         <wicket.ver>9.13.0</wicket.ver>
         <keycloak.ver>18.0.2</keycloak.ver>
         <embeddedkeycloak.ver>8.0.0</embeddedkeycloak.ver>
-        <bioformats.ver>6.10.0</bioformats.ver>
+        <bioformats.ver>6.13.0</bioformats.ver>
         <hilbert.ver>0.2.2</hilbert.ver>
         <commons-pool2.ver>2.11.1</commons-pool2.ver>
         <jakarta.json.version>2.0.1</jakarta.json.version> 
@@ -191,6 +191,25 @@
                         <groupId>org.panteleyev</groupId>
                         <artifactId>jpackage-maven-plugin</artifactId>
                         <version>1.6.0</version>
+                        <configuration>
+                            <name>Halcyon</name>
+                            <appVersion>${project.version}</appVersion>
+                            <vendor>Wing-n-Beak LLC</vendor>
+                            <copyright>Copyright 2022 Erich Bremer - Stony Brook University</copyright>
+                            <licenseFile>LICENSE</licenseFile>
+                            <input>target</input>
+                            <mainJar>Halcyon-0.3.1.jar</mainJar>
+                            <verbose>true</verbose>
+                            <description>Whole Slide Imaging and Feature Management</description>
+                            <installDir>\Halcyon</installDir>
+                            <icon>src\main\resources\META-INF\halcyon.ico</icon>
+                            <destination>target/dist</destination>
+                            <type>dmg</type>
+                            <javaOptions>
+                                <option>--enable-preview</option>
+                                <option>-Dfile.encoding=UTF-8</option>
+                            </javaOptions>
+                        </configuration>
                     </plugin>
                 </plugins>
             </build>
@@ -233,10 +252,20 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-enforcer-plugin</artifactId>
-                        <version>3.2.1</version>
-                        <configuration>
-                            <rules><dependencyConvergence/></rules>
-                        </configuration>
+                        <version>3.3.0</version>
+                        <executions>
+                            <execution>
+                                <id>enforce</id>
+                                <goals>
+                                    <goal>enforce</goal>
+                                </goals>
+                                <configuration>
+                                    <rules>
+                                        <banDuplicatePomDependencyVersions/>
+                                    </rules>
+                                </configuration>
+                            </execution>
+                        </executions>
                     </plugin>
                 </plugins>
                 <resources>

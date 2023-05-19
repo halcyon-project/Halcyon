@@ -95,8 +95,8 @@ public class ImageServer extends HttpServlet {
                         i.h = nt.GetHeight()-i.y;
                     }                 
                 }
-                String fileType = target.substring(target.lastIndexOf('.') + 1);
-                originalImage = nt.FetchImage(i.x, i.y, i.w, i.h, i.tx, i.tx, fileType);
+                //String fileType = target.substring(target.lastIndexOf('.') + 1);
+                originalImage = nt.FetchImage(i.x, i.y, i.w, i.h, i.tx, i.tx);
                 ByteArrayOutputStream baos = new ByteArrayOutputStream();
                 ServletOutputStream sos = response.getOutputStream();
                 if (i.imageformat == ImageFormat.JPG) {

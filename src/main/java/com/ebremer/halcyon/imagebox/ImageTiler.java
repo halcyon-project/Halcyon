@@ -23,7 +23,6 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import static java.lang.Math.abs;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import java.util.Collections;
 import java.util.Hashtable;
@@ -41,9 +40,10 @@ import loci.formats.MetadataTools;
 import loci.formats.gui.AWTImageTools;
 import loci.formats.in.NDPIReader;
 import loci.formats.in.SVSReader;
-import com.ebremer.halcyon.imagebox.experimental.TiffReader;
+import static java.awt.image.BufferedImage.TYPE_INT_RGB;
 import java.nio.file.Path;
 import java.util.HashMap;
+import loci.formats.in.TiffReader;
 import loci.formats.meta.IMetadata;
 import loci.formats.meta.MetadataStore;
 import loci.formats.services.OMEXMLService;
@@ -67,22 +67,15 @@ public class ImageTiler {
     private MetadataStore store;
     private IMetadata meta;
     private OMEXMLMetadataRoot newRoot;
-    private int lowerbound = 0;
-    private int upperbound = 0;
-    private int numi;
     private final int iWidth;
     private final int iHeight;
-    private final int[] px;
-    private final int[] py;
-    private final int[] pr;
-    private final int[] pi;
     private double mppx;
     private double mppy;
     private boolean borked = false;
     private String status = "";
     private long lastaccessed;
-    private CoreMetadata big;
     private String url;
+    private Stack stack;
     
     public ImageTiler(String f) {
         DebugTools.enableLogging("ERROR");
@@ -118,7 +111,7 @@ public class ImageTiler {
             case "tif" -> new TiffReader();
             //case "vsi" -> new CellSensReader();
             default -> null;
-        }; // VSI will require more work.  It is broken at the moment
+        };
         reader.setGroupFiles(true);
         reader.setMetadataFiltered(true);
         reader.setOriginalMetadataPopulated(true);
@@ -127,6 +120,7 @@ public class ImageTiler {
             service = factory.getInstance(OMEXMLService.class);
             reader.setMetadataStore(service.createOMEXMLMetadata(null, null));
             reader.setId(getthis);
+            stack = new Stack(reader);
             store = reader.getMetadataStore();
             MetadataTools.populatePixels(store, reader, false, false);
             reader.setSeries(0);
@@ -140,87 +134,21 @@ public class ImageTiler {
         }
         if (!borked) {
             newRoot = (OMEXMLMetadataRoot) meta.getRoot();
-            numi = reader.getSeriesCount();
-         //   System.out.println("getSeriesCount : "+numi);
-            if (getthis.endsWith(".vsi")) {
-                lowerbound = MaxImage(reader);
-            }
             Hashtable<String, Object> hh = reader.getSeriesMetadata();
             if (hh.containsKey("MPP")) {
                 double mpp = Double.parseDouble((String) hh.get("MPP"));
                 mppx = mpp;
                 mppy = mpp;
             }
-            numi = numi - lowerbound;
-            px = new int[numi];
-            py = new int[numi];
-            pr = new int[numi];
-            pi = new int[numi];
-            for (int j=0;j<numi;j++) {
-                big = reader.getCoreMetadataList().get(j);
-               // System.out.println(j+" >>> "+big.sizeX+","+big.sizeY+" aspect ratio : "+(((float) big.sizeX)/((float)big.sizeY)));
-            }
-            big = reader.getCoreMetadataList().get(lowerbound);
-            float ratio = ((float) big.sizeX)/((float) big.sizeY);
-            for (int j=lowerbound;j<(numi+lowerbound);j++) {
-                big = reader.getCoreMetadataList().get(j);
-                int offset = j-lowerbound;
-                px[offset] = big.sizeX;
-                py[offset] = big.sizeY;
-                pr[offset] = px[lowerbound]/px[offset];
-                pi[offset] = j;
-                float mi = (((float) big.sizeX)/((float)big.sizeY));
-                float off = abs((mi-ratio)/ratio);
-                if (off>0.01) {
-                    px[offset] = 1;
-                }
-            }
-            SortImages();
-            upperbound = lowerbound + 1;
-            while ((upperbound<numi)&&(px[upperbound]>1024)) {
-                upperbound++;
-            }
-            for (int j=0;j<numi;j++) {
-                pr[j] = px[0]/px[j];
-                //System.out.println(j+" >>> "+pi[j]+" "+pr[j]+"  "+px[j]+","+py[j]);
-            }
-            numi = upperbound - lowerbound;
-            reader.setSeries(lowerbound);
             iWidth = reader.getSizeX();
             iHeight = reader.getSizeY();
         } else {
             iWidth = 0;
             iHeight = 0;
-            px = null;
-            py = null;
-            pr = null;
-            pi = null;
-        }
-    }
-    
-    public void SortImages() {
-        boolean sorted = false;
-        while (!sorted) {
-            sorted = true;
-            for (int i = 0; i<numi-1; i++) {
-                if (px[i]<px[i+1]) {
-                    int temp = px[i];
-                    px[i] = px[i+1];
-                    px[i+1] = temp;
-                    temp = py[i];
-                    py[i] = py[i+1];
-                    py[i+1] = temp;
-                    temp = pi[i];
-                    pi[i] = pi[i+1];
-                    pi[i+1] = temp;
-                    sorted = false;
-                }
-            }
         }
     }
     
     public void setURL(String r) {
-        //System.out.println("setURL : "+r);
         url = r;
     }
     
@@ -279,14 +207,13 @@ public class ImageTiler {
         m.addLiteral(s, EXIF.yResolution, Math.round(10000/mppy));
         m.addLiteral(s, EXIF.resolutionUnit, 3);
         Resource scale = m.createResource();
-        for (int j=upperbound;j>=0;j--) {
-            reader.setSeries(j);
+        for (int j=stack.index.length-1;j>=0;j--) {
             Resource size = m.createResource();
-            m.addLiteral(size,IIIF.width,reader.getSizeX());
-            m.addLiteral(size,IIIF.height,reader.getSizeY());
+            m.addLiteral(size,IIIF.width,stack.width[j]);
+            m.addLiteral(size,IIIF.height,stack.height[j]);
             m.add(s,IIIF.sizes,size);
-            m.addLiteral(scale, IIIF.scaleFactors,((int)(iWidth/reader.getSizeX())));
-            m.add(s,IIIF.tiles,scale);
+            m.addLiteral(scale, IIIF.scaleFactors,((int)(iWidth/stack.width[j])));
+            m.add(s,IIIF.tiles,scale);            
         }
         m.addLiteral(scale,IIIF.width,reader.getOptimalTileWidth());
         m.addLiteral(scale,IIIF.height,reader.getOptimalTileHeight());
@@ -331,26 +258,18 @@ public class ImageTiler {
         return null;
     }
 
-    public BufferedImage FetchImage(int x, int y, int w, int h, int tx, int ty, String type) {
-        //System.out.println("FetchImage : "+x+" "+y+" "+w+" "+h+" "+tx+" "+ty);
+    public BufferedImage FetchImage(int x, int y, int w, int h, int tx, int ty) {
+       // System.out.println("FetchImage : "+x+" "+y+" "+w+" "+h+" "+tx+" "+ty);
         int iratio = w/tx;
-        int jj = 0;
-        while ((jj<numi)&&(iratio>pr[jj])) {
-           // System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>> "+jj+"  "+pi[jj]+" "+pr[jj]+"   "+numi+"  "+iratio);
-            jj++;
-        }
-        if (jj>numi) {jj--;}
-        //System.out.println("selecting series : "+pi[jj]);
-       	reader.setSeries(pi[jj]);
-       	double rr = ((double) reader.getSizeX())/((double) iWidth);
-        int gx=(int) (x*rr);
-        int gy=(int) (y*rr);
-        int gw=(int) (w*rr);
-        int gh=(int) (h*rr);
-        BufferedImage bi = GrabImage(gx,gy,gw,gh,type);
+        reader.setSeries(stack.getBest(iratio));
+       	float rr = ((float) reader.getSizeX())/((float) iWidth);
+        int gx=(int) Math.round(x*rr);
+        int gy=(int) Math.round(y*rr);
+        int gw=(int) Math.round(w*rr);
+        int gh=(int) Math.round(h*rr);
+        BufferedImage bi = GrabImage(gx,gy,gw,gh);
         float scale = (((float) tx)/((float) bi.getWidth()));
         if (Math.abs(scale-1.0f)>0.02) {
-            //System.out.println("SCALE : "+scale+ "  "+gx+","+gy+","+gw+","+gh);
             BufferedImage target;
             AffineTransform at = new AffineTransform();
             at.scale(scale,scale);
@@ -362,20 +281,18 @@ public class ImageTiler {
         return bi;
     }
     
-    private BufferedImage GrabImage(int xpos, int ypos, int width, int height, String type) {
-        //System.out.println("grab image : "+xpos+ " "+ypos+" "+width+" "+height+" === "+type);
+    private BufferedImage GrabImage(int xpos, int ypos, int width, int height) {
+       // System.out.println("grab image : "+xpos+ " "+ypos+" "+width+" "+height);
+        if ((xpos+width)>reader.getSizeX()-1) { width = reader.getSizeX() - xpos; }
+        if ((ypos+height)>reader.getSizeY()-1) { height = reader.getSizeY() - ypos; }
         meta.setRoot(newRoot);
         meta.setPixelsSizeX(new PositiveInteger(width), 0);
         meta.setPixelsSizeY(new PositiveInteger(height), 0);
-        byte[] buf;
-        BufferedImage bb = null;
         try {
-            buf = reader.openBytes(0, xpos, ypos, width, height);
-            bb = AWTImageTools.makeImage(buf, reader.isInterleaved(), meta, 0);
+            byte[] buf = reader.openBytes(0, xpos, ypos, width, height);
+            return AWTImageTools.makeImage(buf, reader.isInterleaved(), meta, 0);
         } catch (FormatException | IOException ex) {
-            System.out.println("I'm dying....ERROR");
-            Logger.getLogger(ImageTiler.class.getName()).log(Level.SEVERE, null, ex);
+            return new BufferedImage(width,height,TYPE_INT_RGB);
         } 
-        return bb;
     }
 }
