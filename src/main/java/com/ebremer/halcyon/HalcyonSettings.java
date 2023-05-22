@@ -53,7 +53,7 @@ public class HalcyonSettings {
     private static final int DEFAULTSPARQLPORT = 8887;
     private final Property SPARQLPORT;
     private final Property MULTIVIEWERLOCATION;
-    public static final String VERSION = "0.3.1";
+    public static final String VERSION = "0.4.0";
     public static Resource HALCYONAGENT = ResourceFactory.createResource(HAL.NS+"/VERSION/"+VERSION);
     private static final String MasterSettingsLocation = "settings.ttl";
     private Resource Master;

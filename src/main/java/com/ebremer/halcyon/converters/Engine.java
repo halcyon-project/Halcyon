@@ -4,10 +4,7 @@ import com.ebremer.beakgraph.rdf.BeakWriter;
 import com.ebremer.halcyon.Standard;
 import com.ebremer.halcyon.hilbert.HilbertSpace;
 import static com.ebremer.halcyon.hilbert.HilbertSpace.Area;
-import com.ebremer.ns.EXIF;
 import com.ebremer.ns.HAL;
-import com.ebremer.rocrate4j.ROCrate;
-import com.ebremer.rocrate4j.writers.ZipWriter;
 import java.awt.Polygon;
 import java.io.File;
 import java.io.FileInputStream;
@@ -28,8 +25,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocator;
 import org.apache.jena.query.ParameterizedSparqlString;
 import org.apache.jena.query.QueryExecution;
 import org.apache.jena.query.QueryExecutionFactory;
@@ -40,7 +35,6 @@ import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.Property;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.riot.Lang;
-import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.riot.RDFParserBuilder;
 import org.apache.jena.riot.RDFWriter;
 import org.apache.jena.riot.RIOT;
@@ -54,7 +48,6 @@ import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.RDFS;
 import org.apache.jena.vocabulary.SchemaDO;
 import org.davidmoten.hilbert.Range;
-import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -202,7 +195,6 @@ public class Engine {
     }
     
     public void HilbertPhase(BeakWriter bw) {
-        //System.out.println("HilbertPhase...");
         if (optimize) {
             FindScale();
         }
@@ -251,11 +243,9 @@ public class Engine {
                 }
             });
         }
-        System.out.println("Phase 1 # of triples : "+m.size());
     }
 
     public void Phase0() {
-        //System.out.println("Phase 2...");
         m.enterCriticalSection(Lock.WRITE);
         UpdateRequest update = UpdateFactory.create();
         ParameterizedSparqlString pss = new ParameterizedSparqlString(
@@ -292,7 +282,6 @@ public class Engine {
     }
     
     public void Phase2() {
-        //System.out.println("Phase 2...");
         m.enterCriticalSection(Lock.WRITE);
         UpdateRequest update = UpdateFactory.create();
         ParameterizedSparqlString pss = new ParameterizedSparqlString(
@@ -311,7 +300,6 @@ public class Engine {
         update.add(pss.toString());
         UpdateAction.execute(update, m);
         m.leaveCriticalSection();
-        //System.out.println("Phase 2 # of triples : "+m.size());
     }
     
     public static Model Load(File f, Resource rde) throws FileNotFoundException, IOException {
@@ -322,7 +310,6 @@ public class Engine {
             .lang(Lang.TURTLE)
             .source(new GZIPInputStream(new FileInputStream(f)))
             .toModel();      
-        System.out.println("Phase 0 # of triples : "+x.size());
         return x;
     }
     
@@ -393,7 +380,6 @@ public class Engine {
                     i++;
                 }
             }
-            //RDFDataMgr.write(System.out, pm, Lang.TURTLE);
             return pm;
         }
     }
@@ -440,13 +426,8 @@ public class Engine {
         pss.setIri("newroc", r.getURI());
         pss.setNsPrefix("hal", HAL.NS);
         pss.setNsPrefix("so", SchemaDO.NS);
-        System.out.println("================== META 1 ===============================");
-        System.out.println(pss.toString());
         QueryExecution qe = QueryExecutionFactory.create(pss.toString(),m);
         Model k = qe.execConstruct();
-        System.out.println("================== META 1 dump ===============================");
-        RDFDataMgr.write(System.out, k, Lang.TURTLE);
-        System.out.println("================== META 1 dump end ===============================");
         UpdateRequest update = UpdateFactory.create();
         pss = new ParameterizedSparqlString(
         """
@@ -483,9 +464,6 @@ public class Engine {
         pss.setNsPrefix("so", SchemaDO.NS);
         update.add(pss.toString());
         UpdateAction.execute(update, k);
-        System.out.println("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
-        RDFDataMgr.write(System.out, k, Lang.TURTLE);
-        System.out.println("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
         return k;
     }
     
@@ -506,75 +484,5 @@ public class Engine {
             features.AddClass(g.toString());
         });
         return features.getModel(r);
-    }
-    
-    public static void main(String[] args) throws FileNotFoundException, IOException {
-        ch.qos.logback.classic.Logger root = (ch.qos.logback.classic.Logger)LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME);
-        root.setLevel(ch.qos.logback.classic.Level.OFF);
-
-        //File raw = new File("/data2/halcyon/heatmap/TCGA-3C-AALI-01Z-00-DX1.F6E9A5DF-D8FB-45CF-B4BD-C6B76294C291.ttl.gz");
-        File raw = new File("/data2/halcyon/seg/TCGA-3C-AALI-01Z-00-DX1.F6E9A5DF-D8FB-45CF-B4BD-C6B76294C291.ttl.gz");
-        //File raw = new File("/data2/halcyon/j2/tumor-brca-resnet34-TCGA-3C-AALI-01Z-00-DX1.F6E9A5DF-D8FB-45CF-B4BD-C6B76294C291.ttl.gz");
-        
-        //Old to OA
-        //ROCrate.Builder builder = new ROCrate.Builder(new ZipWriter2(new File("/HalcyonStorage/heatmaps/j3.zip")));
-        ROCrate.ROCrateBuilder builder = new ROCrate.ROCrateBuilder(new ZipWriter(new File("/HalcyonStorage/segmentation/zzz.zip")));
-        //ROCrate.Builder builder = new ROCrate.Builder(new ZipWriter2(new File("/data2/halcyon/x.zip")));
-        //ROCrate.Builder builder = new ROCrate.Builder(new FolderWriter(new File("/data2/halcyon/x")));
-        Resource rde = builder.getRDE();
-        Model src = Engine.Load(raw,rde);
-        Engine engine = new Engine(src, false);
-        
-        //System.out.println("================================= META ===============================================");
-        //Model xx = Engine.getMeta(engine.m, ResourceFactory.createResource("https://bestbuy.com/ggg"));
-        //RDFDataMgr.write(System.out, xx, RDFFormat.TURTLE_PRETTY);
-        //System.out.println("================================= META ===============================================");        
-        //Model m = engine.Create();
-       // engine.DumpModel(m, good.toPath(), true);
-        //Model yay = m;
-        //OA to Arrow
-        //System.out.println("Load Preprocessed Data...");
-        //StopWatch sw = new StopWatch();
-        //Model yay = Engine.Load(good);
-        //sw.Lapse("# of triples : "+yay.size());
-        //BufferAllocator allocator = new RootAllocator();
-        BeakWriter bw = new BeakWriter(builder, "halcyon");
-        bw.Register(src);
-        bw.CreateDictionary();
-        engine.HilbertPhase(bw);
-        bw.Add(src);
-        bw.Create(builder);
-        System.out.println("RDE : "+rde.getURI());
-        rde.getModel().add(Engine.getMeta(src, rde));
-        rde.getModel().add(Engine.getHalcyonFeatures(src, rde));
-        rde
-            .addProperty(RDF.type, HAL.HalcyonROCrate)
-            .addLiteral(EXIF.width,engine.getWidth())
-            .addLiteral(EXIF.height,engine.getHeight());
-         //   .addLiteral(BG.triples,yay.size());
-        // metairi.getModel().add(VoID);
-        rde.getModel().add(bw.getVoID(rde));
-       //System.out.println("****************");
-       // RDFDataMgr.write(System.out, bw.getVoID(rde), Lang.TURTLE);
-       // System.out.println("****************");
-        builder.build();
-        
-        
-        //Engine engine = new Engine(yay,false);
-        //engine.Search(32768, 32768, 256, 256);
-        
-        
-        // just use it....  
-        
-        //String base = "http://www.ebremer.com/YAY";
-        //BeakGraph g = new BeakGraph(new ROCrateReader(base, new ZipReader(new File("d:\\nlms2\\halcyon\\x.zip"))));
-        //BeakGraph g = new BeakGraph(base, (new File("d:\\nlms2\\halcyon\\x.zip")).toURI());
-        //Model m = ModelFactory.createModelForGraph(g);
-        //Engine engine = new Engine(m,false);
-        //long begin = System.nanoTime();
-        //engine.Search(32768, 32768, 512, 512);
-        //double end = (System.nanoTime() - begin)/1000000000d;
-        //System.out.println("Search time : "+end);
-
     }
 }

@@ -12,7 +12,6 @@ import com.ebremer.beakgraph.rdf.BeakGraph;
 import com.ebremer.halcyon.Standard;
 import com.ebremer.halcyon.hilbert.HilbertSpace;
 import com.ebremer.halcyon.hsPolygon;
-import com.ebremer.ns.CSVW;
 import com.ebremer.ns.EXIF;
 import com.ebremer.ns.HAL;
 import com.ebremer.ns.IIIF;
@@ -295,7 +294,6 @@ public class FL {
             Model mm = ModelFactory.createDefaultModel();
             mm.setNsPrefix("so", SchemaDO.NS);
             mm.setNsPrefix("hal", HAL.NS);
-            mm.setNsPrefix("csvw", CSVW.NS);
             mm.setNsPrefix("iiif", IIIF.getURI());
             mm.setNsPrefix("doap", DOAP.getURI());
             Resource s = ResourceFactory.createResource(modbase);

@@ -15,6 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.vocabulary.RDF;
@@ -37,6 +38,7 @@ public class Ingest {
                 bw.Register(m);
                 bw.CreateDictionary();
                 engine.HilbertPhase(bw);
+                System.out.println("Process Triples : "+m.size());
                 bw.Add(m);
                 bw.Create(builder);
                 rde.getModel().add(Engine.getMeta(m, rde));
@@ -46,20 +48,20 @@ public class Ingest {
                     .addProperty(RDF.type, HAL.HalcyonROCrate)
                     .addLiteral(EXIF.width,engine.getWidth())
                     .addLiteral(EXIF.height,engine.getHeight());
+                //System.out.println("Closing BeakWriter...");
             } catch (java.lang.IllegalStateException ex) {
-                System.out.println(ex.toString());
-            } catch (Exception ex) {
+                System.out.println("AA : "+ex.toString());
+            } catch (OutOfMemoryException ex) {
+                System.out.println("BB : "+ex.toString());
                 Logger.getLogger(Ingest.class.getName()).log(Level.SEVERE, null, ex);
             }
             builder.build();
         } catch (IOException ex) {
-            Logger.getLogger(Ingest.class.getName()).log(Level.SEVERE, null, ex);
             System.out.println("File does not exist : "+source.toString());
         }
     }
     
     public void Process(File src, boolean optimize, File dest) throws FileNotFoundException, IOException { 
-        System.out.println("PROCESSING : "+src+" ===> "+dest);
         if (!dest.exists()) {
             dest.mkdirs();
         }
