@@ -2,7 +2,7 @@
 
 <http://localhost>
     a :HalcyonSettingsFile;
-    :RDFStoreLocation "RDFSTORE";
+    :RDFStoreLocation "TDB2";
     :HostName "http://localhost:8888";
     :HTTPPort 8888;
     :HTTPSPort 9999;

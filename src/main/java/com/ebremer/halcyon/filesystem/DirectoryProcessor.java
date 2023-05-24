@@ -4,7 +4,6 @@ import com.ebremer.halcyon.datum.DataCore;
 import com.ebremer.halcyon.datum.EB;
 import com.ebremer.halcyon.datum.Scan;
 import com.ebremer.ns.HAL;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -128,8 +127,7 @@ public class DirectoryProcessor {
     public static String[] GetExtensions(int ftype) {
         return switch (ftype) {
             case ZIP -> new String[] {"zip"};
-            case DICOM -> new String[] {"dcm", "dat"};
-            case DFIX -> new String[] {"dcm", "dat"};
+            case DICOM -> new String[] {"dcm"};
             case HL7 -> new String[] {"txt"};
             case XML -> new String[] {"xml", "xml.gz"};
             case CSV -> new String[] {"csv"};

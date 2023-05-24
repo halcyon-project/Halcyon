@@ -93,6 +93,9 @@ public class INIT {
     }
     
     public void init() {
+        
+        // Setup Keycloak initialization files
+        
         if (!(new File("data").exists())) {
             if (!(new File("keycloak-realm-config.json").exists())) {
                 dump("keycloak-realm-config.json");

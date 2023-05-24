@@ -11,5 +11,4 @@ public class About extends BasePage {
     public About() {
         
     }
-    
 }

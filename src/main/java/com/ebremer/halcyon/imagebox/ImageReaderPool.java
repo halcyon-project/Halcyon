@@ -3,7 +3,6 @@ package com.ebremer.halcyon.imagebox;
 import java.time.Duration;
 import org.apache.commons.pool2.impl.GenericKeyedObjectPoolConfig;
 
-
 /**
  *
  * @author erich
