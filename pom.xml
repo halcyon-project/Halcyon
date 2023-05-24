@@ -183,6 +183,7 @@
                         <artifactId>jpackage-maven-plugin</artifactId>
                         <version>1.6.0</version>
                         <configuration>
+                            <installDir>\Halcyon</installDir>
                             <winMenu>true</winMenu>
                             <winShortcutPrompt>true</winShortcutPrompt>
                             <winDirChooser>true</winDirChooser>
@@ -209,6 +210,7 @@
                         <artifactId>jpackage-maven-plugin</artifactId>
                         <version>1.6.0</version>
                         <configuration>
+                            <installDir>\Halcyon</installDir>
                             <type>DMG</type>
                         </configuration>
                     </plugin>
@@ -229,6 +231,7 @@
                         <artifactId>jpackage-maven-plugin</artifactId>
                         <version>1.6.0</version>
                         <configuration>
+                            <installDir>/usr/local</installDir>
                             <type>DEB</type>
                         </configuration>
                     </plugin>
@@ -601,9 +604,8 @@
                     <mainJar>Halcyon-${project.version}.jar</mainJar>
                     <verbose>true</verbose>
                     <description>Whole Slide Imaging and Feature Management</description>
-                    <installDir>\Halcyon</installDir>
                     <icon>src\main\resources\META-INF\halcyon.ico</icon>
-                    <destination>target/dist</destination>
+                    <destination>dist</destination>
                     <javaOptions>
                         <option>--enable-preview</option>
                         <option>-Dfile.encoding=UTF-8</option>
