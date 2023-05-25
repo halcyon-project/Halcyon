@@ -22,7 +22,7 @@ import java.util.logging.Logger;
 
 public class KeycloakPublicKeyFetcher {
     private static KeycloakPublicKeyFetcher kpkf = null; 
-    private final String oidcConfigurationUrl = "http://localhost:"+HalcyonSettings.getSettings().GetHostPort() + "/auth/realms/master/protocol/openid-connect/certs";
+    private final String oidcConfigurationUrl = "http://localhost:"+HalcyonSettings.getSettings().GetHTTPPort() + "/auth/realms/master/protocol/openid-connect/certs";
     private static PublicKey publicKey = null;
     
     private KeycloakPublicKeyFetcher() {

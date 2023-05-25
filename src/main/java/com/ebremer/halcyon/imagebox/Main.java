@@ -55,7 +55,7 @@ public class Main {
     @Order(Ordered.HIGHEST_PRECEDENCE)
     public ServletRegistrationBean proxyServletRegistrationBean() {
         ServletRegistrationBean bean = new ServletRegistrationBean(new HalcyonProxyServlet(), "/sparql/*");
-        bean.addInitParameter("targetUri", "http://localhost:8887/rdf");
+        bean.addInitParameter("targetUri", "http://localhost:"+settings.GetSPARQLPort()+"/rdf");
         bean.addInitParameter(ProxyServlet.P_PRESERVECOOKIES, "true");
         bean.addInitParameter(ProxyServlet.P_HANDLEREDIRECTS, "true");
         return bean;
@@ -69,7 +69,8 @@ public class Main {
         int ioThreads = cores;
         int taskThreads = 16*cores;
         System.out.println("ioThreads  :"+ioThreads+"\ntaskThreads :"+taskThreads);
-        factory.setIoThreads(ioThreads);   
+        factory.setIoThreads(ioThreads);
+        factory.setPort(settings.GetHTTPPort());
         if (settings.isHTTPSenabled()) {
             factory.addBuilderCustomizers(builder -> {
                 SSLContext ssl;
@@ -77,7 +78,7 @@ public class Main {
                     ssl = getSSLContext();
                     System.out.println("HTTPS PORT : "+settings.GetHTTPSPort());
                     builder
-                        .addHttpsListener(settings.GetHTTPSPort(), "0.0.0.0", ssl)
+                        .addHttpsListener(settings.GetHTTPSPort(), settings.GetHostIP(), ssl)
                         .setServerOption(UndertowOptions.ENABLE_HTTP2, true)
                         .setServerOption(UndertowOptions.MAX_PARAMETERS, 100000)
                         .setServerOption(UndertowOptions.MAX_CONCURRENT_REQUESTS_PER_CONNECTION, 100);
@@ -184,16 +185,13 @@ public class Main {
         KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
         keyManagerFactory.init(keyStore, keyStorePassword.toCharArray());
         keyManagers = keyManagerFactory.getKeyManagers();
-
         TrustManager[] trustManagers;
         TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
         trustManagerFactory.init(trustStore);
         trustManagers = trustManagerFactory.getTrustManagers();
-
         SSLContext sslContext;
         sslContext = SSLContext.getInstance("TLS");
         sslContext.init(keyManagers, trustManagers, null);
-
         return sslContext;
     }
     
@@ -215,6 +213,6 @@ public class Main {
         SpringApplication app = new SpringApplication(Main.class);
         app.setBannerMode(Mode.CONSOLE);
         ApplicationContext yay = app.run(args);
-        System.out.println("===================== " +app.getWebApplicationType());
+        System.out.println("===================== Welcome to Halcyon!");
     }
 }

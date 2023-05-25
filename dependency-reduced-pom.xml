@@ -10,7 +10,7 @@
   <groupId>com.ebremer</groupId>
   <artifactId>Halcyon</artifactId>
   <name>Halcyon</name>
-  <version>0.4.1</version>
+  <version>0.4.2</version>
   <description>A whole slide image annotation, management, and visualization system</description>
   <issueManagement>
     <system>github</system>
