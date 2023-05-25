@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.ebremer</groupId>
     <artifactId>Halcyon</artifactId>
-    <version>0.4.0</version>
+    <version>0.4.1</version>
     <packaging>jar</packaging>
     <name>Halcyon</name>
     <description>A whole slide image annotation, management, and visualization system</description>
@@ -85,7 +85,7 @@
         <resteasy.version>4.7.4.Final</resteasy.version>
         <infinispan.version>13.0.12.Final</infinispan.version>
         <jgroups.version>4.2.21.Final</jgroups.version>
-        <beakgraph.version>0.3.1</beakgraph.version>
+        <beakgraph.version>0.3.2</beakgraph.version>
     </properties>
     
     <parent>

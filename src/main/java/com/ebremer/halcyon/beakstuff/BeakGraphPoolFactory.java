@@ -33,6 +33,7 @@ public class BeakGraphPoolFactory extends BaseKeyedPooledObjectFactory<URI, Beak
     @Override
     public void destroyObject(URI key, PooledObject p, DestroyMode mode) throws Exception {
         System.out.println("Destroying BeakGraph");
+        ((BeakGraph) p.getObject()).close();
         super.destroyObject(key, p, mode);
     }  
 }

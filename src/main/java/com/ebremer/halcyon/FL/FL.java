@@ -55,6 +55,7 @@ import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.riot.system.JenaTitanium;
 import org.apache.jena.sparql.vocabulary.DOAP;
+import org.apache.jena.sys.JenaSystem;
 import org.apache.jena.vocabulary.OA;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.SchemaDO;
@@ -73,6 +74,7 @@ public class FL {
     private int numscales;
     private int numclasses = 0;
     private final HashMap<String,Integer> classes;
+    private final float[] ratios;
     
     public FL(Model m) {
         System.out.println("Creating an FL Reader");
@@ -98,7 +100,7 @@ public class FL {
         } else {
             throw new Error("Cannot find CreateAction/ROCrate");
         }
-        System.out.println("FEATURE WIDTH/HEIGHT : "+width+", "+height);
+        //System.out.println("FEATURE WIDTH/HEIGHT : "+width+", "+height);
         pss = new ParameterizedSparqlString(
             """
             select ?class where {
@@ -115,11 +117,6 @@ public class FL {
                 classes.put(clazz, numclasses);
             }
         }
-        //int ns = (int) (Math.log(Math.max(width, height))/Math.log(2));
-        //numscales = (ns>8)?(ns-8):1;
-        //IntStream.range(0, numscales).forEach(i->{
-          //  hspace.put(i, new HilbertSpace(width>>i,height>>i));
-        //});
         pss = new ParameterizedSparqlString(
             """
             select distinct ?o where {
@@ -140,11 +137,16 @@ public class FL {
             int ss = Integer.parseInt(s);
             hspace.put(ss, new HilbertSpace(width>>ss,height>>ss));
         });
+        ratios = new float[numscales];
         // if 1 then it's a heatmap.
         if (hspace.size()==1) {
             System.out.println("ITS A HEATMAP!!!! "+width+"x"+height);
             hspace.clear();
             hspace.put(1, new HilbertSpace(width,height));
+        } else {
+            hspace.forEach((k,v)->{
+                ratios[k] = ((float) width)/((float) hspace.get(k).width);
+            });
         }
     }
     
@@ -168,18 +170,18 @@ public class FL {
     
     public BufferedImage FetchImage(int x, int y, int w, int h, int tx, int ty) {
         //System.out.println("FetchImage : "+x+" "+y+" "+w+" "+h+" "+tx+" "+ty);
-        double iratio = ((double) w)/((double) tx);
-        double rr;
-        int layer = -1;
+        float iratio = ((float) w)/((float) tx);
+        int layer = numscales-1;
+        float rr = 1.0f;
         if (hspace.size()==1) {
             layer = hspace.keySet().iterator().next();
-            //rr = ((double) width)/((double) hspace.get(layer).width);
-            rr = 1;
         } else {
-            do {
-                layer++;
-                rr = ((double) width)/((double) hspace.get(layer).width);
-            } while ((layer<(numscales-1))&&(iratio>rr));
+            float a = 0.8f*ratios[layer];
+            while ((iratio<a)&&(layer>0)) {
+                layer--;
+                a = 0.8f*ratios[layer];
+            }
+            rr = ratios[layer];
         }
         int gx=(int) (x/rr);
         int gy=(int) (y/rr);
@@ -545,7 +547,9 @@ PREFIX oa: <http://www.w3.org/ns/oa#>
         //String base = "http://www.ebremer.com/YAY";
         String base = "http://localhost:8888/halcyon/?iiif=";
         //URI uri = new URI("file:///D:/data2/halcyon/hm.zip");
-        URI uri = new URI("file:///D:/HalcyonStorage/nuclearsegmentation2019/coad/TCGA-AA-3872-01Z-00-DX1.eb3732ee-40e3-4ff0-a42b-d6a85cfbab6a.zip");
+        //URI uri = new URI("file:///D:/HalcyonStorage/nuclearsegmentation2019/coad/TCGA-AA-3872-01Z-00-DX1.eb3732ee-40e3-4ff0-a42b-d6a85cfbab6a.zip");
+        URI uri = new URI("file:///D:/HalcyonStorage/nuclearsegmentation2019/coad/TCGA-CM-5348-01Z-00-DX1.2ad0b8f6-684a-41a7-b568-26e97675cce9.zip");
+        JenaSystem.init();
         BeakGraph g = new BeakGraph(uri);
         Model m = ModelFactory.createModelForGraph(g);
         
@@ -564,7 +568,12 @@ PREFIX oa: <http://www.w3.org/ns/oa#>
         //BufferedImage bi = fl.getImage(32768, 32768, 1024, 1024, 1);
         //BufferedImage bi = fl.FetchImage(32768, 32768, 1024, 1024, 1024, 1024);
         //BufferedImage bi = fl.FetchImage(32768, 32768, 1024, 1024, 1024, 1024);
-        BufferedImage bi = fl.FetchImage(0, 0, 505, 372, 505, 505);
+//BufferedImage bi = fl.FetchImage(0, 0, 505, 372, 505, 505);
+        
+        
+        BufferedImage bi = fl.FetchImage(32768, 32768, 32768, 32768, 512, 512);
+        
+        
         //BufferedImage bi = fl.FetchImage(52000, 33000, 32192, 32192, 8192, 8192);
         
           //BufferedImage bi = fl.FetchImage(52000, 33000, 32192, 32192, 32768, 32768);
