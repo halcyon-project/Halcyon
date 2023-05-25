@@ -15,6 +15,7 @@ import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.riot.RDFFormat;
+import org.apache.jena.sys.JenaSystem;
 import org.apache.jena.vocabulary.RDF;
 import org.springframework.core.io.ClassPathResource;
 
@@ -93,7 +94,7 @@ public class INIT {
     }
     
     public void init() {
-        
+        JenaSystem.init();
         // Setup Keycloak initialization files
         
         if (!(new File("data").exists())) {

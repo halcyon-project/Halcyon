@@ -10,7 +10,7 @@
   <groupId>com.ebremer</groupId>
   <artifactId>Halcyon</artifactId>
   <name>Halcyon</name>
-  <version>0.4.0</version>
+  <version>0.4.1</version>
   <description>A whole slide image annotation, management, and visualization system</description>
   <issueManagement>
     <system>github</system>
@@ -51,11 +51,21 @@
       </roles>
       <timezone>America/New_York</timezone>
     </developer>
+    <developer>
+      <id>fwang</id>
+      <name>Feiqiao Wang</name>
+      <email>feiqiao.wang@stonybrook.edu</email>
+      <organization>Stony Brook University - Biomedical Informatics</organization>
+      <roles>
+        <role>developer</role>
+      </roles>
+      <timezone>America/New_York</timezone>
+    </developer>
   </developers>
   <licenses>
     <license>
       <name>MIT License</name>
-      <url>https://github.com/ebremer/Halcyon/blob/master/LICENSE</url>
+      <url>https://github.com/halcyon-project/Halcyon/blob/master/LICENSE</url>
     </license>
   </licenses>
   <organization>
@@ -72,22 +82,14 @@
           <name>Halcyon</name>
           <appVersion>${project.version}</appVersion>
           <vendor>Wing-n-Beak LLC</vendor>
-          <copyright>Copyright 2022 Erich Bremer - Stony Brook University</copyright>
+          <copyright>Copyright 2021-2023 Erich Bremer - Stony Brook University</copyright>
           <licenseFile>LICENSE</licenseFile>
           <input>target</input>
-          <mainJar>Halcyon-0.2.0.jar</mainJar>
+          <mainJar>Halcyon-${project.version}.jar</mainJar>
           <verbose>true</verbose>
-          <winMenu>true</winMenu>
-          <winShortcutPrompt>true</winShortcutPrompt>
-          <winDirChooser>true</winDirChooser>
-          <winConsole>true</winConsole>
-          <winHelpUrl>https://github.com/ebremer/Halcyon</winHelpUrl>
-          <winUpdateUrl>https://github.com/ebremer/Halcyon</winUpdateUrl>
           <description>Whole Slide Imaging and Feature Management</description>
-          <installDir>\Halcyon</installDir>
           <icon>src\main\resources\META-INF\halcyon.ico</icon>
-          <destination>target/dist</destination>
-          <type>MSI</type>
+          <destination>dist</destination>
           <javaOptions>
             <option>--enable-preview</option>
             <option>-Dfile.encoding=UTF-8</option>
@@ -114,6 +116,16 @@
             <groupId>org.panteleyev</groupId>
             <artifactId>jpackage-maven-plugin</artifactId>
             <version>1.6.0</version>
+            <configuration>
+              <installDir>\Halcyon</installDir>
+              <winMenu>true</winMenu>
+              <winShortcutPrompt>true</winShortcutPrompt>
+              <winDirChooser>true</winDirChooser>
+              <winConsole>true</winConsole>
+              <winHelpUrl>https://github.com/ebremer/Halcyon</winHelpUrl>
+              <winUpdateUrl>https://github.com/ebremer/Halcyon</winUpdateUrl>
+              <type>MSI</type>
+            </configuration>
           </plugin>
         </plugins>
       </build>
@@ -127,36 +139,25 @@
             <artifactId>jpackage-maven-plugin</artifactId>
             <version>1.6.0</version>
             <configuration>
-              <name>Halcyon</name>
-              <appVersion>${project.version}</appVersion>
-              <vendor>Wing-n-Beak LLC</vendor>
-              <copyright>Copyright 2022 Erich Bremer - Stony Brook University</copyright>
-              <licenseFile>LICENSE</licenseFile>
-              <input>target</input>
-              <mainJar>Halcyon-0.3.1.jar</mainJar>
-              <verbose>true</verbose>
-              <description>Whole Slide Imaging and Feature Management</description>
               <installDir>\Halcyon</installDir>
-              <icon>src\main\resources\META-INF\halcyon.ico</icon>
-              <destination>target/dist</destination>
-              <type>dmg</type>
-              <javaOptions>
-                <option>--enable-preview</option>
-                <option>-Dfile.encoding=UTF-8</option>
-              </javaOptions>
+              <type>DMG</type>
             </configuration>
           </plugin>
         </plugins>
       </build>
     </profile>
     <profile>
-      <id>linux-installer</id>
+      <id>ubuntu-installer</id>
       <build>
         <plugins>
           <plugin>
             <groupId>org.panteleyev</groupId>
             <artifactId>jpackage-maven-plugin</artifactId>
             <version>1.6.0</version>
+            <configuration>
+              <installDir>/usr/local</installDir>
+              <type>DEB</type>
+            </configuration>
           </plugin>
         </plugins>
       </build>
@@ -792,7 +793,7 @@
     <dependency>
       <groupId>com.ebremer</groupId>
       <artifactId>BeakGraph</artifactId>
-      <version>0.3.1</version>
+      <version>0.3.2</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
@@ -925,7 +926,7 @@
     <titanium-json-ld.ver>1.3.0</titanium-json-ld.ver>
     <maven.compiler.target>17</maven.compiler.target>
     <hilbert.ver>0.2.2</hilbert.ver>
-    <beakgraph.version>0.3.1</beakgraph.version>
+    <beakgraph.version>0.3.2</beakgraph.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <commons-pool2.ver>2.11.1</commons-pool2.ver>
     <keycloak.ver>18.0.2</keycloak.ver>
