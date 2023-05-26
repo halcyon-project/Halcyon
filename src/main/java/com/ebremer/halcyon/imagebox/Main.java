@@ -172,8 +172,8 @@ public class Main {
     }
     
     private final String keyStorePassword = "changeit";
-    private final String serverKeystore = "cacerts.p12";
-    private final String serverTruststore = "cacerts.p12";
+    private final String serverKeystore = "cacerts";
+    private final String serverTruststore = "cacerts";
     private final String trustStorePassword = "changeit";
     
     public SSLContext getSSLContext() throws Exception {

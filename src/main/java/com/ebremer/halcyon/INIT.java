@@ -47,7 +47,7 @@ public class INIT {
                 .addProperty(RDF.type, HAL.HalcyonSettingsFile)
                 .addProperty(HAL.RDFStoreLocation, "TDB2")
                 .addProperty(HAL.HostName, "http://localhost:"+HalcyonSettings.DEFAULTHTTPPORT)
-                //.addProperty(HAL.HostIP, "0.0.0.0")  //not fully implemented yet
+                .addProperty(HAL.HostIP, "0.0.0.0")  //not fully implemented yet
                 .addLiteral(HAL.HTTPPort, HalcyonSettings.DEFAULTHTTPPORT)
                 .addLiteral(HAL.HTTPSPort, HalcyonSettings.DEFAULTHTTPSPORT)
                 .addProperty(HAL.ProxyHostName, "http://localhost:"+HalcyonSettings.DEFAULTHTTPPORT)

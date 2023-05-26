@@ -8,11 +8,9 @@ import java.io.FileOutputStream;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URL;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.jena.query.ParameterizedSparqlString;
@@ -183,13 +181,13 @@ public final class HalcyonSettings {
     }
 
     public String GetHostIP() {
-        ParameterizedSparqlString pss = new ParameterizedSparqlString( "select ?port where {?s ?p ?ip}");
+        ParameterizedSparqlString pss = new ParameterizedSparqlString( "select ?ip where {?s ?p ?ip}");
         pss.setNsPrefix("", HAL.NS);
         pss.setIri("p", HAL.HostIP.getURI());
         QueryExecution qe = QueryExecutionFactory.create(pss.toString(),m);
         ResultSet results = qe.execSelect();
         if (results.hasNext()) {
-            QuerySolution sol = results.nextSolution();
+            QuerySolution sol = results.next();
             return sol.get("ip").asLiteral().getString();
         }
         return DEFAULTHOSTIP;
