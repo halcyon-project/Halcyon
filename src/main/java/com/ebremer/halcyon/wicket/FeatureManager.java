@@ -27,7 +27,6 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.apache.jena.graph.Graph;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.DatasetFactory;
 import org.apache.jena.query.ParameterizedSparqlString;
@@ -39,8 +38,6 @@ import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.rdf.model.Resource;
-import org.apache.jena.riot.Lang;
-import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.riot.system.JenaTitanium;
 import org.apache.jena.vocabulary.OWL;
 import org.apache.jena.vocabulary.RDF;
@@ -61,7 +58,7 @@ public class FeatureManager {
     }
 
     public String getFeatures(HashSet<String> features, String urn) {
-        System.out.println("getFeatures : "+urn);
+        //System.out.println("getFeatures : "+urn);
        // features.forEach(d->{
          //   System.out.println("YAH  : "+d);
         //});
@@ -135,7 +132,7 @@ public class FeatureManager {
         pss.setNsPrefix("rdfs", RDFS.getURI());
         pss.setNsPrefix("rdf", RDF.uri);        
         pss.setValues("selected", roc);
-        System.out.println("#3 "+pss.toString());
+        //System.out.println("#3 "+pss.toString());
         rs = QueryExecutionFactory.create(pss.toString(), ds).execSelect();
         String lroc = "";
         Model m = ModelFactory.createDefaultModel();
@@ -268,10 +265,6 @@ public class FeatureManager {
         } catch (JsonLdError ex) {
             Logger.getLogger(FeatureManager.class.getName()).log(Level.SEVERE, null, ex);
         }
-      String fea = HFrame.wow(hold);
-      //System.out.println("===================================================== Features ======================================");
-      //System.out.println(fea);
-      //System.out.println("==========XXXXXXXXXXXXXXXXXX======================== Features ============XXXXXXXXXXXXX==============");
-      return fea;
+      return HFrame.wow(hold);
     }
 }

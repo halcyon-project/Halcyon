@@ -19,7 +19,6 @@ import javax.imageio.ImageWriteParam;
 import javax.imageio.ImageWriter;
 import javax.imageio.plugins.jpeg.JPEGImageWriteParam;
 import javax.imageio.stream.ImageOutputStream;
-import javax.servlet.ServletException;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -36,7 +35,7 @@ public class ImageServer extends HttpServlet {
     Path fpath = Paths.get(System.getProperty("user.dir")+"/"+settings.getwebfiles());
        
     @Override
-    protected void doGet( HttpServletRequest request, HttpServletResponse response ) throws ServletException, IOException {
+    protected void doGet( HttpServletRequest request, HttpServletResponse response ) {
         String iiif = request.getParameter("iiif");
         if (iiif!=null) {
             IIIFProcessor i = null;
@@ -77,9 +76,12 @@ public class ImageServer extends HttpServlet {
                 response.setContentType("application/json");
                 response.setHeader("Access-Control-Allow-Origin", "*");
                 response.setStatus(500);
-                PrintWriter writer=response.getWriter();
-                writer.append(nt.GetImageInfo());
-                writer.flush();                
+                try (PrintWriter writer=response.getWriter()) {
+                    writer.append(nt.GetImageInfo());
+                    writer.flush();   
+                } catch (IOException ex) {
+                    Logger.getLogger(ImageServer.class.getName()).log(Level.SEVERE, null, ex);
+                }
             } else if (i.tilerequest) {
                 BufferedImage originalImage;
                 if (i.fullrequest) {
@@ -95,40 +97,40 @@ public class ImageServer extends HttpServlet {
                         i.h = nt.GetHeight()-i.y;
                     }                 
                 }
-                //String fileType = target.substring(target.lastIndexOf('.') + 1);
                 originalImage = nt.FetchImage(i.x, i.y, i.w, i.h, i.tx, i.tx);
                 ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                ServletOutputStream sos = response.getOutputStream();
-                if (i.imageformat == ImageFormat.JPG) {
-                    ImageWriter writer = ImageIO.getImageWritersByFormatName("jpg").next();
-                    JPEGImageWriteParam jpegParams = new JPEGImageWriteParam(null);
-                    jpegParams.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
-                    jpegParams.setCompressionQuality(0.7f);
-                    ImageOutputStream imageOut = ImageIO.createImageOutputStream(baos);
-                    writer.setOutput(imageOut);
-                    writer.write(null,new IIOImage(originalImage,null,null),jpegParams);                
-                    baos.flush();
-                    byte[] imageInByte = baos.toByteArray();
-                    baos.close();
-                    response.setContentType("image/jpg");
-                    response.setContentLength(imageInByte.length);
-                    response.setHeader("Access-Control-Allow-Origin", "*");
-                    sos.write(imageInByte);
-                    sos.close();
-                } else if (i.imageformat == ImageFormat.PNG) {
-                    ImageWriter writer = ImageIO.getImageWritersByFormatName("png").next();
-                    ImageWriteParam pjpegParams = writer.getDefaultWriteParam();
-                    ImageOutputStream imageOut=ImageIO.createImageOutputStream(baos);
-                    writer.setOutput(imageOut);
-                    writer.write(null,new IIOImage(originalImage,null,null),pjpegParams);
-                    baos.flush();
-                    byte[] imageInByte = baos.toByteArray();
-                    baos.close();
-                    response.setContentType("image/png");
-                    response.setContentLength(imageInByte.length);
-                    response.setHeader("Access-Control-Allow-Origin", "*");
-                    sos.write(imageInByte);
-                    sos.close();
+                try (ServletOutputStream sos = response.getOutputStream()) {
+                    if (i.imageformat == ImageFormat.JPG) {
+                        ImageWriter writer = ImageIO.getImageWritersByFormatName("jpg").next();
+                        JPEGImageWriteParam jpegParams = new JPEGImageWriteParam(null);
+                        jpegParams.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+                        jpegParams.setCompressionQuality(0.7f);
+                        ImageOutputStream imageOut = ImageIO.createImageOutputStream(baos);
+                        writer.setOutput(imageOut);
+                        writer.write(null,new IIOImage(originalImage,null,null),jpegParams);                
+                        baos.flush();
+                        byte[] imageInByte = baos.toByteArray();
+                        baos.close();
+                        response.setContentType("image/jpg");
+                        response.setContentLength(imageInByte.length);
+                        response.setHeader("Access-Control-Allow-Origin", "*");
+                        sos.write(imageInByte);
+                    } else if (i.imageformat == ImageFormat.PNG) {
+                        ImageWriter writer = ImageIO.getImageWritersByFormatName("png").next();
+                        ImageWriteParam pjpegParams = writer.getDefaultWriteParam();
+                        ImageOutputStream imageOut=ImageIO.createImageOutputStream(baos);
+                        writer.setOutput(imageOut);
+                        writer.write(null,new IIOImage(originalImage,null,null),pjpegParams);
+                        baos.flush();
+                        byte[] imageInByte = baos.toByteArray();
+                        baos.close();
+                        response.setContentType("image/png");
+                        response.setContentLength(imageInByte.length);
+                        response.setHeader("Access-Control-Allow-Origin", "*");
+                        sos.write(imageInByte);
+                    }
+                } catch (IOException ex) {
+                    Logger.getLogger(ImageServer.class.getName()).log(Level.SEVERE, null, ex);
                 }
             } else if (i.inforequest) {
                 //System.out.println("IMAGE INFORMATION REQUEST : "+request.getQueryString());
@@ -139,6 +141,8 @@ public class ImageServer extends HttpServlet {
                 try (PrintWriter writer = response.getWriter()) {
                     writer.append(nt.GetImageInfo());
                     writer.flush();
+                } catch (IOException ex) {
+                    Logger.getLogger(ImageServer.class.getName()).log(Level.SEVERE, null, ex);
                 }
             } else {
                 System.out.println("unknown IIIF request");
@@ -147,7 +151,6 @@ public class ImageServer extends HttpServlet {
         } else {
             
         }
-        //System.out.println("DONE : "+time.getTime(getFullURL(request)));
     }
     
     public static String getFullURL(HttpServletRequest request) {
