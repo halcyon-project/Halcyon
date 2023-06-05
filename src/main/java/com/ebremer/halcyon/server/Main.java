@@ -1,4 +1,4 @@
-package com.ebremer.halcyon.imagebox;
+package com.ebremer.halcyon.server;
 
 import com.ebremer.halcyon.keycloak.HALKeycloakOIDCFilter;
 import com.ebremer.halcyon.HalcyonSettings;
@@ -6,6 +6,9 @@ import com.ebremer.halcyon.INIT;
 import com.ebremer.halcyon.fuseki.HalcyonProxyServlet;
 import com.ebremer.halcyon.datum.SessionsManager;
 import com.ebremer.halcyon.gui.HalcyonApplication;
+import com.ebremer.halcyon.imagebox.FeatureServer;
+import com.ebremer.halcyon.imagebox.ImageServer;
+import com.ebremer.halcyon.server.keycloak.ServerProperties;
 import io.undertow.UndertowOptions;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -31,6 +34,7 @@ import org.springframework.boot.Banner.Mode;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.liquibase.LiquibaseAutoConfiguration;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.web.embedded.undertow.UndertowServletWebServerFactory;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.boot.web.servlet.ServletRegistrationBean;
@@ -43,7 +47,9 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @SpringBootApplication(exclude = LiquibaseAutoConfiguration.class)
+@EnableConfigurationProperties(ServerProperties.class)
 public class Main {
+
     private final HalcyonSettings settings = HalcyonSettings.getSettings();
     private static final SessionIdMapper sessionidmapper = SessionsManager.getSessionsManager().getSessionIdMapper();
     
@@ -60,7 +66,7 @@ public class Main {
         bean.addInitParameter(ProxyServlet.P_HANDLEREDIRECTS, "true");
         return bean;
     }
-    
+   
     @Bean
     public UndertowServletWebServerFactory embeddedServletContainerFactory() {
         System.out.println("Configuring Undertow Web Engine...");
@@ -91,7 +97,7 @@ public class Main {
         }
         return factory;
     }  
-    
+
     @Bean
     ServletRegistrationBean iboxServletRegistration () {
         System.out.println("iboxServletRegistration order: "+Ordered.LOWEST_PRECEDENCE);
@@ -117,18 +123,7 @@ public class Main {
             registration.setEnabled(true);
         return registration;
     }
-    
-    /*
-    @Bean
-    public FilterRegistrationBean<JwtInterceptor> headerAddingFilter() {
-        FilterRegistrationBean<JwtInterceptor> registrationBean = new FilterRegistrationBean<>();
-        registrationBean.setFilter(new JwtInterceptor());
-        registrationBean.addUrlPatterns("/*");
-        registrationBean.setOrder(1);
-        return registrationBean;
-    }
-    */
-    
+   
     @Bean
     public FilterRegistrationBean<WicketFilter> wicketFilterRegistration(){
         HalcyonApplication hal = new HalcyonApplication();
@@ -143,7 +138,7 @@ public class Main {
         registration.setDispatcherTypes(DispatcherType.REQUEST, DispatcherType.FORWARD);
         return registration;
     }
-    
+   
     @Bean
     ServletRegistrationBean HalcyonServletRegistration () {
         ServletRegistrationBean srb = new ServletRegistrationBean();
@@ -170,7 +165,7 @@ public class Main {
             }   
         }
     }
-    
+
     private final String keyStorePassword = "changeit";
     private final String serverKeystore = "cacerts";
     private final String serverTruststore = "cacerts";
@@ -216,3 +211,15 @@ public class Main {
         System.out.println("===================== Welcome to Halcyon!");
     }
 }
+
+
+    /*
+    @Bean
+    public FilterRegistrationBean<JwtInterceptor> headerAddingFilter() {
+        FilterRegistrationBean<JwtInterceptor> registrationBean = new FilterRegistrationBean<>();
+        registrationBean.setFilter(new JwtInterceptor());
+        registrationBean.addUrlPatterns("/*");
+        registrationBean.setOrder(1);
+        return registrationBean;
+    }
+    */

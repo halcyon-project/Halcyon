@@ -1,5 +1,5 @@
 {
-  "realm": "Halcyon",
+  "realm": "master",
   "auth-server-url": "http://localhost:8888/auth/",
   "ssl-required": "external",
   "resource": "account",

@@ -54,13 +54,13 @@ public final class HalcyonSettings {
     private final HashMap<String,String> mappings;
     private final String Realm = "master";
     
-    public static final String realm = "master";
+    public static final String realm = "Halcyon";
     public static final int DEFAULTHTTPPORT = 8888;
     public static final int DEFAULTHTTPSPORT = 9999;
     public static final int DEFAULTSPARQLPORT = 8887;
     public static final String DEFAULTHOSTNAME = "http://localhost";
     public static final String DEFAULTHOSTIP = "0.0.0.0";
-    public static final String VERSION = "0.4.2";
+    public static final String VERSION = "0.5.0";
     public static Resource HALCYONAGENT = ResourceFactory.createResource(HAL.NS+"/VERSION/"+VERSION);
     
     private HalcyonSettings() {

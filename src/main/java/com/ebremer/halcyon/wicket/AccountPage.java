@@ -1,5 +1,6 @@
 package com.ebremer.halcyon.wicket;
 
+import com.ebremer.halcyon.HalcyonSettings;
 import org.apache.wicket.markup.ComponentTag;
 import org.apache.wicket.markup.html.WebMarkupContainer;
 
@@ -14,7 +15,7 @@ public class AccountPage extends BasePage {
             @Override
             public void onComponentTag(ComponentTag tag) {
                 super.onComponentTag(tag);
-                tag.put("src", "/auth/realms/Halcyon/account");
+                tag.put("src", "/auth/realms/"+HalcyonSettings.realm+"/account");
             }
         }); 
         

@@ -62,6 +62,7 @@ public class MenuPanel extends Panel {
             revisionhistory.setVisible(true);
             login.setVisible(false);
             logout.setVisible(true);
+            //account.setVisible(true);
             sparql.setVisible(true);
             hp.getGroups().forEach(k->{
                 System.out.println("GROUP : "+k);

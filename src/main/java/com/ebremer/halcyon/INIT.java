@@ -45,7 +45,7 @@ public class INIT {
         m.setNsPrefix("", HAL.NS);
         m.createResource("http://localhost")
                 .addProperty(RDF.type, HAL.HalcyonSettingsFile)
-                .addProperty(HAL.RDFStoreLocation, "TDB2")
+                .addProperty(HAL.RDFStoreLocation, "tdb2")
                 .addProperty(HAL.HostName, "http://localhost:"+HalcyonSettings.DEFAULTHTTPPORT)
                 .addProperty(HAL.HostIP, "0.0.0.0")  //not fully implemented yet
                 .addLiteral(HAL.HTTPPort, HalcyonSettings.DEFAULTHTTPPORT)
