@@ -23,7 +23,6 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
-import javax.servlet.DispatcherType;
 import org.apache.wicket.RuntimeConfigurationType;
 import org.apache.wicket.protocol.http.ContextParamWebApplicationFactory;
 import org.apache.wicket.protocol.http.WicketFilter;
@@ -121,7 +120,7 @@ public class Main {
             registration.setOrder(Ordered.HIGHEST_PRECEDENCE+1);
             registration.addInitParameter(KeycloakOIDCFilter.CONFIG_FILE_PARAM, "keycloak.json");
             //registration.addInitParameter(KeycloakOIDCFilter.SKIP_PATTERN_PARAM, "(^/realms/.*|/|/;jsessionid=.*|/gui/images/halcyon.png|^/wicket/resource/.*|^/multi-viewer.*|^/iiif.*|^/gui/viewer.*|^/gui|^/gui/about|^/gui/ListImages.*|^/sparql.*|^/wicket/resource/com.*\\.css|^/gui/public|^/gui/vendor/openseadragon/.*|^/auth/.*|^/favicon.ico|^/auth/.*$)");
-            registration.addInitParameter(KeycloakOIDCFilter.SKIP_PATTERN_PARAM, "(^/hawkeye/.*|/;jsessionid=.*|/gui/images/halcyon.png|^/wicket/resource/.*|^/multi-viewer.*|^/iiif.*|^/|^/about|^/ListImages.*|^/wicket/resource/com.*\\.css||^/auth/.*|^/favicon.ico)");
+            registration.addInitParameter(KeycloakOIDCFilter.SKIP_PATTERN_PARAM, "(^/rdf.*|^/hawkeye/.*|/;jsessionid=.*|/gui/images/halcyon.png|^/wicket/resource/.*|^/multi-viewer.*|^/iiif.*|^/|^/about|^/ListImages.*|^/wicket/resource/com.*\\.css||^/auth/.*|^/favicon.ico)");
             registration.setEnabled(true);
         return registration;
     }
@@ -138,7 +137,7 @@ public class Main {
         registration.setOrder(Ordered.LOWEST_PRECEDENCE);
         registration.addInitParameter(ContextParamWebApplicationFactory.APP_CLASS_PARAM, HalcyonApplication.class.getName());
         registration.addInitParameter(WicketFilter.FILTER_MAPPING_PARAM, "/*");
-        registration.addInitParameter(IGNORE_PATHS_PARAM, "/auth/,/three.js/,/multi-viewer/,/iiif/,/halcyon/,/images/,/favicon.ico,/rdf/,/hawkeye/");
+        registration.addInitParameter(IGNORE_PATHS_PARAM, "/auth/,/three.js/,/multi-viewer/,/iiif/,/halcyon/,/images/,/favicon.ico,/rdf,/hawkeye/");
         //registration.setDispatcherTypes(DispatcherType.REQUEST, DispatcherType.FORWARD);
         return registration;
     }

@@ -61,7 +61,7 @@ public final class HalcyonSettings {
     public static final int DEFAULTSPARQLPORT = 8887;
     public static final String DEFAULTHOSTNAME = "http://localhost";
     public static final String DEFAULTHOSTIP = "0.0.0.0";
-    public static final String VERSION = "0.5.0";
+    public static final String VERSION = "0.5.1";
     public static Resource HALCYONAGENT = ResourceFactory.createResource(HAL.NS+"/VERSION/"+VERSION);
     
     private HalcyonSettings() {
