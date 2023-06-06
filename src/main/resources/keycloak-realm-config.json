@@ -48,6 +48,15 @@
   "roles": {
     "realm": [
       {
+        "id": "7c27c564-4cc8-40d4-8279-95c20b92cc86",
+        "name": "admin",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "d09e261f-309c-4d66-bf0e-674ce19772fd",
+        "attributes": {}
+      },
+      {
         "id": "28262476-5ea7-4b58-979e-99e356636c2c",
         "name": "default-roles-halcyon",
         "description": "${role_default-roles}",
@@ -58,9 +67,22 @@
             "uma_authorization"
           ],
           "client": {
+            "realm-management": [
+              "manage-clients",
+              "query-groups"
+            ],
+            "broker": [
+              "read-token"
+            ],
             "account": [
+              "view-applications",
+              "view-consent",
               "manage-account",
-              "view-profile"
+              "view-profile",
+              "manage-account-links",
+              "view-groups",
+              "delete-account",
+              "manage-consent"
             ]
           }
         },
@@ -419,8 +441,42 @@
       "name": "admin",
       "path": "/admin",
       "attributes": {},
-      "realmRoles": [],
-      "clientRoles": {},
+      "realmRoles": [
+        "offline_access",
+        "default-roles-halcyon",
+        "uma_authorization",
+        "admin"
+      ],
+      "clientRoles": {
+        "realm-management": [
+          "manage-clients",
+          "view-identity-providers",
+          "view-realm",
+          "realm-admin",
+          "view-authorization",
+          "view-clients",
+          "manage-realm",
+          "query-groups",
+          "manage-users",
+          "manage-identity-providers",
+          "create-client",
+          "query-clients",
+          "query-realms"
+        ],
+        "broker": [
+          "read-token"
+        ],
+        "account": [
+          "view-applications",
+          "view-consent",
+          "manage-account",
+          "view-profile",
+          "manage-account-links",
+          "view-groups",
+          "delete-account",
+          "manage-consent"
+        ]
+      },
       "subGroups": []
     }
   ],
@@ -446,8 +502,8 @@
   "otpPolicyPeriod": 30,
   "otpPolicyCodeReusable": false,
   "otpSupportedApplications": [
-    "totpAppFreeOTPName",
     "totpAppMicrosoftAuthenticatorName",
+    "totpAppFreeOTPName",
     "totpAppGoogleName"
   ],
   "webAuthnPolicyRpEntityName": "keycloak",
@@ -1416,14 +1472,14 @@
         "subComponents": {},
         "config": {
           "allowed-protocol-mapper-types": [
+            "oidc-usermodel-attribute-mapper",
+            "oidc-full-name-mapper",
             "saml-user-attribute-mapper",
             "saml-role-list-mapper",
             "oidc-address-mapper",
-            "oidc-usermodel-attribute-mapper",
-            "oidc-full-name-mapper",
-            "oidc-sha256-pairwise-sub-mapper",
             "oidc-usermodel-property-mapper",
-            "saml-user-property-mapper"
+            "saml-user-property-mapper",
+            "oidc-sha256-pairwise-sub-mapper"
           ]
         }
       },
@@ -1494,14 +1550,14 @@
         "subComponents": {},
         "config": {
           "allowed-protocol-mapper-types": [
+            "oidc-sha256-pairwise-sub-mapper",
+            "saml-user-property-mapper",
+            "oidc-address-mapper",
             "saml-user-attribute-mapper",
             "oidc-full-name-mapper",
             "oidc-usermodel-attribute-mapper",
-            "saml-user-property-mapper",
             "saml-role-list-mapper",
-            "oidc-usermodel-property-mapper",
-            "oidc-address-mapper",
-            "oidc-sha256-pairwise-sub-mapper"
+            "oidc-usermodel-property-mapper"
           ]
         }
       },
