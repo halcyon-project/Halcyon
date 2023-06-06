@@ -19,7 +19,6 @@ import org.springframework.core.io.Resource;
 
 @Slf4j
 public class App extends KeycloakApplication {
-
     static ServerProperties properties;
 
     @Override

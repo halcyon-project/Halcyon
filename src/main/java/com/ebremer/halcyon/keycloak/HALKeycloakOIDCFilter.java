@@ -34,8 +34,11 @@ public class HALKeycloakOIDCFilter extends KeycloakOIDCFilter {
         if (skipPattern == null) {
             return false;
         }
+        
         String requestPath = request.getRequestURI().substring(request.getContextPath().length());
-        return skipPattern.matcher(requestPath).matches();
+        boolean haha = skipPattern.matcher(requestPath).matches();
+        //System.out.println(haha+" --> "+request.getRequestURI());
+        return haha;
     }
     
     public void setConfig(KeycloakOIDCFilterConfig config) {
@@ -48,14 +51,14 @@ public class HALKeycloakOIDCFilter extends KeycloakOIDCFilter {
     
     @Override
     public void init(final FilterConfig filterConfig) throws ServletException {
-        filterConfig.getInitParameterNames().asIterator().forEachRemaining(p->{
-            System.out.println("PARAM --> "+p);
-        });
+        //filterConfig.getInitParameterNames().asIterator().forEachRemaining(p->{
+          //  System.out.println("PARAM --> "+p);
+        //});
         
         if (!filterConfig.getInitParameterNames().hasMoreElements()) {
             super.init(config);
         } else {
-        System.out.println("INIT -------------------> "+filterConfig.getClass().toGenericString());
+        //System.out.println("INIT -------------------> "+filterConfig.getClass().toGenericString());
         if (filterConfig instanceof FilterHolder fh) {
             if (fh.getInitParameter(KeycloakOIDCFilter.CONFIG_FILE_PARAM)==null) {
                 fh.setInitParameter(KeycloakOIDCFilter.CONFIG_FILE_PARAM, "keycloak.json");

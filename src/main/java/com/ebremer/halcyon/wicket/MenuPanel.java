@@ -22,15 +22,15 @@ public class MenuPanel extends Panel {
         super(id);
         HalcyonPrincipal hp = HalcyonSession.get().getHalcyonPrincipal();
         String host = HalcyonSettings.getSettings().getProxyHostName();
-        add(new ExternalLink("home", host+"/gui","Home"));
-        add(new ExternalLink("images", host+"/gui/ListImages","Images"));
-        add(new ExternalLink("about", host+"/gui/about","About"));
-        ExternalLink security = new ExternalLink("security", host+"/gui/adminme","Security");
-        ExternalLink sparql = new ExternalLink("sparql", host+"/gui/sparql","SPARQL");
-        ExternalLink account = new ExternalLink("account", host+"/gui/accountpage","Account");
-        ExternalLink threed = new ExternalLink("threed", host+"/gui/threed","3D");
-        ExternalLink collections = new ExternalLink("collections", host+"/gui/collections","Collections");
-        ExternalLink revisionhistory = new ExternalLink("revisionhistory", host+"/gui/revisionhistory","Revision History");
+        add(new ExternalLink("home", host+"/","Home"));
+        add(new ExternalLink("images", host+"/ListImages","Images"));
+        add(new ExternalLink("about", host+"/about","About"));
+        ExternalLink security = new ExternalLink("security", host+"/adminme","Security");
+        ExternalLink sparql = new ExternalLink("sparql", host+"/sparql","SPARQL");
+        ExternalLink account = new ExternalLink("account", host+"/accountpage","Account");
+        ExternalLink threed = new ExternalLink("threed", host+"/threed","3D");
+        ExternalLink collections = new ExternalLink("collections", host+"/collections","Collections");
+        ExternalLink revisionhistory = new ExternalLink("revisionhistory", host+"/revisionhistory","Revision History");
         //ExternalLink login = new ExternalLink("loginLink", host+"/gui/login","Login");
         Link login = new Link<Void>("loginLink") {
             @Override

@@ -20,9 +20,9 @@ keycloak:
     password: admin
     context-redirect: true
     
-    migration:
-      importProvider: singleFile
-      importLocation: keycloak-realm-config.json
+    #migration:
+     # importProvider: singleFile
+      #importLocation: keycloak-realm-config.json
 
 logging:
   level:

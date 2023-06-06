@@ -27,6 +27,7 @@ import javax.servlet.DispatcherType;
 import org.apache.wicket.RuntimeConfigurationType;
 import org.apache.wicket.protocol.http.ContextParamWebApplicationFactory;
 import org.apache.wicket.protocol.http.WicketFilter;
+import static org.apache.wicket.protocol.http.WicketFilter.IGNORE_PATHS_PARAM;
 import org.keycloak.adapters.servlet.KeycloakOIDCFilter;
 import org.keycloak.adapters.spi.SessionIdMapper;
 import org.mitre.dsmiley.httpproxy.ProxyServlet;
@@ -60,7 +61,7 @@ public class Main {
     @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE)
     public ServletRegistrationBean proxyServletRegistrationBean() {
-        ServletRegistrationBean bean = new ServletRegistrationBean(new HalcyonProxyServlet(), "/sparql/*");
+        ServletRegistrationBean bean = new ServletRegistrationBean(new HalcyonProxyServlet(), "/rdf/*");
         bean.addInitParameter("targetUri", "http://localhost:"+settings.GetSPARQLPort()+"/rdf");
         bean.addInitParameter(ProxyServlet.P_PRESERVECOOKIES, "true");
         bean.addInitParameter(ProxyServlet.P_HANDLEREDIRECTS, "true");
@@ -102,6 +103,7 @@ public class Main {
     ServletRegistrationBean iboxServletRegistration () {
         System.out.println("iboxServletRegistration order: "+Ordered.LOWEST_PRECEDENCE);
         ServletRegistrationBean srb = new ServletRegistrationBean();
+        srb.setOrder(Ordered.HIGHEST_PRECEDENCE+2);
         srb.setServlet(new ImageServer());
         srb.setUrlMappings(Arrays.asList("/iiif/*"));
         return srb;
@@ -109,7 +111,6 @@ public class Main {
     
     @Bean
     public FilterRegistrationBean<HALKeycloakOIDCFilter> KeycloakOIDCFilterFilterRegistration(){
-        System.out.println("KeycloakOIDCFilterFilterRegistration order: "+Ordered.HIGHEST_PRECEDENCE);
             HALKeycloakOIDCFilter filter = new HALKeycloakOIDCFilter();
             //filter.setSessionIdMapper(SessionsManager.getSessionsManager().getSessionIdMapper());
             filter.setSessionIdMapper(getSessionIdMapper());
@@ -117,9 +118,10 @@ public class Main {
 	    registration.setFilter(filter);
             registration.setName("keycloak");
 	    registration.addUrlPatterns("/*");
-            registration.setOrder(0);
+            registration.setOrder(Ordered.HIGHEST_PRECEDENCE+1);
             registration.addInitParameter(KeycloakOIDCFilter.CONFIG_FILE_PARAM, "keycloak.json");
-            registration.addInitParameter(KeycloakOIDCFilter.SKIP_PATTERN_PARAM, "(^/multi-viewer.*|^/iiif.*|^/gui/viewer.*|^/gui|^/gui/about|^/gui/ListImages.*|^/sparql.*|^/wicket/resource/com.*\\.css|^/gui/public|^/gui/vendor/openseadragon/.*|^/auth/.*|^/favicon.ico|^/auth/.*$)");
+            //registration.addInitParameter(KeycloakOIDCFilter.SKIP_PATTERN_PARAM, "(^/realms/.*|/|/;jsessionid=.*|/gui/images/halcyon.png|^/wicket/resource/.*|^/multi-viewer.*|^/iiif.*|^/gui/viewer.*|^/gui|^/gui/about|^/gui/ListImages.*|^/sparql.*|^/wicket/resource/com.*\\.css|^/gui/public|^/gui/vendor/openseadragon/.*|^/auth/.*|^/favicon.ico|^/auth/.*$)");
+            registration.addInitParameter(KeycloakOIDCFilter.SKIP_PATTERN_PARAM, "(/;jsessionid=.*|/gui/images/halcyon.png|^/wicket/resource/.*|^/multi-viewer.*|^/iiif.*|^/|^/about|^/ListImages.*|^/wicket/resource/com.*\\.css||^/auth/.*|^/favicon.ico)");
             registration.setEnabled(true);
         return registration;
     }
@@ -131,11 +133,13 @@ public class Main {
         WicketFilter filter = new WicketFilter(hal);
         filter.setFilterPath("/");
         FilterRegistrationBean<WicketFilter> registration = new FilterRegistrationBean<>();
+        registration.setName("HalcyonWicketFilter");
         registration.setFilter(filter);
-        registration.setOrder(2);
+        registration.setOrder(Ordered.LOWEST_PRECEDENCE);
         registration.addInitParameter(ContextParamWebApplicationFactory.APP_CLASS_PARAM, HalcyonApplication.class.getName());
-        registration.addInitParameter(WicketFilter.FILTER_MAPPING_PARAM, "/");
-        registration.setDispatcherTypes(DispatcherType.REQUEST, DispatcherType.FORWARD);
+        registration.addInitParameter(WicketFilter.FILTER_MAPPING_PARAM, "/*");
+        registration.addInitParameter(IGNORE_PATHS_PARAM, "/auth/,/three.js/,/multi-viewer/,/iiif/,/halcyon/,/images/,/favicon.ico,/rdf/");
+        //registration.setDispatcherTypes(DispatcherType.REQUEST, DispatcherType.FORWARD);
         return registration;
     }
    
@@ -143,14 +147,13 @@ public class Main {
     ServletRegistrationBean HalcyonServletRegistration () {
         ServletRegistrationBean srb = new ServletRegistrationBean();
         srb.setServlet(new FeatureServer());
-        srb.setOrder(20);
+        srb.setOrder(Ordered.HIGHEST_PRECEDENCE+3);
         srb.setUrlMappings(Arrays.asList("/halcyon/*"));
         return srb;
     }
     
     @Configuration
     public class HalcyonResourceConfiguration implements WebMvcConfigurer {
-        
         @Override
         public void addResourceHandlers(ResourceHandlerRegistry registry) {
             String mv = settings.getMultiewerLocation();
@@ -160,8 +163,9 @@ public class Main {
                 }
                 registry.addResourceHandler("/multi-viewer/**").addResourceLocations(mv);
             } else {
+                registry.addResourceHandler("/**").addResourceLocations("classpath:/META-INF/public-web-resources/");
                 registry.addResourceHandler("/multi-viewer/**").addResourceLocations("classpath:/META-INF/public-web-resources/multi-viewer/");
-                registry.addResourceHandler("/three.js/**").addResourceLocations("classpath:/META-INF/public-web-resources/three.js/");
+                //registry.addResourceHandler("/three.js/**").addResourceLocations("classpath:/META-INF/public-web-resources/three.js/");
             }   
         }
     }
