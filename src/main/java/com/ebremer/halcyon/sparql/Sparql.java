@@ -34,6 +34,7 @@ public class Sparql extends BasePage {
         HalcyonSession hs = HalcyonSession.get();
         HalcyonPrincipal hp = hs.getHalcyonPrincipal();
         String token = hp.getToken();
+        System.out.println(token);
         response.render(JavaScriptHeaderItem.forScript("var token = '"+token+"'", "token"));
     }
 }
