@@ -8,11 +8,9 @@ import java.io.FileOutputStream;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URL;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.jena.query.ParameterizedSparqlString;
@@ -36,7 +34,7 @@ import org.apache.jena.vocabulary.RDF;
  *
  * @author erich
  */
-public class HalcyonSettings {
+public final class HalcyonSettings {
     private final String webfiles = "/ib";
     private final long MaxAgeReaderPool = 600;
     private final long ReaderPoolScanDelay = 600;
@@ -48,17 +46,23 @@ public class HalcyonSettings {
     private Property RDFStoreLocation = null;
     private Property RDFSecurityStoreLocation = null;
     private Model m;
-    public static final String realm = "master";
     private final Property urlpathprefix;
-    private static final int DEFAULTSPARQLPORT = 8887;
     private final Property SPARQLPORT;
     private final Property MULTIVIEWERLOCATION;
-    public static final String VERSION = "0.4.1";
-    public static Resource HALCYONAGENT = ResourceFactory.createResource(HAL.NS+"/VERSION/"+VERSION);
+    private final Property HAWKEYELOCATION;
     private static final String MasterSettingsLocation = "settings.ttl";
     private Resource Master;
     private final HashMap<String,String> mappings;
     private final String Realm = "master";
+    
+    public static final String realm = "Halcyon";
+    public static final int DEFAULTHTTPPORT = 8888;
+    public static final int DEFAULTHTTPSPORT = 9999;
+    public static final int DEFAULTSPARQLPORT = 8887;
+    public static final String DEFAULTHOSTNAME = "http://localhost";
+    public static final String DEFAULTHOSTIP = "0.0.0.0";
+    public static final String VERSION = "0.5.0";
+    public static Resource HALCYONAGENT = ResourceFactory.createResource(HAL.NS+"/VERSION/"+VERSION);
     
     private HalcyonSettings() {
         File f = new File(MasterSettingsLocation);
@@ -80,6 +84,7 @@ public class HalcyonSettings {
         SPARQLPORT = m.createProperty(HAL.NS+"SPARQLport");
         urlpathprefix = m.createProperty(HAL.NS+"urlpathprefix");
         MULTIVIEWERLOCATION = m.createProperty(HAL.NS+"MultiviewerLocation");
+        HAWKEYELOCATION = m.createProperty(HAL.NS+"HawkeyeLocation");
     }
 
     public String getwebfiles() {
@@ -103,7 +108,7 @@ public class HalcyonSettings {
             QuerySolution sol = results.nextSolution();
             return sol.get("HostName").asLiteral().getString();
         }
-        return "http://localhost:8888";
+        return "http://localhost:"+DEFAULTHTTPPORT;
     }
     
     public String getProxyHostName() {
@@ -115,7 +120,7 @@ public class HalcyonSettings {
             QuerySolution sol = results.nextSolution();
             return sol.get("ProxyHostName").asLiteral().getString();
         }
-        return "http://localhost:8888";
+        return DEFAULTHOSTNAME+":"+DEFAULTHTTPPORT;
     }
 
     public long getMaxAgeReaderPool() {
@@ -138,7 +143,7 @@ public class HalcyonSettings {
     }
     
     public void GenerateDefaultSettings() {
-        Master = m.createResource("http://localhost");
+        Master = m.createResource(DEFAULTHOSTNAME);
         m = ModelFactory.createDefaultModel();
         m.setNsPrefix("", HAL.NS);
         m.add(Master, RDF.type, HalcyonSettingsFile);
@@ -165,16 +170,6 @@ public class HalcyonSettings {
         return null;
     }
 
-    public int GetHostPort() {
-        try {
-            URL url = new URL(getHostName());
-            return url.getPort();
-        } catch (MalformedURLException ex) {
-            Logger.getLogger(HalcyonSettings.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        return 8888;
-    }
-    
     public int GetSPARQLPort() {
         ParameterizedSparqlString pss = new ParameterizedSparqlString( "select ?port where {?s :SPARQLport ?port}");
         pss.setNsPrefix("", HAL.NS);
@@ -187,6 +182,19 @@ public class HalcyonSettings {
         return DEFAULTSPARQLPORT;
     }
 
+    public String GetHostIP() {
+        ParameterizedSparqlString pss = new ParameterizedSparqlString( "select ?ip where {?s ?p ?ip}");
+        pss.setNsPrefix("", HAL.NS);
+        pss.setIri("p", HAL.HostIP.getURI());
+        QueryExecution qe = QueryExecutionFactory.create(pss.toString(),m);
+        ResultSet results = qe.execSelect();
+        if (results.hasNext()) {
+            QuerySolution sol = results.next();
+            return sol.get("ip").asLiteral().getString();
+        }
+        return DEFAULTHOSTIP;
+    }
+        
     public int GetHTTPPort() {
         String qs = "prefix : <"+HAL.NS+"> select ?port where {?s :HTTPPort ?port}";
         Query query = QueryFactory.create(qs);
@@ -196,7 +204,7 @@ public class HalcyonSettings {
             QuerySolution sol = results.nextSolution();
             return sol.get("port").asLiteral().getInt();
         }
-        return 8080;
+        return DEFAULTHTTPPORT;
     }
     
     public boolean isHTTPSenabled() {
@@ -213,7 +221,7 @@ public class HalcyonSettings {
             QuerySolution sol = results.nextSolution();
             return sol.get("port").asLiteral().getInt();
         }
-        return 443;
+        return DEFAULTHTTPSPORT;
     }    
 
     public String getRDFStoreLocation() {
@@ -232,8 +240,15 @@ public class HalcyonSettings {
     }
 
     public String getMultiewerLocation() {
-        if (m.contains(Master, m.createProperty(HAL.NS+"MultiviewerLocation"))) {
+        if (m.contains(Master, MULTIVIEWERLOCATION)) {
             return m.getProperty(Master, MULTIVIEWERLOCATION).getObject().asResource().getURI();
+        }
+        return null;
+    }
+    
+    public String getHawkeyeLocation() {
+        if (m.contains(Master, HAWKEYELOCATION)) {
+            return m.getProperty(Master, HAWKEYELOCATION).getObject().asResource().getURI();
         }
         return null;
     }
@@ -266,10 +281,9 @@ public class HalcyonSettings {
         loci.common.DebugTools.setRootLevel("WARN");
         HalcyonSettings s = HalcyonSettings.getSettings();
         System.out.println("Proxy Host Name "+s.getProxyHostName());
-        System.out.println("Port "+s.GetHostPort());
-        Iterator<StorageLocation> i = s.getStorageLocations().iterator();
-        while (i.hasNext()) {
-            StorageLocation sl = i.next();
+        System.out.println("Port "+s.GetHTTPPort());
+        System.out.println("HAWKEYE : "+s.getHawkeyeLocation());
+        for (StorageLocation sl : s.getStorageLocations()) {
             System.out.println(sl.path.toUri()+" **** "+sl.urlpath);
         }
     }

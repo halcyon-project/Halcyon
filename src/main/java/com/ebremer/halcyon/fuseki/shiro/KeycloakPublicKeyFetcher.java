@@ -22,11 +22,11 @@ import java.util.logging.Logger;
 
 public class KeycloakPublicKeyFetcher {
     private static KeycloakPublicKeyFetcher kpkf = null; 
-    private final String oidcConfigurationUrl = "http://localhost:"+HalcyonSettings.getSettings().GetHostPort() + "/auth/realms/master/protocol/openid-connect/certs";
+    private final String oidcConfigurationUrl;
     private static PublicKey publicKey = null;
     
     private KeycloakPublicKeyFetcher() {
-
+        oidcConfigurationUrl = "http://localhost:"+HalcyonSettings.getSettings().GetHTTPPort() + "/auth/realms/"+HalcyonSettings.realm+"/protocol/openid-connect/certs";
     }
     
     public PublicKey getPublicKey() {
@@ -51,27 +51,29 @@ public class KeycloakPublicKeyFetcher {
 
     private PublicKey fetchPublicKey() throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
         URL url = new URL(oidcConfigurationUrl);
-
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setRequestMethod("GET");
         connection.setRequestProperty("Accept", "application/json");
-
         if (connection.getResponseCode() != 200) {
             throw new IOException("Failed to fetch public key from Keycloak: " + connection.getResponseMessage());
         }
-
         try (InputStream inputStream = connection.getInputStream()) {
             String oidcConfiguration = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
             JsonObject configJson = Json.createReader(new StringReader(oidcConfiguration)).readObject();
             JsonArray keysArray = configJson.getJsonArray("keys");
+            int keyn = 0;
+            for (int f=0; f<keysArray.size(); f++) {
+                JsonObject jo = keysArray.getJsonObject(f);
+                if ("RS256".equals(jo.getString("alg"))) {
+                    keyn = f;
+                }
+            }
             if (!keysArray.isEmpty()) {
-                JsonObject keyObject = keysArray.getJsonObject(0);
+                JsonObject keyObject = keysArray.getJsonObject(keyn);
                 String modulusBase64 = keyObject.getString("n");
                 String exponentBase64 = keyObject.getString("e");
-
                 BigInteger modulus = new BigInteger(1, Base64.getUrlDecoder().decode(modulusBase64));
                 BigInteger publicExponent = new BigInteger(1, Base64.getUrlDecoder().decode(exponentBase64));
-
                 RSAPublicKeySpec rsaPublicKeySpec = new RSAPublicKeySpec(modulus, publicExponent);
                 KeyFactory keyFactory = KeyFactory.getInstance("RSA");
                 return keyFactory.generatePublic(rsaPublicKeySpec);

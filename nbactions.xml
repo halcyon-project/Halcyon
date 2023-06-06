@@ -15,7 +15,7 @@
                 <exec.executable>java</exec.executable>
                 <exec.vmArgs>-Xmx50G -Xms50G --add-opens=java.base/java.nio=ALL-UNNAMED</exec.vmArgs>
                 <exec.appArgs></exec.appArgs>
-                <exec.mainClass>is.halcyon.imagebox.Main</exec.mainClass>
+                <exec.mainClass>com.ebremer.halcyon.imagebox.Main</exec.mainClass>
             </properties>
         </action>
         <action>
@@ -34,7 +34,7 @@
                 <jpda.listen>true</jpda.listen>
                 <exec.vmArgs>-Xmx50G -Xms50G --add-opens=java.base/java.nio=ALL-UNNAMED -agentlib:jdwp=transport=dt_socket,server=n,address=${jpda.address}</exec.vmArgs>
                 <exec.appArgs></exec.appArgs>
-                <exec.mainClass>is.halcyon.imagebox.Main</exec.mainClass>
+                <exec.mainClass>com.ebremer.halcyon.imagebox.Main</exec.mainClass>
             </properties>
         </action>
         <action>
@@ -52,7 +52,7 @@
                 <exec.executable>java</exec.executable>
                 <exec.vmArgs>-Xmx50G -Xms50G --add-opens=java.base/java.nio=ALL-UNNAMED</exec.vmArgs>
                 <exec.appArgs></exec.appArgs>
-                <exec.mainClass>is.halcyon.imagebox.Main</exec.mainClass>
+                <exec.mainClass>com.ebremer.halcyon.imagebox.Main</exec.mainClass>
             </properties>
         </action>
         <action>

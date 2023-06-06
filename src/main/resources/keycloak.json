@@ -1,10 +1,10 @@
 {
-  "realm": "master",
+  "realm": "Halcyon",
   "auth-server-url": "http://localhost:8888/auth/",
-  "ssl-required": "none",
+  "ssl-required": "external",
   "resource": "account",
   "public-client": true,
   "verify-token-audience": true,
-  "use-resource-role-mappings": false,
+  "use-resource-role-mappings": true,
   "confidential-port": 0
 }

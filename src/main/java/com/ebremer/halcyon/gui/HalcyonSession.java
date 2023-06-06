@@ -82,7 +82,8 @@ public final class HalcyonSession extends WebSession {
                 ResultSet rs = QueryExecutionFactory.create(pss.toString(),da).execSelect();
                 rs.forEachRemaining(qs ->{
                     Resource gg = qs.getResource("s");
-                    Response rr = client.target(s.getProxyHostName()+"/auth/admin/realms/"+HalcyonSettings.realm+"/groups/"+gg.getURI().substring(9)+"/members").request().get();
+                    String url = s.getProxyHostName()+"/auth/admin/realms/"+HalcyonSettings.realm+"/groups/"+gg.getURI().substring(9)+"/members";
+                    Response rr = client.target(url).request().get();
                     if (rr.getStatus()==200) {
                         String json2 = rr.readEntity(String.class);
                         JsonReader jr = Json.createReader(new StringReader(json2));

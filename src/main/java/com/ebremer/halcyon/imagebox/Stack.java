@@ -67,12 +67,11 @@ public class Stack {
     }
     
     public int getBest(float r) {
-        //System.out.println("CALLING RATIO : "+r);
         int best = neolist.size()-1;
-        //System.out.println("STACK RATIO : "+r+" "+best+" "+ratio[best]+" "+index[best]);
-        while ((r<ratio[best])&&(best>0)) {
+        float rr = 0.8f*ratio[best];
+        while ((r<rr)&&(best>0)) {
             best--;
-          //  System.out.println("STACK RATIO : "+r+" "+best+" "+ratio[best]+" "+index[best]);
+            rr = 0.8f*ratio[best];
         }
         return index[best];
     }

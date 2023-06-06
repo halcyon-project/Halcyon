@@ -45,13 +45,14 @@ public class INIT {
         m.setNsPrefix("", HAL.NS);
         m.createResource("http://localhost")
                 .addProperty(RDF.type, HAL.HalcyonSettingsFile)
-                .addProperty(HAL.RDFStoreLocation, "TDB2")
-                .addProperty(HAL.HostName, "http://localhost:8888")
-                .addLiteral(HAL.HTTPPort, 8888)
-                .addLiteral(HAL.HTTPSPort, 9999)
-                .addProperty(HAL.ProxyHostName, "http://localhost:8888")
+                .addProperty(HAL.RDFStoreLocation, "tdb2")
+                .addProperty(HAL.HostName, "http://localhost:"+HalcyonSettings.DEFAULTHTTPPORT)
+                .addProperty(HAL.HostIP, "0.0.0.0")  //not fully implemented yet
+                .addLiteral(HAL.HTTPPort, HalcyonSettings.DEFAULTHTTPPORT)
+                .addLiteral(HAL.HTTPSPort, HalcyonSettings.DEFAULTHTTPSPORT)
+                .addProperty(HAL.ProxyHostName, "http://localhost:"+HalcyonSettings.DEFAULTHTTPPORT)
                 .addLiteral(HAL.HTTPSenabled, false)
-                .addLiteral(HAL.SPARQLport, 8887);
+                .addLiteral(HAL.SPARQLport, HalcyonSettings.DEFAULTSPARQLPORT);
         return m;
     }
     

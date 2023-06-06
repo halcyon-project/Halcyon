@@ -83,6 +83,7 @@ public class HAL {
     public static final Property RDFStoreLocation = m.createProperty(NS+"RDFStoreLocation");
     public static final Property MasterStorageLocation = m.createProperty(NS+"MasterStorageLocation");
     public static final Property HostName = m.createProperty(NS+"HostName");
+    public static final Property HostIP = m.createProperty(NS+"HostIP");
     public static final Property HTTPPort = m.createProperty(NS+"HTTPPort");
     public static final Property HTTPSPort = m.createProperty(NS+"HTTPSPort");
     public static final Property ProxyHostName = m.createProperty(NS+"ProxyHostName");

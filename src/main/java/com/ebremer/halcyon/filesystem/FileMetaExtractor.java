@@ -2,7 +2,6 @@ package com.ebremer.halcyon.filesystem;
 
 import com.ebremer.halcyon.HalcyonSettings;
 import com.ebremer.halcyon.datum.EB;
-import com.ebremer.ns.HAL;
 import com.ebremer.ns.LOC;
 import com.ebremer.halcyon.utils.Hash;
 import com.ebremer.ns.EXIF;
@@ -23,9 +22,6 @@ import org.apache.jena.query.ParameterizedSparqlString;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.Resource;
-import org.apache.jena.riot.Lang;
-import org.apache.jena.riot.RDFDataMgr;
-import org.apache.jena.riot.RDFFormat;
 import org.apache.jena.update.UpdateAction;
 import org.apache.jena.update.UpdateFactory;
 import org.apache.jena.update.UpdateRequest;
@@ -70,50 +66,38 @@ public final class FileMetaExtractor {
     private void Process() {
         String f = file.toString();
         String extension = f.substring(f.lastIndexOf(".")+1).toLowerCase();
-        //CalculateMD5();
         switch (extension) {
             case "zip":
                 Model z;
-                try {
-                    String fixb = EB.fix(file);
-                    String fixe = EB.fix(file)+"/";
-                    System.out.println(fixb+" ----> "+fixe);
-                    //ROCrate roc = new ROCrate(file);
-                    //ROCrateReader roc = new ROCrateReader(fixb, file.toURI());
-                    ROCrateReader roc = new ROCrateReader(file.toURI());
-                    //z = roc.getManifest(fixe);
-                    z = roc.getManifest();
-                    //System.out.println("LOADED : "+z.size());
-                    //System.out.println("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
-                    //RDFDataMgr.write(System.out, z, RDFFormat.TURTLE_PRETTY);
-                    //System.out.println("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
-                    UpdateRequest update = UpdateFactory.create();
-                    ParameterizedSparqlString pss = new ParameterizedSparqlString("""
-                        delete {?s ?p ?o}
-                        insert {?neo ?p ?o}
-                        where {
-                            ?s ?p ?o
-                        }
-                    """);
-                    pss.setIri("s", fixe);
-                    pss.setIri("neo", fixb);
-                    update.add(pss.toString());
-                    pss = new ParameterizedSparqlString("""
-                        delete {?s ?p ?neo}
-                        insert {?s ?p ?o}
-                        where {
-                            ?s ?p ?o
-                        }
-                    """);
-                    pss.setIri("o", fixe);
-                    pss.setIri("neo", fixb);
-                    update.add(pss.toString());
-                    UpdateAction.execute(update, z);
-                    m.add(z);
-                    //System.out.println("Extracted ========================================================\n");
-                    //RDFDataMgr.write(System.out, m, Lang.TURTLE);
-                    //System.out.println("Extracted END END END ============================================");
-                   // roc.close();
+                String fixb = EB.fix(file);
+                String fixe = EB.fix(file)+"/";
+                try (ROCrateReader roc = new ROCrateReader(file.toURI())) {
+                    if (roc.hasManifest()) {
+                        z = roc.getManifest();
+                        UpdateRequest update = UpdateFactory.create();
+                        ParameterizedSparqlString pss = new ParameterizedSparqlString("""
+                            delete {?s ?p ?o}
+                            insert {?neo ?p ?o}
+                            where {
+                                ?s ?p ?o
+                            }
+                        """);
+                        pss.setIri("s", fixe);
+                        pss.setIri("neo", fixb);
+                        update.add(pss.toString());
+                        pss = new ParameterizedSparqlString("""
+                            delete {?s ?p ?neo}
+                            insert {?s ?p ?o}
+                            where {
+                                ?s ?p ?o
+                            }
+                        """);
+                        pss.setIri("o", fixe);
+                        pss.setIri("neo", fixb);
+                        update.add(pss.toString());
+                        UpdateAction.execute(update, z);
+                        m.add(z);
+                    }
                 } catch (IOException ex) {
                     Logger.getLogger(FileMetaExtractor.class.getName()).log(Level.SEVERE, null, ex);
                 }

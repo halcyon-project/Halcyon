@@ -14,7 +14,7 @@
                 <exec.args>${exec.vmArgs} -classpath %classpath ${exec.mainClass} ${exec.appArgs}</exec.args>
                 <exec.executable>java</exec.executable>
                 <exec.vmArgs>-Xmx30G -Xms30G --add-opens=java.base/java.nio=ALL-UNNAMED --enable-preview  -Darrow.memory.debug.allocator=true</exec.vmArgs>
-                <exec.appArgs>-v -src "D:\halcyon\features\src2" -dest "D:\halcyon\features\dest"</exec.appArgs>
+                <exec.appArgs>-v -src "D:\halcyon\features\src3" -dest "D:\halcyon\features\dest5"</exec.appArgs>
                 <exec.mainClass>com.ebremer.halcyon.converters.Ingest</exec.mainClass>
             </properties>
         </action>
@@ -33,7 +33,7 @@
                 <exec.executable>java</exec.executable>
                 <jpda.listen>true</jpda.listen>
                 <exec.vmArgs>-Xmx30G -Xms30G --add-opens=java.base/java.nio=ALL-UNNAMED --enable-preview  -Darrow.memory.debug.allocator=true -agentlib:jdwp=transport=dt_socket,server=n,address=${jpda.address}</exec.vmArgs>
-                <exec.appArgs>-v -src "D:\halcyon\features\src2" -dest "D:\halcyon\features\dest"</exec.appArgs>
+                <exec.appArgs>-v -src "D:\halcyon\features\src3" -dest "D:\halcyon\features\dest5"</exec.appArgs>
                 <exec.mainClass>com.ebremer.halcyon.converters.Ingest</exec.mainClass>
             </properties>
         </action>
@@ -51,7 +51,7 @@
                 <exec.args>${exec.vmArgs} -classpath %classpath ${exec.mainClass} ${exec.appArgs}</exec.args>
                 <exec.executable>java</exec.executable>
                 <exec.vmArgs>-Xmx30G -Xms30G --add-opens=java.base/java.nio=ALL-UNNAMED --enable-preview  -Darrow.memory.debug.allocator=true</exec.vmArgs>
-                <exec.appArgs>-v -src "D:\halcyon\features\src2" -dest "D:\halcyon\features\dest"</exec.appArgs>
+                <exec.appArgs>-v -src "D:\halcyon\features\src3" -dest "D:\halcyon\features\dest5"</exec.appArgs>
                 <exec.mainClass>com.ebremer.halcyon.converters.Ingest</exec.mainClass>
             </properties>
         </action>

@@ -15,7 +15,7 @@
                 <exec.executable>java</exec.executable>
                 <exec.vmArgs>-Xmx45G  -Xms45G --add-opens java.base/java.nio=ALL-UNNAMED --enable-preview</exec.vmArgs>
                 <exec.appArgs></exec.appArgs>
-                <exec.mainClass>com.ebremer.halcyon.imagebox.Main</exec.mainClass>
+                <exec.mainClass>com.ebremer.halcyon.server.Main</exec.mainClass>
             </properties>
         </action>
         <action>
@@ -34,7 +34,7 @@
                 <jpda.listen>true</jpda.listen>
                 <exec.vmArgs>-Xmx45G  -Xms45G --add-opens java.base/java.nio=ALL-UNNAMED --enable-preview -agentlib:jdwp=transport=dt_socket,server=n,address=${jpda.address}</exec.vmArgs>
                 <exec.appArgs></exec.appArgs>
-                <exec.mainClass>com.ebremer.halcyon.imagebox.Main</exec.mainClass>
+                <exec.mainClass>com.ebremer.halcyon.server.Main</exec.mainClass>
             </properties>
         </action>
         <action>
@@ -51,7 +51,7 @@
                 <exec.executable>java</exec.executable>
                 <exec.vmArgs>-Xmx45G  -Xms45G --add-opens java.base/java.nio=ALL-UNNAMED --enable-preview</exec.vmArgs>
                 <exec.appArgs></exec.appArgs>
-                <exec.mainClass>com.ebremer.halcyon.imagebox.Main</exec.mainClass>
+                <exec.mainClass>com.ebremer.halcyon.server.Main</exec.mainClass>
             </properties>
         </action>
         <action>

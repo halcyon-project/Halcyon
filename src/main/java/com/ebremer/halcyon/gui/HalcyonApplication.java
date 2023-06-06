@@ -66,7 +66,32 @@ public class HalcyonApplication extends WebApplication {
             getComponentPostOnBeforeRenderListeners().add(new StatelessChecker());
         }
         getCspSettings().blocking().disabled();
-        mountPage("/gui", HomePage.class);
+        mountPage("/", HomePage.class);
+        mountPage("/adminme", AdminPage.class);
+        mountPage("/accountpage", AccountPage.class);
+        mountPage("/login", Login.class);
+        mountPage("/ListImages", ListImages.class);
+       // mountPage("/gui/ListFeatures", ListFeatures.class);
+        mountPage("/viewer", MultiViewer.class); 
+        mountPage("/collections", Collections.class);
+        mountPage("/sparql", Sparql.class);
+        mountPage("/about", About.class);
+        mountPage("/threed", Graph3D.class);
+        mountPage("/revisionhistory", RevisionHistory.class);
+        mountPage("/zephyr", Zephyr.class);
+        //mountPage("/login", LogHal.class);
+        //mountPage("/gui/dicom", DICOM.class);
+        //mountPage("/gui/dicom2", DCM.class);
+    }
+        
+    @Override
+    public RuntimeConfigurationType getConfigurationType() {
+        return RuntimeConfigurationType.DEVELOPMENT;
+    }
+}
+
+/*
+        mountPage("/", HomePage.class);
         mountPage("/gui/adminme", AdminPage.class);
         mountPage("/gui/accountpage", AccountPage.class);
         mountPage("/gui/login", Login.class);
@@ -83,10 +108,4 @@ public class HalcyonApplication extends WebApplication {
         mountPage("/gui/login", LogHal.class);
         //mountPage("/gui/dicom", DICOM.class);
         //mountPage("/gui/dicom2", DCM.class);
-    }
-        
-    @Override
-    public RuntimeConfigurationType getConfigurationType() {
-        return RuntimeConfigurationType.DEVELOPMENT;
-    }
-}
+*/

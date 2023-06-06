@@ -15,7 +15,7 @@
             Yasgui.defaults.requestConfig.headers = {'AUTHORIZATION': 'Bearer '+token};
             const yasgui = new Yasgui(document.getElementById("yasgui"),
                 {   requestConfig: {
-                        endpoint: "/sparql"},
+                        endpoint: "/rdf"},
                         copyEndpointOnNewTab: false
                 }
             );

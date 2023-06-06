@@ -1,6 +1,7 @@
 # Halcyon specific files
 /*.ttl
 /keycloak.json
+/keycloak-realm-config.json
 
 # Compiled class file
 *.class
@@ -35,4 +36,5 @@ hs_err_pid*
 target/*
 data/*
 dist/*
+tdb2/*
 
