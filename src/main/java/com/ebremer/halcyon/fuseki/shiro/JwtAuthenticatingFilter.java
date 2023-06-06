@@ -17,7 +17,6 @@ public class JwtAuthenticatingFilter extends AuthenticatingFilter {
         if (jwt!=null) {
             if (jwt.substring(0, "Bearer ".length()).equals("Bearer ")) {
                 jwt = jwt.substring("Bearer ".length(), jwt.length());
-                //System.out.println("createToken -------> "+jwt);
                 return new JwtToken(jwt);
             }
         }

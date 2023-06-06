@@ -88,6 +88,7 @@
 	<micrometer.version>1.10.3</micrometer.version>
 	<liquibase.version>4.20.0</liquibase.version>
 	<snakeyaml.version>2.0</snakeyaml.version>
+        <shiro.version>1.11.0</shiro.version>
     </properties>
     
     <parent>
@@ -165,6 +166,27 @@
                         <configuration>
                             <installDir>/usr/local</installDir>
                             <type>DEB</type>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>rhel-installer</id>
+            <activation>
+                <os>
+                    <family>linux</family>
+                </os>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.panteleyev</groupId>
+                        <artifactId>jpackage-maven-plugin</artifactId>
+                        <version>1.6.0</version>
+                        <configuration>
+                            <installDir>/usr/local</installDir>
+                            <type>RPM</type>
                         </configuration>
                     </plugin>
                 </plugins>
@@ -630,7 +652,7 @@
                 <configuration>
                     <name>Halcyon</name>
                     <appVersion>${project.version}</appVersion>
-                    <vendor>Wing-n-Beak LLC</vendor>
+                    <vendor>Wing-n-Beak</vendor>
                     <copyright>Copyright 2021-2023 Erich Bremer - Stony Brook University</copyright>
                     <licenseFile>LICENSE</licenseFile>
                     <input>target</input>
@@ -774,12 +796,12 @@
         <dependency>
             <groupId>org.apache.shiro</groupId>
             <artifactId>shiro-core</artifactId>
-            <version>1.11.0</version>
+            <version>${shiro.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.shiro</groupId>
             <artifactId>shiro-web</artifactId>
-            <version>1.11.0</version>
+            <version>${shiro.version}</version>
         </dependency>
         <dependency>
             <groupId>com.jcabi</groupId>
@@ -816,7 +838,6 @@
             <version>${beakgraph.version}</version>
         </dependency>
     </dependencies>
-    
     <pluginRepositories>
         <pluginRepository>
             <id>spring-release</id>
@@ -844,10 +865,6 @@
             <id>ome</id>
             <name>OME Artifactory</name>
             <url>https://artifacts.openmicroscopy.org/artifactory/maven/</url>
-        </repository>
-        <repository>
-            <id>jitpack.io</id>
-            <url>https://jitpack.io</url>
         </repository>
         <repository>
             <id>dcm4che</id>

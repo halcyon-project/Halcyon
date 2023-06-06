@@ -99,7 +99,6 @@ public class DirectoryProcessor {
                     })
                     .forEach((Path e) -> {
                         String xxx = EB.fix(e.toFile());
-                        System.out.println("Processing : "+xxx);
                         FileMetaExtractor fe = new FileMetaExtractor(e.toFile());
                         Model m = fe.getDataset().getNamedModel(xxx);
                         m.createResource(xxx).addProperty(RDF.type, HAL.FileManagerArtifact);
@@ -109,11 +108,12 @@ public class DirectoryProcessor {
                         buffer.addNamedModel(HAL.CollectionsAndResources, pathinfo);
                         buffer.addNamedModel(xxx, m);
                         buffer.commit();
-                        buffer.end();                            
+                        buffer.end();
+                        System.out.println("Processed : "+xxx);
                     })
                 ).get();
             } catch (InterruptedException | ExecutionException ex) {
-                Logger.getLogger(DirectoryProcessor.class.getName()).log(Level.SEVERE, null, ex);
+                Logger.getLogger(DirectoryProcessor.class.getName()).log(Level.WARNING, null, ex);
             } finally {
                 if (fjp != null) {
                     fjp.shutdown();
