@@ -6,7 +6,6 @@ import com.ebremer.halcyon.wicket.BasePage;
 import org.apache.wicket.markup.head.CssHeaderItem;
 import org.apache.wicket.markup.head.IHeaderResponse;
 import org.apache.wicket.markup.head.JavaScriptHeaderItem;
-import org.apache.wicket.markup.html.panel.FeedbackPanel;
 import org.apache.wicket.request.resource.CssResourceReference;
 import org.apache.wicket.request.resource.JavaScriptResourceReference;
 
@@ -19,9 +18,7 @@ import org.apache.wicket.request.resource.JavaScriptResourceReference;
 
 public class Sparql extends BasePage {
     
-    public Sparql() {
-        add(new FeedbackPanel("feedback"));
-    }
+    public Sparql() {}
     
     @Override
     public void renderHead(IHeaderResponse response) {
@@ -34,7 +31,6 @@ public class Sparql extends BasePage {
         HalcyonSession hs = HalcyonSession.get();
         HalcyonPrincipal hp = hs.getHalcyonPrincipal();
         String token = hp.getToken();
-        System.out.println(token);
         response.render(JavaScriptHeaderItem.forScript("var token = '"+token+"'", "token"));
     }
 }

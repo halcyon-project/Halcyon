@@ -282,9 +282,16 @@ public class ImageTiler {
     }
     
     private BufferedImage GrabImage(int xpos, int ypos, int width, int height) {
-       // System.out.println("grab image : "+xpos+ " "+ypos+" "+width+" "+height);
+        //System.out.println("1 grab image : "+xpos+ " "+ypos+" "+width+" "+height);
         if ((xpos+width)>reader.getSizeX()-1) { width = reader.getSizeX() - xpos; }
         if ((ypos+height)>reader.getSizeY()-1) { height = reader.getSizeY() - ypos; }
+        if (width<1) {
+            width = 1;
+        }
+        if (height<1) {
+            height = 1;
+        }
+        //System.out.println("2 grab image : "+xpos+ " "+ypos+" "+width+" "+height);
         meta.setRoot(newRoot);
         meta.setPixelsSizeX(new PositiveInteger(width), 0);
         meta.setPixelsSizeY(new PositiveInteger(height), 0);

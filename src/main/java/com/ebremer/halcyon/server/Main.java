@@ -118,9 +118,8 @@ public class Main {
             registration.setName("keycloak");
 	    registration.addUrlPatterns("/*");
             registration.setOrder(Ordered.HIGHEST_PRECEDENCE+1);
-            registration.addInitParameter(KeycloakOIDCFilter.CONFIG_FILE_PARAM, "keycloak.json");
-            //registration.addInitParameter(KeycloakOIDCFilter.SKIP_PATTERN_PARAM, "(^/realms/.*|/|/;jsessionid=.*|/gui/images/halcyon.png|^/wicket/resource/.*|^/multi-viewer.*|^/iiif.*|^/gui/viewer.*|^/gui|^/gui/about|^/gui/ListImages.*|^/sparql.*|^/wicket/resource/com.*\\.css|^/gui/public|^/gui/vendor/openseadragon/.*|^/auth/.*|^/favicon.ico|^/auth/.*$)");
-            registration.addInitParameter(KeycloakOIDCFilter.SKIP_PATTERN_PARAM, "(^/rdf.*|^/hawkeye/.*|/;jsessionid=.*|/gui/images/halcyon.png|^/wicket/resource/.*|^/multi-viewer.*|^/iiif.*|^/|^/about|^/ListImages.*|^/wicket/resource/com.*\\.css||^/auth/.*|^/favicon.ico)");
+            registration.addInitParameter(KeycloakOIDCFilter.CONFIG_FILE_PARAM, "keycloak.json");        
+            registration.addInitParameter(KeycloakOIDCFilter.SKIP_PATTERN_PARAM, "(^/halcyon.*|^/viewer.*|^/rdf.*|^/hawkeye/.*|/;jsessionid=.*|/gui/images/halcyon.png|^/wicket/resource/.*|^/multi-viewer.*|^/iiif.*|^/|^/about|^/ListImages.*|^/wicket/resource/com.*\\.css||^/auth/.*|^/favicon.ico)");
             registration.setEnabled(true);
         return registration;
     }
