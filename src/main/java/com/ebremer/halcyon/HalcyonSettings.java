@@ -49,6 +49,7 @@ public final class HalcyonSettings {
     private final Property urlpathprefix;
     private final Property SPARQLPORT;
     private final Property MULTIVIEWERLOCATION;
+    private final Property HAWKEYELOCATION;
     private static final String MasterSettingsLocation = "settings.ttl";
     private Resource Master;
     private final HashMap<String,String> mappings;
@@ -83,6 +84,7 @@ public final class HalcyonSettings {
         SPARQLPORT = m.createProperty(HAL.NS+"SPARQLport");
         urlpathprefix = m.createProperty(HAL.NS+"urlpathprefix");
         MULTIVIEWERLOCATION = m.createProperty(HAL.NS+"MultiviewerLocation");
+        HAWKEYELOCATION = m.createProperty(HAL.NS+"HawkeyeLocation");
     }
 
     public String getwebfiles() {
@@ -238,8 +240,15 @@ public final class HalcyonSettings {
     }
 
     public String getMultiewerLocation() {
-        if (m.contains(Master, m.createProperty(HAL.NS+"MultiviewerLocation"))) {
+        if (m.contains(Master, MULTIVIEWERLOCATION)) {
             return m.getProperty(Master, MULTIVIEWERLOCATION).getObject().asResource().getURI();
+        }
+        return null;
+    }
+    
+    public String getHawkeyeLocation() {
+        if (m.contains(Master, HAWKEYELOCATION)) {
+            return m.getProperty(Master, HAWKEYELOCATION).getObject().asResource().getURI();
         }
         return null;
     }
@@ -273,6 +282,7 @@ public final class HalcyonSettings {
         HalcyonSettings s = HalcyonSettings.getSettings();
         System.out.println("Proxy Host Name "+s.getProxyHostName());
         System.out.println("Port "+s.GetHTTPPort());
+        System.out.println("HAWKEYE : "+s.getHawkeyeLocation());
         for (StorageLocation sl : s.getStorageLocations()) {
             System.out.println(sl.path.toUri()+" **** "+sl.urlpath);
         }

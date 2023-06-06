@@ -121,7 +121,7 @@ public class Main {
             registration.setOrder(Ordered.HIGHEST_PRECEDENCE+1);
             registration.addInitParameter(KeycloakOIDCFilter.CONFIG_FILE_PARAM, "keycloak.json");
             //registration.addInitParameter(KeycloakOIDCFilter.SKIP_PATTERN_PARAM, "(^/realms/.*|/|/;jsessionid=.*|/gui/images/halcyon.png|^/wicket/resource/.*|^/multi-viewer.*|^/iiif.*|^/gui/viewer.*|^/gui|^/gui/about|^/gui/ListImages.*|^/sparql.*|^/wicket/resource/com.*\\.css|^/gui/public|^/gui/vendor/openseadragon/.*|^/auth/.*|^/favicon.ico|^/auth/.*$)");
-            registration.addInitParameter(KeycloakOIDCFilter.SKIP_PATTERN_PARAM, "(/;jsessionid=.*|/gui/images/halcyon.png|^/wicket/resource/.*|^/multi-viewer.*|^/iiif.*|^/|^/about|^/ListImages.*|^/wicket/resource/com.*\\.css||^/auth/.*|^/favicon.ico)");
+            registration.addInitParameter(KeycloakOIDCFilter.SKIP_PATTERN_PARAM, "(^/hawkeye/.*|/;jsessionid=.*|/gui/images/halcyon.png|^/wicket/resource/.*|^/multi-viewer.*|^/iiif.*|^/|^/about|^/ListImages.*|^/wicket/resource/com.*\\.css||^/auth/.*|^/favicon.ico)");
             registration.setEnabled(true);
         return registration;
     }
@@ -138,7 +138,7 @@ public class Main {
         registration.setOrder(Ordered.LOWEST_PRECEDENCE);
         registration.addInitParameter(ContextParamWebApplicationFactory.APP_CLASS_PARAM, HalcyonApplication.class.getName());
         registration.addInitParameter(WicketFilter.FILTER_MAPPING_PARAM, "/*");
-        registration.addInitParameter(IGNORE_PATHS_PARAM, "/auth/,/three.js/,/multi-viewer/,/iiif/,/halcyon/,/images/,/favicon.ico,/rdf/");
+        registration.addInitParameter(IGNORE_PATHS_PARAM, "/auth/,/three.js/,/multi-viewer/,/iiif/,/halcyon/,/images/,/favicon.ico,/rdf/,/hawkeye/");
         //registration.setDispatcherTypes(DispatcherType.REQUEST, DispatcherType.FORWARD);
         return registration;
     }
@@ -163,10 +163,19 @@ public class Main {
                 }
                 registry.addResourceHandler("/multi-viewer/**").addResourceLocations(mv);
             } else {
-                registry.addResourceHandler("/**").addResourceLocations("classpath:/META-INF/public-web-resources/");
-                registry.addResourceHandler("/multi-viewer/**").addResourceLocations("classpath:/META-INF/public-web-resources/multi-viewer/");
-                //registry.addResourceHandler("/three.js/**").addResourceLocations("classpath:/META-INF/public-web-resources/three.js/");
-            }   
+                registry.addResourceHandler("/multi-viewer/**").addResourceLocations("classpath:/META-INF/public-web-resources/multi-viewer/");   
+            }
+            String he = settings.getHawkeyeLocation();
+            if (he!=null) {
+                if (he.startsWith("file:///")) {
+                    he = he.replace("file:///", "file:/");
+                }
+                registry.addResourceHandler("/hawkeye/**").addResourceLocations(he);
+            } else {
+                registry.addResourceHandler("/hawkeye/**").addResourceLocations("classpath:/META-INF/public-web-resources/hawkeye/");
+            }
+            registry.addResourceHandler("/three.js/**").addResourceLocations("classpath:/META-INF/public-web-resources/three.js/");
+            registry.addResourceHandler("/images/**").addResourceLocations("classpath:/META-INF/public-web-resources/images/");
         }
     }
 
