@@ -73,7 +73,7 @@
         <maven.compiler.target>17</maven.compiler.target>
         <java.version>17</java.version>
         <jena.version>4.8.0</jena.version>
-        <wicket.ver>9.13.0</wicket.ver>
+        <wicket.ver>9.14.0</wicket.ver>
         <embeddedkeycloak.ver>8.0.0</embeddedkeycloak.ver>
         <bioformats.ver>6.13.0</bioformats.ver>
         <hilbert.ver>0.2.2</hilbert.ver>
@@ -102,96 +102,6 @@
        </dependencies>
     </dependencyManagement>
     <profiles>
-        <profile>
-            <id>windows-installer</id>
-            <activation>
-                <os>
-                    <family>windows</family>
-                </os>
-            </activation>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.panteleyev</groupId>
-                        <artifactId>jpackage-maven-plugin</artifactId>
-                        <version>1.6.0</version>
-                        <configuration>
-                            <installDir>\Halcyon</installDir>
-                            <winMenu>true</winMenu>
-                            <winShortcutPrompt>true</winShortcutPrompt>
-                            <winDirChooser>true</winDirChooser>
-                            <winConsole>true</winConsole>
-                            <winHelpUrl>https://github.com/ebremer/Halcyon</winHelpUrl>
-                            <winUpdateUrl>https://github.com/ebremer/Halcyon</winUpdateUrl>
-                            <type>MSI</type>
-                        </configuration>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-        <profile>
-            <id>mac-installer</id>
-            <activation>
-                <os>
-                    <family>mac</family>
-                </os>
-            </activation>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.panteleyev</groupId>
-                        <artifactId>jpackage-maven-plugin</artifactId>
-                        <version>1.6.0</version>
-                        <configuration>
-                            <installDir>\Halcyon</installDir>
-                            <type>DMG</type>
-                        </configuration>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-        <profile>
-            <id>ubuntu-installer</id>
-            <activation>
-                <os>
-                    <family>linux</family>
-                </os>
-            </activation>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.panteleyev</groupId>
-                        <artifactId>jpackage-maven-plugin</artifactId>
-                        <version>1.6.0</version>
-                        <configuration>
-                            <installDir>/usr/local</installDir>
-                            <type>DEB</type>
-                        </configuration>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-        <profile>
-            <id>rhel-installer</id>
-            <activation>
-                <os>
-                    <family>linux</family>
-                </os>
-            </activation>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.panteleyev</groupId>
-                        <artifactId>jpackage-maven-plugin</artifactId>
-                        <version>1.6.0</version>
-                        <configuration>
-                            <installDir>/usr/local</installDir>
-                            <type>RPM</type>
-                        </configuration>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
         <profile>
             <id>server</id>
             <build>
@@ -666,6 +576,42 @@
                         <option>-Dfile.encoding=UTF-8</option>
                     </javaOptions>
                 </configuration>
+                <executions>
+                    <execution>
+                        <id>win</id>
+                        <configuration>
+                            <installDir>\Halcyon</installDir>
+                            <winMenu>true</winMenu>
+                            <winShortcutPrompt>true</winShortcutPrompt>
+                            <winDirChooser>true</winDirChooser>
+                            <winConsole>true</winConsole>
+                            <winHelpUrl>https://github.com/ebremer/Halcyon</winHelpUrl>
+                            <winUpdateUrl>https://github.com/ebremer/Halcyon</winUpdateUrl>
+                            <type>MSI</type>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>mac</id>
+                        <configuration>
+                            <installDir>\Halcyon</installDir>
+                            <type>DMG</type>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>ubuntu</id>
+                        <configuration>
+                            <installDir>/usr/local</installDir>
+                            <type>DEB</type>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>rhel</id>
+                        <configuration>
+                            <installDir>/usr/local</installDir>
+                            <type>RPM</type>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

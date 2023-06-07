@@ -24,11 +24,15 @@ halcyon jar version.....
 mvn -Pserver clean package
 ```
 
-## jpackage Packaging (Windows)
+## Building installers
+
+Each command must be run on the appropriate platform.  Artifacts are located in dist folder.
 
 ```sh
-mvn -Pserver clean package
-mvn -Pwindows-installer jpackage:jpackage
+mvn -Pserver clean package jpackage:jpackage@win
+mvn -Pserver clean package jpackage:jpackage@mac
+mvn -Pserver clean package jpackage:jpackage@ubuntu
+mvn -Pserver clean package jpackage:jpackage@rhel
 ```
 
 ## SSL:
