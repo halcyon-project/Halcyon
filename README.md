@@ -14,20 +14,14 @@
 &nbsp;&nbsp;&nbsp;&nbsp;2. a mythical bird said by ancient writers to breed in a nest floating at sea at the winter solstice, charming the wind and waves into calm.<br>
 &nbsp;&nbsp;&nbsp;&nbsp;3. The name of a software system for managing Pathology Whole Slide Images and derived features from AI pipelines.<br>
 
-## Building....
-
+## Building Server Jar
 ```sh
-ingest - command line tool  (this will require a functioning GraalVM native image environment - https://www.graalvm.org/22.3/reference-manual/native-image/)
-mvn -Pingest clean package 
-
-halcyon jar version.....
 mvn -Pserver clean package
 ```
 
 ## Building installers
 
 Each command must be run on the appropriate platform.  Artifacts are located in dist folder.
-
 ```sh
 mvn -Pserver clean package jpackage:jpackage@win
 mvn -Pserver clean package jpackage:jpackage@mac
@@ -35,8 +29,23 @@ mvn -Pserver clean package jpackage:jpackage@ubuntu
 mvn -Pserver clean package jpackage:jpackage@rhel
 ```
 
-## SSL:
+## Building Ingest program binary for feature files
 
+This will require a functioning GraalVM native image environment - https://www.graalvm.org/22.3/reference-manual/native-image/)
+```sh
+mvn -Pingest clean package 
+```
+
+## Building Ingest Jar Version for feature files
+
+This will require a functioning GraalVM native image environment - https://www.graalvm.org/22.3/reference-manual/native-image/)
+```sh
+mvn -Pingestjar clean package 
+```
+
+## SSL
+```sh
 openssl req -new -newkey rsa:2048 -nodes -keyout beak.key -out beak.csr
 openssl pkcs12 -export -in beak.crt -inkey beak.key -name Halcyon -out beak.p12
 keytool -importkeystore -deststorepass changeit -destkeystore cacerts -srckeystore beak.p12 -srcstoretype PKCS12
+```
