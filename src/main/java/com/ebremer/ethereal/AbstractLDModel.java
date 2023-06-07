@@ -24,7 +24,6 @@ public abstract class AbstractLDModel<T> extends ChainingModel<T> {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public T getObject() {        
         Dataset ds = DatabaseLocator.getDatabase().getDataset();
         ds.begin(ReadWrite.READ);
@@ -47,7 +46,6 @@ public abstract class AbstractLDModel<T> extends ChainingModel<T> {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public void setObject(T object) {
         Dataset ds = DatabaseLocator.getDatabase().getDataset();
         ds.begin(ReadWrite.WRITE);

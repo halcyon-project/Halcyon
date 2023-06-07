@@ -8,13 +8,12 @@ import com.ebremer.halcyon.fuseki.SPARQLEndPoint;
 import com.ebremer.halcyon.filesystem.FileManager;
 import com.ebremer.halcyon.wicket.AccountPage;
 import com.ebremer.halcyon.wicket.AdminPage;
-import com.ebremer.halcyon.wicket.BasePage;
 import com.ebremer.halcyon.wicket.ethereal.Graph3D;
 import com.ebremer.halcyon.wicket.ethereal.Zephyr;
 import com.ebremer.multiviewer.MultiViewer;
 import org.apache.wicket.RuntimeConfigurationType;
 import org.apache.wicket.Session;
-import org.apache.wicket.devutils.stateless.StatelessChecker;
+//import org.apache.wicket.devutils.stateless.StatelessChecker;
 import org.apache.wicket.markup.html.WebPage;
 import org.apache.wicket.protocol.http.WebApplication;
 import org.apache.wicket.request.Request;
@@ -62,9 +61,9 @@ public class HalcyonApplication extends WebApplication {
               
         this.getRequestLoggerSettings().setRequestLoggerEnabled(true);
         this.getRequestLoggerSettings().setRecordSessionSize(true);
-        if (RuntimeConfigurationType.DEVELOPMENT.equals(getConfigurationType())) {
-            getComponentPostOnBeforeRenderListeners().add(new StatelessChecker());
-        }
+        //if (RuntimeConfigurationType.DEVELOPMENT.equals(getConfigurationType())) {
+          //  getComponentPostOnBeforeRenderListeners().add(new StatelessChecker());
+        //}
         getCspSettings().blocking().disabled();
         mountPage("/", HomePage.class);
         mountPage("/adminme", AdminPage.class);
