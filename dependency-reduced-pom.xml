@@ -3,14 +3,14 @@
   <parent>
     <artifactId>spring-boot-starter-parent</artifactId>
     <groupId>org.springframework.boot</groupId>
-    <version>2.6.13</version>
+    <version>2.7.11</version>
     <relativePath>../pom.xml/pom.xml</relativePath>
   </parent>
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.ebremer</groupId>
   <artifactId>Halcyon</artifactId>
   <name>Halcyon</name>
-  <version>0.4.2</version>
+  <version>0.5.1</version>
   <description>A whole slide image annotation, management, and visualization system</description>
   <issueManagement>
     <system>github</system>
@@ -72,96 +72,8 @@
     <name>Stony Brook University - Biomedical Informatics</name>
     <url>https://bmi.stonybrookmedicine.edu/</url>
   </organization>
-  <build>
-    <plugins>
-      <plugin>
-        <groupId>org.panteleyev</groupId>
-        <artifactId>jpackage-maven-plugin</artifactId>
-        <version>1.6.0</version>
-        <configuration>
-          <name>Halcyon</name>
-          <appVersion>${project.version}</appVersion>
-          <vendor>Wing-n-Beak LLC</vendor>
-          <copyright>Copyright 2021-2023 Erich Bremer - Stony Brook University</copyright>
-          <licenseFile>LICENSE</licenseFile>
-          <input>target</input>
-          <mainJar>Halcyon-${project.version}.jar</mainJar>
-          <verbose>true</verbose>
-          <description>Whole Slide Imaging and Feature Management</description>
-          <icon>src\main\resources\META-INF\halcyon.ico</icon>
-          <destination>dist</destination>
-          <javaOptions>
-            <option>--enable-preview</option>
-            <option>-Dfile.encoding=UTF-8</option>
-          </javaOptions>
-        </configuration>
-      </plugin>
-      <plugin>
-        <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.11.0</version>
-        <configuration>
-          <compilerArgs>
-            <arg>--enable-preview</arg>
-          </compilerArgs>
-        </configuration>
-      </plugin>
-    </plugins>
-  </build>
+  <build />
   <profiles>
-    <profile>
-      <id>windows-installer</id>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.panteleyev</groupId>
-            <artifactId>jpackage-maven-plugin</artifactId>
-            <version>1.6.0</version>
-            <configuration>
-              <installDir>\Halcyon</installDir>
-              <winMenu>true</winMenu>
-              <winShortcutPrompt>true</winShortcutPrompt>
-              <winDirChooser>true</winDirChooser>
-              <winConsole>true</winConsole>
-              <winHelpUrl>https://github.com/ebremer/Halcyon</winHelpUrl>
-              <winUpdateUrl>https://github.com/ebremer/Halcyon</winUpdateUrl>
-              <type>MSI</type>
-            </configuration>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-    <profile>
-      <id>mac-installer</id>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.panteleyev</groupId>
-            <artifactId>jpackage-maven-plugin</artifactId>
-            <version>1.6.0</version>
-            <configuration>
-              <installDir>\Halcyon</installDir>
-              <type>DMG</type>
-            </configuration>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-    <profile>
-      <id>ubuntu-installer</id>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.panteleyev</groupId>
-            <artifactId>jpackage-maven-plugin</artifactId>
-            <version>1.6.0</version>
-            <configuration>
-              <installDir>/usr/local</installDir>
-              <type>DEB</type>
-            </configuration>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
     <profile>
       <id>server</id>
       <build>
@@ -200,7 +112,7 @@
               </execution>
             </executions>
             <configuration>
-              <mainClass>com.ebremer.halcyon.imagebox.Main</mainClass>
+              <mainClass>com.ebremer.halcyon.server.Main</mainClass>
             </configuration>
           </plugin>
           <plugin>
@@ -220,105 +132,70 @@
               </execution>
             </executions>
           </plugin>
-        </plugins>
-      </build>
-      <dependencies>
-        <dependency>
-          <groupId>org.springframework.boot</groupId>
-          <artifactId>spring-boot-starter-web</artifactId>
-          <exclusions>
-            <exclusion>
-              <artifactId>spring-boot-starter-tomcat</artifactId>
-              <groupId>org.springframework.boot</groupId>
-            </exclusion>
-          </exclusions>
-        </dependency>
-        <dependency>
-          <groupId>org.springframework.boot</groupId>
-          <artifactId>spring-boot-starter-undertow</artifactId>
-        </dependency>
-        <dependency>
-          <groupId>org.glassfish</groupId>
-          <artifactId>jakarta.json</artifactId>
-          <version>${jakarta.json.version}</version>
-        </dependency>
-      </dependencies>
-    </profile>
-    <profile>
-      <id>nativeserver</id>
-      <build>
-        <resources>
-          <resource>
-            <directory>src/main/resources</directory>
-          </resource>
-          <resource>
-            <directory>src/main/java</directory>
-            <includes>
-              <include>**</include>
-            </includes>
-            <excludes>
-              <exclude>**/*.java</exclude>
-            </excludes>
-          </resource>
-        </resources>
-        <plugins>
           <plugin>
-            <artifactId>maven-enforcer-plugin</artifactId>
-            <version>3.2.1</version>
-            <configuration>
-              <rules>
-                <dependencyConvergence />
-              </rules>
-            </configuration>
-          </plugin>
-          <plugin>
-            <groupId>org.springframework.experimental</groupId>
-            <artifactId>spring-aot-maven-plugin</artifactId>
-            <version>0.12.2</version>
+            <groupId>org.panteleyev</groupId>
+            <artifactId>jpackage-maven-plugin</artifactId>
+            <version>1.6.0</version>
             <executions>
               <execution>
-                <id>generate</id>
-                <goals>
-                  <goal>generate</goal>
-                </goals>
+                <id>win</id>
+                <configuration>
+                  <installDir>\Halcyon</installDir>
+                  <winMenu>true</winMenu>
+                  <winShortcutPrompt>true</winShortcutPrompt>
+                  <winDirChooser>true</winDirChooser>
+                  <winConsole>true</winConsole>
+                  <winHelpUrl>https://github.com/ebremer/Halcyon</winHelpUrl>
+                  <winUpdateUrl>https://github.com/ebremer/Halcyon</winUpdateUrl>
+                  <type>MSI</type>
+                </configuration>
               </execution>
-            </executions>
-          </plugin>
-          <plugin>
-            <groupId>org.graalvm.buildtools</groupId>
-            <artifactId>native-maven-plugin</artifactId>
-            <version>0.9.20</version>
-            <extensions>true</extensions>
-            <executions>
               <execution>
-                <id>build-native</id>
-                <phase>package</phase>
-                <goals>
-                  <goal>build</goal>
-                </goals>
+                <id>mac</id>
+                <configuration>
+                  <installDir>\Halcyon</installDir>
+                  <type>DMG</type>
+                </configuration>
+              </execution>
+              <execution>
+                <id>ubuntu</id>
+                <configuration>
+                  <installDir>/usr/local</installDir>
+                  <type>DEB</type>
+                </configuration>
+              </execution>
+              <execution>
+                <id>rhel</id>
+                <configuration>
+                  <installDir>/usr/local</installDir>
+                  <type>RPM</type>
+                </configuration>
               </execution>
             </executions>
             <configuration>
-              <imageName>halcyon</imageName>
-              <mainClass>is.halcyon.imagebox.Main</mainClass>
-              <buildArgs>
-                <buildArg>--enable-url-protocols=https</buildArg>
-                <buildArg>-H:+ReportExceptionStackTraces</buildArg>
-                <buildArg>-H:+AddAllCharsets</buildArg>
-                <buildArg>--enable-http</buildArg>
-                <buildArg>--enable-https</buildArg>
-                <buildArg>--no-fallback</buildArg>
-                <buildArg>--trace-class-initialization=org.apache.commons.logging.impl.SLF4JLocationAwareLog</buildArg>
-                <buildArg>-H:ConfigurationFileDirectories=serverconfig</buildArg>
-              </buildArgs>
+              <name>Halcyon</name>
+              <appVersion>${project.version}</appVersion>
+              <vendor>Wing-n-Beak</vendor>
+              <copyright>Copyright 2021-2023 Erich Bremer - Stony Brook University</copyright>
+              <licenseFile>LICENSE</licenseFile>
+              <input>target</input>
+              <mainJar>Halcyon-${project.version}.jar</mainJar>
+              <verbose>true</verbose>
+              <description>Whole Slide Imaging and Feature Management</description>
+              <icon>src\main\resources\META-INF\halcyon.ico</icon>
+              <destination>dist</destination>
+              <javaOptions>
+                <option>--enable-preview</option>
+                <option>-Dfile.encoding=UTF-8</option>
+              </javaOptions>
             </configuration>
           </plugin>
           <plugin>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-maven-plugin</artifactId>
+            <artifactId>maven-compiler-plugin</artifactId>
             <configuration>
-              <classifier>exec</classifier>
-              <mainClass>is.halcyon.imagebox.Main</mainClass>
+              <compilerArgs>
+                <arg>--enable-preview</arg>
+              </compilerArgs>
             </configuration>
           </plugin>
         </plugins>
@@ -326,22 +203,7 @@
       <dependencies>
         <dependency>
           <groupId>org.springframework.boot</groupId>
-          <artifactId>spring-boot-starter-web</artifactId>
-          <exclusions>
-            <exclusion>
-              <artifactId>spring-boot-starter-tomcat</artifactId>
-              <groupId>org.springframework.boot</groupId>
-            </exclusion>
-          </exclusions>
-        </dependency>
-        <dependency>
-          <groupId>org.springframework.boot</groupId>
-          <artifactId>spring-boot-starter-undertow</artifactId>
-        </dependency>
-        <dependency>
-          <groupId>org.springframework.experimental</groupId>
-          <artifactId>spring-native</artifactId>
-          <version>0.12.2</version>
+          <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
       </dependencies>
     </profile>
@@ -366,7 +228,6 @@
             <configuration>
               <imageName>ingest</imageName>
               <mainClass>com.ebremer.halcyon.converters.Ingest</mainClass>
-              <debug>true</debug>
               <skipNativeBuild>true</skipNativeBuild>
               <skipNativeTests>true</skipNativeTests>
               <verbose>true</verbose>
@@ -395,6 +256,7 @@
             <artifactId>maven-shade-plugin</artifactId>
             <executions>
               <execution>
+                <id>ns2oashade</id>
                 <phase>package</phase>
                 <goals>
                   <goal>shade</goal>
@@ -434,6 +296,7 @@
             <artifactId>maven-shade-plugin</artifactId>
             <executions>
               <execution>
+                <id>heatmap2oashade</id>
                 <phase>package</phase>
                 <goals>
                   <goal>shade</goal>
@@ -471,14 +334,24 @@
         <plugins>
           <plugin>
             <artifactId>maven-shade-plugin</artifactId>
-            <version>3.2.4</version>
             <executions>
               <execution>
+                <id>ingestjarshade</id>
                 <phase>package</phase>
                 <goals>
                   <goal>shade</goal>
                 </goals>
                 <configuration>
+                  <filters>
+                    <filter>
+                      <artifact>*:*</artifact>
+                      <excludes>
+                        <exclude>META-INF/*.SF</exclude>
+                        <exclude>META-INF/*.DSA</exclude>
+                        <exclude>META-INF/*.RSA</exclude>
+                      </excludes>
+                    </filter>
+                  </filters>
                   <transformers>
                     <transformer>
                       <resource>META-INF/spring.handlers</resource>
@@ -497,43 +370,9 @@
                       <mainClass>com.ebremer.halcyon.converters.Ingest</mainClass>
                     </transformer>
                   </transformers>
-                  <keepDependenciesWithProvidedScope>true</keepDependenciesWithProvidedScope>
-                  <createDependencyReducedPom>true</createDependencyReducedPom>
-                  <filters>
-                    <filter>
-                      <artifact>*:*</artifact>
-                      <excludes>
-                        <exclude>META-INF/*.SF</exclude>
-                        <exclude>META-INF/*.DSA</exclude>
-                        <exclude>META-INF/*.RSA</exclude>
-                      </excludes>
-                    </filter>
-                  </filters>
                 </configuration>
               </execution>
             </executions>
-            <dependencies>
-              <dependency>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-                <version>2.6.13</version>
-                <scope>compile</scope>
-              </dependency>
-            </dependencies>
-            <configuration>
-              <keepDependenciesWithProvidedScope>true</keepDependenciesWithProvidedScope>
-              <createDependencyReducedPom>true</createDependencyReducedPom>
-              <filters>
-                <filter>
-                  <artifact>*:*</artifact>
-                  <excludes>
-                    <exclude>META-INF/*.SF</exclude>
-                    <exclude>META-INF/*.DSA</exclude>
-                    <exclude>META-INF/*.RSA</exclude>
-                  </excludes>
-                </filter>
-              </filters>
-            </configuration>
           </plugin>
         </plugins>
       </build>
@@ -561,10 +400,6 @@
       <url>https://artifacts.openmicroscopy.org/artifactory/maven/</url>
     </repository>
     <repository>
-      <id>jitpack.io</id>
-      <url>https://jitpack.io</url>
-    </repository>
-    <repository>
       <id>dcm4che</id>
       <name>dcm4che</name>
       <url>https://www.dcm4che.org/maven2</url>
@@ -579,31 +414,150 @@
   </pluginRepositories>
   <dependencies>
     <dependency>
-      <groupId>com.github.thomasdarimont.embedded-spring-boot-keycloak-server</groupId>
-      <artifactId>embedded-keycloak-server-spring-boot-starter</artifactId>
-      <version>8.0.0</version>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-jpa</artifactId>
+      <version>2.7.11</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+      <version>2.7.11</version>
       <scope>provided</scope>
       <exclusions>
         <exclusion>
-          <artifactId>log4j-api</artifactId>
-          <groupId>log4j</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>log4j-to-slf4j</artifactId>
-          <groupId>log4j</groupId>
+          <artifactId>spring-boot-starter-tomcat</artifactId>
+          <groupId>org.springframework.boot</groupId>
         </exclusion>
       </exclusions>
     </dependency>
     <dependency>
-      <groupId>jakarta.json</groupId>
-      <artifactId>jakarta.json-api</artifactId>
-      <version>2.1.0</version>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-undertow</artifactId>
+      <version>2.7.11</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>org.glassfish</groupId>
-      <artifactId>jakarta.json</artifactId>
-      <version>2.0.1</version>
+      <groupId>com.h2database</groupId>
+      <artifactId>h2</artifactId>
+      <version>2.1.214</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-registry-prometheus</artifactId>
+      <version>1.10.3</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <version>1.18.26</version>
+      <scope>provided</scope>
+      <optional>true</optional>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-configuration-processor</artifactId>
+      <version>2.7.11</version>
+      <scope>provided</scope>
+      <optional>true</optional>
+    </dependency>
+    <dependency>
+      <groupId>org.keycloak</groupId>
+      <artifactId>keycloak-dependencies-server-all</artifactId>
+      <version>21.1.1</version>
+      <type>pom</type>
+      <scope>compile</scope>
+      <exclusions>
+        <exclusion>
+          <artifactId>slf4j-log4j12</artifactId>
+          <groupId>org.slf4j</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>log4j</artifactId>
+          <groupId>log4j</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>keycloak-dependencies-server-min</artifactId>
+          <groupId>org.keycloak</groupId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.keycloak</groupId>
+      <artifactId>keycloak-crypto-default</artifactId>
+      <version>21.1.1</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.keycloak</groupId>
+      <artifactId>keycloak-admin-ui</artifactId>
+      <version>21.1.1</version>
+      <scope>provided</scope>
+      <exclusions>
+        <exclusion>
+          <artifactId>*</artifactId>
+          <groupId>*</groupId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.keycloak</groupId>
+      <artifactId>keycloak-rest-admin-ui-ext</artifactId>
+      <version>21.1.1</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.keycloak</groupId>
+      <artifactId>keycloak-servlet-filter-adapter</artifactId>
+      <version>21.1.1</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.jboss.resteasy</groupId>
+      <artifactId>resteasy-jackson2-provider</artifactId>
+      <version>4.7.7.Final</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.jboss.resteasy</groupId>
+      <artifactId>resteasy-client</artifactId>
+      <version>4.7.7.Final</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.mitre.dsmiley.httpproxy</groupId>
+      <artifactId>smiley-http-proxy-servlet</artifactId>
+      <version>1.12.1</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.liquibase</groupId>
+      <artifactId>liquibase-core</artifactId>
+      <version>4.20.0</version>
+      <scope>provided</scope>
+      <exclusions>
+        <exclusion>
+          <artifactId>snakeyaml</artifactId>
+          <groupId>org.yaml</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>commons-text</artifactId>
+          <groupId>org.apache.commons</groupId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.yaml</groupId>
+      <artifactId>snakeyaml</artifactId>
+      <version>2.0</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>jakarta.json</groupId>
+      <artifactId>jakarta.json-api</artifactId>
+      <version>2.1.1</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
@@ -615,7 +569,7 @@
     <dependency>
       <groupId>com.apicatalog</groupId>
       <artifactId>titanium-json-ld</artifactId>
-      <version>1.3.0</version>
+      <version>1.3.2</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
@@ -633,19 +587,19 @@
     <dependency>
       <groupId>org.eclipse.jetty</groupId>
       <artifactId>jetty-client</artifactId>
-      <version>9.4.49.v20220914</version>
+      <version>9.4.51.v20230217</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.eclipse.jetty</groupId>
       <artifactId>jetty-io</artifactId>
-      <version>9.4.49.v20220914</version>
+      <version>9.4.51.v20230217</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.eclipse.jetty</groupId>
       <artifactId>jetty-util</artifactId>
-      <version>9.4.49.v20220914</version>
+      <version>9.4.51.v20230217</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
@@ -657,19 +611,19 @@
     <dependency>
       <groupId>org.apache.wicket</groupId>
       <artifactId>wicket-core</artifactId>
-      <version>9.13.0</version>
+      <version>9.14.0</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.wicket</groupId>
       <artifactId>wicket-devutils</artifactId>
-      <version>9.13.0</version>
+      <version>9.14.0</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.wicket</groupId>
       <artifactId>wicket-extensions</artifactId>
-      <version>9.13.0</version>
+      <version>9.14.0</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
@@ -727,76 +681,6 @@
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>org.keycloak</groupId>
-      <artifactId>keycloak-servlet-filter-adapter</artifactId>
-      <version>18.0.2</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.keycloak</groupId>
-      <artifactId>keycloak-model-jpa</artifactId>
-      <version>18.0.2</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.mitre.dsmiley.httpproxy</groupId>
-      <artifactId>smiley-http-proxy-servlet</artifactId>
-      <version>1.12.1</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.jboss.resteasy</groupId>
-      <artifactId>resteasy-servlet-initializer</artifactId>
-      <version>4.7.4.Final</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.jboss.resteasy</groupId>
-      <artifactId>resteasy-jackson2-provider</artifactId>
-      <version>4.7.4.Final</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.jboss.resteasy</groupId>
-      <artifactId>resteasy-jaxb-provider</artifactId>
-      <version>4.7.4.Final</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.jboss.resteasy</groupId>
-      <artifactId>resteasy-multipart-provider</artifactId>
-      <version>4.7.4.Final</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.jboss.resteasy</groupId>
-      <artifactId>resteasy-client</artifactId>
-      <version>4.7.4.Final</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.infinispan</groupId>
-      <artifactId>infinispan-query-dsl</artifactId>
-      <version>13.0.12.Final</version>
-      <scope>provided</scope>
-      <exclusions>
-        <exclusion>
-          <artifactId>jgroups</artifactId>
-          <groupId>org.jgroups</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>*</artifactId>
-          <groupId>io.netty</groupId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>com.ebremer</groupId>
-      <artifactId>BeakGraph</artifactId>
-      <version>0.4.0</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
       <groupId>org.apache.shiro</groupId>
       <artifactId>shiro-core</artifactId>
       <version>1.11.0</version>
@@ -838,99 +722,34 @@
       <version>1.82</version>
       <scope>provided</scope>
     </dependency>
+    <dependency>
+      <groupId>com.ebremer</groupId>
+      <artifactId>BeakGraph</artifactId>
+      <version>0.4.0</version>
+      <scope>provided</scope>
+    </dependency>
   </dependencies>
-  <dependencyManagement>
-    <dependencies>
-      <dependency>
-        <groupId>org.jboss.xnio</groupId>
-        <artifactId>xnio-api</artifactId>
-        <version>3.8.7.Final</version>
-      </dependency>
-      <dependency>
-        <groupId>org.keycloak</groupId>
-        <artifactId>keycloak-core</artifactId>
-        <version>${keycloak.ver}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.keycloak</groupId>
-        <artifactId>keycloak-services</artifactId>
-        <version>${keycloak.ver}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.keycloak</groupId>
-        <artifactId>keycloak-saml-core</artifactId>
-        <version>${keycloak.ver}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.keycloak</groupId>
-        <artifactId>keycloak-server-api</artifactId>
-        <version>${keycloak.ver}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.keycloak</groupId>
-        <artifactId>keycloak-ldap-federation</artifactId>
-        <version>${keycloak.ver}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.keycloak</groupId>
-        <artifactId>keycloak-kerberos-federation</artifactId>
-        <version>${keycloak.ver}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.keycloak</groupId>
-        <artifactId>keycloak-authz-policy-common</artifactId>
-        <version>${keycloak.ver}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.keycloak</groupId>
-        <artifactId>keycloak-model-infinispan</artifactId>
-        <version>${keycloak.ver}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.keycloak</groupId>
-        <artifactId>keycloak-js-adapter</artifactId>
-        <version>${keycloak.ver}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.keycloak</groupId>
-        <artifactId>keycloak-model-spi</artifactId>
-        <version>${keycloak.ver}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.keycloak</groupId>
-        <artifactId>keycloak-server-spi</artifactId>
-        <version>${keycloak.ver}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.keycloak</groupId>
-        <artifactId>keycloak-themes</artifactId>
-        <version>${keycloak.ver}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.jgroups</groupId>
-        <artifactId>jgroups</artifactId>
-        <version>4.2.21.Final</version>
-      </dependency>
-    </dependencies>
-  </dependencyManagement>
+  <dependencyManagement />
   <properties>
+    <snakeyaml.version>2.0</snakeyaml.version>
     <java.version>17</java.version>
-    <resteasy.version>4.7.4.Final</resteasy.version>
+    <resteasy.version>4.7.7.Final</resteasy.version>
     <maven.compiler.source>17</maven.compiler.source>
+    <keycloak.version>21.1.1</keycloak.version>
+    <liquibase.version>4.20.0</liquibase.version>
     <jena.version>4.8.0</jena.version>
-    <wicket.ver>9.13.0</wicket.ver>
-    <infinispan.version>13.0.12.Final</infinispan.version>
-    <embeddedkeycloak.ver>8.0.0</embeddedkeycloak.ver>
+    <wicket.ver>9.14.0</wicket.ver>
+    <infinispan.version>14.0.8.Final</infinispan.version>
     <dcm4che.ver>5.29.2</dcm4che.ver>
-    <jgroups.version>4.2.21.Final</jgroups.version>
-    <titanium-json-ld.ver>1.3.0</titanium-json-ld.ver>
+    <titanium-json-ld.ver>1.3.2</titanium-json-ld.ver>
     <maven.compiler.target>17</maven.compiler.target>
     <hilbert.ver>0.2.2</hilbert.ver>
     <beakgraph.version>0.4.0</beakgraph.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <commons-pool2.ver>2.11.1</commons-pool2.ver>
-    <keycloak.ver>18.0.2</keycloak.ver>
+    <shiro.version>1.11.0</shiro.version>
     <jakarta.json.version>2.0.1</jakarta.json.version>
+    <micrometer.version>1.10.3</micrometer.version>
     <bioformats.ver>6.13.0</bioformats.ver>
   </properties>
 </project>
