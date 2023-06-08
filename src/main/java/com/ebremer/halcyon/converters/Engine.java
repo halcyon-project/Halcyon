@@ -352,10 +352,12 @@ public class Engine {
                 }
                 LinkedList<Range> xa = hs.Polygon2Hilbert(polygon);
                 Property hasRange0 = pm.createProperty(HAL.hasRange.toString()+"/0");
+                Property low0 = pm.createProperty(HAL.low.toString()+"/0");
+                Property high0 = pm.createProperty(HAL.high.toString()+"/0");
                 xa.forEach(k->{
                     Resource range = pm.createResource()
-                        .addLiteral(HAL.low, k.low())
-                        .addLiteral(HAL.high, k.high());
+                        .addLiteral(low0, k.low())
+                        .addLiteral(high0, k.high());
                     pm.add(r, hasRange0, range);
                 });
                 boolean done = false;
@@ -368,10 +370,12 @@ public class Engine {
                     xa = HilbertSpace.compact(neo);
                     if (Area(xa)>4) {
                         Property hasRangei = pm.createProperty(HAL.hasRange.toString()+"/"+i);
+                        Property lown = pm.createProperty(HAL.low.toString()+"/"+i);
+                        Property highn = pm.createProperty(HAL.high.toString()+"/"+i);
                         xa.forEach(k->{
                             Resource range = pm.createResource()
-                                .addLiteral(HAL.low, k.low())
-                                .addLiteral(HAL.high, k.high());
+                                .addLiteral(lown, k.low())
+                                .addLiteral(highn, k.high());
                             pm.add(r, hasRangei, range);
                         });
                     } else {

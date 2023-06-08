@@ -196,17 +196,13 @@ public class FL {
     public IteratorChain<QuerySolution> Search(int x, int y, int w, int h, int scale) {
         //System.out.println("Search ( "+x+", "+y+" by "+w+", "+h+" scale -> "+scale+" )");
         hsPolygon p = hspace.get(scale).Box(x, y, w, h);
-        //p.getRanges().forEach(r->{
-          //  System.out.println("RANGE : "+r.low()+"-"+r.high());
-        //});
-        //System.out.println("Search Scale : "+scale+"  "+p.getRanges().size());
         ParameterizedSparqlString pss = new ParameterizedSparqlString(
             """
             select distinct ?polygon ?low ?high ?class ?certainty where {
                 {
                     select ?polygon ?low ?high ?class ?certainty where {
-                        ?range hal:low ?low .
-                        ?range hal:high ?high .
+                        ?range ?plow ?low .
+                        ?range ?phigh ?high .
                         ?polygon ?p ?range .
                         ?annotation oa:hasSelector ?polygon .
                         ?annotation oa:hasBody ?body .
@@ -217,8 +213,8 @@ public class FL {
                     }
                 } union {
                     select ?polygon ?low ?high ?class ?certainty where {
-                        ?range hal:low ?low .
-                        ?range hal:high ?high .
+                        ?range ?plow ?low .
+                        ?range ?phigh ?high .
                         ?polygon ?p ?range .
                         ?annotation oa:hasSelector ?polygon .
                         ?annotation oa:hasBody ?body .
@@ -231,7 +227,9 @@ public class FL {
             }
             """);
         pss.setNsPrefix("so", SchemaDO.NS);
-        pss.setIri("p", HAL.NS+"hasRange/"+scale);
+        pss.setIri("p", HAL.hasRange.toString()+"/"+scale);
+        pss.setIri("plow", HAL.low.toString()+"/"+scale);
+        pss.setIri("phigh", HAL.high.toString()+"/"+scale);
         pss.setNsPrefix("oa", OA.NS);
         pss.setNsPrefix("hal", "https://www.ebremer.com/halcyon/ns/");
         IteratorChain<QuerySolution> ic = new IteratorChain<>();
@@ -281,9 +279,7 @@ public class FL {
                         } catch (java.lang.ArrayIndexOutOfBoundsException ex) {
                             System.out.println("Out of Bounds "+w+","+h+"   "+b+","+a);
                         }
-                    } //else {
-                        //System.out.println("KICKED "+a+", "+b);
-                    //}
+                    }
                 });
             });
         return bi;

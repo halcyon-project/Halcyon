@@ -2,16 +2,16 @@ package com.ebremer.halcyon.fuseki;
 
 import com.ebremer.halcyon.HalcyonSettings;
 import com.ebremer.halcyon.datum.DataCore;
-import com.ebremer.halcyon.datum.SessionsManager;
-import com.ebremer.halcyon.keycloak.HALKeycloakOIDCFilter;
-import com.ebremer.halcyon.keycloak.KeycloakOIDCFilterConfig;
+//import com.ebremer.halcyon.datum.SessionsManager;
+//import com.ebremer.halcyon.keycloak.HALKeycloakOIDCFilter;
+//import com.ebremer.halcyon.keycloak.KeycloakOIDCFilterConfig;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
 import javax.servlet.DispatcherType;
 import org.apache.jena.fuseki.main.FusekiServer;
-import org.keycloak.adapters.servlet.KeycloakOIDCFilter;
+//import org.keycloak.adapters.servlet.KeycloakOIDCFilter;
 import org.apache.shiro.web.env.EnvironmentLoaderListener;
 import org.apache.shiro.web.servlet.ShiroFilter;
 import org.eclipse.jetty.server.Server;
@@ -33,11 +33,11 @@ public class SPARQLEndPoint {
     
     private SPARQLEndPoint() {       
         System.out.println("Starting Fuseki...");
-        KeycloakOIDCFilterConfig config = new KeycloakOIDCFilterConfig("keycloak");
-        config.setInitParameter(KeycloakOIDCFilter.CONFIG_FILE_PARAM, "keycloak.json");
-        HALKeycloakOIDCFilter filter = new HALKeycloakOIDCFilter();
-        filter.setSessionIdMapper(SessionsManager.getSessionsManager().getSessionIdMapper());
-        filter.setConfig(config);
+        //KeycloakOIDCFilterConfig config = new KeycloakOIDCFilterConfig("keycloak");
+        //config.setInitParameter(KeycloakOIDCFilter.CONFIG_FILE_PARAM, "keycloak.json");
+        //HALKeycloakOIDCFilter filter = new HALKeycloakOIDCFilter();
+        //filter.setSessionIdMapper(SessionsManager.getSessionsManager().getSessionIdMapper());
+        //filter.setConfig(config);
         server = FusekiServer.create()
             .add("/rdf", DataCore.getInstance().getSecuredDataset())
             //.add("/rdf", DataCore.getInstance().getDataset())
@@ -48,7 +48,7 @@ public class SPARQLEndPoint {
             .port(HalcyonSettings.getSettings().GetSPARQLPort())
            // .addFilter("/*", filter)
             .build();
-        config.setContext(server.getServletContext());
+        //config.setContext(server.getServletContext());
         //SessionHandler sessionHandler = new SessionHandler();
         //DefaultSessionCache sessionCache = new DefaultSessionCache(sessionHandler);
         //DefaultSessionIdManager sim = new DefaultSessionIdManager(server.getJettyServer());
@@ -68,21 +68,21 @@ public class SPARQLEndPoint {
             FilterHolder holder1 = new FilterHolder();
             holder1.setName("halcyonfusekifilter");
             
-            FilterHolder keycloakholder1 = new FilterHolder();
-            keycloakholder1.setName("halcyonkeycloakfilter");
+            //FilterHolder keycloakholder1 = new FilterHolder();
+            //keycloakholder1.setName("halcyonkeycloakfilter");
             
             holder1.setFilter(new ShiroFilter());
-            keycloakholder1.setFilter(filter);
+            //keycloakholder1.setFilter(filter);
             
             FilterMapping mapping1 = new FilterMapping();
             mapping1.setFilterName(holder1.getName());
             mapping1.setPathSpec("/*");
             mapping1.setDispatcherTypes(EnumSet.allOf(DispatcherType.class));
 
-            FilterMapping keycloakmapping1 = new FilterMapping();
-            keycloakmapping1.setFilterName(keycloakholder1.getName());
-            keycloakmapping1.setPathSpec("/rdf");
-            keycloakmapping1.setDispatcherTypes(EnumSet.allOf(DispatcherType.class));
+            //FilterMapping keycloakmapping1 = new FilterMapping();
+            //keycloakmapping1.setFilterName(keycloakholder1.getName());
+            //keycloakmapping1.setPathSpec("/rdf");
+            //keycloakmapping1.setDispatcherTypes(EnumSet.allOf(DispatcherType.class));
             
             
             mappings.add(0, mapping1);

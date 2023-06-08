@@ -10,7 +10,6 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletRequestWrapper;
 import javax.servlet.http.HttpServletResponse;
-import org.eclipse.jetty.servlet.FilterHolder;
 import org.keycloak.adapters.AuthenticatedActionsHandler;
 import org.keycloak.adapters.KeycloakDeployment;
 import org.keycloak.adapters.PreAuthActionsHandler;
@@ -28,21 +27,13 @@ import org.keycloak.adapters.spi.UserSessionManagement;
  * @author erich
  */
 public class HALKeycloakOIDCFilter extends KeycloakOIDCFilter {
-    private KeycloakOIDCFilterConfig config = null;
 
     private boolean shouldSkip(HttpServletRequest request) {
         if (skipPattern == null) {
             return false;
         }
-        
         String requestPath = request.getRequestURI().substring(request.getContextPath().length());
-        boolean haha = skipPattern.matcher(requestPath).matches();
-        //System.out.println(haha+" --> "+request.getRequestURI());
-        return haha;
-    }
-    
-    public void setConfig(KeycloakOIDCFilterConfig config) {
-        this.config = config;
+        return skipPattern.matcher(requestPath).matches();
     }
     
     public void setSessionIdMapper(SessionIdMapper mapper) {
@@ -51,41 +42,23 @@ public class HALKeycloakOIDCFilter extends KeycloakOIDCFilter {
     
     @Override
     public void init(final FilterConfig filterConfig) throws ServletException {
-        //filterConfig.getInitParameterNames().asIterator().forEachRemaining(p->{
-          //  System.out.println("PARAM --> "+p);
-        //});
-        
-        if (!filterConfig.getInitParameterNames().hasMoreElements()) {
-            super.init(config);
-        } else {
-        //System.out.println("INIT -------------------> "+filterConfig.getClass().toGenericString());
-        if (filterConfig instanceof FilterHolder fh) {
-            if (fh.getInitParameter(KeycloakOIDCFilter.CONFIG_FILE_PARAM)==null) {
-                fh.setInitParameter(KeycloakOIDCFilter.CONFIG_FILE_PARAM, "keycloak.json");
-            }
-        }
-        super.init(filterConfig);
-        }
+        super.init(filterConfig);   
     }
     
     @Override
     public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain) throws IOException, ServletException {
         HttpServletRequest request = (HttpServletRequest) req;
         HttpServletResponse response = (HttpServletResponse) res;
-        //System.out.println("doFilter =======> "+request.getRequestURI());
-        boolean skipme = shouldSkip(request);
-        if (skipme) {
+        if (shouldSkip(request)) {
             chain.doFilter(req, res);
             return;
         }
-
         OIDCServletHttpFacade facade = new OIDCServletHttpFacade(request, response);
         KeycloakDeployment deployment = deploymentContext.resolveDeployment(facade);
         if (deployment == null || !deployment.isConfigured()) {
             response.sendError(403);
             return;
         }
-
         PreAuthActionsHandler preActions = new PreAuthActionsHandler(new UserSessionManagement() {
             @Override
             public void logoutAll() {
@@ -119,19 +92,6 @@ public class HALKeycloakOIDCFilter extends KeycloakOIDCFilter {
             if (actions.handledRequest()) {
                 return;
             } else {
-                /*
-                KeycloakSecurityContext securityContext = (KeycloakSecurityContext) request.getAttribute(KeycloakSecurityContext.class.getName());
-                if (securityContext != null) {
-                    
-                    String jwtToken = securityContext.getTokenString();
-                    System.out.println("ADDING TOKEN!!! "+jwtToken);
-                    HttpServletResponse httpResponse = (HttpServletResponse) response;
-                    httpResponse.setHeader("token", jwtToken);
-                } else {
-                    System.out.println("NOTHING TO ADD!!!");
-                }
-                */
-                
                 HttpServletRequestWrapper wrapper = tokenStore.buildWrapper();
                 chain.doFilter(wrapper, res);
                 return;
@@ -142,6 +102,7 @@ public class HALKeycloakOIDCFilter extends KeycloakOIDCFilter {
             challenge.challenge(facade);
             return;
         }
+        System.out.println("RUBICON!!");
         response.sendError(403);
     }
 }

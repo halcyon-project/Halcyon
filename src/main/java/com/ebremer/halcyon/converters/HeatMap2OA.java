@@ -57,6 +57,7 @@ public class HeatMap2OA {
     public void shutdown() {
         System.out.println("All jobs submitted.");
         int totaljobs = engine.getQueue().size()+engine.getActiveCount();
+        engine.shutdown();
         while (!engine.isTerminated()) {
             int c = engine.getQueue().size()+engine.getActiveCount();
             long ram = (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())/1024L/1024L;
@@ -66,9 +67,8 @@ public class HeatMap2OA {
             } catch (InterruptedException ex) {
                 Logger.getLogger(NS2OA.class.getName()).log(Level.SEVERE, null, ex);
             }
-        }
+        }  
         System.out.println("Engine shutdown");
-        engine.shutdown();
     }
 
     public void Tran(ImageObject io, Path src, String name, Path destination, Resource classuri) {
@@ -113,7 +113,6 @@ public class HeatMap2OA {
                 }
         });
         heatmap2oa.shutdown();
-
     }
     
     class FileProcessor implements Callable<Model> {

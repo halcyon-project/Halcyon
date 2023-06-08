@@ -19,14 +19,12 @@ keycloak:
     username: admin
     password: admin
     context-redirect: true
-    
-    #migration:
-     # importProvider: singleFile
-      #importLocation: keycloak-realm-config.json
+    address: 0.0.0.0
 
 logging:
   level:
     root: ERROR
+    #org.keycloak.adapters: TRACE
     #org.jgroups: TRACE
     #org.infinispan: INFO
     #org.keycloak: DEBUG

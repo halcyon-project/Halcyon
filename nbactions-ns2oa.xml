@@ -14,7 +14,7 @@
                 <exec.args>${exec.vmArgs} -classpath %classpath ${exec.mainClass} ${exec.appArgs}</exec.args>
                 <exec.executable>java</exec.executable>
                 <exec.vmArgs>-Xmx32G -Xms32G</exec.vmArgs>
-                <exec.appArgs></exec.appArgs>
+                <exec.appArgs>\halcyon\features\coad_polygon coad</exec.appArgs>
                 <exec.mainClass>com.ebremer.halcyon.converters.NS2OA</exec.mainClass>
             </properties>
         </action>
@@ -33,7 +33,7 @@
                 <exec.executable>java</exec.executable>
                 <jpda.listen>true</jpda.listen>
                 <exec.vmArgs>-Xmx32G -Xms32G -agentlib:jdwp=transport=dt_socket,server=n,address=${jpda.address}</exec.vmArgs>
-                <exec.appArgs></exec.appArgs>
+                <exec.appArgs>\halcyon\features\coad_polygon coad</exec.appArgs>
                 <exec.mainClass>com.ebremer.halcyon.converters.NS2OA</exec.mainClass>
             </properties>
         </action>
@@ -51,7 +51,7 @@
                 <exec.args>${exec.vmArgs} -classpath %classpath ${exec.mainClass} ${exec.appArgs}</exec.args>
                 <exec.executable>java</exec.executable>
                 <exec.vmArgs>-Xmx32G -Xms32G</exec.vmArgs>
-                <exec.appArgs></exec.appArgs>
+                <exec.appArgs>\halcyon\features\coad_polygon coad</exec.appArgs>
                 <exec.mainClass>com.ebremer.halcyon.converters.NS2OA</exec.mainClass>
             </properties>
         </action>
