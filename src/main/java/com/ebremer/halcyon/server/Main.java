@@ -41,7 +41,6 @@ import org.springframework.boot.web.servlet.ServletRegistrationBean;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.Ordered;
-import org.springframework.core.annotation.Order;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -58,12 +57,12 @@ public class Main {
     }
 
     @Bean
-    @Order(Ordered.HIGHEST_PRECEDENCE)
     public ServletRegistrationBean proxyServletRegistrationBean() {
         ServletRegistrationBean bean = new ServletRegistrationBean(new HalcyonProxyServlet(), "/rdf/*");
         bean.addInitParameter("targetUri", "http://localhost:"+settings.GetSPARQLPort()+"/rdf");
         bean.addInitParameter(ProxyServlet.P_PRESERVECOOKIES, "true");
         bean.addInitParameter(ProxyServlet.P_HANDLEREDIRECTS, "true");
+        bean.setOrder(Ordered.HIGHEST_PRECEDENCE+10);
         return bean;
     }
    
@@ -110,17 +109,21 @@ public class Main {
     
     @Bean
     public FilterRegistrationBean<HALKeycloakOIDCFilter> KeycloakOIDCFilterFilterRegistration(){
-            HALKeycloakOIDCFilter filter = new HALKeycloakOIDCFilter();
-            //filter.setSessionIdMapper(SessionsManager.getSessionsManager().getSessionIdMapper());
-            filter.setSessionIdMapper(getSessionIdMapper());
-	    FilterRegistrationBean<HALKeycloakOIDCFilter> registration = new FilterRegistrationBean<>();
-	    registration.setFilter(filter);
-            registration.setName("keycloak");
-	    registration.addUrlPatterns("/*");
-            registration.setOrder(Ordered.HIGHEST_PRECEDENCE+1);
-            registration.addInitParameter(KeycloakOIDCFilter.CONFIG_FILE_PARAM, "keycloak.json");        
-            registration.addInitParameter(KeycloakOIDCFilter.SKIP_PATTERN_PARAM, "(^/halcyon.*|^/viewer.*|^/rdf.*|^/hawkeye/.*|/;jsessionid=.*|/gui/images/halcyon.png|^/wicket/resource/.*|^/multi-viewer.*|^/iiif.*|^/|^/about|^/ListImages.*|^/wicket/resource/com.*\\.css||^/auth/.*|^/favicon.ico)");
-            registration.setEnabled(true);
+        //filter.setSessionIdMapper(SessionsManager.getSessionsManager().getSessionIdMapper());
+        //filter.setSessionIdMapper(getSessionIdMapper());
+        HALKeycloakOIDCFilter filter = new HALKeycloakOIDCFilter();
+        //KeycloakOIDCFilterConfig config = new KeycloakOIDCFilterConfig("keycloak");
+        //config.setInitParameter(KeycloakOIDCFilter.CONFIG_FILE_PARAM, "keycloak.json");
+        //config.setInitParameter(KeycloakOIDCFilter.SKIP_PATTERN_PARAM, "(^/halcyon.*|^/viewer.*|^/rdf.*|^/hawkeye/.*|/;jsessionid=.*|/gui/images/halcyon.png|^/wicket/resource/.*|^/multi-viewer.*|^/iiif.*|^/|^/about|^/ListImages.*|^/wicket/resource/com.*\\.css||^/auth/.*|^/favicon.ico)");
+        //  filter.setConfig(config);
+        FilterRegistrationBean<HALKeycloakOIDCFilter> registration = new FilterRegistrationBean<>();
+        registration.setName("keycloak");
+	registration.setFilter(filter);
+	registration.addUrlPatterns("/*");
+        registration.setOrder(Ordered.HIGHEST_PRECEDENCE);
+        registration.addInitParameter(KeycloakOIDCFilter.CONFIG_FILE_PARAM, "keycloak.json");        
+        registration.addInitParameter(KeycloakOIDCFilter.SKIP_PATTERN_PARAM, "(^/halcyon.*|^/viewer.*|^/rdf.*|^/hawkeye/.*|/;jsessionid=.*|/gui/images/halcyon.png|^/wicket/resource/.*|^/multi-viewer.*|^/iiif.*|^/|^/about|^/ListImages.*|^/wicket/resource/com.*\\.css||^/auth/.*|^/favicon.ico)");
+        registration.setEnabled(true);
         return registration;
     }
    

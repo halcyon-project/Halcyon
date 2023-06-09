@@ -30,6 +30,10 @@ public class KeycloakOIDCFilterConfig implements FilterConfig {
         return context;
     }
     
+    public HashMap<String,String> getParams() {
+        return params;
+    }
+    
     public void setContext(ServletContext context) {
         this.context = context;
     }

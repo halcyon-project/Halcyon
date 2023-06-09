@@ -61,7 +61,8 @@ public class NS2OA {
     public void shutdown() {
         System.out.println("All jobs submitted.");
         int totaljobs = engine.getQueue().size()+engine.getActiveCount();
-        while (engine.getActiveCount()>0) {
+        engine.shutdown();
+        while (!engine.isTerminated()) {
             int c = engine.getQueue().size()+engine.getActiveCount();
             long ram = (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())/1024L/1024L;
             System.out.println("jobs completed : "+(totaljobs-c)+" remaining jobs: "+c+"  Total RAM used : "+ram+"MB  Maximum RAM : "+(Runtime.getRuntime().maxMemory()/1024L/1024L)+"MB");
@@ -70,9 +71,8 @@ public class NS2OA {
             } catch (InterruptedException ex) {
                 Logger.getLogger(NS2OA.class.getName()).log(Level.SEVERE, null, ex);
             }
-        }
+        }  
         System.out.println("Engine shutdown");
-        engine.shutdown();
     }
     
     public void Turbo(ImageMeta tcga, String base, String name, String destination) throws IOException {
@@ -259,7 +259,7 @@ public class NS2OA {
 
         @Override
         public Model call() {
-            System.out.println("CALL : "+polygons+"  "+name+" ---> "+tcga.meta.containsKey(name));
+            System.out.println("Processing : "+polygons+"  "+name+" ---> "+tcga.meta.containsKey(name));
             Path ee = Path.of(polygons);
             if (!tcga.meta.containsKey(name)) {
                 System.out.println("MISSING ARCHIVE : "+polygons+"  "+ee+"  "+name+" ---> "+tcga.meta.containsKey(name));
