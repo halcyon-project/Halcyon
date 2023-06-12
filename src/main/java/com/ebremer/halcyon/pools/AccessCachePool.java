@@ -1,5 +1,7 @@
 package com.ebremer.halcyon.pools;
 
+import java.time.Duration;
+
 /**
  *
  * @author erich
@@ -18,12 +20,12 @@ public class AccessCachePool {
     
     public static synchronized AccessCacheKeyedPool<String, AccessCache> getPool(AccessCacheKeyedPoolConfig config) {
         if (pool == null) {
-            //config.setMaxTotalPerKey(10);
-            //config.setMinIdlePerKey(0);
-            //config.setMaxWait(Duration.ofMillis(5000));
-            //config.setBlockWhenExhausted(true);
-            //config.setMinEvictableIdleTime(Duration.ofMillis(60000));
-            //config.setTimeBetweenEvictionRuns(Duration.ofMillis(60000));
+            config.setMaxTotalPerKey(1);
+            config.setMinIdlePerKey(0);
+            config.setMaxWait(Duration.ofMillis(60000));
+            config.setBlockWhenExhausted(true);
+            config.setMinEvictableIdleTime(Duration.ofMillis(600000));
+            config.setTimeBetweenEvictionRuns(Duration.ofMillis(600000));
             pool = new AccessCacheKeyedPool<>(new AccessCachePoolFactory(),config);
         }
         return pool;

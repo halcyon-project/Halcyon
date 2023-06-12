@@ -89,9 +89,6 @@ public class Patterns {
         ds.begin(ReadWrite.READ);
         Model m = qe.execConstruct();
         ds.end();
-        //System.out.println("------------------------------------------------------------------------------------------------------------");
-        //RDFDataMgr.write(System.out, m, RDFFormat.TURTLE_PRETTY);
-        //System.out.println("------------------------------------------------------------------------------------------------------------");
         return m;
     }
     

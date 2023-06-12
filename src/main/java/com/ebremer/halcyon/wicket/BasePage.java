@@ -18,5 +18,4 @@ public class BasePage extends WebPage {
     public void renderHead(IHeaderResponse response) {
         super.renderHead(response);
     }
-    
 }

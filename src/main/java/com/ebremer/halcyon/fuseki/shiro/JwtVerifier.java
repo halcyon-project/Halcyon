@@ -1,7 +1,6 @@
 package com.ebremer.halcyon.fuseki.shiro;
 
 import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.impl.DefaultClaims;
 import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.JwtParser;
 import io.jsonwebtoken.Jwts;
@@ -27,6 +26,8 @@ public class JwtVerifier {
         }  catch (io.jsonwebtoken.security.SignatureException ex) {
             System.out.println(ex.getMessage());
         }
-        return new DefaultClaims();
+        //return new DefaultClaims();
+        System.out.println("FAIL!!!!");
+        return null;
     }
 }

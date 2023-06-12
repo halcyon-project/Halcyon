@@ -26,7 +26,7 @@ public class KeycloakPublicKeyFetcher {
     private static PublicKey publicKey = null;
     
     private KeycloakPublicKeyFetcher() {
-        oidcConfigurationUrl = "http://localhost:"+HalcyonSettings.getSettings().GetHTTPPort() + "/auth/realms/"+HalcyonSettings.realm+"/protocol/openid-connect/certs";
+        oidcConfigurationUrl = HalcyonSettings.getSettings().getProxyHostName() + "/auth/realms/"+HalcyonSettings.realm+"/protocol/openid-connect/certs";
     }
     
     public PublicKey getPublicKey() {
