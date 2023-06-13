@@ -42,7 +42,6 @@ public class FeatureServer extends HttpServlet {
     
     @Override
     protected void doGet( HttpServletRequest request, HttpServletResponse response ) throws IOException {
-        response.setContentType("application/json");
         String iiif = request.getParameter("iiif");
         if (iiif!=null) {
             IIIFProcessor i = null;
@@ -85,59 +84,54 @@ public class FeatureServer extends HttpServlet {
                     jwriter.flush();
 */
                 } else {
-                    BufferedImage bi = fr.FetchImage(i.x, i.y, i.w, i.h, i.tx, i.tx);
-                  //  frp.returnObject(i.uri, fr);
-                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                    BufferedImage bi = fr.FetchImage(i.x, i.y, i.w, i.h, i.tx, i.tx);                
                     ImageWriter writer;
                     ImageOutputStream imageOut;
                     byte[] imageInByte;
-                    ServletOutputStream sos = response.getOutputStream();
-                    switch (i.imageformat) {
-                        case JPG:
-                            writer = ImageIO.getImageWritersByFormatName("jpg").next();
-                            JPEGImageWriteParam jpegParams = new JPEGImageWriteParam(null);
-                            jpegParams.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
-                            jpegParams.setCompressionQuality(0.7f);
-                            imageOut=ImageIO.createImageOutputStream(baos);
-                            writer.setOutput(imageOut);
-                            writer.write(null,new IIOImage(bi,null,null),jpegParams);                
-                            baos.flush();
-                            imageInByte = baos.toByteArray();
-                            baos.close();
-                            response.setContentType("image/jpg");
-                            response.setContentLength(imageInByte.length);
-                            response.setHeader("Access-Control-Allow-Origin", "*");
-                            sos.write(imageInByte);
-                            sos.close();
-                            break;
-                        case PNG:
-                            writer = ImageIO.getImageWritersByFormatName("png").next();
-                            ImageWriteParam pjpegParams = writer.getDefaultWriteParam();
-                            imageOut=ImageIO.createImageOutputStream(baos);
-                            writer.setOutput(imageOut);
-                            writer.write(null,new IIOImage(bi,null,null),pjpegParams);
-                            baos.flush();
-                            imageInByte = baos.toByteArray();
-                            baos.close();
-                            response.setContentType("image/png");
-                            response.setContentLength(imageInByte.length);
-                            response.setHeader("Access-Control-Allow-Origin", "*");
-                            sos.write(imageInByte);
-                            sos.close();
-                            break;
-                        default:
-                            System.out.println("ERROR! Unknown format!!");
+                    try (
+                        ServletOutputStream sos = response.getOutputStream();
+                        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                    ) {
+                        switch (i.imageformat) {
+                            case JPG:
+                                writer = ImageIO.getImageWritersByFormatName("jpg").next();
+                                JPEGImageWriteParam jpegParams = new JPEGImageWriteParam(null);
+                                jpegParams.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+                                jpegParams.setCompressionQuality(0.7f);
+                                imageOut=ImageIO.createImageOutputStream(baos);
+                                writer.setOutput(imageOut);
+                                writer.write(null,new IIOImage(bi,null,null),jpegParams);                
+                                baos.flush();
+                                imageInByte = baos.toByteArray();
+                                response.setContentType("image/jpg");
+                                response.setContentLength(imageInByte.length);
+                                response.setHeader("Access-Control-Allow-Origin", "*");
+                                sos.write(imageInByte);
+                                break;
+                            case PNG:
+                                writer = ImageIO.getImageWritersByFormatName("png").next();
+                                ImageWriteParam pjpegParams = writer.getDefaultWriteParam();
+                                imageOut=ImageIO.createImageOutputStream(baos);
+                                writer.setOutput(imageOut);
+                                writer.write(null,new IIOImage(bi,null,null),pjpegParams);
+                                baos.flush();
+                                imageInByte = baos.toByteArray();
+                                response.setContentType("image/png");
+                                response.setContentLength(imageInByte.length);
+                                response.setHeader("Access-Control-Allow-Origin", "*");
+                                sos.write(imageInByte);
+                                break;
+                            default:
+                                System.out.println("ERROR! Unknown format!!");
+                        }
                     }
                 }
             } else if (i.inforequest) {
                 response.setContentType("application/json");
                 try (PrintWriter writer = response.getWriter()) {
                     String id = settings.getProxyHostName()+"/halcyon/?iiif="+request.getParameter("iiif").substring(0, request.getParameter("iiif").length()-"/info.json".length());
-                  //  System.out.println("Grabbing : "+id);
                     String blah = fr.GetImageInfo(id);
                     writer.append(blah);
-                    //frp.returnObject(xid, fr);
-                 //   frp.returnObject(i.uri, fr);
                     writer.flush();
                 }
             }   

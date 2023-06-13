@@ -49,19 +49,9 @@ import org.apache.jena.vocabulary.SchemaDO;
  * @author erich
  */
 public class FeatureManager {
-    private final Dataset ds;
-    private final HalcyonSettings settings = HalcyonSettings.getSettings(); 
-    
-    public FeatureManager() {
-        //ds = DatabaseLocator.getDatabase().getDataset();
-        ds = DataCore.getInstance().getDataset();
-    }
 
-    public String getFeatures(HashSet<String> features, String urn) {
-        //System.out.println("getFeatures : "+urn);
-       // features.forEach(d->{
-         //   System.out.println("YAH  : "+d);
-        //});
+    public static String getFeatures(HashSet<String> features, String urn) {
+        Dataset ds = DataCore.getInstance().getDataset();
         Iterator<String> ii = features.iterator();
         Model wow = ModelFactory.createDefaultModel();
         ArrayList<RDFNode> createactions = new ArrayList<>();
@@ -69,8 +59,7 @@ public class FeatureManager {
             RDFNode node = wow.createResource(ii.next());
             createactions.add(node);
         }
-        ds.begin(ReadWrite.READ);
-        String host = settings.getProxyHostName();
+        String host = HalcyonSettings.getSettings().getProxyHostName();
         ParameterizedSparqlString pss = new ParameterizedSparqlString("""
             select distinct ?roc
             where {
@@ -87,7 +76,9 @@ public class FeatureManager {
         pss.setIri("image", urn);
         pss.setValues("selected", createactions);
         //System.out.println("#1 "+pss.toString());
-        ResultSet results = QueryExecutionFactory.create(pss.toString(), ds).execSelect();
+        ds.begin(ReadWrite.READ);
+        ResultSet results = QueryExecutionFactory.create(pss.toString(), ds).execSelect().materialise();
+        ds.end();
         ArrayList<RDFNode> roc = new ArrayList<>();
         while (results.hasNext()) {
             QuerySolution qs = results.next();
@@ -108,7 +99,9 @@ public class FeatureManager {
         pss.setNsPrefix("rdf", RDF.uri);        
         pss.setValues("selected", roc);
         //System.out.println("#2 "+pss.toString());
-        ResultSet rs = QueryExecutionFactory.create(pss.toString(), ds).execSelect();
+        ds.begin(ReadWrite.READ);
+        ResultSet rs = QueryExecutionFactory.create(pss.toString(), ds).execSelect().materialise();
+        ds.end();
         HashMap<String,String> types = new HashMap<>();
         HalColors cs = new HalColors();
         while (rs.hasNext()) {
@@ -133,7 +126,9 @@ public class FeatureManager {
         pss.setNsPrefix("rdf", RDF.uri);        
         pss.setValues("selected", roc);
         //System.out.println("#3 "+pss.toString());
-        rs = QueryExecutionFactory.create(pss.toString(), ds).execSelect();
+        ds.begin(ReadWrite.READ);
+        rs = QueryExecutionFactory.create(pss.toString(), ds).execSelect().materialise();
+        ds.end();
         String lroc = "";
         Model m = ModelFactory.createDefaultModel();
         int c = 0;
@@ -240,10 +235,6 @@ public class FeatureManager {
                     .addLiteral(HAL.color, types.get(qs.get("type").asResource().getURI()))
             );
         }
-        ds.end();
-        //System.out.println("===================================================== Features ======================================");
-        //RDFDataMgr.write(System.out, m, Lang.TURTLE);
-        //System.out.println("==========XXXXXXXXXXXXXXXXXX======================== Features ============XXXXXXXXXXXXX==============");
         Dataset dss = DatasetFactory.createGeneral();
         dss.getDefaultModel().add(m);
         RdfDataset rds = JenaTitanium.convert(dss.asDatasetGraph());

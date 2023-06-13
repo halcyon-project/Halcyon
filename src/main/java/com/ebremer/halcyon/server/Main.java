@@ -70,11 +70,11 @@ public class Main {
     public UndertowServletWebServerFactory embeddedServletContainerFactory() {
         System.out.println("Configuring Undertow Web Engine...");
         UndertowServletWebServerFactory factory = new UndertowServletWebServerFactory();
-        int cores = Runtime.getRuntime().availableProcessors();
-        int ioThreads = cores;
-        int taskThreads = 16*cores;
-        System.out.println("ioThreads  :"+ioThreads+"\ntaskThreads :"+taskThreads);
-        factory.setIoThreads(ioThreads);
+        //int cores = Runtime.getRuntime().availableProcessors();
+        //int ioThreads = cores*2;
+        //int taskThreads = 16*cores;
+        //System.out.println("ioThreads   : "+ioThreads+"\ntaskThreads : "+taskThreads);
+        //factory.setIoThreads(ioThreads);
         factory.setPort(settings.GetHTTPPort());
         if (settings.isHTTPSenabled()) {
             factory.addBuilderCustomizers(builder -> {
@@ -84,7 +84,7 @@ public class Main {
                     System.out.println("HTTPS PORT : "+settings.GetHTTPSPort());
                     builder
                         .addHttpsListener(settings.GetHTTPSPort(), settings.GetHostIP(), ssl)
-                        .setServerOption(UndertowOptions.ENABLE_HTTP2, true)
+                        .setServerOption(UndertowOptions.ENABLE_HTTP2, false)
                         .setServerOption(UndertowOptions.MAX_PARAMETERS, 100000)
                         .setServerOption(UndertowOptions.MAX_CONCURRENT_REQUESTS_PER_CONNECTION, 100);
                 } catch (Exception ex) {

@@ -39,8 +39,6 @@ import org.apache.wicket.extensions.markup.html.repeater.data.grid.ICellPopulato
 import org.apache.wicket.extensions.markup.html.repeater.data.table.AbstractColumn;
 import org.apache.wicket.extensions.markup.html.repeater.data.table.IColumn;
 import org.apache.wicket.markup.IMarkupResourceStreamProvider;
-import org.apache.wicket.markup.head.CssHeaderItem;
-import org.apache.wicket.markup.head.IHeaderResponse;
 import org.apache.wicket.markup.html.form.CheckBox;
 import org.apache.wicket.markup.html.form.DropDownChoice;
 import org.apache.wicket.markup.html.form.Form;
@@ -50,7 +48,6 @@ import org.apache.wicket.markup.repeater.Item;
 import org.apache.wicket.model.IModel;
 import org.apache.wicket.model.LoadableDetachableModel;
 import org.apache.wicket.model.Model;
-import org.apache.wicket.request.resource.CssResourceReference;
 import org.apache.wicket.util.resource.IResourceStream;
 import org.apache.wicket.util.resource.StringResourceStream;
 
@@ -64,7 +61,6 @@ public class ListFeatures extends Panel {
     
     public ListFeatures(String id) {
         super(id);
-        System.out.println("ListFeatures................................................................................");
         selected1 = new HashSet<>();
         selected2 = new HashSet<>();
         selected3 = new HashSet<>();
@@ -109,8 +105,6 @@ public class ListFeatures extends Panel {
                     new LoadableDetachableModel<List<Node>>() {
                         @Override
                         protected List<Node> load() {
-                            //System.out.println("Load Features...");
-                           // List<Node> list = Patterns.getCollectionList(rdg.load());
                             org.apache.jena.rdf.model.Model ccc = ModelFactory.createDefaultModel();
                             try {
                                 HalcyonPrincipal p = HalcyonSession.get().getHalcyonPrincipal();
@@ -129,7 +123,6 @@ public class ListFeatures extends Panel {
                             List<Node> list = Patterns.getCollectionList45X(ccc);
                             list.add(NodeFactory.createURI("urn:halcyon:nocollections"));
                             //list.add(NodeFactory.createURI("urn:halcyon:allcollections"));
-                            //System.out.println("Load Features...Loaded");
                             return list;
                         }
                     },
@@ -176,12 +169,6 @@ public class ListFeatures extends Panel {
         f[2] = selected3;
         f[3] = selected4;
         return f;
-    }
-
-    @Override
-    public void renderHead(IHeaderResponse response) {
-        super.renderHead(response);
-        response.render(CssHeaderItem.forReference(new CssResourceReference(ListFeatures.class, "repeater.css")));
     }
     
     private class ActionPanel extends Panel implements IMarkupResourceStreamProvider {

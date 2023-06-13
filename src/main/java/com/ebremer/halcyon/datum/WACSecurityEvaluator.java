@@ -10,7 +10,6 @@ import com.ebremer.ns.HAL;
 import java.security.Principal;
 import java.util.HashMap;
 import java.util.Set;
-import java.util.UUID;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.Triple;
 import org.apache.jena.permissions.SecurityEvaluator;
