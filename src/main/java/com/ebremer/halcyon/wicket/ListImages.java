@@ -14,7 +14,6 @@ import com.ebremer.halcyon.datum.HalcyonPrincipal;
 import com.ebremer.halcyon.gui.HalcyonSession;
 import com.ebremer.halcyon.pools.AccessCache;
 import com.ebremer.halcyon.pools.AccessCachePool;
-import com.ebremer.halcyon.utils.StopWatch;
 import com.ebremer.multiviewer.MultiViewer;
 import com.ebremer.ns.EXIF;
 import java.util.HashSet;
@@ -94,7 +93,7 @@ public class ListImages extends BasePage {
         SelectDataProvider rdfsdf = new SelectDataProvider(ds,pss.toString());
         pss.setIri("collection", "urn:halcyon:nocollections");
         rdfsdf.SetSPARQL(pss.toString());
-        AjaxFallbackDefaultDataTable table = new AjaxFallbackDefaultDataTable<>("table", columns, rdfsdf, 30);
+        AjaxFallbackDefaultDataTable table = new AjaxFallbackDefaultDataTable<>("table", columns, rdfsdf, 25);
         add(table);
         RDFDetachableModel rdg = new RDFDetachableModel(Patterns.getALLCollectionRDF());
         LDModel ldm = new LDModel(rdg);
@@ -103,7 +102,6 @@ public class ListImages extends BasePage {
                     new LoadableDetachableModel<List<Node>>() {
                         @Override
                         protected List<Node> load() {
-                            //System.out.println("Load Images...");
                             org.apache.jena.rdf.model.Model ccc = ModelFactory.createDefaultModel();
                             try {
                                 HalcyonPrincipal p = HalcyonSession.get().getHalcyonPrincipal();

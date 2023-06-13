@@ -13,7 +13,7 @@
                 <exec.longClasspath>true</exec.longClasspath>
                 <exec.args>${exec.vmArgs} -classpath %classpath ${exec.mainClass} ${exec.appArgs}</exec.args>
                 <exec.executable>java</exec.executable>
-                <exec.vmArgs>-Xmx45G  -Xms45G --add-opens java.base/java.nio=ALL-UNNAMED --enable-preview</exec.vmArgs>
+                <exec.vmArgs>-Xmx45G  -Xms45G --add-opens java.base/java.nio=ALL-UNNAMED</exec.vmArgs>
                 <exec.appArgs></exec.appArgs>
                 <exec.mainClass>com.ebremer.halcyon.server.Main</exec.mainClass>
             </properties>
@@ -32,7 +32,7 @@
                 <exec.args>${exec.vmArgs} -classpath %classpath ${exec.mainClass} ${exec.appArgs}</exec.args>
                 <exec.executable>java</exec.executable>
                 <jpda.listen>true</jpda.listen>
-                <exec.vmArgs>-Xmx45G  -Xms45G --add-opens java.base/java.nio=ALL-UNNAMED --enable-preview -agentlib:jdwp=transport=dt_socket,server=n,address=${jpda.address}</exec.vmArgs>
+                <exec.vmArgs>-Xmx45G  -Xms45G --add-opens java.base/java.nio=ALL-UNNAMED -agentlib:jdwp=transport=dt_socket,server=n,address=${jpda.address}</exec.vmArgs>
                 <exec.appArgs></exec.appArgs>
                 <exec.mainClass>com.ebremer.halcyon.server.Main</exec.mainClass>
             </properties>
@@ -49,7 +49,7 @@
             <properties>
                 <exec.args>${exec.vmArgs} -classpath %classpath ${exec.mainClass} ${exec.appArgs}</exec.args>
                 <exec.executable>java</exec.executable>
-                <exec.vmArgs>-Xmx45G  -Xms45G --add-opens java.base/java.nio=ALL-UNNAMED --enable-preview</exec.vmArgs>
+                <exec.vmArgs>-Xmx45G  -Xms45G --add-opens java.base/java.nio=ALL-UNNAMED</exec.vmArgs>
                 <exec.appArgs></exec.appArgs>
                 <exec.mainClass>com.ebremer.halcyon.server.Main</exec.mainClass>
             </properties>

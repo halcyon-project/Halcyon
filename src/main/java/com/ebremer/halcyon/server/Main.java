@@ -70,11 +70,11 @@ public class Main {
     public UndertowServletWebServerFactory embeddedServletContainerFactory() {
         System.out.println("Configuring Undertow Web Engine...");
         UndertowServletWebServerFactory factory = new UndertowServletWebServerFactory();
-        //int cores = Runtime.getRuntime().availableProcessors();
-        //int ioThreads = cores*2;
-        //int taskThreads = 16*cores;
-        //System.out.println("ioThreads   : "+ioThreads+"\ntaskThreads : "+taskThreads);
-        //factory.setIoThreads(ioThreads);
+        int cores = Runtime.getRuntime().availableProcessors();
+        int ioThreads = cores;
+        int taskThreads = 16*cores;
+        System.out.println("ioThreads   : "+ioThreads+"\ntaskThreads : "+taskThreads);
+        factory.setIoThreads(ioThreads);
         factory.setPort(settings.GetHTTPPort());
         if (settings.isHTTPSenabled()) {
             factory.addBuilderCustomizers(builder -> {
@@ -84,7 +84,7 @@ public class Main {
                     System.out.println("HTTPS PORT : "+settings.GetHTTPSPort());
                     builder
                         .addHttpsListener(settings.GetHTTPSPort(), settings.GetHostIP(), ssl)
-                        .setServerOption(UndertowOptions.ENABLE_HTTP2, false)
+                        .setServerOption(UndertowOptions.ENABLE_HTTP2, true)
                         .setServerOption(UndertowOptions.MAX_PARAMETERS, 100000)
                         .setServerOption(UndertowOptions.MAX_CONCURRENT_REQUESTS_PER_CONNECTION, 100);
                 } catch (Exception ex) {
@@ -98,8 +98,7 @@ public class Main {
     }  
 
     @Bean
-    ServletRegistrationBean iboxServletRegistration () {
-        System.out.println("iboxServletRegistration order: "+Ordered.LOWEST_PRECEDENCE);
+    ServletRegistrationBean ImageServerRegistration () {
         ServletRegistrationBean srb = new ServletRegistrationBean();
         srb.setOrder(Ordered.HIGHEST_PRECEDENCE+2);
         srb.setServlet(new ImageServer());
@@ -108,14 +107,17 @@ public class Main {
     }
     
     @Bean
+    ServletRegistrationBean FeatureServerRegistration () {
+        ServletRegistrationBean srb = new ServletRegistrationBean();
+        srb.setOrder(Ordered.HIGHEST_PRECEDENCE+3);
+        srb.setServlet(new FeatureServer());
+        srb.setUrlMappings(Arrays.asList("/halcyon/*"));
+        return srb;
+    }
+    
+    @Bean
     public FilterRegistrationBean<HALKeycloakOIDCFilter> KeycloakOIDCFilterFilterRegistration(){
-        //filter.setSessionIdMapper(SessionsManager.getSessionsManager().getSessionIdMapper());
-        //filter.setSessionIdMapper(getSessionIdMapper());
         HALKeycloakOIDCFilter filter = new HALKeycloakOIDCFilter();
-        //KeycloakOIDCFilterConfig config = new KeycloakOIDCFilterConfig("keycloak");
-        //config.setInitParameter(KeycloakOIDCFilter.CONFIG_FILE_PARAM, "keycloak.json");
-        //config.setInitParameter(KeycloakOIDCFilter.SKIP_PATTERN_PARAM, "(^/halcyon.*|^/viewer.*|^/rdf.*|^/hawkeye/.*|/;jsessionid=.*|/gui/images/halcyon.png|^/wicket/resource/.*|^/multi-viewer.*|^/iiif.*|^/|^/about|^/ListImages.*|^/wicket/resource/com.*\\.css||^/auth/.*|^/favicon.ico)");
-        //  filter.setConfig(config);
         FilterRegistrationBean<HALKeycloakOIDCFilter> registration = new FilterRegistrationBean<>();
         registration.setName("keycloak");
 	registration.setFilter(filter);
@@ -142,15 +144,6 @@ public class Main {
         registration.addInitParameter(IGNORE_PATHS_PARAM, "/auth/,/three.js/,/multi-viewer/,/iiif/,/halcyon/,/images/,/favicon.ico,/rdf,/talon/");
         //registration.setDispatcherTypes(DispatcherType.REQUEST, DispatcherType.FORWARD);
         return registration;
-    }
-   
-    @Bean
-    ServletRegistrationBean HalcyonServletRegistration () {
-        ServletRegistrationBean srb = new ServletRegistrationBean();
-        srb.setServlet(new FeatureServer());
-        srb.setOrder(Ordered.HIGHEST_PRECEDENCE+3);
-        srb.setUrlMappings(Arrays.asList("/halcyon/*"));
-        return srb;
     }
     
     @Configuration
@@ -225,15 +218,3 @@ public class Main {
         System.out.println("===================== Welcome to Halcyon!");
     }
 }
-
-
-    /*
-    @Bean
-    public FilterRegistrationBean<JwtInterceptor> headerAddingFilter() {
-        FilterRegistrationBean<JwtInterceptor> registrationBean = new FilterRegistrationBean<>();
-        registrationBean.setFilter(new JwtInterceptor());
-        registrationBean.addUrlPatterns("/*");
-        registrationBean.setOrder(1);
-        return registrationBean;
-    }
-    */

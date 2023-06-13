@@ -6,14 +6,13 @@ import com.ebremer.halcyon.FL.FLPool;
 import com.ebremer.halcyon.HalcyonSettings;
 import com.ebremer.halcyon.FL.FL;
 import com.ebremer.halcyon.imagebox.Enums.ImageFormat;
+import static com.ebremer.halcyon.imagebox.Enums.ImageFormat.JPG;
+import static com.ebremer.halcyon.imagebox.Enums.ImageFormat.PNG;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.URISyntaxException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.imageio.IIOImage;
 import javax.imageio.ImageIO;
 import javax.imageio.ImageWriteParam;
@@ -31,122 +30,128 @@ import javax.servlet.http.HttpServletResponse;
  */
 public class FeatureServer extends HttpServlet {
     
-    HalcyonSettings settings = HalcyonSettings.getSettings(); 
+    private final HalcyonSettings settings; 
     private final FLKeyedPool frp;
     
     public FeatureServer() {
+        settings = HalcyonSettings.getSettings();
         FLKeyedPoolConfig<FL> config = new FLKeyedPoolConfig<>();
         config.setBase(settings.getProxyHostName()+"/halcyon/?iiif=");
         frp = FLPool.getPool(config);
     }
     
+    public void ReportError(HttpServletResponse response, String msg) {
+        response.setContentType("application/json");
+        try (PrintWriter jwriter=response.getWriter()) {
+            jwriter.append("{'error': '"+msg+"'}");
+        } catch (IOException ex1) {
+            // connection probably closed
+        } catch (IllegalStateException ex1) {
+            // connection probably closed
+        }
+    }
+    
     @Override
-    protected void doGet( HttpServletRequest request, HttpServletResponse response ) throws IOException {
-        String iiif = request.getParameter("iiif");
-        if (iiif!=null) {
-            IIIFProcessor i = null;
+    protected void doGet( HttpServletRequest request, HttpServletResponse response ) {
+        String iiif = request.getParameter("iiif");        
+        try {
+            IIIFProcessor i = new IIIFProcessor(iiif);
             try {
-                i = new IIIFProcessor(iiif);
-            } catch (URISyntaxException ex) {
-                Logger.getLogger(FeatureServer.class.getName()).log(Level.SEVERE, null, ex);
-            }
-            FL fr = null;
-            File f = new File(i.uri);
-            String target = f.getAbsolutePath();
-            try {
-                fr = (FL) frp.borrowObject(i.uri);
+                FL fr = (FL) frp.borrowObject(i.uri);
                 frp.returnObject(i.uri, fr);
-            } catch (Exception ex) {
-                System.out.println(ex.toString());
-                System.out.println("ERROR Starting FEA Reader : "+target);
-            }
-            if (i.tilerequest) {
-                if (i.fullrequest) {
-                    i.x = 0;
-                    i.y = 0;
-                    i.w = fr.getWidth();
-                    i.h = fr.getHeight();
-                } else {
-                    if ((i.x+i.w)>fr.getWidth()) {
-                        i.w = fr.getWidth()-i.x;
+                if (i.tilerequest) {
+                    if (i.fullrequest) {
+                        i.x = 0;
+                        i.y = 0;
+                        i.w = fr.getWidth();
+                        i.h = fr.getHeight();
+                    } else {
+                        if ((i.x+i.w)>fr.getWidth()) {
+                            i.w = fr.getWidth()-i.x;
+                        }
+                        if ((i.y+i.h)>fr.getHeight()) {
+                            i.h = fr.getHeight()-i.y;
+                        }                 
                     }
-                    if ((i.y+i.h)>fr.getHeight()) {
-                        i.h = fr.getHeight()-i.y;
-                    }                 
-                }
-                if (i.imageformat == ImageFormat.JSON) {
-                    /*
-                    String json = fr.FetchPolygons(i.x, i.y, i.w, i.h, i.tx, i.tx);
-                    frp.returnObject(xid, fr);
-                    response.setContentType("application/json");
-                    PrintWriter jwriter=response.getWriter();
-                    jwriter.append(json);
-                    jwriter.flush();
-*/
-                } else {
-                    BufferedImage bi = fr.FetchImage(i.x, i.y, i.w, i.h, i.tx, i.tx);                
-                    ImageWriter writer;
-                    ImageOutputStream imageOut;
-                    byte[] imageInByte;
-                    try (
-                        ServletOutputStream sos = response.getOutputStream();
-                        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                    ) {
+                    if (i.imageformat == ImageFormat.JSON) {
+                        /*
+                        String json = fr.FetchPolygons(i.x, i.y, i.w, i.h, i.tx, i.tx);
+                        frp.returnObject(xid, fr);
+                        response.setContentType("application/json");
+                        PrintWriter jwriter=response.getWriter();
+                        jwriter.append(json);
+                        jwriter.flush();
+                         */
+                    } else {
+                        BufferedImage bi = fr.FetchImage(i.x, i.y, i.w, i.h, i.tx, i.tx);                
+                        ImageWriter writer;
+                        ImageOutputStream imageOut;
+                        byte[] imageInByte;
                         switch (i.imageformat) {
                             case JPG:
                                 writer = ImageIO.getImageWritersByFormatName("jpg").next();
                                 JPEGImageWriteParam jpegParams = new JPEGImageWriteParam(null);
                                 jpegParams.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
                                 jpegParams.setCompressionQuality(0.7f);
-                                imageOut=ImageIO.createImageOutputStream(baos);
-                                writer.setOutput(imageOut);
-                                writer.write(null,new IIOImage(bi,null,null),jpegParams);                
-                                baos.flush();
-                                imageInByte = baos.toByteArray();
-                                response.setContentType("image/jpg");
-                                response.setContentLength(imageInByte.length);
-                                response.setHeader("Access-Control-Allow-Origin", "*");
-                                sos.write(imageInByte);
+                                try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+                                    imageOut=ImageIO.createImageOutputStream(baos);
+                                    writer.setOutput(imageOut);
+                                    writer.write(null,new IIOImage(bi,null,null),jpegParams);                
+                                    baos.flush();
+                                    imageInByte = baos.toByteArray();
+                                    response.setContentType("image/jpg");
+                                    response.setContentLength(imageInByte.length);
+                                    response.setHeader("Access-Control-Allow-Origin", "*");
+                                    try (ServletOutputStream sos = response.getOutputStream()) {
+                                        sos.write(imageInByte);
+                                    } catch (IOException ex) {
+                                        ReportError(response, "error writing feature image");
+                                    }
+                                } catch (IOException ex) {
+                                    ReportError(response, "error with ByteArrayOutputStream");
+                                }
                                 break;
                             case PNG:
                                 writer = ImageIO.getImageWritersByFormatName("png").next();
                                 ImageWriteParam pjpegParams = writer.getDefaultWriteParam();
-                                imageOut=ImageIO.createImageOutputStream(baos);
-                                writer.setOutput(imageOut);
-                                writer.write(null,new IIOImage(bi,null,null),pjpegParams);
-                                baos.flush();
-                                imageInByte = baos.toByteArray();
-                                response.setContentType("image/png");
-                                response.setContentLength(imageInByte.length);
-                                response.setHeader("Access-Control-Allow-Origin", "*");
-                                sos.write(imageInByte);
+                                try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+                                    imageOut=ImageIO.createImageOutputStream(baos);
+                                    writer.setOutput(imageOut);
+                                    writer.write(null,new IIOImage(bi,null,null),pjpegParams);
+                                    baos.flush();
+                                    imageInByte = baos.toByteArray();
+                                    response.setContentType("image/png");
+                                    response.setContentLength(imageInByte.length);
+                                    response.setHeader("Access-Control-Allow-Origin", "*");
+                                    try (ServletOutputStream sos = response.getOutputStream()) {
+                                        sos.write(imageInByte);
+                                    } catch (IOException ex) {
+                                       ReportError(response, "error writing feature image");
+                                    }
+                                } catch (IOException ex) {
+                                    ReportError(response, "error with ByteArrayOutputStream");
+                                }
                                 break;
                             default:
-                                System.out.println("ERROR! Unknown format!!");
+                                System.out.println("Unknown format");
                         }
                     }
+                } else if (i.inforequest) {
+                    response.setContentType("application/json");
+                    try (PrintWriter writer = response.getWriter()) {
+                        String id = settings.getProxyHostName()+"/halcyon/?iiif="+request.getParameter("iiif").substring(0, request.getParameter("iiif").length()-"/info.json".length());
+                        String blah = fr.GetImageInfo(id);
+                        writer.append(blah);
+                        writer.flush();
+                    } catch (IllegalStateException ex) {
+                        // connection probably closed
+                    }
                 }
-            } else if (i.inforequest) {
-                response.setContentType("application/json");
-                try (PrintWriter writer = response.getWriter()) {
-                    String id = settings.getProxyHostName()+"/halcyon/?iiif="+request.getParameter("iiif").substring(0, request.getParameter("iiif").length()-"/info.json".length());
-                    String blah = fr.GetImageInfo(id);
-                    writer.append(blah);
-                    writer.flush();
-                }
-            }   
-        } else {
-            System.out.println("IIIF FAILURE!!!");
-        }
-    }
-    
-    public static String getFullURL(HttpServletRequest request) {
-        StringBuilder requestURL = new StringBuilder(request.getRequestURL().toString());
-        String queryString = request.getQueryString();
-        if (queryString == null) {
-            return requestURL.toString();
-        } else {
-            return requestURL.append('?').append(queryString).toString();
+            } catch (Exception ex) {
+                ReportError(response, "ERROR Starting FEA Reader");
+            }
+        } catch (URISyntaxException ex) {
+            ReportError(response, "bad iiif request");
         }
     }
 }

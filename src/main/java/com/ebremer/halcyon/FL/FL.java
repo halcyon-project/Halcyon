@@ -77,7 +77,6 @@ public class FL {
     private final float[] ratios;
     
     public FL(Model m) {
-        System.out.println("Creating an FL Reader");
         this.m = m;
         this.hspace = new HashMap<>();
         this.classes = new HashMap<>();
@@ -168,19 +167,31 @@ public class FL {
         return height;
     }
     
+    public int getBest(float r) {
+        int best = ratios.length-1;
+        float rr = 0.8f*ratios[best];
+        while ((r<rr)&&(best>0)) {
+            best--;
+            rr = 0.8f*ratios[best];
+        }
+        return best;
+    }
+    
     public BufferedImage FetchImage(int x, int y, int w, int h, int tx, int ty) {
         //System.out.println("FetchImage : "+x+" "+y+" "+w+" "+h+" "+tx+" "+ty);
         float iratio = ((float) w)/((float) tx);
-        int layer = numscales-1;
+        int layer; // = numscales-1;
         float rr = 1.0f;
         if (hspace.size()==1) {
             layer = hspace.keySet().iterator().next();
         } else {
+            layer = getBest(iratio);
+            /*
             float a = 0.8f*ratios[layer];
             while ((iratio<a)&&(layer>0)) {
                 layer--;
                 a = 0.8f*ratios[layer];
-            }
+            }*/
             rr = ratios[layer];
         }
         int gx=(int) (x/rr);

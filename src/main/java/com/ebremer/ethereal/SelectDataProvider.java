@@ -55,15 +55,15 @@ public class SelectDataProvider extends SortableDataProvider<Solution, String> {
         StopWatch w = new StopWatch();
         Query q = getQuery();
         Dataset ds = dds.load();
-        ds.begin(ReadWrite.READ);
         QueryExecution qe = QueryExecutionFactory.create(q,ds);
-        ResultSet rs = qe.execSelect().materialise();
-        ds.end();
+        ds.begin(ReadWrite.READ);
+        ResultSet rs = qe.execSelect();
         size = 0;
         while (rs.hasNext()) {
             rs.next();
             size++;
         }
+        ds.end();
         w.getTime("updateCount() "+size);
     }    
 
