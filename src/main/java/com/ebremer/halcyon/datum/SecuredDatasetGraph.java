@@ -2,8 +2,8 @@ package com.ebremer.halcyon.datum;
 
 import com.ebremer.halcyon.gui.HalcyonSession;
 import com.ebremer.ns.HAL;
-import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import static java.util.stream.Collectors.toList;
 import org.apache.jena.atlas.iterator.Iter;
@@ -34,14 +34,20 @@ public class SecuredDatasetGraph implements DatasetGraph {
         this.securityEvaluator = evaluator;
     }
     
-    private List<Node> getReadAllowedGraphNodes(List<Node> result) {
-        return result.stream().filter(this::hasReadAccess).collect(toList());
+    @Override
+    public Iterator<Node> listGraphNodes() {
+        List<Node> result = getBaseGraphNodes();
+        return getReadAllowedGraphNodes(result).iterator();
     }
-
+    
     private List<Node> getBaseGraphNodes() {
-        List<Node> result = new ArrayList<>();
+        List<Node> result = new LinkedList<>();
         base.listGraphNodes().forEachRemaining(result::add);
         return result;
+    }
+    
+    private List<Node> getReadAllowedGraphNodes(List<Node> result) {
+        return result.stream().filter(this::hasReadAccess).collect(toList());
     }
     
     private boolean hasReadAccess(Node node) {
@@ -101,12 +107,6 @@ public class SecuredDatasetGraph implements DatasetGraph {
         } else {
             throw new AccessDeniedException("User is not allowed to delete graph " + node);
         }
-    }
-
-    @Override
-    public Iterator<Node> listGraphNodes() {
-        List<Node> result = getBaseGraphNodes();
-        return getReadAllowedGraphNodes(result).iterator();
     }
     
     private boolean hasCreateAccess(Node test) {

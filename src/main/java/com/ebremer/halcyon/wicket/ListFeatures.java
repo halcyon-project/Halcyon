@@ -109,25 +109,27 @@ public class ListFeatures extends Panel {
                     new LoadableDetachableModel<List<Node>>() {
                         @Override
                         protected List<Node> load() {
+                            //System.out.println("Load Features...");
                            // List<Node> list = Patterns.getCollectionList(rdg.load());
                             org.apache.jena.rdf.model.Model ccc = ModelFactory.createDefaultModel();
                             try {
                                 HalcyonPrincipal p = HalcyonSession.get().getHalcyonPrincipal();
                                 String uuid = p.getURNUUID();
                                 AccessCache ac = AccessCachePool.getPool().borrowObject(uuid);
+                                AccessCachePool.getPool().returnObject(uuid, ac);
                                 if (ac.getCollections().size()==0) {
                                     Dataset dsx = DataCore.getInstance().getSecuredDataset(OPEN);
                                     org.apache.jena.rdf.model.Model cc = Patterns.getCollectionRDF2(dsx);
                                     ac.getCollections().add(cc);  
                                 }
-                                ccc.add(ac.getCollections());
-                                AccessCachePool.getPool().returnObject(uuid, ac);
+                                ccc.add(ac.getCollections());                                
                             } catch (Exception ex) {
                                 Logger.getLogger(Patterns.class.getName()).log(Level.SEVERE, null, ex);
                             }
                             List<Node> list = Patterns.getCollectionList45X(ccc);
                             list.add(NodeFactory.createURI("urn:halcyon:nocollections"));
                             //list.add(NodeFactory.createURI("urn:halcyon:allcollections"));
+                            //System.out.println("Load Features...Loaded");
                             return list;
                         }
                     },

@@ -10,7 +10,7 @@ import com.ebremer.ns.HAL;
 import java.security.Principal;
 import java.util.HashMap;
 import java.util.Set;
-import java.util.logging.Logger;
+import java.util.UUID;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.Triple;
 import org.apache.jena.permissions.SecurityEvaluator;
@@ -20,7 +20,6 @@ import org.apache.jena.shared.AuthenticationRequiredException;
 import org.apache.jena.vocabulary.SchemaDO;
 import org.apache.jena.vocabulary.WAC;
 import org.apache.shiro.SecurityUtils;
-import org.apache.shiro.subject.Subject;
 
 /**
  * 
@@ -31,12 +30,11 @@ public final class WACSecurityEvaluator implements SecurityEvaluator {
     
     public WACSecurityEvaluator(Level level) {
         this.level = level;
-        //System.out.println("==================================== WACSecurityEvaluator ======================================================");
     }
 
     @Override
     public boolean evaluate(Object principal, Action action, Node graphIRI) {
-        //System.out.println("evaluate(Object principal, Action action, Node graphIRI) --> "+action+"   "+graphIRI);
+        //System.out.println(UUID.randomUUID().toString()+" evaluate(Object principal, Action action, Node graphIRI) --> "+action+"   "+graphIRI);
         if (level == OPEN) {
             if (graphIRI.matches(HAL.CollectionsAndResources.asNode())) {
                 return true;
@@ -46,55 +44,64 @@ public final class WACSecurityEvaluator implements SecurityEvaluator {
         AccessCache ac;
         try {
             ac = AccessCachePool.getPool().borrowObject(hp.getURNUUID());
-            if (ac.getCache().containsKey(graphIRI)) {
-                if (ac.getCache().get(graphIRI).containsKey(action)) {
-                    AccessCachePool.getPool().returnObject(hp.getURNUUID(), ac);
-                    return true;
-                }
-            }
-            HashMap<Action,Boolean> set = new HashMap<>();
-            ac.getCache().put(graphIRI, set);
-            ParameterizedSparqlString pss = new ParameterizedSparqlString("""
-                ASK {?rule acl:accessTo/so:hasPart* ?target;
-                           acl:mode ?mode;
-                           acl:agent ?group
-                }
-            """);
-            pss.setNsPrefix("acl", WAC.NS);
-            pss.setNsPrefix("so", SchemaDO.NS);
-            pss.setNsPrefix("hal", HAL.NS);
-            pss.setIri("target", graphIRI.toString());
-            pss.setIri("mode", WACUtil.WAC(action));
-            pss.setIri("group", HAL.Anonymous.toString());
-            if (QueryExecutionFactory.create(pss.toString(), ac.getSECM()).execAsk()) {
-                set.put(action, true);
-                AccessCachePool.getPool().returnObject(hp.getURNUUID(), ac);
-                return true;
-            }
-            pss = new ParameterizedSparqlString("""
-                ASK {?rule acl:accessTo/so:hasPart* ?target;
-                           acl:mode ?mode;
-                           acl:agent ?group .
-                     ?group so:member ?member
-                }
-            """);
-            pss.setNsPrefix("acl", WAC.NS);
-            pss.setNsPrefix("so", SchemaDO.NS);
-            pss.setNsPrefix("hal", HAL.NS);
-            pss.setIri("target", graphIRI.toString());
-            pss.setIri("mode", WACUtil.WAC(action));
-            pss.setIri("member", hp.getURNUUID());
-            boolean ha = QueryExecutionFactory.create(pss.toString(), ac.getSECM()).execAsk();
-            set.put(action, ha);
-            AccessCachePool.getPool().returnObject(hp.getURNUUID(), ac);
-            return ha;
         } catch (Exception ex) {
-            Logger.getLogger(WACSecurityEvaluator.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+            return false;
         }
-        return false;
+        if (ac.getCache().containsKey(graphIRI)) {
+            if (ac.getCache().get(graphIRI).containsKey(action)) {
+                //System.out.println("HIT "+graphIRI);
+                boolean ha = ac.getCache().get(graphIRI).get(action);
+                AccessCachePool.getPool().returnObject(hp.getURNUUID(), ac);
+                return ha;
+            }
+        }
+        //System.out.println("MISS "+graphIRI);
+        HashMap<Action,Boolean> set = new HashMap<>();
+        ac.getCache().put(graphIRI, set);
+        ParameterizedSparqlString pss = new ParameterizedSparqlString("""
+            ASK {?rule acl:accessTo/so:hasPart* ?target;
+                        acl:mode ?mode;
+                        acl:agent ?group
+            }
+        """);
+        pss.setNsPrefix("acl", WAC.NS);
+        pss.setNsPrefix("so", SchemaDO.NS);
+        pss.setNsPrefix("hal", HAL.NS);
+        pss.setIri("target", graphIRI.toString());
+        pss.setIri("mode", WACUtil.WAC(action));
+        pss.setIri("group", HAL.Anonymous.toString());
+        if (QueryExecutionFactory.create(pss.toString(), ac.getSECM()).execAsk()) {
+            set.put(action, true);
+            AccessCachePool.getPool().returnObject(hp.getURNUUID(), ac);
+            return true;
+        }
+        pss = new ParameterizedSparqlString("""
+            ASK {?rule acl:accessTo/so:hasPart* ?target;
+                        acl:mode ?mode;
+                        acl:agent ?group .
+                ?group so:member ?member
+            }
+        """);
+        pss.setNsPrefix("acl", WAC.NS);
+        pss.setNsPrefix("so", SchemaDO.NS);
+        pss.setNsPrefix("hal", HAL.NS);
+        pss.setIri("target", graphIRI.toString());
+        pss.setIri("mode", WACUtil.WAC(action));
+        pss.setIri("member", hp.getURNUUID());
+        boolean ha = QueryExecutionFactory.create(pss.toString(), ac.getSECM()).execAsk();
+        set.put(action, ha);
+        AccessCachePool.getPool().returnObject(hp.getURNUUID(), ac);
+        return ha;
+    }
+
+    @Override
+    public boolean evaluate(Object principal, Action action, Node graphIRI, Triple triple) {
+        //System.out.println("evaluate(Object principal, Action action, Node graphIRI, Triple triple)");
+        return evaluate( principal, triple );
     }
     
     private boolean evaluate( Object principal, Triple triple ) {
+        //System.out.println("evaluate( Object principal, Triple triple )");
         return evaluate( principal, triple.getSubject()) && evaluate( principal, triple.getObject()) && evaluate( principal, triple.getPredicate());
     }
     
@@ -102,11 +109,6 @@ public final class WACSecurityEvaluator implements SecurityEvaluator {
         return node.equals( Node.ANY );
     }
 
-    @Override
-    public boolean evaluate(Object principal, Action action, Node graphIRI, Triple triple) {
-        return !evaluate( principal, triple );
-    }
-    
     @Override
     public boolean evaluate(Object principal, Set<Action> actions, Node graphIRI) throws AuthenticationRequiredException {
         return SecurityEvaluator.super.evaluate(principal, actions, graphIRI);
@@ -135,16 +137,11 @@ public final class WACSecurityEvaluator implements SecurityEvaluator {
     @Override
     public Principal getPrincipal() {
         try {
-            Subject subject = SecurityUtils.getSubject();
-            JwtToken jwttoken = (JwtToken) subject.getPrincipal();
-            //Claims dc = (Claims) SecurityUtils.getSubject().getPrincipal();
-            return new HalcyonPrincipal(jwttoken,false);
+            return ((JwtToken) SecurityUtils.getSubject().getPrincipal()).getPrincipal();
         } catch (org.apache.shiro.UnavailableSecurityManagerException ex) {
             // assume and try for a Keycloak Servlet Filter Auth
         }
-        HalcyonPrincipal p = HalcyonSession.get().getHalcyonPrincipal();
-        //System.out.println("PRINCIPAL --> "+p.getURNUUID());
-        return p;
+        return HalcyonSession.get().getHalcyonPrincipal();
     }
 
     @Override

@@ -1,7 +1,10 @@
 package com.ebremer.halcyon.converters;
 
+import com.beust.jcommander.JCommander;
+import com.beust.jcommander.ParameterException;
 import com.ebremer.halcyon.ExtendedPolygon;
 import com.ebremer.halcyon.ExtendedPolygons;
+import com.ebremer.halcyon.HalcyonSettings;
 import com.ebremer.halcyon.utils.ImageMeta;
 import com.ebremer.halcyon.utils.ImageMeta.ImageObject;
 import com.ebremer.ns.EXIF;
@@ -45,6 +48,7 @@ import org.apache.jena.vocabulary.OA;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.SchemaDO;
 import org.apache.jena.vocabulary.XSD;
+import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -52,6 +56,7 @@ import org.apache.jena.vocabulary.XSD;
  */
 public class NS2OA {
     private final ThreadPoolExecutor engine;
+    public static final String NAME = "ns2oa";
     
     public NS2OA(int cores) {
         engine = new ThreadPoolExecutor(cores,cores,0L,TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
@@ -80,34 +85,49 @@ public class NS2OA {
         engine.submit(worker);
     }
     
-     public static void main(String[] args) throws FileNotFoundException, UnsupportedEncodingException, IOException {
-        String base = args[0].trim();
-        String type = args[1].trim();
-        NS2OA ns2oa;
-        if (args.length==3) {
-            ns2oa = new NS2OA(Integer.parseInt(args[2]));
-        } else {
-            ns2oa = new NS2OA(1);
-        }
-        String destination = Path.of(Path.of(base).getParent().toString(),"rdf",type).toString();
-        File ddd = Path.of(destination).toFile();
-        if (!ddd.exists()) {
-            ddd.mkdirs();
-        }
-        ImageMeta tcga = new ImageMeta();
-        Files.list(Path.of(base))            
-            .forEach(p->{
-                //Path t = Path.of(base, p.getFileName().toString(), p.getFileName().toString());
-                Path t = Path.of(base, p.getFileName().toString(), p.getFileName().toString());
-                String name = p.getFileName().toString();
-                name = name.substring(0, name.length()-".tar.gz".length());
-                try {            
-                    ns2oa.Turbo(tcga, t.toString(), name, destination);
-                } catch (IOException ex) {
-                    Logger.getLogger(NS2OA.class.getName()).log(Level.SEVERE, null, ex);
+    public static void main(String[] args) throws FileNotFoundException, UnsupportedEncodingException, IOException {
+        ch.qos.logback.classic.Logger root = (ch.qos.logback.classic.Logger)LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME);
+        root.setLevel(ch.qos.logback.classic.Level.OFF);
+        NS2OAParameters params = new NS2OAParameters();   
+        JCommander jc = JCommander.newBuilder().addObject(params).build();
+        jc.setProgramName(NAME);    
+        try {
+            jc.parse(args);
+            if (params.isHelp()) {
+                jc.usage();
+                System.exit(0);
+            } else {
+                if (params.src.exists()) {
+                    NS2OA ns2oa = new NS2OA(params.threads);
+                    String destination = Path.of(params.src.getAbsoluteFile().toPath().getParent().toString(),"rdf",params.type).toString();
+                    File ddd = Path.of(destination).toFile();
+                    if (!ddd.exists()) {
+                        ddd.mkdirs();
+                    }
+                    ImageMeta tcga = new ImageMeta();
+                    Files.list(params.src.toPath())            
+                        .forEach(p->{
+                            Path t = Path.of(params.src.toString(), p.getFileName().toString(), p.getFileName().toString());
+                            String name = p.getFileName().toString();
+                            name = name.substring(0, name.length()-".tar.gz".length());
+                            try {            
+                                ns2oa.Turbo(tcga, t.toString(), name, destination);
+                            } catch (IOException ex) {
+                                Logger.getLogger(NS2OA.class.getName()).log(Level.SEVERE, null, ex);
+                            }
+                    });
+                    ns2oa.shutdown();           
+                } else {
+                    System.out.println("Source does not exist! "+params.src);
                 }
-        });
-        ns2oa.shutdown();
+            }
+        } catch (ParameterException ex) {
+            if (params.version) {
+                System.out.println(NAME+" - Version : "+HalcyonSettings.VERSION);
+            } else {
+                System.out.println(ex.getMessage());
+            }
+        }
     }
     
     class FileProcessor implements Callable<Model> {

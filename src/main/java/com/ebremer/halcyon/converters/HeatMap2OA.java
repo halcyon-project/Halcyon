@@ -1,10 +1,9 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package com.ebremer.halcyon.converters;
 
+import com.beust.jcommander.JCommander;
+import com.beust.jcommander.ParameterException;
 import com.ebremer.halcyon.ExtendedPolygon;
+import com.ebremer.halcyon.HalcyonSettings;
 import com.ebremer.halcyon.utils.ImageMeta;
 import com.ebremer.halcyon.utils.ImageMeta.ImageObject;
 import com.ebremer.ns.EXIF;
@@ -47,6 +46,7 @@ import org.slf4j.LoggerFactory;
  */
 public class HeatMap2OA {
     private final ThreadPoolExecutor engine;
+    public static final String NAME = "heatmap2oa";
     
     public HeatMap2OA(int cores) {
         engine = new ThreadPoolExecutor(cores,cores,0L,TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
@@ -78,41 +78,55 @@ public class HeatMap2OA {
     
     public static void main(String[] args) throws IOException {
         ch.qos.logback.classic.Logger root = (ch.qos.logback.classic.Logger)LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME);
-        root.setLevel(ch.qos.logback.classic.Level.INFO);
-        ImageMeta im = new ImageMeta();
-        String base = args[0].trim();
-        String type = args[1].trim();
-        HeatMap2OA heatmap2oa;
-        if (args.length==3) {
-            heatmap2oa = new HeatMap2OA(Integer.parseInt(args[2]));
-        } else {
-            heatmap2oa = new HeatMap2OA(1);
-        }
-        Path targetbase = Path.of(Path.of(base).getParent().toString(),"rdf",type);
-        System.out.println("TARGET BASE : "+targetbase);
-        File ddd = targetbase.toFile();
-        if (!ddd.exists()) {
-            ddd.mkdirs();
-        }
-        Files.list(Path.of(base))
-            .filter(p->{
-                return !p.toFile().getName().startsWith("meta_");
-            })
-            .forEach(p->{
-                String name = p.getFileName().toString();
-                name = name.substring(0, name.length()-".json.gz".length());
-                name = name.substring(8)+".svs";
-                name = name.toUpperCase();
-                if (im.meta.containsKey(name)) {
-                    System.out.println("Processing       : "+name);
-                    ImageObject io = im.meta.get(name);
-                    Path destination = Path.of(targetbase.toString(),name.substring(0, name.length()-4)+".ttl");
-                    heatmap2oa.Tran(io, p, name, destination, SNO.Lymphocytes);                    
+        root.setLevel(ch.qos.logback.classic.Level.OFF);
+        HeatMap2OAParameters params = new HeatMap2OAParameters();   
+        JCommander jc = JCommander.newBuilder().addObject(params).build();
+        jc.setProgramName(NAME);    
+        try {
+            jc.parse(args);
+            if (params.isHelp()) {
+                jc.usage();
+                System.exit(0);
+            } else {
+                if (params.src.exists()) {
+                    ImageMeta im = new ImageMeta();
+                    HeatMap2OA heatmap2oa = new HeatMap2OA(params.threads);
+                    Path targetbase = Path.of(params.src.getAbsoluteFile().toPath().getParent().toString(),"rdf",params.type);
+                    System.out.println("TARGET BASE : "+targetbase);
+                    File ddd = targetbase.toFile();
+                    if (!ddd.exists()) {
+                        ddd.mkdirs();
+                    }
+                    Files.list(params.src.toPath())
+                        .filter(p->{
+                            return !p.toFile().getName().startsWith("meta_");
+                        })
+                        .forEach(p->{
+                            String name = p.getFileName().toString();
+                            name = name.substring(0, name.length()-".json.gz".length());
+                            name = name.substring(8)+".svs";
+                            name = name.toUpperCase();
+                            if (im.meta.containsKey(name)) {
+                                System.out.println("Processing       : "+name);
+                                ImageObject io = im.meta.get(name);
+                                Path destination = Path.of(targetbase.toString(),name.substring(0, name.length()-4)+".ttl");
+                                heatmap2oa.Tran(io, p, name, destination, SNO.Lymphocytes);                    
+                            } else {
+                                System.out.println("Missing METADATA : "+name);
+                            }
+                    });
+                    heatmap2oa.shutdown();             
                 } else {
-                    System.out.println("Missing METADATA : "+name);
+                    System.out.println("Source does not exist! "+params.src);
                 }
-        });
-        heatmap2oa.shutdown();
+            }
+        } catch (ParameterException ex) {
+            if (params.version) {
+                System.out.println(NAME+" - Version : "+HalcyonSettings.VERSION);
+            } else {
+                System.out.println(ex.getMessage());
+            }
+        }
     }
     
     class FileProcessor implements Callable<Model> {
