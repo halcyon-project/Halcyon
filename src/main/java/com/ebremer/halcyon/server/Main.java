@@ -166,14 +166,14 @@ public class Main {
             } else {
                 registry.addResourceHandler("/multi-viewer/**").addResourceLocations("classpath:/META-INF/public-web-resources/multi-viewer/");   
             }
-            String he = settings.getHawkeyeLocation();
+            String he = settings.getTalonLocation();
             if (he!=null) {
                 if (he.startsWith("file:///")) {
                     he = he.replace("file:///", "file:/");
                 }
                 registry.addResourceHandler("/hawkeye/**").addResourceLocations(he);
             } else {
-                registry.addResourceHandler("/hawkeye/**").addResourceLocations("classpath:/META-INF/public-web-resources/hawkeye/");
+                registry.addResourceHandler("/hawkeye/**").addResourceLocations("classpath:/META-INF/public-web-resources/talon/");
             }
             registry.addResourceHandler("/three.js/**").addResourceLocations("classpath:/META-INF/public-web-resources/three.js/");
             registry.addResourceHandler("/images/**").addResourceLocations("classpath:/META-INF/public-web-resources/images/");
