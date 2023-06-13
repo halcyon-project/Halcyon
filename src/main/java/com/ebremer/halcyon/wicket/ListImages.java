@@ -55,11 +55,10 @@ import org.apache.wicket.model.Model;
 import org.apache.wicket.request.resource.CssResourceReference;
 
 public class ListImages extends BasePage {
-    private static final long serialVersionUID = 1L;
-    private SelectDataProvider rdfsdf;
     private final ListFeatures lf;
     
     public ListImages() {
+        System.out.println("Building a ListImages()...");
         List<IColumn<Solution, String>> columns = new LinkedList<>();
         columns.add(new NodeColumn<>(Model.of("File URI"),"s","s"));
         columns.add(new NodeColumn<>(Model.of("MD5"),"md5","md5"));
@@ -92,10 +91,10 @@ public class ListImages extends BasePage {
         pss.setIri("car", HAL.CollectionsAndResources.getURI());
         //Dataset ds = DatabaseLocator.getDatabase().getSecuredDataset(OPEN);
         Dataset ds = DatabaseLocator.getDatabase().getDataset();
-        rdfsdf = new SelectDataProvider(ds,pss.toString());
+        SelectDataProvider rdfsdf = new SelectDataProvider(ds,pss.toString());
         pss.setIri("collection", "urn:halcyon:nocollections");
         rdfsdf.SetSPARQL(pss.toString());
-        AjaxFallbackDefaultDataTable table = new AjaxFallbackDefaultDataTable<>("table", columns, rdfsdf, 25);
+        AjaxFallbackDefaultDataTable table = new AjaxFallbackDefaultDataTable<>("table", columns, rdfsdf, 30);
         add(table);
         RDFDetachableModel rdg = new RDFDetachableModel(Patterns.getALLCollectionRDF());
         LDModel ldm = new LDModel(rdg);
@@ -137,10 +136,8 @@ public class ListImages extends BasePage {
                 pss.setIri("collection", ddc.getModelObject().toString());
                 Query q = QueryFactory.create(pss.toString());
                 if (!features.isEmpty()) {
-                    //System.out.println("Features Selected");
-                    //Query q = rdfsdf.getQuery();
                     WhereHandler wh = new WhereHandler(q);
-                    TriplePath tp = new TriplePath(new Triple(NodeFactory.createVariable("ca"), SchemaDO.object.asNode(), NodeFactory.createVariable("md5")));
+                    TriplePath tp = new TriplePath(Triple.create(NodeFactory.createVariable("ca"), SchemaDO.object.asNode(), NodeFactory.createVariable("md5")));
                     wh.addGraph(NodeFactory.createVariable("roc"), tp);
                     ValuesHandler vh = new ValuesHandler(q);
                     vh.addValueVar(Var.alloc("ca"), features);
@@ -148,7 +145,6 @@ public class ListImages extends BasePage {
                     wh.addWhere(vh);
                     rdfsdf.setQuery(q);                  
                 } else {
-                    //System.out.println("No Features Selected");
                     rdfsdf.SetSPARQL(pss.toString());
                 }
                 target.add(table);
@@ -164,35 +160,23 @@ public class ListImages extends BasePage {
         response.render(CssHeaderItem.forReference(new CssResourceReference(ListFeatures.class, "repeater.css")));
     }
     
-    @Override
-    protected void onRender() {
-        super.onRender();
-    }
-    
-    @Override
-    protected void onBeforeRender() {
-        super.onBeforeRender();
-    }
-    
-    @Override
-    protected void onAfterRender() {
-        super.onAfterRender();
-    }
-
     private class ActionPanel extends Panel {
         public ActionPanel(String id, IModel<Solution> model) {
             super(id, model);
             add(new Link<Void>("select") {               
                 @Override
                 public void onClick() {
-                    HashSet<String>[] ff = lf.getFeatures();
+                    HashSet<String>[] ff = lf.getFeatures();                    
                     Solution s = model.getObject();
-                    FeatureManager fm = new FeatureManager();
                     String g = s.getMap().get("s").getURI();
-                    String mv = "var images = ["+fm.getFeatures(ff[0],g)+","+fm.getFeatures(ff[1],g)+","+fm.getFeatures(ff[2],g)+","+fm.getFeatures(ff[3],g)+"]";
-                    //System.out.println("Going to Images:\n"+mv);
-                    HalcyonSession session = HalcyonSession.get();
-                    session.SetMV(mv);
+                    String mv = "var images = ["+FeatureManager.getFeatures(ff[0],g)+","+FeatureManager.getFeatures(ff[1],g)+","+FeatureManager.getFeatures(ff[2],g)+","+FeatureManager.getFeatures(ff[3],g)+"]";
+                    //ff[0] = new HashSet<>();
+                    //ff[1] = new HashSet<>();
+                    //ff[2] = new HashSet<>();
+                    //ff[3] = new HashSet<>();
+                    //String mv = "var images = ["+FeatureManager.getFeatures(ff[0],g)+","+FeatureManager.getFeatures(ff[1],g)+","+FeatureManager.getFeatures(ff[2],g)+","+FeatureManager.getFeatures(ff[3],g)+"]";
+                    //System.out.println(mv);
+                    HalcyonSession.get().SetMV(mv);
                     setResponsePage(MultiViewer.class);
                 }
             });

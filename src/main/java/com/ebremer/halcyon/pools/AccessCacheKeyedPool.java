@@ -25,10 +25,7 @@ public class AccessCacheKeyedPool<String, AccessCache> extends GenericKeyedObjec
     }
     
     public void invalidateAndEmptyPoolForKey(String key) {
-        //System.out.println("B -> "+this.getNumActive(key)+" == "+this.getNumActive());
-        this.clear(key);
-        //System.out.println("A -> "+this.getNumActive(key)+" == "+this.getNumActive());
-        
+        this.clear(key);       
     }
     
     public void invalidateAndEmptyPoolForAllKeys() {
@@ -38,12 +35,6 @@ public class AccessCacheKeyedPool<String, AccessCache> extends GenericKeyedObjec
     @Override
     public AccessCache borrowObject(final String key) throws Exception {
         //System.out.println(this.getBorrowedCount()+" == "+this.getNumActive()+" borrowObject --> "+key);
-                /*
-        if (p.isAnon()) {
-            Resource au = secm.createResource(p.getURNUUID());
-            Resource as = secm.createResource(HAL.Anonymous.toString()).addProperty(SchemaDO.member,au);
-            au.addProperty(SchemaDO.memberOf, as);
-        }*/
         keys.add(key);
         return (AccessCache) super.borrowObject(key);
     }

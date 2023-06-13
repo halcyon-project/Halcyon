@@ -20,9 +20,9 @@ public class AccessCachePool {
     
     public static synchronized AccessCacheKeyedPool<String, AccessCache> getPool(AccessCacheKeyedPoolConfig config) {
         if (pool == null) {
-            config.setMaxTotalPerKey(1);
+            config.setMaxTotalPerKey(5);
             config.setMinIdlePerKey(0);
-            config.setMaxWait(Duration.ofMillis(60000));
+            config.setMaxWait(Duration.ofMillis(1000));
             config.setBlockWhenExhausted(true);
             config.setMinEvictableIdleTime(Duration.ofMillis(600000));
             config.setTimeBetweenEvictionRuns(Duration.ofMillis(600000));
