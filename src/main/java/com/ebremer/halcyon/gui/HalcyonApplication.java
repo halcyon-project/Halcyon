@@ -78,6 +78,8 @@ public class HalcyonApplication extends WebApplication {
         mountPage("/threed", Graph3D.class);
         mountPage("/revisionhistory", RevisionHistory.class);
         mountPage("/zephyr", Zephyr.class);
+        mountPage("/viewall", ViewAll.class); 
+        mountPage("/testviewall", TestViewAll.class); 
         //mountPage("/login", LogHal.class);
         //mountPage("/gui/dicom", DICOM.class);
         //mountPage("/gui/dicom2", DCM.class);
