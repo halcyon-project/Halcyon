@@ -1,0 +1,191 @@
+@import url(https://fonts.googleapis.com/css?family=Roboto:100,100italic,300,300italic,regular,italic,500,500italic,700,700italic,900,900italic);
+@import url("https://fonts.googleapis.com/css2?family=Roboto&family=Trade+Winds&display=swap");
+
+.searchbar {
+  display: grid;
+  width: 100%;
+  padding: 5px 30px;
+  grid-template-columns: auto auto auto auto auto auto auto auto auto auto auto auto;
+  background-color: black;
+  color: white;
+}
+
+div#dc-counter {
+  color: white;
+  background-color: rgb(62, 162, 219);
+  border-radius: 1rem;
+  text-align: center;
+  grid-column: 11/12;
+}
+
+.dashboard {
+  display: grid;
+  width: 100%;
+  height: auto;
+  padding: 10px;
+  min-height: 80%;
+  background-color: darkgray;
+  color: black;
+  overflow-y: scroll;
+}
+
+pre#data {
+  display: none;
+}
+
+.dc-table-column {
+  overflow-x: auto;
+}
+
+div.dataTables_scrollBody {
+  max-height: 650px !important;
+}
+
+tbody tr.dc-table-group {
+  text-align: center;
+  border: 2px solid black;
+  background-color: lightgreen;
+}
+
+#dc-data-table tr.header th {
+  text-align: center;
+  border: 2px solid black;
+  background-color: lightsteelblue;
+}
+
+th {
+  text-align: center;
+  border: 1px solid black;
+  background-color: steelblue;
+}
+
+tr.even {
+  background-color: #79d097;
+}
+
+.dc-table-row td {
+  border: 1px solid black;
+}
+
+.dc-chart {
+  width: auto;
+  height: auto;
+}
+
+div[id*="pie"] {
+  width: auto;
+  height: auto;
+  margin-left: 10%;
+  margin-top: 5%;
+}
+
+div[id*="DataTable"] {
+  margin: 5px;
+}
+
+div.grid-stack-item {
+  inset: 0px;
+  margin: 0px;
+  padding: 10px;
+}
+
+.grid-stack-item-content {
+  border: 2px solid black;
+  padding: 0px;
+  margin: 5px;
+  inset: 0px !important;
+  overflow: hidden !important;
+  background-color: white;
+}
+
+.title {
+  font: 1.5em sans-serif;
+  text-align: center;
+  text-decoration: underline;
+}
+
+.big {
+  font-size: 2vh;
+}
+
+.top-icons:hover:after {
+  content: attr(title);
+  display: float;
+  position: relative;
+  top: -16px;
+  right: -16px;
+  width: 100px;
+  color: white;
+  background: black;
+}
+.top-bar,
+.top-title {
+  margin: 0px;
+  padding: 0px;
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  font-size: medium;
+  color: white;
+  background-color: #222;
+}
+
+.top-title {
+  float: left;
+  padding-left: 5px;
+  vertical-align: middle;
+}
+.top-icon {
+  float: right;
+  font-size: small;
+  padding-right: 5px;
+}
+
+.dc-chart g.row text {
+  fill: #222;
+  font-size: 1rem;
+  cursor: pointer;
+  margin: 10px;
+}
+
+.dc-chart .pie-slice {
+  fill: #222;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+/* Tooltip container */
+.tooltip {
+  position: relative;
+  display: inline-block;
+  border-bottom: 1px dotted black; /* If you want dots under the hoverable text */
+}
+
+/* Tooltip text */
+.tooltip .tooltiptext {
+  visibility: hidden;
+  width: 200px;
+  background-color: rgb(55, 61, 66);
+  color: white;
+  text-align: center;
+  padding: 5px 0;
+  border-radius: 6px;
+  border-color: black;
+  border: 3px;
+
+  /* Position the tooltip text - see examples below! */
+  position: absolute;
+  top: 5px;
+  right: 100%;
+  z-index: 1;
+}
+
+/* Show the tooltip text when you mouse over the tooltip container */
+.tooltip:hover .tooltiptext {
+  visibility: visible;
+}
+
+.grid-stack > .grid-stack-item > .grid-stack-item-content {
+  margin: 5px;
+  width: auto;
+}
