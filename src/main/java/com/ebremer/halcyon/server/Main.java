@@ -122,7 +122,7 @@ public class Main {
 	registration.addUrlPatterns("/*");
         registration.setOrder(Ordered.HIGHEST_PRECEDENCE);
         registration.addInitParameter(KeycloakOIDCFilter.CONFIG_FILE_PARAM, "keycloak.json");        
-        registration.addInitParameter(KeycloakOIDCFilter.SKIP_PATTERN_PARAM, "(^/halcyon.*|^/viewer.*|^/rdf.*|^/hawkeye/.*|/;jsessionid=.*|/gui/images/halcyon.png|^/wicket/resource/.*|^/multi-viewer.*|^/iiif.*|^/|^/about|^/ListImages.*|^/wicket/resource/com.*\\.css||^/auth/.*|^/favicon.ico)");
+        registration.addInitParameter(KeycloakOIDCFilter.SKIP_PATTERN_PARAM, "(^/halcyon.*|^/viewer.*|^/rdf.*|^/talon/.*|/;jsessionid=.*|/gui/images/halcyon.png|^/wicket/resource/.*|^/multi-viewer.*|^/iiif.*|^/|^/about|^/ListImages.*|^/wicket/resource/com.*\\.css||^/auth/.*|^/favicon.ico)");
         registration.setEnabled(true);
         return registration;
     }
@@ -139,7 +139,7 @@ public class Main {
         registration.setOrder(Ordered.LOWEST_PRECEDENCE);
         registration.addInitParameter(ContextParamWebApplicationFactory.APP_CLASS_PARAM, HalcyonApplication.class.getName());
         registration.addInitParameter(WicketFilter.FILTER_MAPPING_PARAM, "/*");
-        registration.addInitParameter(IGNORE_PATHS_PARAM, "/auth/,/three.js/,/multi-viewer/,/iiif/,/halcyon/,/images/,/favicon.ico,/rdf,/hawkeye/");
+        registration.addInitParameter(IGNORE_PATHS_PARAM, "/auth/,/three.js/,/multi-viewer/,/iiif/,/halcyon/,/images/,/favicon.ico,/rdf,/talon/");
         //registration.setDispatcherTypes(DispatcherType.REQUEST, DispatcherType.FORWARD);
         return registration;
     }
@@ -166,14 +166,14 @@ public class Main {
             } else {
                 registry.addResourceHandler("/multi-viewer/**").addResourceLocations("classpath:/META-INF/public-web-resources/multi-viewer/");   
             }
-            String he = settings.getTalonLocation();
-            if (he!=null) {
-                if (he.startsWith("file:///")) {
-                    he = he.replace("file:///", "file:/");
+            String talon = settings.getTalonLocation();
+            if (talon!=null) {
+                if (talon.startsWith("file:///")) {
+                    talon = talon.replace("file:///", "file:/");
                 }
-                registry.addResourceHandler("/hawkeye/**").addResourceLocations(he);
+                registry.addResourceHandler("/talon/**").addResourceLocations(talon);
             } else {
-                registry.addResourceHandler("/hawkeye/**").addResourceLocations("classpath:/META-INF/public-web-resources/talon/");
+                registry.addResourceHandler("/talon/**").addResourceLocations("classpath:/META-INF/public-web-resources/talon/");
             }
             registry.addResourceHandler("/three.js/**").addResourceLocations("classpath:/META-INF/public-web-resources/three.js/");
             registry.addResourceHandler("/images/**").addResourceLocations("classpath:/META-INF/public-web-resources/images/");
