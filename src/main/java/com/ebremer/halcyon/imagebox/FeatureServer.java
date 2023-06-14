@@ -97,7 +97,6 @@ public class FeatureServer extends HttpServlet {
                                     imageOut=ImageIO.createImageOutputStream(baos);
                                     writer.setOutput(imageOut);
                                     writer.write(null,new IIOImage(bi,null,null),jpegParams);                
-                                    baos.flush();
                                     imageInByte = baos.toByteArray();
                                     response.setContentType("image/jpg");
                                     response.setContentLength(imageInByte.length);
@@ -118,7 +117,6 @@ public class FeatureServer extends HttpServlet {
                                     imageOut=ImageIO.createImageOutputStream(baos);
                                     writer.setOutput(imageOut);
                                     writer.write(null,new IIOImage(bi,null,null),pjpegParams);
-                                    baos.flush();
                                     imageInByte = baos.toByteArray();
                                     response.setContentType("image/png");
                                     response.setContentLength(imageInByte.length);
