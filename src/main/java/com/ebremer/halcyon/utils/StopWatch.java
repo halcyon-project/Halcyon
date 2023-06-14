@@ -44,4 +44,11 @@ public StopWatch() {
     System.out.println(stat);
     return stat;
   }
+  
+  public String getLapseTime(String message) {
+    String stat = "Elapsed: "+getElapsedTimeSecs()+" - "+message;
+    System.out.println(stat);
+    this.startTime = System.nanoTime();
+    return stat;
+  }
 }

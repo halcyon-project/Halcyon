@@ -17,6 +17,7 @@ import com.ebremer.ns.HAL;
 import com.ebremer.ns.IIIF;
 import com.ebremer.halcyon.imagebox.IIIFUtils;
 import static com.ebremer.halcyon.imagebox.IIIFUtils.IIIFAdjust;
+import com.ebremer.halcyon.utils.StopWatch;
 import jakarta.json.Json;
 import jakarta.json.JsonArray;
 import jakarta.json.JsonObject;
@@ -28,16 +29,12 @@ import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.concurrent.Executors;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.LongStream;
-import javax.imageio.ImageIO;
 import loci.formats.gui.AWTImageTools;
 import org.apache.commons.collections4.iterators.IteratorChain;
 import org.apache.jena.graph.Graph;
@@ -55,11 +52,9 @@ import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.riot.system.JenaTitanium;
 import org.apache.jena.sparql.vocabulary.DOAP;
-import org.apache.jena.sys.JenaSystem;
 import org.apache.jena.vocabulary.OA;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.SchemaDO;
-import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -77,7 +72,6 @@ public class FL {
     private final float[] ratios;
     
     public FL(Model m) {
-        System.out.println("Creating an FL Reader");
         this.m = m;
         this.hspace = new HashMap<>();
         this.classes = new HashMap<>();
@@ -100,7 +94,6 @@ public class FL {
         } else {
             throw new Error("Cannot find CreateAction/ROCrate");
         }
-        //System.out.println("FEATURE WIDTH/HEIGHT : "+width+", "+height);
         pss = new ParameterizedSparqlString(
             """
             select ?class where {
@@ -168,34 +161,40 @@ public class FL {
         return height;
     }
     
+    public int getBest(float r) {
+        int best = ratios.length-1;
+        float rr = 0.8f*ratios[best];
+        while ((r<rr)&&(best>0)) {
+            best--;
+            rr = 0.8f*ratios[best];
+        }
+        return best;
+    }
+    
     public BufferedImage FetchImage(int x, int y, int w, int h, int tx, int ty) {
         //System.out.println("FetchImage : "+x+" "+y+" "+w+" "+h+" "+tx+" "+ty);
         float iratio = ((float) w)/((float) tx);
-        int layer = numscales-1;
+        int layer;
         float rr = 1.0f;
         if (hspace.size()==1) {
             layer = hspace.keySet().iterator().next();
         } else {
-            float a = 0.8f*ratios[layer];
-            while ((iratio<a)&&(layer>0)) {
-                layer--;
-                a = 0.8f*ratios[layer];
-            }
+            layer = getBest(iratio);
             rr = ratios[layer];
         }
-        int gx=(int) (x/rr);
-        int gy=(int) (y/rr);
-        int gw=(int) (w/rr);
-        int gh=(int) (h/rr);
+        int gx=(int) Math.round(x/rr);
+        int gy=(int) Math.round(y/rr);
+        int gw=(int) Math.round(w/rr);
+        int gh=(int) Math.round(h/rr);
         IteratorChain rs = Search(gx, gy, gw, gh, layer);
         BufferedImage bi = generateImage(gx,gy,gw,gh,layer,rs);
-        bi = AWTImageTools.scale(bi, (int) Math.round(w/iratio), (int) Math.round(h/iratio), false);
-        return bi;
+        BufferedImage bix = AWTImageTools.scale(bi, (int) Math.round(w/iratio), (int) Math.round(h/iratio), false);
+        return bix;
     }
     
     public IteratorChain<QuerySolution> Search(int x, int y, int w, int h, int scale) {
-        //System.out.println("Search ( "+x+", "+y+" by "+w+", "+h+" scale -> "+scale+" )");
         hsPolygon p = hspace.get(scale).Box(x, y, w, h);
+        //System.out.println("Search ( "+x+", "+y+" by "+w+"x"+h+" scale -> "+scale+" ) ---> "+p.getRanges().size());
         ParameterizedSparqlString pss = new ParameterizedSparqlString(
             """
             select distinct ?polygon ?low ?high ?class ?certainty where {
@@ -231,20 +230,14 @@ public class FL {
         pss.setIri("plow", HAL.low.toString()+"/"+scale);
         pss.setIri("phigh", HAL.high.toString()+"/"+scale);
         pss.setNsPrefix("oa", OA.NS);
-        pss.setNsPrefix("hal", "https://www.ebremer.com/halcyon/ns/");
+        pss.setNsPrefix("hal", HAL.NS);
         IteratorChain<QuerySolution> ic = new IteratorChain<>();
         p.getRanges().forEach(r->{
             pss.setLiteral("rlow", r.low());
             pss.setLiteral("rhigh", r.high());
-            //System.out.println(pss.toString());
-            QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m);
-            ResultSet rs = qe.execSelect();
-            //System.out.println("********************************************");
-            //ResultSetFormatter.out(System.out,rs);
-            //System.out.println("********************************************");
+            ResultSet rs = QueryExecutionFactory.create(pss.toString(), m).execSelect();
             ic.addIterator(rs);
         });
-        //System.out.println("Do we have items at scale : "+scale+"  "+ic.hasNext());
         return ic;
     }
     
@@ -254,34 +247,33 @@ public class FL {
     }
     
     public BufferedImage generateImage(int x, int y, int w, int h, int scale, IteratorChain<QuerySolution> rs) {
-        //System.out.println("generateImage "+x+", "+y+" "+w+", "+h+"  "+scale);
+       // System.out.println("generateImage "+x+", "+y+" "+w+", "+h+"  "+scale);
+        //StopWatch sw = new StopWatch();
         HilbertSpace hs = hspace.get(scale);
         BufferedImage bi = new BufferedImage(w,h,BufferedImage.TYPE_INT_ARGB);
         Graphics2D g2 = bi.createGraphics();
         g2.setColor(new Color(128,0,128,128));
         g2.fillRect(0, 0, w, h);
-            rs.forEachRemaining(qs->{
-                long low = qs.get("low").asLiteral().getLong();
-                long high = qs.get("high").asLiteral().getLong();
-                float pc = qs.get("certainty").asLiteral().getFloat();
-                int classid = classes.get(qs.get("class").asResource().getURI());
-               // System.out.println(low+" "+high+" "+pc);
-                int prob = (int) (pc*255f+0.5);
-                int color = (0xFF000000)+(classid<<16)+(prob<<8);
-                LongStream.rangeClosed(low, high).forEach(k->{
-                    long[] point = hs.hc.point(k);
-                    int a = (int)(point[0] - x);
-                    int b = (int)(point[1] - y);
-                    //System.out.println("PLOT : "+a+", "+b);
-                    if ((a>=0)&&(b>=0)&&(b<h)&&(a<w)) {
-                        try {
-                            bi.setRGB(a, b, color);
-                        } catch (java.lang.ArrayIndexOutOfBoundsException ex) {
-                            System.out.println("Out of Bounds "+w+","+h+"   "+b+","+a);
-                        }
-                    }
-                });
+        rs.forEachRemaining(qs->{
+            long low = qs.get("low").asLiteral().getLong();
+            long high = qs.get("high").asLiteral().getLong();
+            //System.out.println(low+"->"+high);
+            float pc = qs.get("certainty").asLiteral().getFloat();
+            int classid = classes.get(qs.get("class").asResource().getURI());
+            int prob = (int) (pc*255f+0.5);
+            int color = (0xFF000000)+(classid<<16)+(prob<<8);
+            LongStream.rangeClosed(low, high).forEach(k->{
+                long[] point = hs.hc.point(k);
+                int a = (int)(point[0] - x);
+                int b = (int)(point[1] - y);
+                try {
+                    bi.setRGB(a, b, color);
+                } catch (java.lang.ArrayIndexOutOfBoundsException ex) {
+                    //System.out.println("Out of Bounds "+w+","+h+"   "+b+","+a);
+                }
             });
+        });
+        //sw.getLapseTime("genImage");
         return bi;
     }
     
@@ -309,53 +301,11 @@ public class FL {
                 mm.add(s,IIIF.sizes,size);
                 mm.addLiteral(tiles, IIIF.scaleFactors,((int)(width/hspace.get(k).width)));            
             });
-/*            
-            for (int j=numscales-1;j>=0;j--) {
-                Resource size = mm.createResource();
-                mm.addLiteral(size,IIIF.width,hspace.get(j).width);
-                mm.addLiteral(size,IIIF.height,hspace.get(j).height);
-                mm.add(s,IIIF.sizes,size);
-                mm.addLiteral(tiles, IIIF.scaleFactors,((int)(width/hspace.get(j).width)));
-            }
-            */
             mm.add(s, IIIF.preferredFormats, "png");
             mm.add(s, RDF.type, HAL.HalcyonROCrate);
             IIIFUtils.addSupport(s, mm);
             Model whoa = ModelFactory.createDefaultModel();
-            //whoa.add(manifest);
             whoa.add(mm);
-            /*
-            UpdateRequest request = UpdateFactory.create();
-            ParameterizedSparqlString pss = new ParameterizedSparqlString(
-            """
-            delete {?s ?p ?o}                                                          
-            insert {?yay ?p ?o}
-            where {
-                ?s ?p ?o
-                filter(strstarts(str(?s),?base))
-                bind(iri(concat(?newbase,substr(str(?s),?len))) as ?yay)
-            }
-            """);
-            pss.setLiteral("base", reference+"/");
-            pss.setLiteral("newbase", xurl);
-            pss.setLiteral("len", reference.length()+1);
-            request.add(pss.toString());
-            UpdateAction.execute(request,whoa);
-            pss = new ParameterizedSparqlString("""
-                delete {?s ?p ?o}                                                          
-                insert {?s ?p ?yay}
-                where {
-                    ?s ?p ?o
-                    filter(strstarts(str(?o),?base))
-                    bind(iri(concat(?newbase,substr(str(?o),?len))) as ?yay)
-                }
-            """);
-            pss.setLiteral("base", reference+"/");
-            pss.setLiteral("newbase", xurl);
-            pss.setLiteral("len", reference.length()+1);
-            request.add(pss.toString());
-            UpdateAction.execute(request,whoa);
-*/
             mm.add(whoa);
             Dataset ds = DatasetFactory.createGeneral();
             ds.getDefaultModel().add(mm);
@@ -458,70 +408,11 @@ public class FL {
                 out.writeObject(jo);
                 String hold = new String(baos.toByteArray());
                  hold = IIIFAdjust(hold);
-                // System.out.println("GetImageInfo ---> "+hold);
                 return hold;
         } catch (JsonLdError ex) {
             Logger.getLogger(FL.class.getName()).log(Level.SEVERE, null, ex);
         }
         return "{}";
-    }
-    
-    public static void test2(Model m) {
-        ParameterizedSparqlString pss = new ParameterizedSparqlString(
-            """
-            select * where {
-                ?s so:name ?name
-            } limit 10
-            """);
-        pss.setNsPrefix("so", SchemaDO.NS);
-        pss.setNsPrefix("oa", OA.NS);
-        pss.setNsPrefix("hal", HAL.NS);
-     //   System.out.println(pss.toString());
-        QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m);
-        ResultSet rs = qe.execSelect();
-        ResultSetFormatter.out(System.out,rs);
-    }
-    
-    public static void test(Model m) {
-        ParameterizedSparqlString pss = new ParameterizedSparqlString(
-            """
-PREFIX oa: <http://www.w3.org/ns/oa#>
-            PREFIX hal: <https://www.ebremer.com/halcyon/ns/>
-            PREFIX so: <https://schema.org/>
-            #select distinct ?polygon ?low ?high ?class ?certainty where {
-            select * where {
-                {
-                    select * where {
-                        ?range hal:low ?low .
-                        ?range hal:high ?high .
-                        ?polygon <https://www.ebremer.com/halcyon/ns/hasRange/0> ?range .
-                        ?annotation oa:hasSelector ?polygon .
-                        ?annotation oa:hasBody ?body .
-                        ?body hal:assertedClass ?class .
-                        ?body hal:hasCertainty ?certainty .
-                        filter(?low>=2147483648)
-                        filter(?low<=2148532223)
-                    }
-                } union {
-                    #select ?polygon ?low ?high ?class ?certainty where {
-                    select * where {
-                        ?range hal:low ?low .
-                        ?range hal:high ?high .
-                        ?polygon <https://www.ebremer.com/halcyon/ns/hasRange/0> ?range .
-                        ?annotation oa:hasSelector ?polygon .
-                        ?annotation oa:hasBody ?body .
-                        ?body hal:assertedClass ?class .
-                        ?body hal:hasCertainty ?certainty .
-                        filter(?high>=2147483648)
-                        filter(?high<=2148532223)
-                    }
-                }
-            } #limit 20
-            """);
-     //   System.out.println(pss.toString());
-        QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m);
-        ResultSet rs = qe.execSelect();
-        ResultSetFormatter.out(System.out,rs);
     }
     
     public static void ScanAll(Model m) {
@@ -536,68 +427,4 @@ PREFIX oa: <http://www.w3.org/ns/oa#>
         ResultSet rs = qe.execSelect();
         ResultSetFormatter.out(System.out,rs);
     }
-    
-    public static void main(String[] args) throws IOException, URISyntaxException {
-        ch.qos.logback.classic.Logger root = (ch.qos.logback.classic.Logger)LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME);
-        root.setLevel(ch.qos.logback.classic.Level.OFF);
-        //String base = "http://www.ebremer.com/YAY";
-        String base = "http://localhost:8888/halcyon/?iiif=";
-        //URI uri = new URI("file:///D:/data2/halcyon/hm.zip");
-        //URI uri = new URI("file:///D:/HalcyonStorage/nuclearsegmentation2019/coad/TCGA-AA-3872-01Z-00-DX1.eb3732ee-40e3-4ff0-a42b-d6a85cfbab6a.zip");
-        URI uri = new URI("file:///D:/HalcyonStorage/nuclearsegmentation2019/coad/TCGA-CM-5348-01Z-00-DX1.2ad0b8f6-684a-41a7-b568-26e97675cce9.zip");
-        JenaSystem.init();
-        BeakGraph g = new BeakGraph(uri);
-        Model m = ModelFactory.createModelForGraph(g);
-        
-        //ScanAll(m);
-        //test(m);
-        
-        
-        FL fl = new FL(m);
-        //ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        //sw.Lap("Start Search");
-        //ResultSet rs = fl.Search(32768, 32768, 512, 512, 0);
-        //sw.Lap("Search Complete...");
-       // ResultSetFormatter.out(System.out, rs);
-        //long middle = System.nanoTime();
-        //BufferedImage bi = fl.getImage(32768, 32768, 512, 512, 0);
-        //BufferedImage bi = fl.getImage(32768, 32768, 1024, 1024, 1);
-        //BufferedImage bi = fl.FetchImage(32768, 32768, 1024, 1024, 1024, 1024);
-        //BufferedImage bi = fl.FetchImage(32768, 32768, 1024, 1024, 1024, 1024);
-//BufferedImage bi = fl.FetchImage(0, 0, 505, 372, 505, 505);
-        
-        
-        BufferedImage bi = fl.FetchImage(32768, 32768, 32768, 32768, 512, 512);
-        
-        
-        //BufferedImage bi = fl.FetchImage(52000, 33000, 32192, 32192, 8192, 8192);
-        
-          //BufferedImage bi = fl.FetchImage(52000, 33000, 32192, 32192, 32768, 32768);
-       // BufferedImage bi = fl.FetchImage(52000, 33000, 32192, 32192, 16384, 16384);
-      //  BufferedImage bi = fl.FetchImage(52000, 33000, 32192, 32192, 8192, 8192);
-      //  BufferedImage bi = fl.FetchImage(52000, 33000, 32192, 32192, 4096, 4096);
-        //BufferedImage bi = fl.FetchImage(52000, 33000, 32192, 32192, 2048, 2048);
-       // BufferedImage bi = fl.FetchImage(52000, 33000, 32192, 32192, 1024, 1024);
-       
-       
-       //BufferedImage bi = fl.FetchImage(0, 0, 32192, 32192, 32768, 32768);
-      // BufferedImage bi = fl.FetchImage(0, 0, 32192, 32192, 16384, 16384);
-        File out = new File("d:\\data2\\halcyon\\bam.png");
-        ImageIO.write(bi, "png", out);
-     //   double mid = (middle-begin)/1000000000d;
-        
-       // System.out.println(mid);
-       // System.out.println(fl.GetImageInfo("http://www.halcyon.io/crap.zip"));
-    }
 }
-
-
-      //  List sr = new ArrayList(p.getRanges().size());
-       // System.out.println("# of range in selection : "+p.getRanges().size());
-      //  p.getRanges().forEach(r->{
-        //    sr.add(
-          //      List.of(
-            //        ResourceFactory.createTypedLiteral(r.low()), ResourceFactory.createTypedLiteral(r.high())
-            //    )
-           // );
-       // });

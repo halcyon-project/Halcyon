@@ -15,7 +15,7 @@ public class ImageReaderPool {
     public static synchronized ImageReaderKeyedPool<String, ImageTiler> getPool() {
         if (pool == null) {
             GenericKeyedObjectPoolConfig<ImageTiler> config = new GenericKeyedObjectPoolConfig<>();
-            config.setMaxTotalPerKey(1);
+            config.setMaxTotalPerKey(5);
             config.setMinIdlePerKey(0);
             config.setMaxWait(Duration.ofMillis(60000));
             config.setBlockWhenExhausted(true);

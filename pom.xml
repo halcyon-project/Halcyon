@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.ebremer</groupId>
     <artifactId>Halcyon</artifactId>
-    <version>0.5.1</version>
+    <version>0.6.0</version>
     <packaging>jar</packaging>
     <name>Halcyon</name>
     <description>A whole slide image annotation, management, and visualization system</description>
@@ -69,8 +69,8 @@
     
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
+        <maven.compiler.source>20</maven.compiler.source>
+        <maven.compiler.target>20</maven.compiler.target>
         <java.version>17</java.version>
         <jena.version>4.8.0</jena.version>
         <wicket.ver>9.14.0</wicket.ver>
@@ -165,7 +165,6 @@
                             <icon>src\main\resources\META-INF\halcyon.ico</icon>
                             <destination>dist</destination>
                             <javaOptions>
-                                <option>--enable-preview</option>
                                 <option>-Dfile.encoding=UTF-8</option>
                             </javaOptions>
                         </configuration>

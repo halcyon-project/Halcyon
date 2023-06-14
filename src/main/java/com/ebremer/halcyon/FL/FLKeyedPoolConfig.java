@@ -5,13 +5,14 @@ import org.apache.commons.pool2.impl.GenericKeyedObjectPoolConfig;
 /**
  *
  * @author erich
- * @param <T>
+ * @param <FL>
  */
-public class FLKeyedPoolConfig<T> extends GenericKeyedObjectPoolConfig<T> {
+public class FLKeyedPoolConfig<FL> extends GenericKeyedObjectPoolConfig<FL> {
     private String base = "https://xdummy.com/";
     
-    public void setBase(String base) {
+    public FLKeyedPoolConfig<FL> setBase(String base) {
         this.base = base;
+        return this;
     }
     
     public String getBase() {
