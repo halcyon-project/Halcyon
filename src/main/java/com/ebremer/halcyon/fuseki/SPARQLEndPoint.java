@@ -39,8 +39,10 @@ public class SPARQLEndPoint {
         //filter.setSessionIdMapper(SessionsManager.getSessionsManager().getSessionIdMapper());
         //filter.setConfig(config);
         server = FusekiServer.create()
-            .add("/rdf", DataCore.getInstance().getSecuredDataset())
-            //.add("/rdf", DataCore.getInstance().getDataset())
+            //.add("/rdf", DataCore.getInstance().getSecuredDataset())
+            .add("/rdf", DataCore.getInstance().getDataset())
+                
+                
            // .loopback(true)
           //  .securityHandler(new HalcyonSecurityHandler())
             

@@ -38,14 +38,12 @@ public class RDFRenderer implements IChoiceRenderer {
 
     @Override
     public String getIdValue(Object object, int index) {
-        //System.out.println("RDFRenderer getIdValue : "+object+" "+index);
         return IChoiceRenderer.super.getIdValue(object, index);
     }
 
     @Override
     public Object getObject(String id, IModel choices) {
         Object o = IChoiceRenderer.super.getObject(id, choices);
-        //System.out.println("RDFRenderer getObject : "+id+"  "+o.getClass().toString());
         return o;
     }
 

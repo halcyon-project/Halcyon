@@ -32,8 +32,8 @@ import org.apache.jena.vocabulary.OWL;
 import org.apache.jena.vocabulary.SchemaDO;
 import org.apache.wicket.MarkupContainer;
 import org.apache.wicket.ajax.AjaxRequestTarget;
+import org.apache.wicket.ajax.form.AjaxFormComponentUpdatingBehavior;
 import org.apache.wicket.ajax.form.OnChangeAjaxBehavior;
-import org.apache.wicket.ajax.markup.html.form.AjaxButton;
 import org.apache.wicket.extensions.ajax.markup.html.repeater.data.table.AjaxFallbackDefaultDataTable;
 import org.apache.wicket.extensions.markup.html.repeater.data.grid.ICellPopulator;
 import org.apache.wicket.extensions.markup.html.repeater.data.table.AbstractColumn;
@@ -58,9 +58,11 @@ public class ListFeatures extends Panel {
     private HashSet<String> selected2;
     private HashSet<String> selected3;
     private HashSet<String> selected4;
+    private IPanelChangeListener changeListener;
     
-    public ListFeatures(String id) {
+    public ListFeatures(String id, IPanelChangeListener changeListener) {
         super(id);
+        this.changeListener = changeListener;
         selected1 = new HashSet<>();
         selected2 = new HashSet<>();
         selected3 = new HashSet<>();
@@ -129,12 +131,18 @@ public class ListFeatures extends Panel {
                     new RDFRenderer(rdg)
                 );
         form.add(ddc);
-        form.add(new AjaxButton("goFilter") {           
+        ddc.add(new AjaxFormComponentUpdatingBehavior("change") {
             @Override
-            protected void onAfterSubmit(AjaxRequestTarget target) {
+            protected void onUpdate(AjaxRequestTarget target) {
                 ParameterizedSparqlString pss = rdfsdf.getPSS();
                 pss.setIri("collection", ddc.getModelObject().toString());
+                if ("urn:halcyon:nocollections".equals(ddc.getModelObject().toString())) {
+                    clearSelectedFeatures();
+                }
                 rdfsdf.SetSPARQL(pss.toString());
+                if (ListFeatures.this.changeListener != null) {
+                    ListFeatures.this.changeListener.onChange(target);
+                }
                 target.add(table);
             }
         });
@@ -153,9 +161,16 @@ public class ListFeatures extends Panel {
         return list;
     }
     
+    public void clearSelectedFeatures() {
+        selected1.clear();
+        selected2.clear();
+        selected3.clear();
+        selected4.clear();
+    }
+    
     public HashSet getSelectedFeatures() {
         HashSet<Node> list = new HashSet<>();
-        selected1.forEach(f->{ System.out.println("NODE : "+f); list.add(NodeFactory.createURI(f));});
+        selected1.forEach(f->{ list.add(NodeFactory.createURI(f));});
         selected2.forEach(f->{ list.add(NodeFactory.createURI(f));});
         selected3.forEach(f->{ list.add(NodeFactory.createURI(f));});
         selected4.forEach(f->{ list.add(NodeFactory.createURI(f));});
@@ -188,6 +203,9 @@ public class ListFeatures extends Panel {
                             selected1.remove(key);
                         }                        
                     }
+                    if (ListFeatures.this.changeListener != null) {
+                        ListFeatures.this.changeListener.onChange(target);
+                    }
                 }
             });
             add(ds1);
@@ -203,6 +221,9 @@ public class ListFeatures extends Panel {
                         if (selected2.contains(key)) {
                             selected2.remove(key);
                         }                        
+                    }
+                    if (ListFeatures.this.changeListener != null) {
+                        ListFeatures.this.changeListener.onChange(target);
                     }
                 }
             });
@@ -220,6 +241,9 @@ public class ListFeatures extends Panel {
                             selected3.remove(key);
                         }                        
                     }
+                    if (ListFeatures.this.changeListener != null) {
+                        ListFeatures.this.changeListener.onChange(target);
+                    }
                 }
             });
             add(ds3);
@@ -235,6 +259,9 @@ public class ListFeatures extends Panel {
                         if (selected4.contains(key)) {
                             selected4.remove(key);
                         }                        
+                    }
+                    if (ListFeatures.this.changeListener != null) {
+                        ListFeatures.this.changeListener.onChange(target);
                     }
                 }
             });

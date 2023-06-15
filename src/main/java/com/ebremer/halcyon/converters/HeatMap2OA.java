@@ -51,7 +51,6 @@ public class HeatMap2OA {
     public HeatMap2OA(int cores) {
         engine = new ThreadPoolExecutor(cores,cores,0L,TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
         engine.prestartAllCoreThreads();
-
     }
     
     public void shutdown() {

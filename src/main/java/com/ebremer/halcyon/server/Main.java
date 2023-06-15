@@ -124,7 +124,7 @@ public class Main {
 	registration.addUrlPatterns("/*");
         registration.setOrder(Ordered.HIGHEST_PRECEDENCE);
         registration.addInitParameter(KeycloakOIDCFilter.CONFIG_FILE_PARAM, "keycloak.json");        
-        registration.addInitParameter(KeycloakOIDCFilter.SKIP_PATTERN_PARAM, "(^/halcyon.*|^/viewer.*|^/rdf.*|^/talon/.*|/;jsessionid=.*|/gui/images/halcyon.png|^/wicket/resource/.*|^/multi-viewer.*|^/iiif.*|^/|^/about|^/ListImages.*|^/wicket/resource/com.*\\.css||^/auth/.*|^/favicon.ico)");
+        registration.addInitParameter(KeycloakOIDCFilter.SKIP_PATTERN_PARAM, "(^/puffin.*|^/threejs/.*|^/halcyon.*|^/zephyr/.*|^/rdf.*|^/talon/.*|/;jsessionid=.*|/gui/images/halcyon.png|^/wicket/resource/.*|^/multi-viewer.*|^/iiif.*|^/|^/about|^/ListImages.*|^/wicket/resource/com.*\\.css||^/auth/.*|^/favicon.ico)");
         registration.setEnabled(true);
         return registration;
     }
@@ -141,7 +141,7 @@ public class Main {
         registration.setOrder(Ordered.LOWEST_PRECEDENCE);
         registration.addInitParameter(ContextParamWebApplicationFactory.APP_CLASS_PARAM, HalcyonApplication.class.getName());
         registration.addInitParameter(WicketFilter.FILTER_MAPPING_PARAM, "/*");
-        registration.addInitParameter(IGNORE_PATHS_PARAM, "/auth/,/three.js/,/multi-viewer/,/iiif/,/halcyon/,/images/,/favicon.ico,/rdf,/talon/");
+        registration.addInitParameter(IGNORE_PATHS_PARAM, "/auth/,/three.js/,/multi-viewer/,/iiif/,/halcyon/,/images/,/favicon.ico,/rdf,/talon/,/threejs/,/zephyr/,/rdf/");
         //registration.setDispatcherTypes(DispatcherType.REQUEST, DispatcherType.FORWARD);
         return registration;
     }
@@ -168,7 +168,17 @@ public class Main {
             } else {
                 registry.addResourceHandler("/talon/**").addResourceLocations("classpath:/META-INF/public-web-resources/talon/");
             }
-            registry.addResourceHandler("/three.js/**").addResourceLocations("classpath:/META-INF/public-web-resources/three.js/");
+            String zephyr = settings.getZephyrLocation();
+            if (zephyr!=null) {
+                if (zephyr.startsWith("file:///")) {
+                    zephyr = zephyr.replace("file:///", "file:/");
+                }
+                System.out.println("Using Local Zephyr....");
+                registry.addResourceHandler("/zephyr/**").addResourceLocations(zephyr);
+            } else {
+                registry.addResourceHandler("/zephyr/**").addResourceLocations("classpath:/META-INF/public-web-resources/zephyr/");
+            }
+            registry.addResourceHandler("/threejs/**").addResourceLocations("classpath:/META-INF/public-web-resources/threejs/");
             registry.addResourceHandler("/images/**").addResourceLocations("classpath:/META-INF/public-web-resources/images/");
         }
     }

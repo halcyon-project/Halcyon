@@ -81,7 +81,7 @@ public class ImageMeta {
                 name = f.getName().toUpperCase();
                 io.name = name;
                 io.imagepath = Path.of(uri.getPath());
-                System.out.println("Putting : "+name);
+                //System.out.println("Putting : "+name);
                 meta.put(name, io);
             } catch (URISyntaxException ex) {
                 Logger.getLogger(ImageMeta.class.getName()).log(Level.SEVERE, null, ex);

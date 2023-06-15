@@ -1,30 +1,25 @@
 <!DOCTYPE html>
 <html lang="en">
 <wicket:head>
-  <style> body { margin: 0; } </style>
+    <style> body { margin: 0; } </style>
 </wicket:head>
 
 <body>
 <wicket:extend>
-    
-    <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
-
-		<script type="importmap">
-			{
-				"imports": {
-					"three": "https://threejs.org/build/three.module.js",
-					"three/addons/": "./jsm/"
-				}
-			}
-		</script>
-                
+   <script type="importmap">
+        {
+            "imports": {
+                "three": "/threejs/build/three.module.js",
+                "three/addons/": "/threejs/examples/jsm/"
+            }
+        }
+    </script>
     <script type="module">
         import * as THREE from 'three';
-
-			import Stats from 'https://unpkg.com/three/examples/jsm/libs/stats.module.js';
-			import { GUI } from 'https://unpkg.com/three/examples/jsm/libs/lil-gui.module.min.js';
-
-			import { TrackballControls } from 'https://unpkg.com/three/examples/jsm/controls/TrackballControls.js';
+	import Stats from 'three/addons/libs/stats.module.js';
+	import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+	import { TrackballControls } from 'three/addons/controls/TrackballControls.js';
+          
                         
         function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
@@ -32,15 +27,15 @@
             camera.updateProjectionMatrix();
 	}
         function srcurl(x,y,w,h) {
-            return new THREE.TextureLoader().load("http://localhost:8888/iiif/?iiif=http://localhost:8888/HalcyonStorage/tcga/coad/TCGA-CM-5348-01Z-00-DX1.2ad0b8f6-684a-41a7-b568-26e97675cce9.svs/"+x+","+y+","+w+","+h+"/512,/0/default.jpg");
+            return new THREE.TextureLoader().load("/iiif/?iiif=http://localhost:8888/HalcyonStorage/tcga/coad/TCGA-CM-5348-01Z-00-DX1.2ad0b8f6-684a-41a7-b568-26e97675cce9.svs/"+x+","+y+","+w+","+h+"/512,/0/default.jpg");
         }
         
         function srcsegurl(x,y,w,h) {
-            return new THREE.TextureLoader().load("http://localhost:8888/halcyon/?iiif=file:///D:/HalcyonStorage/nuclearsegmentation2019/coad/TCGA-CM-5348-01Z-00-DX1.2ad0b8f6-684a-41a7-b568-26e97675cce9.zip/"+x+","+y+","+w+","+h+"/512,/0/default.png");
+            return new THREE.TextureLoader().load("/halcyon/?iiif=file:///D:/HalcyonStorage/nuclearsegmentation2019/coad/TCGA-CM-5348-01Z-00-DX1.2ad0b8f6-684a-41a7-b568-26e97675cce9.zip/"+x+","+y+","+w+","+h+"/512,/0/default.png");
         }
         
         async function featuresrcurl(x,y,w,h) {
-            const response = await fetch("http://localhost:8888/halcyon/?iiif=file:///D:/HalcyonStorage/features/raj/Ptumor_heatmap_TCGA-CM-5348-01Z-00-DX1.2ad0b8f6-684a-41a7-b568-26e97675cce9.zip/full/323,/0/default.json");
+            const response = await fetch("/halcyon/?iiif=file:///D:/HalcyonStorage/features/raj/Ptumor_heatmap_TCGA-CM-5348-01Z-00-DX1.2ad0b8f6-684a-41a7-b568-26e97675cce9.zip/full/323,/0/default.json");
             const json = await response.json();
             return json;
         }
@@ -84,7 +79,7 @@
             const loader = new THREE.FileLoader();
             var json = loader.load(
                 // resource URL
-                "http://localhost:8888/halcyon/?iiif=file:///D:/HalcyonStorage/nuclearsegmentation2019/TCGA-CM-5348-01Z-00-DX1.2ad0b8f6-684a-41a7-b568-26e97675cce9.zip/"+x+","+y+","+w+","+h+"/512,/0/default.json",
+                "/halcyon/?iiif=file:///D:/HalcyonStorage/nuclearsegmentation2019/TCGA-CM-5348-01Z-00-DX1.2ad0b8f6-684a-41a7-b568-26e97675cce9.zip/"+x+","+y+","+w+","+h+"/512,/0/default.json",
 
         	// onLoad callback
                 function ( data ) {
@@ -213,7 +208,7 @@
                                 const pg = new THREE.Group();
                                 const loader = new THREE.FileLoader();
                                 loader.load(
-                                    "http://localhost:8888/halcyon/?iiif=file:///D:/HalcyonStorage/nuclearsegmentation2019/TCGA-CM-5348-01Z-00-DX1.2ad0b8f6-684a-41a7-b568-26e97675cce9.zip/"+x+","+y+","+w+","+h+"/512,/0/default.json",
+                                    "/halcyon/?iiif=file:///D:/HalcyonStorage/nuclearsegmentation2019/TCGA-CM-5348-01Z-00-DX1.2ad0b8f6-684a-41a7-b568-26e97675cce9.zip/"+x+","+y+","+w+","+h+"/512,/0/default.json",
 
                                     function ( data ) {
                                         var obj = JSON.parse(data);
@@ -314,7 +309,7 @@
                                 const loader = new THREE.FileLoader();
                                 loader.load(
                                     // resource URL
-                                    "http://localhost:8888/halcyon/?iiif=file:///D:/HalcyonStorage/nuclearsegmentation2019/TCGA-CM-5348-01Z-00-DX1.2ad0b8f6-684a-41a7-b568-26e97675cce9.zip/"+x+","+y+","+w+","+h+"/512,/0/default.json",
+                                    "/halcyon/?iiif=file:///D:/HalcyonStorage/nuclearsegmentation2019/TCGA-CM-5348-01Z-00-DX1.2ad0b8f6-684a-41a7-b568-26e97675cce9.zip/"+x+","+y+","+w+","+h+"/512,/0/default.json",
 
                                     // onLoad callback
                                     function ( data ) {
@@ -380,6 +375,6 @@
 	}
         animate();
     </script>
-  </wicket:extend>
+    </wicket:extend>
 </body>
 </html>

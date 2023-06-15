@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package com.ebremer.ethereal;
 
 import org.apache.jena.graph.Node;
@@ -20,7 +16,7 @@ public class RDFTextField<T> extends TextField<T> {
     
     public RDFTextField(String id, Resource s, Property p) {
 	super(id, null, null);
-        this.triple = new Triple(s.asNode(), p.asNode(), Node.ANY);
+        this.triple = Triple.create(s.asNode(), p.asNode(), Node.ANY);
     }
     
     public Triple getTriple() {

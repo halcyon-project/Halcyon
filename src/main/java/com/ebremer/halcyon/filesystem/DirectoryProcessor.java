@@ -142,14 +142,17 @@ public class DirectoryProcessor {
         CopyOnWriteArrayList cur = new CopyOnWriteArrayList();
         DataCore dc = DataCore.getInstance();
         Dataset ds = dc.getDataset();
-        ds.begin(ReadWrite.READ);
-        QueryExecution qe = QueryExecutionFactory.create("select distinct ?g where {graph ?g {?g ?p ?o}}",ds);
-        ResultSet results = qe.execSelect();
-        while (results.hasNext()) {
-            QuerySolution sol = results.nextSolution();
-            cur.add(sol.get("g").toString());
+        try {
+            ds.begin(ReadWrite.READ);
+            QueryExecution qe = QueryExecutionFactory.create("select distinct ?g where {graph ?g {?g ?p ?o}}",ds);
+            ResultSet results = qe.execSelect().materialise();
+            while (results.hasNext()) {
+                QuerySolution sol = results.nextSolution();
+                cur.add(sol.get("g").toString());
+            }
+        } finally {
+            ds.end();
         }
-        ds.end();
         return cur;
     }
 }

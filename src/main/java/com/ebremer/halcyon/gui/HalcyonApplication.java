@@ -6,11 +6,16 @@ import com.ebremer.halcyon.HalcyonSettings;
 import com.ebremer.halcyon.datum.DataCore;
 import com.ebremer.halcyon.fuseki.SPARQLEndPoint;
 import com.ebremer.halcyon.filesystem.FileManager;
+import com.ebremer.halcyon.puffin.Puffin;
+import com.ebremer.halcyon.puffin.ResourceConverter;
 import com.ebremer.halcyon.wicket.AccountPage;
 import com.ebremer.halcyon.wicket.AdminPage;
 import com.ebremer.halcyon.wicket.ethereal.Graph3D;
 import com.ebremer.halcyon.wicket.ethereal.Zephyr;
 import com.ebremer.multiviewer.MultiViewer;
+import org.apache.jena.rdf.model.Resource;
+import org.apache.wicket.ConverterLocator;
+import org.apache.wicket.IConverterLocator;
 import org.apache.wicket.RuntimeConfigurationType;
 import org.apache.wicket.Session;
 //import org.apache.wicket.devutils.stateless.StatelessChecker;
@@ -48,6 +53,13 @@ public class HalcyonApplication extends WebApplication {
     public Session newSession(Request request, Response response) {
         return new HalcyonSession(request);
     }
+    
+    @Override
+    protected IConverterLocator newConverterLocator() {
+        ConverterLocator converterLocator = new ConverterLocator();
+        converterLocator.set(Resource.class, new ResourceConverter());        
+        return converterLocator;
+    }
 
     @Override
     public void init() {
@@ -66,20 +78,20 @@ public class HalcyonApplication extends WebApplication {
         //}
         getCspSettings().blocking().disabled();
         mountPage("/", HomePage.class);
-        mountPage("/adminme", AdminPage.class);
-        mountPage("/accountpage", AccountPage.class);
+        mountPage("/admin", AdminPage.class);
+        mountPage("/account", AccountPage.class);
         mountPage("/login", Login.class);
         mountPage("/ListImages", ListImages.class);
-       // mountPage("/gui/ListFeatures", ListFeatures.class);
         mountPage("/viewer", MultiViewer.class); 
         mountPage("/collections", Collections.class);
         mountPage("/sparql", Sparql.class);
         mountPage("/about", About.class);
         mountPage("/threed", Graph3D.class);
         mountPage("/revisionhistory", RevisionHistory.class);
-        mountPage("/zephyr", Zephyr.class);
+        mountPage("/zephyrx", Zephyr.class);
         mountPage("/viewall", ViewAll.class); 
         mountPage("/testviewall", TestViewAll.class); 
+        mountPage("/puffin", Puffin.class); 
         //mountPage("/login", LogHal.class);
         //mountPage("/gui/dicom", DICOM.class);
         //mountPage("/gui/dicom2", DCM.class);

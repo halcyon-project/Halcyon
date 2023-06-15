@@ -26,4 +26,7 @@ public class IngestParameters {
     
     @Parameter(names = {"-version","-v"}, converter = BooleanConverter.class)
     public boolean version = false;
+
+    @Parameter(names = "-threads", description = "# of Threads")
+    public int threads = 1;
 }

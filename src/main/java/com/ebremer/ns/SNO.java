@@ -38,4 +38,5 @@ public class SNO {
     public static final Resource Epithelium = m.createResource(NS+"31610004");
     public static final Resource Dysplasia = m.createResource(NS+"25723000");
     public static final Resource NuclearMaterial = m.createResource(NS+"48512009");
+    public static final Resource Connectivetissue = m.createResource(NS+"21793004");
 }

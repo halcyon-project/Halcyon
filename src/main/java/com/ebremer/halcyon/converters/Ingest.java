@@ -13,6 +13,10 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.Callable;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.arrow.memory.OutOfMemoryException;
@@ -26,15 +30,14 @@ import org.slf4j.LoggerFactory;
  * @author erich
  */
 public class Ingest {
-        
+           
     public void OneFile(File source, File dest, boolean optimize) {
-        Engine engine;
         try {
             ROCrate.ROCrateBuilder builder = new ROCrate.ROCrateBuilder(new ZipWriter(dest));
-            Resource rde = builder.getRDE();
-            Model m = Engine.Load(source,builder.getRDE());
-            engine = new Engine(m, optimize);            
             try (BeakWriter bw = new BeakWriter(builder, "halcyon")) {
+                Resource rde = builder.getRDE();
+                Model m = Engine.Load(source,builder.getRDE());
+                Engine engine = new Engine(m, optimize);  
                 bw.Register(m);
                 bw.CreateDictionary();
                 engine.HilbertPhase(bw);
@@ -48,7 +51,6 @@ public class Ingest {
                     .addProperty(RDF.type, HAL.HalcyonROCrate)
                     .addLiteral(EXIF.width,engine.getWidth())
                     .addLiteral(EXIF.height,engine.getHeight());
-                //System.out.println("Closing BeakWriter...");
             } catch (java.lang.IllegalStateException ex) {
                 System.out.println("AA : "+ex.toString());
             } catch (OutOfMemoryException ex) {
@@ -61,7 +63,9 @@ public class Ingest {
         }
     }
     
-    public void Process(File src, boolean optimize, File dest) throws FileNotFoundException, IOException { 
+    public void Process(int cores, File src, boolean optimize, File dest) throws FileNotFoundException, IOException { 
+        ThreadPoolExecutor engine = new ThreadPoolExecutor(cores,cores,0L,TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
+        engine.prestartAllCoreThreads();
         if (!dest.exists()) {
             dest.mkdirs();
         }
@@ -81,11 +85,26 @@ public class Ingest {
                     nnd = Path.of(dest.toString(),src.toPath().relativize(nnd).toString());
                     File nndf = nnd.toFile();
                     if (!nndf.exists()) {
-                        OneFile(p.toFile(), nnd.toFile(), optimize);
+                        Callable<Model> worker = new FileProcessor(p.toFile(), nnd.toFile(), optimize);
+                        engine.submit(worker);
                     } else {
                         System.out.println("Already exists : "+nndf.toString());
                     }
                 });
+            System.out.println("All jobs submitted.");
+            int totaljobs = engine.getQueue().size()+engine.getActiveCount();
+            engine.shutdown();
+            while (!engine.isTerminated()) {
+                int c = engine.getQueue().size()+engine.getActiveCount();
+                long ram = (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())/1024L/1024L;
+                System.out.println("file jobs completed : "+(totaljobs-c)+" remaining file jobs: "+c+"  Total RAM used : "+ram+"MB  Maximum RAM : "+(Runtime.getRuntime().maxMemory()/1024L/1024L)+"MB");
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException ex) {
+                    Logger.getLogger(Ingest.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            }  
+            System.out.println("Engine shutdown.");
         } else if (src.toString().endsWith(".ttl.gz")) {
             OneFile(src, dest, optimize);
         }
@@ -104,7 +123,7 @@ public class Ingest {
                 System.exit(0);
             } else {
                 if (params.src.exists()) {
-                    new Ingest().Process(params.src, params.optimize, params.dest);
+                    new Ingest().Process(params.threads, params.src, params.optimize, params.dest);
                 } else {
                     System.out.println("Source does not exist! "+params.src);
                 }
@@ -115,6 +134,24 @@ public class Ingest {
             } else {
                 System.out.println(ex.getMessage());
             }
+        }
+    }
+    
+    class FileProcessor implements Callable<Model> {
+        private final File source;
+        private final File dest;
+        private final boolean optimize;
+
+        public FileProcessor(File source, File dest, boolean optimize) {
+            this.source = source;
+            this.dest = dest;
+            this.optimize = optimize;
+        }
+        
+        @Override
+        public Model call() throws Exception {
+            OneFile(source, dest, optimize);
+            return null;
         }
     }
 }

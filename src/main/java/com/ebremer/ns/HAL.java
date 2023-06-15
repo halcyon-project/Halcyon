@@ -10,12 +10,19 @@ public class HAL {
 /**
  *  Halcyon
  *  <p>
- *	See <a href="https://halcyon.is">Halcyon</a>.
+ *	See <a href="https://www.ebremer.com/halcyon">Halcyon</a>.
  *  <p>
- *  <a href="https://halcyon.is/ns/">Base URI and namepace</a>.
+ *  <a href="https://www.ebremer.com/halcyon/ns/">Base URI and namepace</a>.
  */
     private static final Model m = ModelFactory.createDefaultModel();
     public static final String NS = "https://www.ebremer.com/halcyon/ns/";
+    public static final Resource SHACLForm = m.createResource(NS+"SHACLForm");
+    public static final Resource ValidationReport = m.createResource(NS+"ValidationReport");
+    public static final Resource AnnotationClass = m.createResource(NS+"AnnotationClass");
+    public static final Resource AnnotationClassShape = m.createResource(NS+"AnnotationClassShape");
+    public static final Resource AnnotationClassListShape = m.createResource(NS+"AnnotationClassListShape");
+    public static final Resource AnnotationClassList = m.createResource(NS+"AnnotationClassList");
+    public static final Resource Shapes = m.createResource(NS+"Shapes");
     public static final Resource StorageLocation = m.createResource(NS+"StorageLocation");
     public static final Resource HalcyonSettingsFile = m.createResource(NS+"HalcyonSettingsFile");
     public static final Resource Anonymous = m.createResource(NS+"Anonymous");  // Identifier for a group of unidentified things
@@ -51,6 +58,9 @@ public class HAL {
     public static final Property beginIndex = m.createProperty(NS+"beginIndex");
     public static final Property hasRange = m.createProperty(NS+"hasRange");
     public static final Property hasValue = m.createProperty(NS+"hasValue");
+    
+    public static final Property hasAnnotationClass = m.createProperty(NS+"hasAnnotationClass");
+    
     public static final Property hasClass = m.createProperty(NS+"hasClass");
     public static final Property scales = m.createProperty(NS+"scales");
     public static final Property sorted = m.createProperty(NS+"sorted");

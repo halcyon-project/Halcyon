@@ -76,6 +76,8 @@ public class ImageTiler {
     private long lastaccessed;
     private String url;
     private Stack stack;
+    private int tileSizeX;
+    private int tileSizeY;
     
     public ImageTiler(String f) {
         DebugTools.enableLogging("ERROR");
@@ -124,6 +126,8 @@ public class ImageTiler {
             store = reader.getMetadataStore();
             MetadataTools.populatePixels(store, reader, false, false);
             reader.setSeries(0);
+            tileSizeX = reader.getOptimalTileWidth();
+            tileSizeY = reader.getOptimalTileHeight();
             String xml = service.getOMEXML(service.asRetrieve(store));
             meta = service.createOMEXMLMetadata(xml);
         } catch (DependencyException | ServiceException | IOException ex) {
@@ -212,11 +216,11 @@ public class ImageTiler {
             m.addLiteral(size,IIIF.width,stack.width[j]);
             m.addLiteral(size,IIIF.height,stack.height[j]);
             m.add(s,IIIF.sizes,size);
-            m.addLiteral(scale, IIIF.scaleFactors,((int)(iWidth/stack.width[j])));
+            m.addLiteral(scale, IIIF.scaleFactors,((int)Math.round(((float) iWidth)/((float) stack.width[j]))));
             m.add(s,IIIF.tiles,scale);            
         }
-        m.addLiteral(scale,IIIF.width,reader.getOptimalTileWidth());
-        m.addLiteral(scale,IIIF.height,reader.getOptimalTileHeight());
+        m.addLiteral(scale,IIIF.width,tileSizeX);
+        m.addLiteral(scale,IIIF.height,tileSizeY);
         IIIFUtils.addSupport(s, m);
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         RDFDataMgr.write(baos, m, Lang.NTRIPLES);
@@ -259,26 +263,28 @@ public class ImageTiler {
     }
 
     public BufferedImage FetchImage(int x, int y, int w, int h, int tx, int ty) {
-       // System.out.println("FetchImage : "+x+" "+y+" "+w+" "+h+" "+tx+" "+ty);
-        int iratio = w/tx;
+        //System.out.println("FetchImage : "+x+" "+y+" "+w+" "+h+" "+tx+" "+ty);
+        int iratio = Math.round(((float) w) / ((float) tx));
         reader.setSeries(stack.getBest(iratio));
        	float rr = ((float) reader.getSizeX())/((float) iWidth);
-        int gx=(int) Math.round(x*rr);
-        int gy=(int) Math.round(y*rr);
-        int gw=(int) Math.round(w*rr);
-        int gh=(int) Math.round(h*rr);
+        int gx = Math.round(x*rr);
+        int gy = Math.round(y*rr);
+        int gw = Math.round(w*rr);
+        int gh = Math.round(h*rr);
         BufferedImage bi = GrabImage(gx,gy,gw,gh);
         float scale = (((float) tx)/((float) bi.getWidth()));
-        if (Math.abs(scale-1.0f)>0.02) {
+        //System.out.println(iratio+" ===> "+rr+" "+gx+" "+gy+" "+gw+" "+gh+"  "+scale);
+        //if (Math.abs(scale-1.0f)>0.02) {
             BufferedImage target;
             AffineTransform at = new AffineTransform();
             at.scale(scale,scale);
             AffineTransformOp scaleOp =  new AffineTransformOp(at, AffineTransformOp.TYPE_BILINEAR);
-            target = new BufferedImage((int)(gw*scale),(int)(gh*scale),bi.getType());
+            //target = new BufferedImage((int)(gw*scale),(int)(gh*scale),bi.getType());
+            target = new BufferedImage(tx,ty,bi.getType());
             scaleOp.filter(bi, target);
             return target;
-        }
-        return bi;
+        //}
+        //return bi;
     }
     
     private BufferedImage GrabImage(int xpos, int ypos, int width, int height) {
