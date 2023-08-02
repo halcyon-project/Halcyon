@@ -39,12 +39,17 @@ public class Solution implements IClusterable {
             return Model.of(n.getURI());
         } else if (n.isLiteral()) {
             Object o = n.getLiteralValue();
-            if (o instanceof Integer integer) {
-                return Model.of(integer);
-            } else if (o instanceof String string) {
-                return Model.of(string);
+            switch (o) {
+                case Integer integer -> {
+                    return Model.of(integer);
+                }
+                case String string -> {
+                    return Model.of(string);
+                }
+                default -> {
+                    System.out.println("OBJECT TYPE : "+o.getClass().toString());
+                }
             }
-            System.out.println("OBJECT TYPE : "+o.getClass().toString());
         }
         return Model.of("ERROR UNKNOWN");
     }

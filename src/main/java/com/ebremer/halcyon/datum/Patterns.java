@@ -76,19 +76,23 @@ public class Patterns {
     
     public static Model getCollectionRDF2(Dataset ds) {
         ParameterizedSparqlString pss = new ParameterizedSparqlString( """
-            construct {?s a so:Collection}
+            construct {?s a so:Collection; so:name ?name}
             where {
                 graph ?g {?s a so:Collection}
-                graph ?s {?s a so:Collection}
+                graph ?s {?s a so:Collection; so:name ?name}
             }
         """);
         pss.setNsPrefix("hal", HAL.NS);
         pss.setNsPrefix("so", SchemaDO.NS);
         pss.setIri("g", HAL.CollectionsAndResources.getURI());
         QueryExecution qe = QueryExecutionFactory.create(pss.toString(), ds);
-        ds.begin(ReadWrite.READ);
-        Model m = qe.execConstruct();
-        ds.end();
+        Model m;
+        try {
+            ds.begin(ReadWrite.READ);
+            m = qe.execConstruct();
+        } finally {
+            ds.end();
+        }
         return m;
     }
     
@@ -149,7 +153,8 @@ public class Patterns {
     public static List<Node> getCollectionList45X(Model m) {
         ParameterizedSparqlString pss = new ParameterizedSparqlString( """
             select ?s
-            where {?s a so:Collection}
+            where {?s a so:Collection; so:name ?name}
+            order by ?name
         """);
         pss.setNsPrefix("hal", HAL.NS);
         pss.setNsPrefix("so", SchemaDO.NS);

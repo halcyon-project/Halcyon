@@ -4,6 +4,7 @@ import com.ebremer.beakgraph.rdf.BeakWriter;
 import com.ebremer.halcyon.Standard;
 import com.ebremer.halcyon.hilbert.HilbertSpace;
 import static com.ebremer.halcyon.hilbert.HilbertSpace.Area;
+import com.ebremer.ns.EXIF;
 import com.ebremer.ns.HAL;
 import java.awt.Polygon;
 import java.io.File;
@@ -13,10 +14,13 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Path;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -43,6 +47,7 @@ import org.apache.jena.sparql.util.Context;
 import org.apache.jena.update.UpdateAction;
 import org.apache.jena.update.UpdateFactory;
 import org.apache.jena.update.UpdateRequest;
+import org.apache.jena.vocabulary.DCTerms;
 import org.apache.jena.vocabulary.OA;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.RDFS;
@@ -74,7 +79,6 @@ public class Engine {
                 ?object exif:width ?width; exif:height ?height
             } limit 1
             """); 
-        pss.setNsPrefix("", "https://www.ebremer.com/ns/");
         pss.setNsPrefix("rdf", RDF.uri);
         pss.setNsPrefix("rdfs", RDFS.uri);
         pss.setNsPrefix("so", SchemaDO.NS);
@@ -204,44 +208,48 @@ public class Engine {
                 ?selector a oa:FragmentSelector; rdf:value ?polygon
             }
             """); 
-        pss.setNsPrefix("", "https://www.ebremer.com/ns/");
+        pss.setNsPrefix("", HAL.NS);
         pss.setNsPrefix("rdf", RDF.uri);
         pss.setNsPrefix("rdfs", RDFS.uri);
         pss.setNsPrefix("so", SchemaDO.NS);
         pss.setNsPrefix("oa", OA.NS);
-        pss.setNsPrefix("exif", "http://www.w3.org/2003/12/exif/ns#");
-        pss.setNsPrefix("hal", "https://www.ebremer.com/halcyon/ns/");
-        pss.setNsPrefix("dcmi", "http://purl.org/dc/terms/");
+        pss.setNsPrefix("exif", EXIF.NS);
+        pss.setNsPrefix("hal", HAL.NS);
+        pss.setNsPrefix("dcmi", DCTerms.NS);
         QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m);
-        ThreadPoolExecutor engine = new ThreadPoolExecutor(Runtime.getRuntime().availableProcessors(),Runtime.getRuntime().availableProcessors(),0L,TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
-        ConcurrentLinkedQueue<Future<Model>> list = new ConcurrentLinkedQueue<>();
-        qe.execSelect().materialise().forEachRemaining(qs->{
-            Resource r = qs.getResource("selector");
-            String polygon = qs.get("polygon").asLiteral().getString();
-            Callable<Model> worker = new PolygonProcessor(r,polygon);
-            engine.submit(worker);
-            Future<Model> future = engine.submit(worker);
-            list.add(future);
-        });
-        //System.out.println("All jobs submitted.");
-        Phase2();
-        engine.prestartAllCoreThreads();
-        //System.out.println("Engine shutdown");
-        engine.shutdown();
-        while (!list.isEmpty()) {
-            list.forEach(f->{
-                if (f.isDone()) {
-                    try {
-                        //System.out.println("Adding : "+(engine.getQueue().size()+engine.getActiveCount()));
-                        bw.Add(f.get());
-                        list.remove(f);
-                    } catch (InterruptedException ex) {
-                        Logger.getLogger(Engine.class.getName()).log(Level.SEVERE, null, ex);
-                    } catch (ExecutionException ex) {
-                        Logger.getLogger(Engine.class.getName()).log(Level.SEVERE, null, ex);
+        try (ExecutorService engine = Executors.newVirtualThreadPerTaskExecutor()) {
+            ConcurrentLinkedQueue<Future<Model>> list = new ConcurrentLinkedQueue<>();
+            qe.execSelect().materialise().forEachRemaining(qs->{
+                Resource r = qs.getResource("selector");
+                String polygon = qs.get("polygon").asLiteral().getString();
+                Callable<Model> worker = new PolygonProcessor(r,polygon);
+                engine.submit(worker);
+                Future<Model> future = engine.submit(worker);
+                list.add(future);
+            });
+            Phase2();
+            engine.shutdown();
+            do {
+                for (Future<Model> f : list) {
+                    if (f.isDone()) {
+                        try {
+                            bw.Add(f.get());
+                            list.remove(f);
+                        } catch (InterruptedException ex) {
+                            System.out.println(ex.getMessage());
+                            Logger.getLogger(Engine.class.getName()).log(Level.SEVERE, null, ex);
+                        } catch (ExecutionException ex) {
+                            System.out.println(ex.getMessage());
+                            Logger.getLogger(Engine.class.getName()).log(Level.SEVERE, null, ex);
+                        }
                     }
                 }
-            });
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException ex) {
+                    Logger.getLogger(Ingest.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            } while (!list.isEmpty());
         }
     }
 
@@ -338,12 +346,14 @@ public class Engine {
                 //System.out.println("POLYGON ----> "+polygon.xpoints[0]/scale+", "+polygon.ypoints[0]/scale);
                 HilbertSpace hs = new HilbertSpace(width, height);
                 long hp = hs.hc.index(Math.round(polygon.xpoints[0]/scale), Math.round(polygon.ypoints[0]/scale));
+                Property hasRange1 = pm.createProperty(HAL.hasRange.toString()+"/1");
+                Property low1 = pm.createProperty(HAL.low.toString()+"/1");
+                Property high1 = pm.createProperty(HAL.high.toString()+"/1");
                 Range ra = new Range(hp,hp);
-                    Property rp = pm.createProperty(HAL.hasRange.toString()+"/1");
                     Resource range = pm.createResource()
-                        .addLiteral(HAL.low, ra.low())
-                        .addLiteral(HAL.high, ra.high());
-                pm.add(r, rp, range);
+                        .addLiteral(low1, ra.low())
+                        .addLiteral(high1, ra.high());
+                pm.add(r, hasRange1, range);
             } else {
                 HilbertSpace hs = new HilbertSpace(width, height);
                 int numscales = 1;

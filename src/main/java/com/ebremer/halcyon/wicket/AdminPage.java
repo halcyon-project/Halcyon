@@ -17,9 +17,6 @@ public class AdminPage extends BasePage {
                 super.onComponentTag(tag);
                 tag.put("src", "/auth/admin/"+HalcyonSettings.realm+"/console/?response_type#/Halcyon/users");
             }
-        }); 
-        
-        
+        });
     }
-    
 }

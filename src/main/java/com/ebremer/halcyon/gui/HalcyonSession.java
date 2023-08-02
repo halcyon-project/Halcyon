@@ -135,7 +135,7 @@ public final class HalcyonSession extends WebSession {
     public Model ParseUser(JsonObject jo) {
         Model m = ModelFactory.createDefaultModel();
         String uuidx = jo.getString("id");
-        Resource s = m.createResource(uuidx);
+        Resource s = m.createResource("urn:uuid:"+uuidx);
         if (jo.containsKey("lastName")) {
             m.add(m.createLiteralStatement(s, SchemaDO.familyName, jo.getString("lastName")));
         }

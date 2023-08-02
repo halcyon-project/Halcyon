@@ -50,6 +50,7 @@ public final class HalcyonSettings {
     private final Property SPARQLPORT;
     private final Property MULTIVIEWERLOCATION;
     private final Property TALONLOCATION;
+    private final Property ZEPHYRLOCATION;
     private static final String MasterSettingsLocation = "settings.ttl";
     private Resource Master;
     private final HashMap<String,String> mappings;
@@ -61,7 +62,7 @@ public final class HalcyonSettings {
     public static final int DEFAULTSPARQLPORT = 8887;
     public static final String DEFAULTHOSTNAME = "http://localhost";
     public static final String DEFAULTHOSTIP = "0.0.0.0";
-    public static final String VERSION = "0.6.0";
+    public static final String VERSION = "0.7.0";
     public static Resource HALCYONAGENT = ResourceFactory.createResource(HAL.NS+"VERSION/"+VERSION);
     
     private HalcyonSettings() {
@@ -85,6 +86,7 @@ public final class HalcyonSettings {
         urlpathprefix = m.createProperty(HAL.NS+"urlpathprefix");
         MULTIVIEWERLOCATION = m.createProperty(HAL.NS+"MultiviewerLocation");
         TALONLOCATION = m.createProperty(HAL.NS+"TalonLocation");
+        ZEPHYRLOCATION = m.createProperty(HAL.NS+"ZephyrLocation");
     }
 
     public String getwebfiles() {
@@ -249,6 +251,13 @@ public final class HalcyonSettings {
     public String getTalonLocation() {
         if (m.contains(Master, TALONLOCATION)) {
             return m.getProperty(Master, TALONLOCATION).getObject().asResource().getURI();
+        }
+        return null;
+    }
+    
+    public String getZephyrLocation() {
+        if (m.contains(Master, ZEPHYRLOCATION)) {
+            return m.getProperty(Master, ZEPHYRLOCATION).getObject().asResource().getURI();
         }
         return null;
     }

@@ -217,6 +217,7 @@ public class NS2OA {
             m.setNsPrefix("oa", OA.NS);
             m.setNsPrefix("xsd", XSD.NS);
             m.setNsPrefix("sno", "http://snomed.info/id/");
+            m.setNsPrefix("geos", "http://www.opengis.net/ont/geosparql#");
             list.stream()
                 .filter(p->{
                     if (p.polygon.npoints>0) {
@@ -236,7 +237,7 @@ public class NS2OA {
                     m.addLiteral(image,EXIF.height,io.height);
                     Resource ca = m.createResource("https://bmi.stonybrookmedicine.edu/nuclearsegmentation/tcga/2019");
                     m.add(ca, SchemaDO.object, image);
-                    m.add(s,DCTerms.conformsTo,m.createResource("http://www.w3.org/TR/SVG/"));
+                    m.add(s,DCTerms.conformsTo,m.createResource("http://www.opengis.net/ont/geosparql#wktLiteral"));
                     m.add(s,RDF.value,Polygon2WKT(p.polygon));
                     Resource body = m.createResource();
                     m.addLiteral(body,HAL.hasCertainty,1.0f);

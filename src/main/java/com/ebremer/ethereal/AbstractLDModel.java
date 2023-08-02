@@ -27,17 +27,13 @@ public abstract class AbstractLDModel<T> extends ChainingModel<T> {
     public T getObject() {        
         Dataset ds = DatabaseLocator.getDatabase().getDataset();
         ds.begin(ReadWrite.READ);
-        final String expression = propertyExpression();
-        System.out.println("public T getObject() "+expression);
         final Object target = getInnermostModelOrObject();
-        System.out.println("TARGET MAESTRO : "+target.getClass().toString());
         if (target instanceof ModelCom) {
             Model m = (Model) target;
             Triple triple = tripleExpression();
             Statement ss = m.getRequiredProperty(m.asRDFNode(triple.getSubject()).asResource(), m.createProperty(triple.getPredicate().getURI()));
             String now = ss.getObject().asLiteral().getString();
-            Component c = getComponent();
-            RDFTextField d = (RDFTextField) c;
+            RDFTextField d = (RDFTextField) getComponent();
             d.setTriple(ss.asTriple());
             ds.end();
             return (T) now;
@@ -56,7 +52,7 @@ public abstract class AbstractLDModel<T> extends ChainingModel<T> {
             Triple triple = tripleExpression();
             Statement before = m.asStatement(triple);
             Node oo = NodeFactory.createLiteral((String) object);
-            Statement after = m.asStatement(new Triple(triple.getSubject(),triple.getPredicate(),oo));
+            Statement after = m.asStatement(Triple.create(triple.getSubject(),triple.getPredicate(),oo));
             m.remove(before);
             m.add(after);
             RDFDataMgr.write(System.out, m, RDFFormat.TURTLE_PRETTY);
@@ -67,7 +63,6 @@ public abstract class AbstractLDModel<T> extends ChainingModel<T> {
         }
     }
     
-    protected abstract String propertyExpression();
     protected abstract Triple tripleExpression();     
     protected abstract Component getComponent();
 }

@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <style> body { margin: 0; } </style>
+</head>
+<body>
+   <script type="importmap">
+        {
+            "imports": {
+                "three": "/threejs/build/three.module.js",
+                "three/addons/": "/threejs/examples/jsm/",
+                "zephyr": "/zephyr/Zephyr.js"
+            }
+        }
+    </script>
+    <script type="module">
+        console.clear();
+        console.log("Initializing...;")
+        import * as THREE from 'three';
+	import Stats from 'three/addons/libs/stats.module.js';
+	import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+	import { TrackballControls } from 'three/addons/controls/TrackballControls.js';
+        import * as ZEPHYR from 'zephyr';
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            renderer.setSize( window.innerWidth, window.innerHeight );
+            camera.updateProjectionMatrix();
+	}
+
+        THREE.Cache.enabled = true;
+	const scene = new THREE.Scene();
+	const camera = new THREE.PerspectiveCamera( 90, window.innerWidth / window.innerHeight, -10, 100 );
+        //camera.position.set(0, 0, 150000);
+        camera.position.set(0, 0, 75000);
+	const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setPixelRatio( window.devicePixelRatio );
+	renderer.setSize( window.innerWidth, window.innerHeight );
+	document.body.appendChild( renderer.domElement );
+        window.addEventListener( 'resize', onWindowResize );
+        let controls = new TrackballControls( camera, renderer.domElement );
+        //controls = new THREE.TrackballControls( camera, renderer.domElement );
+        
+        //const image = new ZEPHYR.ImageViewer(0, 0, 82984, 82984, 0);
+        //scene.add( image );
+        //const feature2 = new ZEPHYR.FeatureLayer2(0, 0, 82984, 82984, 1);
+        //scene.add( feature2 );
+        //console.log("Segmentation Layer Added....");
+        var objects = [];
+        window.objects = objects;
+        window.camera = camera;
+        const raycaster = new THREE.Raycaster();
+        raycaster.near = -500000;
+        raycaster.far =   500000;
+        window.raycaster = raycaster;
+        const mouse = new THREE.Vector2();
+        let selectedObject = null;
+        window.scene = scene;
+        renderer.domElement.addEventListener('mousedown', (event) => {
+            event.preventDefault();
+            mouse.x =   (event.clientX / renderer.domElement.clientWidth ) * 2 - 1;
+            mouse.y = - (event.clientY / renderer.domElement.clientHeight) * 2 + 1;
+            console.log("MOUSE DOWN!!! "+mouse.x+" "+mouse.y);
+            raycaster.setFromCamera(mouse, camera);
+            console.log("CHILDREN : "+scene.children.length);
+            const intersects = raycaster.intersectObjects(objects, true);
+            console.log("INTERSECT LENGTH "+intersects.length);
+            if (intersects.length > 0) {
+                console.log("INTERSECT!!");
+                controls.enabled = false;  // Disable OrbitControls
+                selectedObject = intersects[0].object;
+                window.selectedObject = selectedObject;
+            }
+        }, false);
+
+/*
+        renderer.domElement.addEventListener('mousemove', (event) => {
+            if (selectedObject) {
+                console.log("MOUSE MOVE!!! "+selectedObject);
+                mouse.x = (event.clientX / renderer.domElement.clientWidth) * 2 - 1;
+                mouse.y = - (event.clientY / renderer.domElement.clientHeight) * 2 + 1;
+                raycaster.setFromCamera(mouse, camera);
+                const intersects = raycaster.intersectObjectPlane(selectedObject, new THREE.Plane(new THREE.Vector3(0, 0, 1), 0));
+                if (intersects.length > 0) {
+                    selectedObject.position.copy(intersects[0].point);
+                }
+            }
+        }, false);
+        */
+        // Sphere geometry (radius, widthSegments, heightSegments)
+        const geometry = new THREE.SphereGeometry(1000, 128, 128);
+        const material = new THREE.MeshBasicMaterial({ color: new THREE.Color(255,255,0).getHex(), depthWrite: false, side: THREE.DoubleSide });
+        const sphere = new THREE.Mesh(geometry, material);
+        sphere.position.set(0, 0, 0);
+        sphere.name = "DOPEY";
+        scene.add(sphere);
+        //objects.push(sphere);
+        window.sphere = sphere;
+
+
+        ZEPHYR.ImageViewer.createAsync('http://localhost:8888/HalcyonStorage/tcga/coad/TCGA-CM-5348-01Z-00-DX1.2ad0b8f6-684a-41a7-b568-26e97675cce9.svs', 0, null)
+            .then(instance=>{
+                scene.add(instance);
+                instance.updateMatrixWorld();
+                instance.position.set(-50000, -50000, 0);
+                instance.name = "Excalibur";
+                objects.push(instance);
+                window.xxx = instance;
+            })
+            .catch(function() {
+                console.log("Fetch error in internals");
+        });
+        //scene.add(test);
+        var last = 0;
+        function animate() {
+            controls.update();
+            renderer.render( scene, camera );
+            requestAnimationFrame( animate );
+            //if (last!==camera.position.z) {
+              //  last = camera.position.z;
+               // console.log(camera.position.z);
+           // }
+	}
+        animate();
+    </script>
+</body>
+</html>

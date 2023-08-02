@@ -50,6 +50,8 @@ import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.ResourceFactory;
+import org.apache.jena.rdf.model.Statement;
+import org.apache.jena.rdf.model.StmtIterator;
 import org.apache.jena.riot.system.JenaTitanium;
 import org.apache.jena.sparql.vocabulary.DOAP;
 import org.apache.jena.vocabulary.OA;
@@ -70,12 +72,14 @@ public class FL {
     private int numclasses = 0;
     private final HashMap<String,Integer> classes;
     private final float[] ratios;
+    private final String reference;
     
     public FL(Model m) {
         this.m = m;
         this.hspace = new HashMap<>();
         this.classes = new HashMap<>();
         BeakGraph bg = (BeakGraph) m.getGraph();
+        reference = bg.getReader().getROCReader().getRef();
         manifest = bg.getReader().getManifest();
         ParameterizedSparqlString pss = new ParameterizedSparqlString(
             """
@@ -100,7 +104,7 @@ public class FL {
                 ?body hal:assertedClass ?class
             }
             """); 
-        pss.setNsPrefix("hal", "https://www.ebremer.com/halcyon/ns/");
+        pss.setNsPrefix("hal", HAL.NS);
         qe = QueryExecutionFactory.create(pss.toString(), m);
         rs = qe.execSelect();
         while (rs.hasNext()) {
@@ -117,7 +121,7 @@ public class FL {
                 filter(strstarts(str(?o),?k))
             }
             """
-        ); 
+        );
         pss.setNsPrefix("bg", "https://www.ebremer.com/beakgraph/ns/");
         pss.setLiteral("k", HAL.hasRange.getURI());
         qe = QueryExecutionFactory.create(pss.toString(), manifest);
@@ -133,7 +137,6 @@ public class FL {
         ratios = new float[numscales];
         // if 1 then it's a heatmap.
         if (hspace.size()==1) {
-            System.out.println("ITS A HEATMAP!!!! "+width+"x"+height);
             hspace.clear();
             hspace.put(1, new HilbertSpace(width,height));
         } else {
@@ -254,29 +257,51 @@ public class FL {
         Graphics2D g2 = bi.createGraphics();
         g2.setColor(new Color(128,0,128,128));
         g2.fillRect(0, 0, w, h);
-        rs.forEachRemaining(qs->{
-            long low = qs.get("low").asLiteral().getLong();
-            long high = qs.get("high").asLiteral().getLong();
-            //System.out.println(low+"->"+high);
-            float pc = qs.get("certainty").asLiteral().getFloat();
-            int classid = classes.get(qs.get("class").asResource().getURI());
-            int prob = (int) (pc*255f+0.5);
-            int color = (0xFF000000)+(classid<<16)+(prob<<8);
-            LongStream.rangeClosed(low, high).forEach(k->{
-                long[] point = hs.hc.point(k);
-                int a = (int)(point[0] - x);
-                int b = (int)(point[1] - y);
-                try {
-                    bi.setRGB(a, b, color);
-                } catch (java.lang.ArrayIndexOutOfBoundsException ex) {
-                    //System.out.println("Out of Bounds "+w+","+h+"   "+b+","+a);
-                }
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            rs.forEachRemaining(qs->{
+                long low = qs.get("low").asLiteral().getLong();
+                long high = qs.get("high").asLiteral().getLong();
+                //System.out.println(low+"->"+high);
+                executor.submit(() -> {
+                    float pc = qs.get("certainty").asLiteral().getFloat();
+                    int classid = classes.get(qs.get("class").asResource().getURI());
+                    int prob = (int) (pc*255f+0.5);
+                    int color = (0xFF000000)+(classid<<16)+(prob<<8);
+                    LongStream.rangeClosed(low, high).forEach(k->{
+                        long[] point = hs.hc.point(k);
+                        int a = (int)(point[0] - x);
+                        int b = (int)(point[1] - y);
+                        try {
+                            bi.setRGB(a, b, color);
+                        } catch (java.lang.ArrayIndexOutOfBoundsException ex) {
+                            //System.out.println("Out of Bounds "+w+","+h+"   "+b+","+a);
+                        }
+                    });
+                });
             });
-        });
-        //sw.getLapseTime("genImage");
+        }
+       // sw.getLapseTime("genImage");
         return bi;
     }
     
+    private Model revise(Model m, Resource before, Resource after) {
+        Model revisedModel = ModelFactory.createDefaultModel();
+        StmtIterator stmtIterator = m.listStatements();
+        while(stmtIterator.hasNext()) {
+            Statement stmt = stmtIterator.nextStatement();
+            Statement revisedStmt;
+            if(stmt.getSubject().equals(before)) {
+                revisedStmt = revisedModel.createStatement(after, stmt.getPredicate(), stmt.getObject());
+            } else if (stmt.getObject().equals(before)) {
+                revisedStmt = revisedModel.createStatement(stmt.getSubject(), stmt.getPredicate(), after);
+            } else {
+                revisedStmt = stmt;
+            }
+            revisedModel.add(revisedStmt);
+        }
+        return revisedModel;
+    }
+
     public String GetImageInfo(String xurl) {
         try {
             //System.out.println("GetImageInfo : "+xurl);
@@ -303,10 +328,12 @@ public class FL {
             });
             mm.add(s, IIIF.preferredFormats, "png");
             mm.add(s, RDF.type, HAL.HalcyonROCrate);
+            mm.add(revise(manifest,ResourceFactory.createResource(this.reference),s));
             IIIFUtils.addSupport(s, mm);
             Model whoa = ModelFactory.createDefaultModel();
             whoa.add(mm);
             mm.add(whoa);
+            //mm.add(manifest);
             Dataset ds = DatasetFactory.createGeneral();
             ds.getDefaultModel().add(mm);
             RdfDataset rds = JenaTitanium.convert(ds.asDatasetGraph());

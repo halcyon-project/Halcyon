@@ -25,9 +25,9 @@ public class MenuPanel extends Panel {
         add(new ExternalLink("home", host+"/","Home"));
         add(new ExternalLink("images", host+"/ListImages","Images"));
         add(new ExternalLink("about", host+"/about","About"));
-        ExternalLink security = new ExternalLink("security", host+"/adminme","Security");
+        ExternalLink security = new ExternalLink("security", host+"/admin","Security");
         ExternalLink sparql = new ExternalLink("sparql", host+"/sparql","SPARQL");
-        ExternalLink account = new ExternalLink("account", host+"/accountpage","Account");
+        ExternalLink account = new ExternalLink("account", host+"/account","Account");
         ExternalLink threed = new ExternalLink("threed", host+"/threed","3D");
         ExternalLink collections = new ExternalLink("collections", host+"/collections","Collections");
         ExternalLink revisionhistory = new ExternalLink("revisionhistory", host+"/revisionhistory","Revision History");
