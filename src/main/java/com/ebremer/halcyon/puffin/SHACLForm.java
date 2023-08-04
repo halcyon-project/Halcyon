@@ -1,14 +1,11 @@
 package com.ebremer.halcyon.puffin;
 
 import com.ebremer.ethereal.RDFDetachableModel;
-import static com.ebremer.halcyon.puffin.DataType.BNODE;
-import com.ebremer.ns.HAL;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.Triple;
 import org.apache.jena.query.QuerySolution;
 import org.apache.jena.query.ResultSet;
-import org.apache.jena.rdf.model.Property;
-import org.apache.jena.rdf.model.RDFNode;
+import org.apache.jena.rdf.model.AnonId;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.Statement;
 import org.apache.jena.riot.Lang;
@@ -17,8 +14,6 @@ import org.apache.jena.shacl.ShaclValidator;
 import org.apache.jena.shacl.Shapes;
 import org.apache.jena.shacl.ValidationReport;
 import org.apache.jena.shacl.lib.ShLib;
-import org.apache.jena.shacl.vocabulary.SHACLM;
-import org.apache.jena.vocabulary.RDF;
 import org.apache.wicket.AttributeModifier;
 import org.apache.wicket.Component;
 import org.apache.wicket.MarkupContainer;
@@ -41,15 +36,13 @@ public class SHACLForm extends Panel implements IMarkupResourceStreamProvider {
     private final DropDownChoice<Bundle> ddc;
     private Node subject;
     private final RDFDetachableModel mod;
-    private final Node shape;
 
     public SHACLForm(String id, RDFDetachableModel mod, Resource r, Node shape) {
         super(id);
         this.subject = r.asNode();
         this.mod = mod;
-        this.shape = shape;
         Form form = new Form("form", mod);
-        HShapes ls = new HShapes(shape);       
+        HShapes ls = new HShapes();       
         RepeatingView parentRepeatingView = new RepeatingView("predicateObjectRepeatingView");
         form.add(parentRepeatingView);
         ResultSet rs = ls.getFormElements(r,shape);
@@ -98,8 +91,13 @@ public class SHACLForm extends Panel implements IMarkupResourceStreamProvider {
             @Override
             public void onSubmit(AjaxRequestTarget target) {
                 Component parent = SHACLForm.this.getParent();
-                SHACLForm newsf = new SHACLForm(SHACLForm.this.getId(), mod, mod.getObject().createResource(subject.getURI()), shape);
-                SHACLForm.this.replaceWith(newsf);
+                if (subject.isBlank()) {
+                    SHACLForm newsf = new SHACLForm(SHACLForm.this.getId(), mod, mod.getObject().createResource(AnonId.create(subject.getBlankNodeLabel())), shape);
+                    SHACLForm.this.replaceWith(newsf);
+                } else {
+                    SHACLForm newsf = new SHACLForm(SHACLForm.this.getId(), mod, mod.getObject().createResource(subject.getURI()), shape);
+                    SHACLForm.this.replaceWith(newsf);
+                }
                 target.add(parent);
             }}.setDefaultFormProcessing(true)
         );
@@ -120,16 +118,16 @@ public class SHACLForm extends Panel implements IMarkupResourceStreamProvider {
             }}.setDefaultFormProcessing(false)
         );
         add(form);
-        ddc = new DropDownChoice<>("predicates", new Model<Bundle>(), ls.getStatsAndPredicates(r), new BundleRender());
+        ddc = new DropDownChoice<>("predicates", new Model<Bundle>(), ls.getStatsAndPredicates(shape,r), new BundleRender());
         ddc.setNullValid(true);
         ddc.add(new OnChangeAjaxBehavior() {
             @Override
             protected void onUpdate(AjaxRequestTarget target) {
                 if (ddc.getModelObject()!=null) {
                     Component parent = SHACLForm.this.getParent();
-                    HShapes hshapes = new HShapes(shape);
+                    HShapes hshapes = new HShapes();
                     Resource r = mod.getObject().createResource(ddc.getModelObject().getNode().getURI());
-                    hshapes.createProperty(mod.getObject(), subject, r.asNode());
+                    hshapes.createProperty2(shape, mod.getObject(), mod.getObject().createResource(subject.getURI()), r);
                     System.out.println("ADDED DATA =======================================");
                     RDFDataMgr.write(System.out, mod.getObject(), Lang.TURTLE);
                     System.out.println("^^^^^^^^^^^^^^^^^^^  ============================");
@@ -156,7 +154,7 @@ public class SHACLForm extends Panel implements IMarkupResourceStreamProvider {
     }
     
     public final boolean Validate() {
-        Shapes shapes = Shapes.parse((new HShapes(shape)).getShapes().getGraph());
+        Shapes shapes = Shapes.parse((new HShapes()).getShapes().getGraph());
         System.out.println("Checking file structure...");
         ValidationReport report = ShaclValidator.get().validate(shapes, mod.getObject().getGraph());
         boolean valid = report.conforms();

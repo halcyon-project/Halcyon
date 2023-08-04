@@ -1,25 +1,12 @@
 package com.ebremer.halcyon.converters;
 
 import com.ebremer.halcyon.ExtendedPolygon;
-import static com.ebremer.halcyon.converters.GeoTools.WKT2Polygon;
-import com.ebremer.halcyon.utils.ImageMeta;
 import com.ebremer.halcyon.utils.ImageMeta.ImageObject;
-import com.ebremer.ns.EXIF;
-import com.ebremer.ns.HAL;
 import com.ebremer.ns.SNO;
 import java.awt.Polygon;
 import java.io.InputStream;
 import java.util.LinkedList;
 import java.util.Scanner;
-import org.apache.jena.query.ParameterizedSparqlString;
-import org.apache.jena.query.QueryExecution;
-import org.apache.jena.query.QueryExecutionFactory;
-import org.apache.jena.query.QuerySolution;
-import org.apache.jena.query.ResultSet;
-import org.apache.jena.rdf.model.Model;
-import org.apache.jena.vocabulary.OA;
-import org.apache.jena.vocabulary.RDF;
-import org.apache.jena.vocabulary.SchemaDO;
 
 /**
  * YAY
@@ -40,6 +27,7 @@ public class NeoSegmentations {
         return width;
     }
   
+    /*
     public void Protocol2(Model m) {
         ParameterizedSparqlString pss = new ParameterizedSparqlString( """
             select ?height ?width where {                                        
@@ -90,7 +78,7 @@ public class NeoSegmentations {
                 eps.add(ep);
             }
         }
-    }
+    }*/
     
     public void Protocol4(ImageObject io, InputStream is) {
         width = io.width;

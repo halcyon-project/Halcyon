@@ -31,10 +31,11 @@ public class PredicateObject extends Panel implements IMarkupResourceStreamProvi
         this.triple = s.asTriple();
         String PredicateLabel = s.getPredicate().getLocalName();
         label = new Label("predicate", Model.of(PredicateLabel));
-        HashSet<Node> dt = ls.getDataTypes(s.getPredicate().asResource());
+        HashSet<Node> dt = ls.getDataTypes(shape,s.getPredicate().asResource());
         WebMarkupContainer divlabel = new WebMarkupContainer("divlabel");
         divlabel.add(AttributeModifier.replace("style", "width: 150px; display: inline-block;"));
         WebMarkupContainer divobject = new WebMarkupContainer("divobject");
+        divobject.setOutputMarkupId(true);
         divobject.add(AttributeModifier.replace("style", "display: inline-block;"));
         WebMarkupContainer divdelete = new WebMarkupContainer("divdelete"); 
         divdelete.add(AttributeModifier.replace("style", "display: inline-block;"));
