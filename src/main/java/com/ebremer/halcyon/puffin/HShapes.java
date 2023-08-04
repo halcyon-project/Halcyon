@@ -188,9 +188,9 @@ public class HShapes {
     public Resource addLiteral(Node shape, Resource subject, Resource prop) {
         ParameterizedSparqlString pss = new ParameterizedSparqlString(
             """
-            select distinct ?predicate ?datatype ?defaultValue
-            where {  ?shape a sh:NodeShape ;
-                            sh:property/sh:path ?predicate; sh:datatype ?datatype; sh:defaultValue ?defaultValue
+            select distinct ?datatype ?defaultValue
+            where {  ?shape a sh:NodeShape ; sh:property ?property .
+                            ?property sh:path ?predicate; sh:datatype ?datatype; sh:defaultValue ?defaultValue
             }
             """
         );
@@ -198,22 +198,32 @@ public class HShapes {
         pss.setNsPrefix("hal", HAL.NS);
         pss.setIri("shape", shape.getURI());
         pss.setIri("predicate", prop.getURI());
-        System.out.println(pss.toString());
         ResultSet rs = QueryExecutionFactory.create(pss.toString(),shacl).execSelect();
         while (rs.hasNext()) {
             QuerySolution qs = rs.next();
-            RDFNode predicate = qs.get("predicate");
             RDFNode datatype = qs.get("datatype");
+            RDFNode defaultValue = qs.get("defaultValue");
             String dt = datatype.asResource().getURI();
             RDFDatatype dx = TypeMapper.getInstance().getSafeTypeByName(dt);
             System.out.println(dx);
-            //subject.addLiteral(subject.getModel().createProperty(predicate.asResource().getURI()), )
+            Property pp = subject.getModel().createProperty(prop.asResource().getURI());
+            Literal literal = defaultValue.asLiteral();
+            Class clazz = dx.getJavaClass();
+            if (Integer.class.isAssignableFrom(clazz)) {
+                subject.addLiteral(pp, literal.getInt());
+            } else if (Float.class.isAssignableFrom(clazz)) {
+                subject.addLiteral(pp, literal.getFloat());
+            } else if (String.class.isAssignableFrom(clazz)) {
+                subject.addLiteral(pp, literal.getString());
+            } else {
+                throw new Error("ACK!!!!");
+            }
         }
         return subject;
     }
     
-    public void createProperty2(Node shape, Model m, Resource subject, Resource prop) {
-        System.out.println("createProperty2");
+    public void createProperty(Node shape, Model m, Resource subject, Resource prop) {
+        System.out.println("createProperty");
         if (isLiteral(shape, prop)) {
             addLiteral(shape, subject, prop);
         } else {
@@ -225,9 +235,11 @@ public class HShapes {
         System.out.println("addResource");
         ParameterizedSparqlString pss = new ParameterizedSparqlString(
             """
-            select distinct ?subshape
+            select distinct ?subshape ?nodeKind ?defaultValue
             where {  ?shape a sh:NodeShape ; sh:property ?property .
-                            ?property sh:path ?predicate; sh:nodeKind sh:BlankNode; sh:node ?subshape
+                            ?property sh:path ?predicate; sh:nodeKind ?nodeKind .
+                            optional {?property sh:node ?subshape}
+                            optional {?property sh:defaultValue ?defaultValue}
             }
             """
         );
@@ -239,10 +251,16 @@ public class HShapes {
         ResultSet rs = QueryExecutionFactory.create(pss.toString(),shacl).execSelect();
         if (rs.hasNext()) {
             QuerySolution qs = rs.next();
-            Node subshape = qs.get("subshape").asResource().asNode();
-            Resource bn = subject.getModel().createResource();
-            createResource(subshape, bn);
-            subject.addProperty(subject.getModel().createProperty(prop.getURI()), bn);
+            RDFNode nodeKind = qs.get("nodeKind");
+            RDFNode subshape = qs.get("subshape");
+            RDFNode defaultValue = qs.get("defaultValue");
+            if (nodeKind.equals(SHACLM.BlankNode)) {
+                Resource bn = subject.getModel().createResource();
+                createResource(subshape.asNode(), bn);
+                subject.addProperty(subject.getModel().createProperty(prop.getURI()), bn);
+            } else {
+                subject.addProperty(subject.getModel().createProperty(prop.getURI()), defaultValue.asResource());
+            }
         }
         return subject;
     }

@@ -127,11 +127,20 @@ public class SHACLForm extends Panel implements IMarkupResourceStreamProvider {
                     Component parent = SHACLForm.this.getParent();
                     HShapes hshapes = new HShapes();
                     Resource r = mod.getObject().createResource(ddc.getModelObject().getNode().getURI());
-                    hshapes.createProperty2(shape, mod.getObject(), mod.getObject().createResource(subject.getURI()), r);
+                    if (subject.isBlank()) {
+                        hshapes.createProperty(shape, mod.getObject(), mod.getObject().createResource(AnonId.create(subject.getBlankNodeLabel())), r);
+                    } else {
+                        hshapes.createProperty(shape, mod.getObject(), mod.getObject().createResource(subject.getURI()), r);
+                    }
                     System.out.println("ADDED DATA =======================================");
                     RDFDataMgr.write(System.out, mod.getObject(), Lang.TURTLE);
                     System.out.println("^^^^^^^^^^^^^^^^^^^  ============================");
-                    SHACLForm newsf = new SHACLForm(SHACLForm.this.getId(), mod, mod.getObject().createResource(subject.getURI()), shape);
+                    SHACLForm newsf;
+                    if (subject.isBlank()) {
+                        newsf = new SHACLForm(SHACLForm.this.getId(), mod, mod.getObject().createResource(AnonId.create(subject.getBlankNodeLabel())), shape);
+                    } else {
+                        newsf = new SHACLForm(SHACLForm.this.getId(), mod, mod.getObject().createResource(subject.getURI()), shape);
+                    }
                     SHACLForm.this.replaceWith(newsf);
                     target.add(parent);
                 }

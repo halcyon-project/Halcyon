@@ -4,6 +4,7 @@ import com.ebremer.ethereal.RDFDetachableModel;
 import java.util.HashSet;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.Triple;
+import org.apache.jena.rdf.model.AnonId;
 import org.apache.jena.rdf.model.Statement;
 import org.apache.wicket.AttributeModifier;
 import org.apache.wicket.Component;
@@ -61,7 +62,12 @@ public class PredicateObject extends Panel implements IMarkupResourceStreamProvi
             public void onSubmit(AjaxRequestTarget target) {
                 Component parent = form.getParent();
                 mod.getObject().remove(Tools.asStatement(mod.getObject(), triple));
-                SHACLForm newsf = new SHACLForm(form.getId(), mod, mod.getObject().createResource(triple.getSubject().getURI()), shape);
+                SHACLForm newsf;
+                if (triple.getSubject().isBlank()) {
+                    newsf = new SHACLForm(form.getId(), mod, mod.getObject().createResource(AnonId.create(triple.getSubject().getBlankNodeLabel())), shape);
+                } else {
+                    newsf = new SHACLForm(form.getId(), mod, mod.getObject().createResource(triple.getSubject().getURI()), shape);
+                }
                 form.replaceWith(newsf);
                 target.add(parent);
             }
