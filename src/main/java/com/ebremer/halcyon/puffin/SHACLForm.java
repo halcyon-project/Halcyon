@@ -77,7 +77,7 @@ public class SHACLForm extends Panel implements IMarkupResourceStreamProvider {
                 c++;
             }
             Statement ma = Tools.asStatement(r.getModel(), Triple.create(r.asNode(), qs.get("predicate").asNode(), qs.get("object").asNode()));
-            String messages ="";
+            String messages = "";
             if (qs.contains("messages")) {
                 messages = qs.get("messages").asLiteral().getString();
             }
@@ -164,7 +164,6 @@ public class SHACLForm extends Panel implements IMarkupResourceStreamProvider {
     
     public final boolean Validate() {
         Shapes shapes = Shapes.parse((new HShapes()).getShapes().getGraph());
-        System.out.println("Checking file structure...");
         ValidationReport report = ShaclValidator.get().validate(shapes, mod.getObject().getGraph());
         boolean valid = report.conforms();
         if (!valid) {
@@ -174,7 +173,6 @@ public class SHACLForm extends Panel implements IMarkupResourceStreamProvider {
             System.out.println("========================================");
             return false;
         }
-        System.out.println("LIFE IS GOOD");
         return true;
     }
 }

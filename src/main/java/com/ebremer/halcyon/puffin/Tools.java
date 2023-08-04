@@ -27,10 +27,7 @@ public class Tools {
             case Integer value -> o = NodeFactory.createLiteralByValue(value, org.apache.jena.datatypes.xsd.XSDDatatype.XSDinteger);
             case String value -> o = NodeFactory.createLiteralByValue(value, org.apache.jena.datatypes.xsd.XSDDatatype.XSDstring);
             case Resource value -> o = NodeFactory.createURI(value.getURI());
-            default -> o = null;
-        }
-        if (o==null) {
-            System.out.println("Deal with this --> "+newobj.getClass().toGenericString());
+            default -> throw new Error("I CAN HANDLE THIS !!  --> "+newobj);
         }
         return Triple.create(s, p, o);
     }

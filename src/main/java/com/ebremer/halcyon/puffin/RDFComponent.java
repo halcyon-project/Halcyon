@@ -31,7 +31,6 @@ public class RDFComponent {
     private final DataType datatype;
     
     public RDFComponent(String id, final RDFDetachableModel model, final Triple triple, HashSet<Node> dtx) {
-        //System.out.println("RDFComponent ---> "+triple+"  "+triple.getSubject().isBlank());
         this.dtx = dtx;
         this.model = model;
         this.triple = triple;
@@ -63,7 +62,6 @@ public class RDFComponent {
         } else if (node.isURIResource()) {
             clazz = Resource.class;
         } else if (node.isAnon()) {
-            //System.out.println("GAAAAAAAAAAAAAA -----------------> "+node);
             clazz = SHACLForm.class;
         } else {
             throw new Error("RDFComponent Unhandled ---> "+node);
