@@ -68,6 +68,9 @@ public class HShapes {
         Shapes shapes = Shapes.parse(shacl.getGraph());
         ValidationReport report = ShaclValidator.get().validate(shapes, mod.getGraph());
         if (!report.conforms()) {
+            System.out.println("========= DATA  ======================");
+            RDFDataMgr.write(System.out, mod, Lang.TURTLE);
+            System.out.println("========================================");
             ShLib.printReport(report);
             System.out.println("========= ERROR REPORT =================");
             RDFDataMgr.write(System.out,report.getModel(), Lang.TURTLE);
