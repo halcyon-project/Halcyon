@@ -1,5 +1,6 @@
 package com.ebremer.halcyon.puffin;
 
+import com.ebremer.ns.DASH;
 import com.ebremer.ns.HAL;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -369,9 +370,10 @@ public class HShapes {
         ds.addNamedModel(HAL.ValidationReport.getURI(), report.getModel());
         ParameterizedSparqlString pss = new ParameterizedSparqlString(
             """
-            select distinct ?predicate ?object (GROUP_CONCAT(distinct ?order; separator=", ") AS ?orders) (GROUP_CONCAT(distinct ?message; separator=", ") AS ?messages) (GROUP_CONCAT(distinct ?pmessage; separator=", ") AS ?pmessages) (DATATYPE(?object) as ?datatype)
+            select distinct ?predicate ?object (GROUP_CONCAT(distinct ?order; separator=", ") AS ?orders) (GROUP_CONCAT(distinct ?message; separator=", ") AS ?messages) (GROUP_CONCAT(distinct ?editor; separator=", ") AS ?editors) (GROUP_CONCAT(distinct ?pmessage; separator=", ") AS ?pmessages) (DATATYPE(?object) as ?datatype)
             where {  graph ?shapes {   ?shape a sh:NodeShape ; sh:property ?property .
                                         ?property sh:path ?predicate .
+                                        optional { ?property dash:editor ?editor }
                                         optional { ?property sh:order ?order }
                                    }
                      ?s ?predicate ?object
@@ -386,6 +388,7 @@ public class HShapes {
         );
         pss.setNsPrefix("sh", SHACLM.NS);
         pss.setNsPrefix("hal", HAL.NS);
+        pss.setNsPrefix("dash", DASH.NS);
         pss.setIri("shapes", HAL.Shapes.getURI());
         pss.setIri("validation", HAL.ValidationReport.getURI());
         pss.setIri("shape", shape.getURI());

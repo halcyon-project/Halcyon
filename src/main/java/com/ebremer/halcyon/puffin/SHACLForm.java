@@ -10,10 +10,6 @@ import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.Statement;
 import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
-import org.apache.jena.shacl.ShaclValidator;
-import org.apache.jena.shacl.Shapes;
-import org.apache.jena.shacl.ValidationReport;
-import org.apache.jena.shacl.lib.ShLib;
 import org.apache.wicket.AttributeModifier;
 import org.apache.wicket.Component;
 import org.apache.wicket.MarkupContainer;
@@ -73,6 +69,7 @@ public class SHACLForm extends Panel implements IMarkupResourceStreamProvider {
                 parentItem.add(predicateGroupMessages);
                 childRepeatingView = new RepeatingView("childRepeatingView");
                 parentItem.add(childRepeatingView);
+                
             } else {
                 c++;
             }
@@ -81,7 +78,7 @@ public class SHACLForm extends Panel implements IMarkupResourceStreamProvider {
             if (qs.contains("messages")) {
                 messages = qs.get("messages").asLiteral().getString();
             }
-            PredicateObject predicateObject = new PredicateObject(childRepeatingView.newChildId(), mod, ma, ls, messages, shape, this);
+            PredicateObject predicateObject = new PredicateObject(childRepeatingView.newChildId(), mod, ma, ls, messages, shape, this, qs);
             if (c>0) {
                 predicateObject.setLabelVisible(false);
             }

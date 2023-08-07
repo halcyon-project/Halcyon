@@ -5,6 +5,7 @@ import com.ebremer.ns.HAL;
 import org.apache.jena.datatypes.RDFDatatype;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.Triple;
+import org.apache.jena.query.QuerySolution;
 import org.apache.jena.rdf.model.AnonId;
 import org.apache.jena.rdf.model.Property;
 import org.apache.jena.rdf.model.RDFNode;
@@ -13,6 +14,7 @@ import org.apache.jena.rdf.model.Statement;
 import org.apache.wicket.AttributeModifier;
 import org.apache.wicket.MarkupContainer;
 import org.apache.wicket.behavior.AttributeAppender;
+import org.apache.wicket.markup.ComponentTag;
 import org.apache.wicket.markup.IMarkupResourceStreamProvider;
 import org.apache.wicket.markup.html.WebMarkupContainer;
 import org.apache.wicket.markup.html.basic.Label;
@@ -29,7 +31,7 @@ import org.apache.wicket.util.resource.StringResourceStream;
 public class RDFPanel extends Panel implements IMarkupResourceStreamProvider {
     private final Triple triple;
 
-    public RDFPanel(String id, RDFDetachableModel mod, Statement s, HShapes ls, String messages, Node shape, SHACLForm form) {
+    public RDFPanel(String id, RDFDetachableModel mod, Statement s, HShapes ls, String messages, Node shape, SHACLForm form, QuerySolution qs) {
         super(id);
         this.triple = s.asTriple();
         WebMarkupContainer divobject = new WebMarkupContainer("divobject");
@@ -83,8 +85,20 @@ public class RDFPanel extends Panel implements IMarkupResourceStreamProvider {
                 divobject.add(subform);
             } else if (dtx.getJavaClass() == String.class) {
                 WebMarkupContainer subform = new WebMarkupContainer("subform");
-                TextField<String> textField = new TextField<>("subobject", new WicketTriple(mod, triple), String.class);
-                textField.add(new AttributeAppender("style", "width:500px;"));
+                TextField<String> textField;
+                if (qs.contains("editors")) {
+                    textField = new TextField<>("subobject", new WicketTriple(mod, triple), String.class) {
+                        @Override
+                        protected void onComponentTag(ComponentTag tag) {
+                            super.onComponentTag(tag);
+                            tag.put("type", "color");
+                        }
+                    };
+                    textField.add(new AttributeAppender("style", "width:100px;"));
+                } else {
+                    textField = new TextField<>("subobject", new WicketTriple(mod, triple), String.class);
+                    textField.add(new AttributeAppender("style", "width:500px;"));
+                }
                 //textField.setEnabled(false);
                 subform.setVisible(false);
                 divobject.add(textField);

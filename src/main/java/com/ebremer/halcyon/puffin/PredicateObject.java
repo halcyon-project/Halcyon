@@ -1,9 +1,9 @@
 package com.ebremer.halcyon.puffin;
 
 import com.ebremer.ethereal.RDFDetachableModel;
-import java.util.HashSet;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.Triple;
+import org.apache.jena.query.QuerySolution;
 import org.apache.jena.rdf.model.AnonId;
 import org.apache.jena.rdf.model.Statement;
 import org.apache.wicket.AttributeModifier;
@@ -27,7 +27,7 @@ public class PredicateObject extends Panel implements IMarkupResourceStreamProvi
     private Triple triple;
     private final Label label;
 
-    public PredicateObject(String id, RDFDetachableModel mod, Statement s, HShapes ls, String messages, Node shape, SHACLForm form) {
+    public PredicateObject(String id, RDFDetachableModel mod, Statement s, HShapes ls, String messages, Node shape, SHACLForm form, QuerySolution qs) {
         super(id);
         this.triple = s.asTriple();
         String PredicateLabel = s.getPredicate().getLocalName();
@@ -70,8 +70,7 @@ public class PredicateObject extends Panel implements IMarkupResourceStreamProvi
             }
         };
         divdelete.add(button);
-        getApplication().getMarkupSettings().getMarkupFactory().getMarkupCache().clear();
-        divobject.add(new RDFPanel("object", mod, s, ls, messages, shape, form));
+        divobject.add(new RDFPanel("object", mod, s, ls, messages, shape, form, qs));
     }
     
     public void setLabelVisible(boolean visible) {
