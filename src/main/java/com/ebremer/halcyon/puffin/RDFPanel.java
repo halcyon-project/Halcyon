@@ -2,7 +2,6 @@ package com.ebremer.halcyon.puffin;
 
 import com.ebremer.ethereal.RDFDetachableModel;
 import com.ebremer.ns.HAL;
-import java.util.HashSet;
 import org.apache.jena.datatypes.RDFDatatype;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.Triple;
@@ -12,10 +11,7 @@ import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.Statement;
 import org.apache.wicket.AttributeModifier;
-import org.apache.wicket.Component;
 import org.apache.wicket.MarkupContainer;
-import org.apache.wicket.ajax.AjaxRequestTarget;
-import org.apache.wicket.ajax.markup.html.form.AjaxButton;
 import org.apache.wicket.behavior.AttributeAppender;
 import org.apache.wicket.markup.IMarkupResourceStreamProvider;
 import org.apache.wicket.markup.html.WebMarkupContainer;
@@ -35,17 +31,14 @@ public class RDFPanel extends Panel implements IMarkupResourceStreamProvider {
 
     public RDFPanel(String id, RDFDetachableModel mod, Statement s, HShapes ls, String messages, Node shape, SHACLForm form) {
         super(id);
-        System.out.println("RDFPanel ---> "+s.asTriple());
         this.triple = s.asTriple();
-        HashSet<Node> dt = ls.getDataTypes(shape,s.getPredicate().asResource());
-
         WebMarkupContainer divobject = new WebMarkupContainer("divobject");
         divobject.setOutputMarkupId(true);
         divobject.add(AttributeModifier.replace("style", "display: inline-block;"));
-        WebMarkupContainer divstatus = new WebMarkupContainer("divstatus");
-        divstatus.add(AttributeModifier.replace("style", "display: inline-block;"));
+        //WebMarkupContainer divstatus = new WebMarkupContainer("divstatus");
+        //divstatus.add(AttributeModifier.replace("style", "display: inline-block;"));
         add(divobject);
-        add(divstatus);
+        //add(divstatus);
         Label status = new Label("status", Model.of(messages));
         if (messages.isEmpty()) {
             status.setVisible(false);
@@ -53,7 +46,7 @@ public class RDFPanel extends Panel implements IMarkupResourceStreamProvider {
             status.setVisible(true);
         }
         //cc.add(AttributeModifier.replace("style", "margin-left: ;"));
-        divstatus.add(status);
+        //divstatus.add(status);
         org.apache.jena.rdf.model.Model k = mod.getObject();
         Resource rr;
         if (triple.getSubject().isBlank()) {
@@ -71,24 +64,29 @@ public class RDFPanel extends Panel implements IMarkupResourceStreamProvider {
                 WebMarkupContainer subform = new WebMarkupContainer("subform");
                 TextField<String> textField = new TextField<>("subobject", new WicketTriple(mod, triple), Integer.class);
                 textField.add(new AttributeAppender("style", "width:500px;"));
+                subform.setVisible(false);
                 divobject.add(textField);
                 divobject.add(subform);
             } else if (dtx.getJavaClass() == Float.class) {
                 WebMarkupContainer subform = new WebMarkupContainer("subform");
                 TextField<String> textField = new TextField<>("subobject", new WicketTriple(mod, triple), Float.class);
                 textField.add(new AttributeAppender("style", "width:500px;"));
+                subform.setVisible(false);
                 divobject.add(textField);
                 divobject.add(subform);
             } else if (dtx.getJavaClass() == Double.class) {
                 WebMarkupContainer subform = new WebMarkupContainer("subform");
                 TextField<String> textField = new TextField<>("subobject", new WicketTriple(mod, triple), Double.class);
                 textField.add(new AttributeAppender("style", "width:500px;"));
+                subform.setVisible(false);
                 divobject.add(textField);
                 divobject.add(subform);
             } else if (dtx.getJavaClass() == String.class) {
                 WebMarkupContainer subform = new WebMarkupContainer("subform");
                 TextField<String> textField = new TextField<>("subobject", new WicketTriple(mod, triple), String.class);
                 textField.add(new AttributeAppender("style", "width:500px;"));
+                //textField.setEnabled(false);
+                subform.setVisible(false);
                 divobject.add(textField);
                 divobject.add(subform);
             } else {
@@ -99,6 +97,7 @@ public class RDFPanel extends Panel implements IMarkupResourceStreamProvider {
             TextField<String> textField = new TextField<>("subobject", new WicketTriple(mod, triple), Resource.class);
             textField.add(new AttributeAppender("style", "width:500px;"));
             divobject.add(textField);
+            subform.setVisible(false);
             divobject.add(subform);
         } else if (node.isAnon()) {
             SHACLForm formx = new SHACLForm("subform", mod, mod.getObject().createResource(new AnonId(triple.getObject().getBlankNodeLabel())), HAL.AnnotationClassShape.asNode());
@@ -117,7 +116,6 @@ public class RDFPanel extends Panel implements IMarkupResourceStreamProvider {
             <html><body>
             <wicket:panel>
                 <div wicket:id="divobject"><div wicket:id="subform"></div><input type="text" wicket:id="subobject"/></div>
-                <div wicket:id="divstatus"><label wicket:id="status"/></div>
             </wicket:panel>
             </body></html>
             """);

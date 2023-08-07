@@ -59,14 +59,14 @@ public class SHACLForm extends Panel implements IMarkupResourceStreamProvider {
                 parentItem = new WebMarkupContainer(parentRepeatingView.newChildId());
                 Label predicateGroupMessages;
                 if (qs.contains("pmessages")) {
-                    predicateGroupMessages = new Label("beef2", qs.get("pmessages").asLiteral().getString());
+                    predicateGroupMessages = new Label("predicatemessages", qs.get("pmessages").asLiteral().getString());
                     parentItem.add(AttributeModifier.replace("style", "background-color: #FFAAAA;"));
                     predicateGroupMessages.setVisible(true);
                 } else {
-                    predicateGroupMessages = new Label("beef2", "****");
+                    predicateGroupMessages = new Label("predicatemessages", "****");
                     predicateGroupMessages.setVisible(false);
                 }
-                Label predicateGroupLabel = new Label("beef", predicate.getLocalName());
+                Label predicateGroupLabel = new Label("predicatename", predicate.getLocalName());
                 predicateGroupLabel.setVisible(false);  //disable for now
                 parentRepeatingView.add(parentItem);
                 parentItem.add(predicateGroupLabel);
@@ -90,6 +90,8 @@ public class SHACLForm extends Panel implements IMarkupResourceStreamProvider {
         form.add(new AjaxButton("saveButton") {
             @Override
             public void onSubmit(AjaxRequestTarget target) {
+                HShapes hshapes = new HShapes();
+                hshapes.Validate(mod.getObject());
                 Component parent = SHACLForm.this.getParent();
                 if (subject.isBlank()) {
                     SHACLForm newsf = new SHACLForm(SHACLForm.this.getId(), mod, mod.getObject().createResource(AnonId.create(subject.getBlankNodeLabel())), shape);
@@ -157,22 +159,8 @@ public class SHACLForm extends Panel implements IMarkupResourceStreamProvider {
             .append("<input type=\"submit\" wicket:id=\"deleteButton\" value=\"delete\" />")
             .append("<input type=\"submit\" wicket:id=\"resetButton\" value=\"reset\" />")
             .append("<select wicket:id=\"predicates\">Predicates</select>")
-            .append("<div wicket:id=\"predicateObjectRepeatingView\"><label wicket:id=\"beef\"/><label wicket:id=\"beef2\"/><div wicket:id=\"childRepeatingView\"></div></div>")
+            .append("<div wicket:id=\"predicateObjectRepeatingView\"><label wicket:id=\"predicatename\"/><label wicket:id=\"predicatemessages\"/><div wicket:id=\"childRepeatingView\"></div></div>")
             .append("</form></wicket:panel></body></html>");
         return new StringResourceStream(sb.toString());
-    }
-    
-    public final boolean Validate() {
-        Shapes shapes = Shapes.parse((new HShapes()).getShapes().getGraph());
-        ValidationReport report = ShaclValidator.get().validate(shapes, mod.getObject().getGraph());
-        boolean valid = report.conforms();
-        if (!valid) {
-            ShLib.printReport(report);
-            System.out.println("========= ERROR REPORT =================");
-            RDFDataMgr.write(System.out,report.getModel(), Lang.TURTLE);
-            System.out.println("========================================");
-            return false;
-        }
-        return true;
     }
 }

@@ -28,6 +28,7 @@ import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.shacl.ShaclValidator;
 import org.apache.jena.shacl.Shapes;
 import org.apache.jena.shacl.ValidationReport;
+import org.apache.jena.shacl.lib.ShLib;
 import org.apache.jena.shacl.vocabulary.SHACLM;
 import org.apache.jena.vocabulary.RDF;
 import org.slf4j.Logger;
@@ -60,6 +61,18 @@ public class HShapes {
 
     public HashSet<Node> getNodeShapes() {
         return NodeShapes;
+    }
+    
+    public final ValidationReport Validate(Model mod) {
+        Shapes shapes = Shapes.parse(shacl.getGraph());
+        ValidationReport report = ShaclValidator.get().validate(shapes, mod.getGraph());
+        if (!report.conforms()) {
+            ShLib.printReport(report);
+            System.out.println("========= ERROR REPORT =================");
+            RDFDataMgr.write(System.out,report.getModel(), Lang.TURTLE);
+            System.out.println("========================================");
+        }
+        return report;
     }
     
     public HashSet<Node> getDataTypes(Node shape, Resource r) {
@@ -349,19 +362,11 @@ public class HShapes {
     }
     
     public ResultSet getFormElements(Resource r, Node shape) {
-        Shapes shapes = Shapes.parse((new HShapes()).getShapes().getGraph());
-        ValidationReport report = ShaclValidator.get().validate(shapes, r.getModel().getGraph());
+        ValidationReport report = Validate(r.getModel());
         Dataset ds = DatasetFactory.create();
         ds.getDefaultModel().add(r.getModel());
         ds.addNamedModel(HAL.Shapes.getURI(), shacl);
         ds.addNamedModel(HAL.ValidationReport.getURI(), report.getModel());
-        if (!report.conforms()) {
-            System.out.println("========= DATA REPORT =================");
-            RDFDataMgr.write(System.out,r.getModel(), Lang.TURTLE);        
-            System.out.println("========= ERROR REPORT =================");
-            RDFDataMgr.write(System.out,report.getModel(), Lang.TURTLE);
-            System.out.println("========================================");
-        }
         ParameterizedSparqlString pss = new ParameterizedSparqlString(
             """
             select distinct ?predicate ?object (GROUP_CONCAT(distinct ?order; separator=", ") AS ?orders) (GROUP_CONCAT(distinct ?message; separator=", ") AS ?messages) (GROUP_CONCAT(distinct ?pmessage; separator=", ") AS ?pmessages) (DATATYPE(?object) as ?datatype)
