@@ -1,26 +1,19 @@
 package com.ebremer.halcyon.puffin;
 
 import com.ebremer.ethereal.RDFDetachableModel;
-import com.ebremer.ns.HAL;
 import java.util.HashSet;
-import org.apache.jena.datatypes.RDFDatatype;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.Triple;
 import org.apache.jena.rdf.model.AnonId;
-import org.apache.jena.rdf.model.Property;
-import org.apache.jena.rdf.model.RDFNode;
-import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.Statement;
 import org.apache.wicket.AttributeModifier;
 import org.apache.wicket.Component;
 import org.apache.wicket.MarkupContainer;
 import org.apache.wicket.ajax.AjaxRequestTarget;
 import org.apache.wicket.ajax.markup.html.form.AjaxButton;
-import org.apache.wicket.behavior.AttributeAppender;
 import org.apache.wicket.markup.IMarkupResourceStreamProvider;
 import org.apache.wicket.markup.html.WebMarkupContainer;
 import org.apache.wicket.markup.html.basic.Label;
-import org.apache.wicket.markup.html.form.TextField;
 import org.apache.wicket.markup.html.panel.Panel;
 import org.apache.wicket.model.Model;
 import org.apache.wicket.util.resource.IResourceStream;
@@ -36,7 +29,6 @@ public class PredicateObject extends Panel implements IMarkupResourceStreamProvi
 
     public PredicateObject(String id, RDFDetachableModel mod, Statement s, HShapes ls, String messages, Node shape, SHACLForm form) {
         super(id);
-        System.out.println("PredicateObject ---> "+s.asTriple());
         this.triple = s.asTriple();
         String PredicateLabel = s.getPredicate().getLocalName();
         label = new Label("predicate", Model.of(PredicateLabel));
@@ -79,8 +71,8 @@ public class PredicateObject extends Panel implements IMarkupResourceStreamProvi
             }
         };
         divdelete.add(button);
-        RDFPanel ppx = new RDFPanel("object", mod, s, ls, messages, shape, form);
-        divobject.add(ppx);
+        getApplication().getMarkupSettings().getMarkupFactory().getMarkupCache().clear();
+        divobject.add(new RDFPanel("object", mod, s, ls, messages, shape, form));
     }
     
     public void setLabelVisible(boolean visible) {
@@ -93,7 +85,7 @@ public class PredicateObject extends Panel implements IMarkupResourceStreamProvi
             <html><body>
             <wicket:panel>
                 <div wicket:id="divlabel"><label wicket:id="predicate"/></div>
-                <div wicket:id="divobject"><input type="text" wicket:id="object"/></div>
+                <div wicket:id="divobject"><div wicket:id="object"></div></div>
                 <div wicket:id="divdelete"><button wicket:id="deletethis">Delete</button></div>
                 <div wicket:id="divstatus"><label wicket:id="status"/></div>
             </wicket:panel>

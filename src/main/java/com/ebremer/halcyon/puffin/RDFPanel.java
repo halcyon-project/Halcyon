@@ -31,29 +31,20 @@ import org.apache.wicket.util.resource.StringResourceStream;
  * @author erich
  */
 public class RDFPanel extends Panel implements IMarkupResourceStreamProvider {
-    private Triple triple;
-    private final Label label;
-    private boolean oform = false;
+    private final Triple triple;
 
     public RDFPanel(String id, RDFDetachableModel mod, Statement s, HShapes ls, String messages, Node shape, SHACLForm form) {
         super(id);
-        System.out.println("PredicateObject ---> "+s.asTriple());
+        System.out.println("RDFPanel ---> "+s.asTriple());
         this.triple = s.asTriple();
-        String PredicateLabel = s.getPredicate().getLocalName();
-        label = new Label("predicate", Model.of(PredicateLabel));
         HashSet<Node> dt = ls.getDataTypes(shape,s.getPredicate().asResource());
-        WebMarkupContainer divlabel = new WebMarkupContainer("divlabel");
-        divlabel.add(AttributeModifier.replace("style", "width: 150px; display: inline-block;"));
+
         WebMarkupContainer divobject = new WebMarkupContainer("divobject");
         divobject.setOutputMarkupId(true);
         divobject.add(AttributeModifier.replace("style", "display: inline-block;"));
-        WebMarkupContainer divdelete = new WebMarkupContainer("divdelete"); 
-        divdelete.add(AttributeModifier.replace("style", "display: inline-block;"));
         WebMarkupContainer divstatus = new WebMarkupContainer("divstatus");
         divstatus.add(AttributeModifier.replace("style", "display: inline-block;"));
-        add(divlabel);
         add(divobject);
-        add(divdelete);
         add(divstatus);
         Label status = new Label("status", Model.of(messages));
         if (messages.isEmpty()) {
@@ -61,25 +52,8 @@ public class RDFPanel extends Panel implements IMarkupResourceStreamProvider {
         } else {
             status.setVisible(true);
         }
-        divlabel.add(label);
         //cc.add(AttributeModifier.replace("style", "margin-left: ;"));
         divstatus.add(status);
-        AjaxButton button = new AjaxButton("deletethis") {
-            @Override
-            public void onSubmit(AjaxRequestTarget target) {
-                Component parent = form.getParent();
-                mod.getObject().remove(Tools.asStatement(mod.getObject(), triple));
-                SHACLForm newsf;
-                if (triple.getSubject().isBlank()) {
-                    newsf = new SHACLForm(form.getId(), mod, mod.getObject().createResource(AnonId.create(triple.getSubject().getBlankNodeLabel())), shape);
-                } else {
-                    newsf = new SHACLForm(form.getId(), mod, mod.getObject().createResource(triple.getSubject().getURI()), shape);
-                }
-                form.replaceWith(newsf);
-                target.add(parent);
-            }
-        };
-        divdelete.add(button);
         org.apache.jena.rdf.model.Model k = mod.getObject();
         Resource rr;
         if (triple.getSubject().isBlank()) {
@@ -94,65 +68,55 @@ public class RDFPanel extends Panel implements IMarkupResourceStreamProvider {
         if (node.isLiteral()) {
             RDFDatatype dtx = node.asLiteral().getDatatype();
             if (dtx.getJavaClass() == Integer.class) {
-                TextField<String> textField = new TextField<>("object", new WicketTriple(mod, triple), Integer.class);
+                WebMarkupContainer subform = new WebMarkupContainer("subform");
+                TextField<String> textField = new TextField<>("subobject", new WicketTriple(mod, triple), Integer.class);
                 textField.add(new AttributeAppender("style", "width:500px;"));
                 divobject.add(textField);
+                divobject.add(subform);
             } else if (dtx.getJavaClass() == Float.class) {
-                TextField<String> textField = new TextField<>("object", new WicketTriple(mod, triple), Float.class);
+                WebMarkupContainer subform = new WebMarkupContainer("subform");
+                TextField<String> textField = new TextField<>("subobject", new WicketTriple(mod, triple), Float.class);
                 textField.add(new AttributeAppender("style", "width:500px;"));
                 divobject.add(textField);
+                divobject.add(subform);
             } else if (dtx.getJavaClass() == Double.class) {
-                TextField<String> textField = new TextField<>("object", new WicketTriple(mod, triple), Double.class);
+                WebMarkupContainer subform = new WebMarkupContainer("subform");
+                TextField<String> textField = new TextField<>("subobject", new WicketTriple(mod, triple), Double.class);
                 textField.add(new AttributeAppender("style", "width:500px;"));
                 divobject.add(textField);
+                divobject.add(subform);
             } else if (dtx.getJavaClass() == String.class) {
-                TextField<String> textField = new TextField<>("object", new WicketTriple(mod, triple), String.class);
+                WebMarkupContainer subform = new WebMarkupContainer("subform");
+                TextField<String> textField = new TextField<>("subobject", new WicketTriple(mod, triple), String.class);
                 textField.add(new AttributeAppender("style", "width:500px;"));
                 divobject.add(textField);
+                divobject.add(subform);
             } else {
                 throw new Error("Can't handle this!!! "+dtx.getJavaClass().toGenericString());
             }   
         } else if (node.isURIResource()) {
-                        System.out.println("HASH1");
-                TextField<String> textField = new TextField<>("object", new WicketTriple(mod, triple), Resource.class);
-                textField.add(new AttributeAppender("style", "width:500px;"));
-                divobject.add(textField);
+            WebMarkupContainer subform = new WebMarkupContainer("subform");
+            TextField<String> textField = new TextField<>("subobject", new WicketTriple(mod, triple), Resource.class);
+            textField.add(new AttributeAppender("style", "width:500px;"));
+            divobject.add(textField);
+            divobject.add(subform);
         } else if (node.isAnon()) {
-            System.out.println("HASH2222");
-            oform = true;
-            SHACLForm formx = new SHACLForm("object", mod, mod.getObject().createResource(new AnonId(triple.getObject().getBlankNodeLabel())), HAL.AnnotationClassShape.asNode());
+            SHACLForm formx = new SHACLForm("subform", mod, mod.getObject().createResource(new AnonId(triple.getObject().getBlankNodeLabel())), HAL.AnnotationClassShape.asNode());
             divobject.add(formx);
+            TextField<String> textField = new TextField<>("subobject", Model.of("YAY"));
+            divobject.add(textField);
+            textField.setVisible(false);
         } else {
             throw new Error("RDFComponent Unhandled ---> "+node);
         }
     }
-    
-    public void setLabelVisible(boolean visible) {
-        label.setVisible(visible);
-    }
 
     @Override
     public IResourceStream getMarkupResourceStream(MarkupContainer mc, Class<?> type) {
-        System.out.println("GENTEXT!!! "+oform+"  "+triple);
-        if (oform) {
-            System.out.println("PREDICATEISAFORM!!!!!!!!!!!!");
-            return new StringResourceStream("""
-                <html><body>
-                <wicket:panel>
-                    <div wicket:id="divlabel"><label wicket:id="predicate"/></div>
-                    <div wicket:id="divobject"><div wicket:id="object"></div></div>
-                    <div wicket:id="divdelete"><button wicket:id="deletethis">Delete</button></div>
-                    <div wicket:id="divstatus"><label wicket:id="status"/></div>
-                </wicket:panel>
-                </body></html>
-                """);            
-        }
         return new StringResourceStream("""
             <html><body>
             <wicket:panel>
-                <div wicket:id="divlabel"><label wicket:id="predicate"/></div>
-                <div wicket:id="divobject"><input type="text" wicket:id="object"/></div>
-                <div wicket:id="divdelete"><button wicket:id="deletethis">Delete</button></div>
+                <div wicket:id="divobject"><div wicket:id="subform"></div><input type="text" wicket:id="subobject"/></div>
                 <div wicket:id="divstatus"><label wicket:id="status"/></div>
             </wicket:panel>
             </body></html>

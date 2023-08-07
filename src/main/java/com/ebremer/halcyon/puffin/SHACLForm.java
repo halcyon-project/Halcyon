@@ -52,7 +52,7 @@ public class SHACLForm extends Panel implements IMarkupResourceStreamProvider {
         int c = 0;
         while (rs.hasNext()) {
             QuerySolution qs = rs.next();
-            System.out.println("SOLUTION ---> "+qs);
+            getApplication().getMarkupSettings().getMarkupFactory().getMarkupCache().clear();
             if (!predicate.equals(qs.get("predicate").asNode())) {
                 c=0;
                 predicate = qs.get("predicate").asNode();
