@@ -30,11 +30,12 @@ import org.apache.wicket.util.resource.StringResourceStream;
  *
  * @author erich
  */
-public class PredicateObject extends Panel implements IMarkupResourceStreamProvider {
+public class RDFPanel extends Panel implements IMarkupResourceStreamProvider {
     private Triple triple;
     private final Label label;
+    private boolean oform = false;
 
-    public PredicateObject(String id, RDFDetachableModel mod, Statement s, HShapes ls, String messages, Node shape, SHACLForm form) {
+    public RDFPanel(String id, RDFDetachableModel mod, Statement s, HShapes ls, String messages, Node shape, SHACLForm form) {
         super(id);
         System.out.println("PredicateObject ---> "+s.asTriple());
         this.triple = s.asTriple();
@@ -79,8 +80,51 @@ public class PredicateObject extends Panel implements IMarkupResourceStreamProvi
             }
         };
         divdelete.add(button);
-        RDFPanel ppx = new RDFPanel("object", mod, s, ls, messages, shape, form);
-        divobject.add(ppx);
+        org.apache.jena.rdf.model.Model k = mod.getObject();
+        Resource rr;
+        if (triple.getSubject().isBlank()) {
+            rr = k.createResource(new AnonId(triple.getSubject().getBlankNodeId().getLabelString()));
+        } else if (triple.getSubject().isURI()) {
+            rr = k.createResource(triple.getSubject().getURI());
+        } else {
+            throw new Error("HAHAHX --> "+triple);
+        }
+        Property pp = k.createProperty(triple.getPredicate().getURI());
+        RDFNode node = k.getProperty(rr,pp).getObject();
+        if (node.isLiteral()) {
+            RDFDatatype dtx = node.asLiteral().getDatatype();
+            if (dtx.getJavaClass() == Integer.class) {
+                TextField<String> textField = new TextField<>("object", new WicketTriple(mod, triple), Integer.class);
+                textField.add(new AttributeAppender("style", "width:500px;"));
+                divobject.add(textField);
+            } else if (dtx.getJavaClass() == Float.class) {
+                TextField<String> textField = new TextField<>("object", new WicketTriple(mod, triple), Float.class);
+                textField.add(new AttributeAppender("style", "width:500px;"));
+                divobject.add(textField);
+            } else if (dtx.getJavaClass() == Double.class) {
+                TextField<String> textField = new TextField<>("object", new WicketTriple(mod, triple), Double.class);
+                textField.add(new AttributeAppender("style", "width:500px;"));
+                divobject.add(textField);
+            } else if (dtx.getJavaClass() == String.class) {
+                TextField<String> textField = new TextField<>("object", new WicketTriple(mod, triple), String.class);
+                textField.add(new AttributeAppender("style", "width:500px;"));
+                divobject.add(textField);
+            } else {
+                throw new Error("Can't handle this!!! "+dtx.getJavaClass().toGenericString());
+            }   
+        } else if (node.isURIResource()) {
+                        System.out.println("HASH1");
+                TextField<String> textField = new TextField<>("object", new WicketTriple(mod, triple), Resource.class);
+                textField.add(new AttributeAppender("style", "width:500px;"));
+                divobject.add(textField);
+        } else if (node.isAnon()) {
+            System.out.println("HASH2222");
+            oform = true;
+            SHACLForm formx = new SHACLForm("object", mod, mod.getObject().createResource(new AnonId(triple.getObject().getBlankNodeLabel())), HAL.AnnotationClassShape.asNode());
+            divobject.add(formx);
+        } else {
+            throw new Error("RDFComponent Unhandled ---> "+node);
+        }
     }
     
     public void setLabelVisible(boolean visible) {
@@ -89,6 +133,20 @@ public class PredicateObject extends Panel implements IMarkupResourceStreamProvi
 
     @Override
     public IResourceStream getMarkupResourceStream(MarkupContainer mc, Class<?> type) {
+        System.out.println("GENTEXT!!! "+oform+"  "+triple);
+        if (oform) {
+            System.out.println("PREDICATEISAFORM!!!!!!!!!!!!");
+            return new StringResourceStream("""
+                <html><body>
+                <wicket:panel>
+                    <div wicket:id="divlabel"><label wicket:id="predicate"/></div>
+                    <div wicket:id="divobject"><div wicket:id="object"></div></div>
+                    <div wicket:id="divdelete"><button wicket:id="deletethis">Delete</button></div>
+                    <div wicket:id="divstatus"><label wicket:id="status"/></div>
+                </wicket:panel>
+                </body></html>
+                """);            
+        }
         return new StringResourceStream("""
             <html><body>
             <wicket:panel>
