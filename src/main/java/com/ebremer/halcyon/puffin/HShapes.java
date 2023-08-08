@@ -86,87 +86,12 @@ public class HShapes {
         }
         return report;
     }
-    
-    public HashSet<Node> getDataTypes(Node shape, Resource r) {
-        HashSet<Node> map = new HashSet<>();
-        ParameterizedSparqlString pss = new ParameterizedSparqlString(
-            """
-            select distinct ?datatype
-            where {  ?shape a sh:NodeShape ; sh:property ?property .
-                     ?property sh:path ?predicate .
-                     ?property sh:datatype ?datatype
-                  }
-            """
-        );
-        pss.setNsPrefix("sh", SHACLM.NS);
-        pss.setNsPrefix("hal", HAL.NS);
-        pss.setIri("shape", shape.getURI());
-        pss.setIri("predicate", r.getURI());
-        QueryExecution qe = QueryExecutionFactory.create(pss.toString(),shacl);
-        qe.execSelect().forEachRemaining(qs->{
-            map.add(qs.get("datatype").asNode());
-        });
-        pss = new ParameterizedSparqlString(
-            """
-            select distinct ?nodeKind
-            where {  ?shape a sh:NodeShape ; sh:property ?property .
-                     ?property sh:path ?predicate .
-                     ?property sh:nodeKind ?nodeKind
-                  }
-            """
-        );
-        pss.setNsPrefix("sh", SHACLM.NS);
-        pss.setNsPrefix("hal", HAL.NS);
-        pss.setIri("shape", shape.getURI());
-        pss.setIri("predicate", r.getURI());
-        ResultSet rs = QueryExecutionFactory.create(pss.toString(),shacl).execSelect();
-        if (rs.hasNext()) {
-            System.out.println("have something!");
-            QuerySolution qs = rs.next();
-            map.add(qs.get("nodeKind").asNode());
-        }
-        return map;
-    }
-    
-    public Node getNodeShape(Node shape, Resource prop) {
-        System.out.println("getNodeShape =========================================== "+prop);
-        ParameterizedSparqlString pss = new ParameterizedSparqlString(
-            """
-            select distinct ?subshape
-            where {  ?shape a sh:NodeShape ; sh:property ?property .
-                     ?property sh:path ?predicate .
-                     ?property sh:nodeKind sh:BlankNode .
-                     ?property sh:node ?subshape .
-                  } limit 1
-            """
-        );
-        pss.setNsPrefix("sh", SHACLM.NS);
-        pss.setNsPrefix("hal", HAL.NS);
-        pss.setIri("shape", shape.getURI());
-        pss.setIri("predicate", prop.getURI());
-        System.out.println(pss.toString());
-        ResultSet rs = QueryExecutionFactory.create(pss.toString(),shacl).execSelect();
-        if (rs.hasNext()) {
-            return rs.next().get("subshape").asNode();
-        }
-        return null;
-    }
 
     public boolean isLiteral(Node shape, Resource prop) {
-        ParameterizedSparqlString pss = new ParameterizedSparqlString(
-            """
-            ask
-            where {  ?shape a sh:NodeShape ; sh:property ?property .
-                     ?property sh:path ?predicate; sh:datatype ?datatype
-                  }
-            """
-        );
-        pss.setNsPrefix("sh", SHACLM.NS);
-        pss.setNsPrefix("hal", HAL.NS);
-        pss.setIri("shape", shape.getURI());
-        pss.setIri("predicate", prop.getURI());
-        System.out.println(pss.toString());
-        return QueryExecutionFactory.create(pss.toString(),shacl).execAsk();
+        HShape hshape = shapedata.get(shape);
+        System.out.println(hshape.datatypes());
+        boolean ha = hshape.datatypes().isEmpty();
+        return !ha;
     }
     
     public Resource addLiteral(Node shape, Resource subject, Resource prop) {
@@ -444,7 +369,6 @@ public class HShapes {
                 .forEachRemaining(qs->{
                     Node prop = qs.get("predicate").asResource().asNode();
                     properties.add(prop);
-                    System.out.println("LOCK : "+qs);
                     if (qs.contains("order")) { orders.put(prop, qs.get("order").asLiteral().getInt()); }
                     if (qs.contains("datatype")) { datatypes.put(prop, qs.get("datatype").asResource().asNode()); }
                     if (qs.contains("editor")) { editors.put(prop, qs.get("editor").asResource().asNode()); }
@@ -455,7 +379,6 @@ public class HShapes {
                         } else if (dv.isLiteral()) {
                             Literal literal = dv.asLiteral();
                             RDFDatatype dvt = literal.getDatatype();
-                            System.out.println("-----------------------------============================= "+dvt);
                             Class clazz = dvt.getJavaClass();
                             if (Integer.class.isAssignableFrom(clazz)) {
                                 defaultValue.put(prop, literal.getInt());
@@ -532,3 +455,94 @@ public class HShapes {
         }
         return shacl.createTypedLiteral("");
     }*/
+
+/*
+    public HashSet<Node> getDataTypes2(Node shape, Resource r) {
+        //HShape hshape = shapedata.get(shape);
+        //if (hshape.)
+        HashSet<Node> map = new HashSet<>();
+        ParameterizedSparqlString pss = new ParameterizedSparqlString(
+            """
+            select distinct ?datatype
+            where {  ?shape a sh:NodeShape ; sh:property ?property .
+                     ?property sh:path ?predicate .
+                     ?property sh:datatype ?datatype
+                  }
+            """
+        );
+        pss.setNsPrefix("sh", SHACLM.NS);
+        pss.setNsPrefix("hal", HAL.NS);
+        pss.setIri("shape", shape.getURI());
+        pss.setIri("predicate", r.getURI());
+        QueryExecution qe = QueryExecutionFactory.create(pss.toString(),shacl);
+        qe.execSelect().forEachRemaining(qs->{
+            map.add(qs.get("datatype").asNode());
+        });
+        pss = new ParameterizedSparqlString(
+            """
+            select distinct ?nodeKind
+            where {  ?shape a sh:NodeShape ; sh:property ?property .
+                     ?property sh:path ?predicate .
+                     ?property sh:nodeKind ?nodeKind
+                  }
+            """
+        );
+        pss.setNsPrefix("sh", SHACLM.NS);
+        pss.setNsPrefix("hal", HAL.NS);
+        pss.setIri("shape", shape.getURI());
+        pss.setIri("predicate", r.getURI());
+        ResultSet rs = QueryExecutionFactory.create(pss.toString(),shacl).execSelect();
+        if (rs.hasNext()) {
+            System.out.println("have something!");
+            QuerySolution qs = rs.next();
+            map.add(qs.get("nodeKind").asNode());
+        }
+        return map;
+    }
+*/
+
+/*
+    public Node getNodeShape2(Node shape, Resource prop) {
+        System.out.println("getNodeShape =========================================== "+prop);
+        ParameterizedSparqlString pss = new ParameterizedSparqlString(
+            """
+            select distinct ?subshape
+            where {  ?shape a sh:NodeShape ; sh:property ?property .
+                     ?property sh:path ?predicate .
+                     ?property sh:nodeKind sh:BlankNode .
+                     ?property sh:node ?subshape .
+                  } limit 1
+            """
+        );
+        pss.setNsPrefix("sh", SHACLM.NS);
+        pss.setNsPrefix("hal", HAL.NS);
+        pss.setIri("shape", shape.getURI());
+        pss.setIri("predicate", prop.getURI());
+        System.out.println(pss.toString());
+        ResultSet rs = QueryExecutionFactory.create(pss.toString(),shacl).execSelect();
+        if (rs.hasNext()) {
+            return rs.next().get("subshape").asNode();
+        }
+        return null;
+    }
+*/
+/*
+    public boolean isLiteral(Node shape, Resource prop) {
+        HShape hshape = shapedata.get(shape);
+        return !hshape.datatypes().isEmpty();
+        ParameterizedSparqlString pss = new ParameterizedSparqlString(
+            """
+            ask
+            where {  ?shape a sh:NodeShape ; sh:property ?property .
+                     ?property sh:path ?predicate; sh:datatype ?datatype
+                  }
+            """
+        );
+        pss.setNsPrefix("sh", SHACLM.NS);
+        pss.setNsPrefix("hal", HAL.NS);
+        pss.setIri("shape", shape.getURI());
+        pss.setIri("predicate", prop.getURI());
+        System.out.println(pss.toString());
+        return QueryExecutionFactory.create(pss.toString(),shacl).execAsk();
+    }
+*/
