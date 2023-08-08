@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import org.apache.jena.datatypes.RDFDatatype;
 import org.apache.jena.datatypes.TypeMapper;
 import org.apache.jena.graph.Node;
@@ -43,13 +44,16 @@ public class HShapes {
     private final Model shacl = ModelFactory.createDefaultModel();
     private final HashSet<Node> NodeShapes = new HashSet<>();
     final private static Logger logger = LoggerFactory.getLogger(HShapes.class);
+    private Map<Node,HShape> shapedata;
     
     public HShapes() {
+        shapedata = new HashMap<>();
         try {
             RDFDataMgr.read(shacl, new FileInputStream("shapes.ttl"), Lang.TURTLE);
             shacl.listResourcesWithProperty(RDF.type, SHACLM.NodeShape)
                  .forEach(c->{
                      NodeShapes.add(c.asNode());
+                     shapedata.put(c.asNode(), GenShapeData(c.asNode()));
                  });
         } catch (FileNotFoundException ex) {
             logger.error(ex.getMessage());
@@ -58,6 +62,10 @@ public class HShapes {
     
     public Model getShapes() {
         return shacl;
+    }
+    
+    public HShape getShapeData(Node shape) {
+        return shapedata.get(shape);
     }
 
     public HashSet<Node> getNodeShapes() {
@@ -118,47 +126,6 @@ public class HShapes {
             map.add(qs.get("nodeKind").asNode());
         }
         return map;
-    }
-    
-    public RDFNode getDefaultValue(Node shape, Resource prop) {
-        System.out.println("getDefaultValue =========================================== "+prop);
-        ParameterizedSparqlString pss = new ParameterizedSparqlString(
-            """
-            select distinct ?defaultValue
-            where {  ?shape a sh:NodeShape ; sh:property ?property .
-                     ?property sh:path ?predicate .
-                     ?property sh:defaultValue ?defaultValue
-                  } limit 1
-            """
-        );
-        pss.setNsPrefix("sh", SHACLM.NS);
-        pss.setNsPrefix("hal", HAL.NS);
-        pss.setIri("shape", shape.getURI());
-        pss.setIri("predicate", prop.getURI());
-        System.out.println(pss.toString());
-        ResultSet rs = QueryExecutionFactory.create(pss.toString(),shacl).execSelect();
-        if (rs.hasNext()) {
-            return rs.next().get("defaultValue");
-        }
-        System.out.println("Not a literal.  Look for nodeKind...");
-        pss = new ParameterizedSparqlString(
-            """
-            select distinct ?nodeKind
-            where {  ?shape a sh:NodeShape ; sh:property ?property .
-                     ?property sh:path ?predicate .
-                     ?property sh:nodeKind ?nodeKind
-                  }
-            """
-        );
-        pss.setNsPrefix("sh", SHACLM.NS);
-        pss.setNsPrefix("hal", HAL.NS);
-        pss.setIri("shape", shape.getURI());
-        pss.setIri("predicate", prop.getURI());
-        rs = QueryExecutionFactory.create(pss.toString(),shacl).execSelect();
-        if (rs.hasNext()) {
-            return rs.next().get("nodeKind");
-        }
-        return shacl.createTypedLiteral("");
     }
     
     public Node getNodeShape(Node shape, Resource prop) {
@@ -378,6 +345,7 @@ public class HShapes {
                                         ?property sh:path ?predicate .
                                         optional { ?property dash:editor ?editor }
                                         optional { ?property sh:order ?order }
+                                        optional { ?property sh:name ?name }
                                    }
                      ?s ?predicate ?object
             optional {{graph ?validation { ?result sh:focusNode ?s; sh:resultPath ?predicate; sh:value ?object; sh:resultMessage ?message }}}
@@ -416,12 +384,12 @@ public class HShapes {
                                         optional { ?shape sh:name ?name }
                                         optional { ?property sh:order ?order }
                                    }
-                     #?s ?predicate ?object
             } order by ?predicate
             """
         );
         pss.setNsPrefix("sh", SHACLM.NS);
         pss.setNsPrefix("hal", HAL.NS);
+        pss.setNsPrefix("dash", DASH.NS);
         pss.setIri("shapes", HAL.Shapes.getURI());
         pss.setIri("shape", shape.getURI());
         if (r.isAnon()) {
@@ -443,4 +411,124 @@ public class HShapes {
         });
         return new ArrayList<>(list.values());
     }
+
+    private HShape GenShapeData(Node shape) {
+        ParameterizedSparqlString pss = new ParameterizedSparqlString(
+            """
+            select distinct ?predicate ?datatype ?order ?editor ?defaultValue ?minCount ?maxCount
+            where { ?shape a sh:NodeShape ; sh:property ?property .
+                    ?property sh:path ?predicate
+                    optional { ?property sh:datatype ?datatype }
+                    optional { ?property sh:order ?order }
+                    optional { ?property dash:editor ?editor }
+                    optional { ?property sh:defaultValue ?defaultValue }
+                    optional { ?property sh:nodeKind ?nodeKind }
+                    optional { ?property sh:minCount ?minCount }
+                    optional { ?property sh:maxCount ?maxCount }
+            }
+            """
+        );
+        pss.setNsPrefix("sh", SHACLM.NS);
+        pss.setNsPrefix("dash", DASH.NS);
+        pss.setIri("shape", shape.getURI());
+        List<Node> properties = new ArrayList<>();
+        HashMap<Node, Integer> orders = new HashMap<>();
+        HashMap<Node, Node> datatypes = new HashMap<>();
+        HashMap<Node, Node> editors = new HashMap<>();
+        HashMap<Node, Object> defaultValue = new HashMap<>();
+        HashMap<Node, Node> nodeKind = new HashMap<>();
+        HashMap<Node, Integer> minCount = new HashMap<>();
+        HashMap<Node, Integer> maxCount = new HashMap<>();
+        
+        QueryExecutionFactory.create(pss.toString(),shacl).execSelect().materialise()
+                .forEachRemaining(qs->{
+                    Node prop = qs.get("predicate").asResource().asNode();
+                    properties.add(prop);
+                    System.out.println("LOCK : "+qs);
+                    if (qs.contains("order")) { orders.put(prop, qs.get("order").asLiteral().getInt()); }
+                    if (qs.contains("datatype")) { datatypes.put(prop, qs.get("datatype").asResource().asNode()); }
+                    if (qs.contains("editor")) { editors.put(prop, qs.get("editor").asResource().asNode()); }
+                    if (qs.contains("defaultValue")) {
+                        RDFNode dv = qs.get("defaultValue");
+                        if (dv.isURIResource()) {
+                            defaultValue.put(prop, dv.asResource().asNode());
+                        } else if (dv.isLiteral()) {
+                            Literal literal = dv.asLiteral();
+                            RDFDatatype dvt = literal.getDatatype();
+                            System.out.println("-----------------------------============================= "+dvt);
+                            Class clazz = dvt.getJavaClass();
+                            if (Integer.class.isAssignableFrom(clazz)) {
+                                defaultValue.put(prop, literal.getInt());
+                            } else if (Float.class.isAssignableFrom(clazz)) {
+                                defaultValue.put(prop, literal.getFloat());
+                            } else if (String.class.isAssignableFrom(clazz)) {
+                                defaultValue.put(prop, literal.getString());
+                            } else {
+                                throw new Error("ACK!!!!");
+                            }
+                            defaultValue.put(prop, qs.get("defaultValue").asLiteral().asLiteral());
+                        } else {
+                            defaultValue.put(prop, "UNKNOWN SITUATION");
+                        }
+                    }
+                    if (qs.contains("nodeKind")) { nodeKind.put(prop, qs.get("nodeKind").asResource().asNode()); }
+                    if (qs.contains("minCount")) { minCount.put(prop, qs.get("minCount").asLiteral().getInt()); }
+                    if (qs.contains("maxCount")) { maxCount.put(prop, qs.get("maxCount").asLiteral().getInt()); }
+                });
+        return new HShape(shape, properties, orders, datatypes, editors, defaultValue, nodeKind, minCount, maxCount);
+    }
+    
+    public static void main(String[] args) {
+        HShapes hshapes = new HShapes();
+        HShape hshape = hshapes.getShapeData(HAL.AnnotationClassListShape.asNode());
+        System.out.println(hshape);
+        hshape = hshapes.getShapeData(HAL.AnnotationClassShape.asNode());
+        System.out.println(hshape);
+        System.out.println(hshape.defaultValue().get(HAL.color.asNode()));
+    }
 }
+
+
+    
+    /*
+    
+    public RDFNode getDefaultValue2(Node shape, Resource prop) {
+        System.out.println("getDefaultValue =========================================== "+prop);
+        ParameterizedSparqlString pss = new ParameterizedSparqlString(
+            """
+            select distinct ?defaultValue
+            where {  ?shape a sh:NodeShape ; sh:property ?property .
+                     ?property sh:path ?predicate .
+                     ?property sh:defaultValue ?defaultValue
+                  } limit 1
+            """
+        );
+        pss.setNsPrefix("sh", SHACLM.NS);
+        pss.setNsPrefix("hal", HAL.NS);
+        pss.setIri("shape", shape.getURI());
+        pss.setIri("predicate", prop.getURI());
+        System.out.println(pss.toString());
+        ResultSet rs = QueryExecutionFactory.create(pss.toString(),shacl).execSelect();
+        if (rs.hasNext()) {
+            return rs.next().get("defaultValue");
+        }
+        System.out.println("Not a literal.  Look for nodeKind...");
+        pss = new ParameterizedSparqlString(
+            """
+            select distinct ?nodeKind
+            where {  ?shape a sh:NodeShape ; sh:property ?property .
+                     ?property sh:path ?predicate .
+                     ?property sh:nodeKind ?nodeKind
+                  }
+            """
+        );
+        pss.setNsPrefix("sh", SHACLM.NS);
+        pss.setNsPrefix("hal", HAL.NS);
+        pss.setIri("shape", shape.getURI());
+        pss.setIri("predicate", prop.getURI());
+        rs = QueryExecutionFactory.create(pss.toString(),shacl).execSelect();
+        if (rs.hasNext()) {
+            return rs.next().get("nodeKind");
+        }
+        return shacl.createTypedLiteral("");
+    }*/

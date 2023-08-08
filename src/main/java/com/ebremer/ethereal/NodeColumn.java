@@ -24,7 +24,6 @@ public class NodeColumn<T, S> extends AbstractColumn<T, S> implements IExportabl
 
     @Override
     public void populateItem(final Item<ICellPopulator<T>> item, final String componentId, final IModel<T> rowModel) {
-        //System.out.println(rowModel.getObject().getClass().toString()+"   populateItem "+predicateExpression);
         if ("xcreator".equals(predicateExpression)) {
             String ss = "BLANK";
             item.add(new ExternalLink(componentId,ss,ss));
@@ -40,9 +39,6 @@ public class NodeColumn<T, S> extends AbstractColumn<T, S> implements IExportabl
 
     @Override
     public IModel<?> getDataModel(IModel<T> rowModel) {
-        //System.out.println("getDataModel : "+rowModel.getObject().getClass().toString());
-        SolutionModel sm = new SolutionModel(rowModel);
-        //System.out.println("INNER : "+sm.getInnermostModelOrObject().getClass().toString());
-        return sm;
+        return new SolutionModel(rowModel);
     }
 }
