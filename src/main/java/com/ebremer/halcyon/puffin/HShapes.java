@@ -7,6 +7,8 @@ import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import org.apache.jena.datatypes.RDFDatatype;
@@ -33,6 +35,7 @@ import org.apache.jena.shacl.ValidationReport;
 import org.apache.jena.shacl.lib.ShLib;
 import org.apache.jena.shacl.vocabulary.SHACLM;
 import org.apache.jena.vocabulary.RDF;
+import org.apache.jena.vocabulary.RDFS;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -88,10 +91,7 @@ public class HShapes {
     }
 
     public boolean isLiteral(Node shape, Resource prop) {
-        HShape hshape = shapedata.get(shape);
-        System.out.println(hshape.datatypes());
-        boolean ha = hshape.datatypes().isEmpty();
-        return !ha;
+        return (shapedata.get(shape).datatypes().get(prop.asNode())!=null);
     }
     
     public Resource addLiteral(Node shape, Resource subject, Resource prop) {
@@ -265,10 +265,14 @@ public class HShapes {
         ds.addNamedModel(HAL.ValidationReport.getURI(), report.getModel());
         ParameterizedSparqlString pss = new ParameterizedSparqlString(
             """
-            select distinct ?predicate ?object (GROUP_CONCAT(distinct ?order; separator=", ") AS ?orders) (GROUP_CONCAT(distinct ?message; separator=", ") AS ?messages) (GROUP_CONCAT(distinct ?editor; separator=", ") AS ?editors) (GROUP_CONCAT(distinct ?pmessage; separator=", ") AS ?pmessages) (DATATYPE(?object) as ?datatype)
+            select distinct ?group ?predicate ?object (GROUP_CONCAT(distinct ?viewer; separator=", ") AS ?viewers) (GROUP_CONCAT(distinct ?order; separator=", ") AS ?orders) (GROUP_CONCAT(distinct ?message; separator=", ") AS ?messages) (GROUP_CONCAT(distinct ?editor; separator=", ") AS ?editors) (GROUP_CONCAT(distinct ?pmessage; separator=", ") AS ?pmessages) (DATATYPE(?object) as ?datatype)
             where {  graph ?shapes {   ?shape a sh:NodeShape ; sh:property ?property .
                                         ?property sh:path ?predicate .
+                                        optional { ?property sh:group ?group .
+                                                   ?group a sh:PropertyGroup; sh:order ?grouporder; rdfs:label ?grouplabel
+                                        }
                                         optional { ?property dash:editor ?editor }
+                                        optional { ?property dash:viewer ?viewer }
                                         optional { ?property sh:order ?order }
                                         optional { ?property sh:name ?name }
                                    }
@@ -278,13 +282,14 @@ public class HShapes {
                                             minus {?result sh:value ?x}
                 }}}
             }
-            group by ?predicate ?object
-            order by ?order ?predicate 
+            group by ?group ?predicate ?object
+            order by ?group ?grouporder ?order ?predicate 
             """
         );
         pss.setNsPrefix("sh", SHACLM.NS);
         pss.setNsPrefix("hal", HAL.NS);
         pss.setNsPrefix("dash", DASH.NS);
+        pss.setNsPrefix("rdfs", RDFS.uri);
         pss.setIri("shapes", HAL.Shapes.getURI());
         pss.setIri("validation", HAL.ValidationReport.getURI());
         pss.setIri("shape", shape.getURI());
@@ -340,12 +345,13 @@ public class HShapes {
     private HShape GenShapeData(Node shape) {
         ParameterizedSparqlString pss = new ParameterizedSparqlString(
             """
-            select distinct ?predicate ?datatype ?order ?editor ?defaultValue ?minCount ?maxCount
+            select distinct ?predicate ?datatype ?order ?editor ?defaultValue ?minCount ?maxCount ?viewer
             where { ?shape a sh:NodeShape ; sh:property ?property .
                     ?property sh:path ?predicate
                     optional { ?property sh:datatype ?datatype }
                     optional { ?property sh:order ?order }
                     optional { ?property dash:editor ?editor }
+                    optional { ?property dash:viewer ?viewer }
                     optional { ?property sh:defaultValue ?defaultValue }
                     optional { ?property sh:nodeKind ?nodeKind }
                     optional { ?property sh:minCount ?minCount }
@@ -356,10 +362,11 @@ public class HShapes {
         pss.setNsPrefix("sh", SHACLM.NS);
         pss.setNsPrefix("dash", DASH.NS);
         pss.setIri("shape", shape.getURI());
-        List<Node> properties = new ArrayList<>();
+        LinkedHashSet<Node> properties = new LinkedHashSet<>();
         HashMap<Node, Integer> orders = new HashMap<>();
         HashMap<Node, Node> datatypes = new HashMap<>();
         HashMap<Node, Node> editors = new HashMap<>();
+        HashMap<Node, Node> viewers = new HashMap<>();
         HashMap<Node, Object> defaultValue = new HashMap<>();
         HashMap<Node, Node> nodeKind = new HashMap<>();
         HashMap<Node, Integer> minCount = new HashMap<>();
@@ -372,6 +379,7 @@ public class HShapes {
                     if (qs.contains("order")) { orders.put(prop, qs.get("order").asLiteral().getInt()); }
                     if (qs.contains("datatype")) { datatypes.put(prop, qs.get("datatype").asResource().asNode()); }
                     if (qs.contains("editor")) { editors.put(prop, qs.get("editor").asResource().asNode()); }
+                    if (qs.contains("viewer")) { viewers.put(prop, qs.get("viewer").asResource().asNode()); }
                     if (qs.contains("defaultValue")) {
                         RDFNode dv = qs.get("defaultValue");
                         if (dv.isURIResource()) {
@@ -398,7 +406,7 @@ public class HShapes {
                     if (qs.contains("minCount")) { minCount.put(prop, qs.get("minCount").asLiteral().getInt()); }
                     if (qs.contains("maxCount")) { maxCount.put(prop, qs.get("maxCount").asLiteral().getInt()); }
                 });
-        return new HShape(shape, properties, orders, datatypes, editors, defaultValue, nodeKind, minCount, maxCount);
+        return new HShape(shape, properties, orders, datatypes, editors, viewers, defaultValue, nodeKind, minCount, maxCount);
     }
     
     public static void main(String[] args) {

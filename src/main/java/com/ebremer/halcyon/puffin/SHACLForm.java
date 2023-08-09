@@ -1,7 +1,9 @@
 package com.ebremer.halcyon.puffin;
 
 import com.ebremer.ethereal.RDFDetachableModel;
+import com.ebremer.ns.DASH;
 import org.apache.jena.graph.Node;
+import org.apache.jena.graph.NodeFactory;
 import org.apache.jena.graph.Triple;
 import org.apache.jena.query.QuerySolution;
 import org.apache.jena.query.ResultSet;
@@ -31,12 +33,12 @@ import org.apache.wicket.util.resource.StringResourceStream;
 public class SHACLForm extends Panel implements IMarkupResourceStreamProvider {
     private final DropDownChoice<Bundle> ddc;
     private Node subject;
-    private final RDFDetachableModel mod;
+    //private final RDFDetachableModel mod;
 
     public SHACLForm(String id, RDFDetachableModel mod, Resource r, Node shape) {
         super(id);
         this.subject = r.asNode();
-        this.mod = mod;
+      //  this.mod = mod;
         Form form = new Form("form", mod);
         HShapes ls = new HShapes();       
         RepeatingView parentRepeatingView = new RepeatingView("predicateObjectRepeatingView");
@@ -48,7 +50,6 @@ public class SHACLForm extends Panel implements IMarkupResourceStreamProvider {
         int c = 0;
         while (rs.hasNext()) {
             QuerySolution qs = rs.next();
-            getApplication().getMarkupSettings().getMarkupFactory().getMarkupCache().clear();
             if (!predicate.equals(qs.get("predicate").asNode())) {
                 c=0;
                 predicate = qs.get("predicate").asNode();
@@ -78,11 +79,20 @@ public class SHACLForm extends Panel implements IMarkupResourceStreamProvider {
             if (qs.contains("messages")) {
                 messages = qs.get("messages").asLiteral().getString();
             }
-            PredicateObject predicateObject = new PredicateObject(childRepeatingView.newChildId(), mod, ma, ls, messages, shape, this, qs);
-            if (c>0) {
-                predicateObject.setLabelVisible(false);
+            System.out.println("QS ----> "+qs);
+            if (qs.contains("viewers")) {
+                Node v = NodeFactory.createURI(qs.get("viewers").asLiteral().getString());
+                if (v.equals(DASH.ValueTableViewer.asNode())) {
+                    GridPanel grid = new GridPanel(childRepeatingView.newChildId(), r, v);
+                    childRepeatingView.add(grid);
+                }
+            } else {
+                PredicateObject predicateObject = new PredicateObject(childRepeatingView.newChildId(), mod, ma, ls, messages, shape, this, qs);
+                if (c>0) {
+                   predicateObject.setLabelVisible(false);
+                }
+                childRepeatingView.add(predicateObject);
             }
-            childRepeatingView.add(predicateObject);
         }
         form.add(new AjaxButton("saveButton") {
             @Override

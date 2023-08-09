@@ -16,7 +16,7 @@ public class DASH {
     public static final String NS ="https://datashapes.org/dash#";
     
     public static final Resource ColorPickerEditor  = ResourceFactory.createResource( NS + "ColorPickerEditor" );
-    public static final Resource ValueTableViewer   = ResourceFactory.createResource( NS + "ValueTableViewer " );
+    public static final Resource ValueTableViewer   = ResourceFactory.createResource( NS + "ValueTableViewer" );
     
     public static final Property editor             = ResourceFactory.createProperty( NS + "editor" );
     
