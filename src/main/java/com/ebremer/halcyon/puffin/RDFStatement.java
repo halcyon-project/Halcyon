@@ -5,16 +5,13 @@ import org.apache.jena.rdf.model.Literal;
 import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.Statement;
-import org.apache.jena.riot.Lang;
-import org.apache.jena.riot.RDFDataMgr;
 import org.apache.wicket.model.IModel;
 
 /**
  *
  * @author erich
- * @param <T>
  */
-public class RDFStatement<T> implements IModel<Object> {
+public class RDFStatement implements IModel<Object> {
     private final String uuid;
 
     public RDFStatement(Statement m) {
@@ -22,22 +19,20 @@ public class RDFStatement<T> implements IModel<Object> {
         this.uuid = UUID.randomUUID().toString();
         EphemeralStatementStorage.getInstance().put(uuid, m);
     }
+    
+    public Statement getStatement() {
+        return EphemeralStatementStorage.getInstance().get(uuid);
+    }
 
     @Override
     public Object getObject() {
         Object x = EphemeralStatementStorage.getInstance().get(uuid).getObject();
         System.out.println("getObject --> "+x+" <------ "+x.getClass().toGenericString());
         switch (x) {
-            case Literal n -> {
-                return n.getValue();
-            }
-            case Resource r -> {
-                return r;
-            }
-            default -> {
-            }
+            case Literal n -> { return n.getValue(); }
+            case Resource r -> { return r; }
+            default -> { throw new Error("arrrggg "+x.getClass().toGenericString()); }
         }
-        throw new Error("arrrggg "+x.getClass().toGenericString());
     }
     
     public Class getObjectClass() {
@@ -60,8 +55,9 @@ public class RDFStatement<T> implements IModel<Object> {
             case Float o -> s.changeLiteralObject(o);
             case Integer o -> s.changeLiteralObject(o);
             case String o -> s.changeObject(o);
-            default -> throw new Error("cant handle this either");
+            case Resource o -> s.changeObject(o);
+            case Boolean o -> s.changeLiteralObject(o);
+            default -> throw new Error("cant handle this either "+object.getClass().toGenericString());
         }
-        RDFDataMgr.write(System.out, s.getModel(), Lang.TURTLE);
     }
 }

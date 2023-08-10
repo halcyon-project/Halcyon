@@ -2,14 +2,10 @@ package com.ebremer.halcyon.puffin;
 
 import com.ebremer.ethereal.RDFDetachableModel;
 import java.math.BigInteger;
-import org.apache.jena.graph.Node;
 import org.apache.jena.graph.Triple;
-import org.apache.jena.rdf.model.AnonId;
 import org.apache.jena.rdf.model.Literal;
 import org.apache.jena.rdf.model.Model;
-import org.apache.jena.rdf.model.Property;
 import org.apache.jena.rdf.model.RDFNode;
-import org.apache.jena.rdf.model.Resource;
 import org.apache.wicket.model.IModel;
 
 
@@ -31,6 +27,7 @@ public class WicketTriple implements IModel {
     @Override
     public Object getObject() {
         Model k = model.getObject();
+        /*
         Resource rr;
         if (triple.getSubject().isBlank()) {
             rr = k.createResource(new AnonId(triple.getSubject().getBlankNodeId().getLabelString()));
@@ -38,7 +35,7 @@ public class WicketTriple implements IModel {
             rr = k.createResource(triple.getSubject().getURI());
         } else {
             throw new Error("HAHAH");
-        }
+        }*/
         RDFNode node = k.asRDFNode(triple.getObject());
         if (triple.getObject().isLiteral()) {
             Literal ha = node.asLiteral();
