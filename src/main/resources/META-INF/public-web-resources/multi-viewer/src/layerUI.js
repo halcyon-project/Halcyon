@@ -239,37 +239,30 @@ function addIconRow(myEyeArray, divTable, currentLayer, allLayers, viewer) {
   }
 }
 
-function _extractLocation(layer) {
-  let loc;
-  if (typeof layer.location === 'string') {
-    loc = layer.location;
-  } else if (typeof layer.location === 'object') {
-    loc = layer.location.url;
-  } else {
-    throw new TypeError(`Unidentified URL type... ${layer.location}`);
-  }
-  return loc;
-}
-
+/**
+ * Parse url for the feature name
+ * whilst we wait for that information to be available.
+ */
 function getPreferredLabel(layer) {
-  let featureName;
-  const loc = _extractLocation(layer);
-  const sections = loc.split("/");
-  const re = /^(?:[a-z]+:)?\b/gm;
-
-  if (loc.match(re)) {
-    // Absolute URL
-    featureName = sections[sections.length - 2];
-  } else {
-    // Relative URL
-    featureName = sections[sections.length - 1];
+  // Patch for not having prefLabel (or 'label') info
+  let name = "undefined";
+  let url = layer.location;
+  try {
+    let search = "FeatureStorage";
+    let sections = url.split("/");
+    let res = sections.indexOf(search);
+    if (res > -1) {
+      name = `${sections[res + 1]}-${sections[res + 2]}`
+    } else {
+      name = sections[sections.length - 2];
+      if (name.includes(".")) {
+        name = name.substring(0, name.indexOf("."));
+      }
+    }
+  } catch (e) {
+    console.log(`%cError. Check WSI URL: ${url}`, "color: #ff6a5a; font-size: larger;");
   }
-
-  if (featureName.includes(".")) {
-    featureName = featureName.substring(0, featureName.indexOf("."));
-  }
-
-  return featureName;
+  return name;
 }
 
 // Feature (draggable)

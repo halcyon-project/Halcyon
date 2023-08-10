@@ -13,6 +13,7 @@ class ImageViewer {
     const tileSources = [];
     for (let i = 0; i < layers.length; i++) {
       const layer = layers[i];
+      // console.log("%c\ntile source:\n", "color: #ccff00;", layer.location);
       tileSources.push({ tileSource: layer.location, opacity: layer.opacity, x: 0, y: 0 });
     }
     // console.log('tileSources', stringy(ts));
