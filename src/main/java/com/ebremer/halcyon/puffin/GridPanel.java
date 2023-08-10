@@ -47,7 +47,7 @@ public class GridPanel extends Panel implements IMarkupResourceStreamProvider {
         );
         pss.setNsPrefix("hal", HAL.NS);
         pss.setIri("subject", subject.getURI());
-        Dataset ds = DatasetFactory.create();
+        Dataset ds = DatasetFactory.createTxnMem();
         ds.setDefaultModel(subject.getModel());
         System.out.println("===================================================");
         System.out.println(pss.toString());

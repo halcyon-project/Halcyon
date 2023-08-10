@@ -7,6 +7,7 @@ import com.ebremer.halcyon.datum.DataCore;
 import com.ebremer.halcyon.fuseki.SPARQLEndPoint;
 import com.ebremer.halcyon.filesystem.FileManager;
 import com.ebremer.halcyon.puffin.Puffin;
+import com.ebremer.halcyon.puffin.Puffin2;
 import com.ebremer.halcyon.puffin.ResourceConverter;
 import com.ebremer.halcyon.wicket.AccountPage;
 import com.ebremer.halcyon.wicket.AdminPage;
@@ -92,6 +93,7 @@ public class HalcyonApplication extends WebApplication {
         mountPage("/viewall", ViewAll.class); 
         mountPage("/testviewall", TestViewAll.class); 
         mountPage("/puffin", Puffin.class); 
+        mountPage("/puffin2", Puffin2.class); 
         //mountPage("/login", LogHal.class);
         //mountPage("/gui/dicom", DICOM.class);
         //mountPage("/gui/dicom2", DCM.class);
