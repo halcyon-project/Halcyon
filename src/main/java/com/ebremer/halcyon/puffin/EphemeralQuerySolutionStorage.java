@@ -1,25 +1,25 @@
 package com.ebremer.halcyon.puffin;
 
 import java.util.concurrent.ConcurrentHashMap;
-import org.apache.jena.rdf.model.Statement;
+import org.apache.jena.query.QuerySolution;
 
 /**
  *
  * @author erich
  */
-public class EphemeralStatementStorage implements AutoCloseable {
+public class EphemeralQuerySolutionStorage implements AutoCloseable {
 
-    private final ConcurrentHashMap<String,Statement> map;
+    private final ConcurrentHashMap<String,QuerySolution> map;
     
-    public EphemeralStatementStorage() {
+    public EphemeralQuerySolutionStorage() {
         map = new ConcurrentHashMap<>();
     }
     
-    public void put(String key, Statement r) {
+    public void put(String key, QuerySolution r) {
         map.put(key,r);
     }
     
-    public Statement get(String key) {
+    public QuerySolution get(String key) {
         return map.get(key);
     }
     

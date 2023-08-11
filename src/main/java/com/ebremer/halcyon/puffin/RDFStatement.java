@@ -1,5 +1,6 @@
 package com.ebremer.halcyon.puffin;
 
+import com.ebremer.halcyon.gui.HalcyonSession;
 import java.util.UUID;
 import org.apache.jena.rdf.model.Literal;
 import org.apache.jena.rdf.model.RDFNode;
@@ -17,16 +18,16 @@ public class RDFStatement implements IModel<Object> {
     public RDFStatement(Statement m) {
         super();
         this.uuid = UUID.randomUUID().toString();
-        EphemeralStatementStorage.getInstance().put(uuid, m);
+        HalcyonSession.get().getBlock().getEphemeralStatementStorage().put(uuid, m);
     }
     
     public Statement getStatement() {
-        return EphemeralStatementStorage.getInstance().get(uuid);
+        return HalcyonSession.get().getBlock().getEphemeralStatementStorage().get(uuid);
     }
 
     @Override
     public Object getObject() {
-        Object x = EphemeralStatementStorage.getInstance().get(uuid).getObject();
+        Object x = HalcyonSession.get().getBlock().getEphemeralStatementStorage().get(uuid).getObject();
         System.out.println("getObject --> "+x+" <------ "+x.getClass().toGenericString());
         switch (x) {
             case Literal n -> { return n.getValue(); }
@@ -36,7 +37,7 @@ public class RDFStatement implements IModel<Object> {
     }
     
     public Class getObjectClass() {
-        RDFNode x = EphemeralStatementStorage.getInstance().get(uuid).getObject();
+        RDFNode x = HalcyonSession.get().getBlock().getEphemeralStatementStorage().get(uuid).getObject();
         System.out.println("getObjectClass --> "+x+" <------ "+x.getClass().toGenericString());
         if (x instanceof Literal n) {
             return n.getValue().getClass();
@@ -50,7 +51,7 @@ public class RDFStatement implements IModel<Object> {
     @Override
     public void setObject(Object object) {
         System.out.println("setObject --> "+object +" <------ "+object.getClass().toGenericString());
-        Statement s = EphemeralStatementStorage.getInstance().get(uuid);
+        Statement s = HalcyonSession.get().getBlock().getEphemeralStatementStorage().get(uuid);
         switch (object) {
             case Float o -> s.changeLiteralObject(o);
             case Integer o -> s.changeLiteralObject(o);
