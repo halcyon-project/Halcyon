@@ -13,6 +13,7 @@ import org.apache.jena.vocabulary.SchemaDO;
 import org.apache.wicket.ajax.AjaxRequestTarget;
 import org.apache.wicket.ajax.markup.html.form.AjaxButton;
 import org.apache.wicket.markup.html.form.Form;
+import org.apache.wicket.markup.html.form.TextField;
 import org.apache.wicket.request.mapper.parameter.PageParameters;
 
 /**
@@ -35,7 +36,7 @@ public class Puffin2 extends BasePage {
         Form form = new Form("form");
         ss = new RDFStatement(r.getProperty(SchemaDO.name));
         //RDFStatement ss = new RDFStatement(r.getProperty(FOAF.age));
-        form.add(new TextField("haha", ss));
+        form.add(new TextField("haha", ss, ss.getObjectClass()));
         add(form);
         form.add(new AjaxButton("save") {
             @Override
