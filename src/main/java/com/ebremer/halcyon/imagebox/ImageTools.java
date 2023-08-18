@@ -19,42 +19,40 @@ import javax.imageio.stream.ImageOutputStream;
 public class ImageTools {
     
     public static byte[] BufferedImage2JPG(BufferedImage bi) {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        byte[] ba = null;
         ImageWriter writer = ImageIO.getImageWritersByFormatName("jpg").next();
         JPEGImageWriteParam jpegParams = new JPEGImageWriteParam(null);
         jpegParams.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
         jpegParams.setCompressionQuality(1.0f);
-        ImageOutputStream imageOut = null;
-        try {
-            imageOut = ImageIO.createImageOutputStream(baos);
-            writer.setOutput(imageOut);
-            writer.write(null,new IIOImage(bi,null,null),jpegParams);   
-            baos.flush();
-            ba = baos.toByteArray();
-            baos.close();
+        try (
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            ImageOutputStream imageOut = ImageIO.createImageOutputStream(baos);   
+        )
+        {            
+                writer.setOutput(imageOut);
+                writer.write(null,new IIOImage(bi,null,null),jpegParams);   
+                baos.flush();
+                return baos.toByteArray();
         } catch (IOException ex) {
             Logger.getLogger(ImageTools.class.getName()).log(Level.SEVERE, null, ex);
         }
-        return ba;
+        return null;
     }
     
     public static byte[] BufferedImage2PNG(BufferedImage bi) {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        byte[] ba = null;
         ImageWriter writer = ImageIO.getImageWritersByFormatName("png").next();
         ImageWriteParam pjpegParams = writer.getDefaultWriteParam();
-        ImageOutputStream imageOut = null;
-        try {
-            imageOut=ImageIO.createImageOutputStream(baos);
+        try  (
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            ImageOutputStream imageOut=ImageIO.createImageOutputStream(baos);
+        )
+        {
             writer.setOutput(imageOut);
             writer.write(null,new IIOImage(bi,null,null),pjpegParams);
             baos.flush();
-            ba = baos.toByteArray();
-            baos.close();
+            return baos.toByteArray();
         } catch (IOException ex) {
             Logger.getLogger(ImageTools.class.getName()).log(Level.SEVERE, null, ex);
         }
-        return ba;
+        return null;
     }    
 }
