@@ -743,7 +743,6 @@
             <artifactId>BeakGraph</artifactId>
             <version>${beakgraph.version}</version>
         </dependency>
-        
         <dependency>
             <groupId>com.twelvemonkeys.imageio</groupId>
             <artifactId>imageio-tiff</artifactId>

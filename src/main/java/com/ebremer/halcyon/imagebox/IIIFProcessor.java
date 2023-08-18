@@ -35,10 +35,8 @@ public class IIIFProcessor {
     public ImageFormat imageformat;
 
     IIIFProcessor(String url) throws URISyntaxException {
-        //System.out.println("IIIFProcessor --> "+url);
         matcher = PATTERN1.matcher(url);
         if (matcher.find()) {
-            //System.out.println("grab a tile....");
             tilerequest = true;
             uri = new URI(matcher.group(1).replace(" ", "%20"));
             x = Integer.parseInt(matcher.group(2));

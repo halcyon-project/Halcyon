@@ -2,15 +2,23 @@ package com.ebremer.halcyon.imagebox;
 
 import com.ebremer.halcyon.HalcyonSettings;
 import com.ebremer.halcyon.imagebox.Enums.ImageFormat;
+import com.ebremer.halcyon.imagebox.TE.ImageMeta;
+import com.ebremer.halcyon.imagebox.TE.ImageRegion;
+import com.ebremer.halcyon.imagebox.TE.Rectangle;
+import com.ebremer.halcyon.imagebox.TE.Tile;
+import com.ebremer.halcyon.imagebox.TE.TileRequest;
+import com.ebremer.halcyon.imagebox.TE.TileRequestEngine;
+import com.ebremer.halcyon.imagebox.TE.TileRequestEnginePool;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.file.FileSystems;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.imageio.IIOImage;
 import javax.imageio.ImageIO;
 import javax.imageio.ImageWriteParam;
@@ -29,8 +37,6 @@ import javax.servlet.http.HttpServletResponse;
 public class ImageServer extends HttpServlet {
     
     private final HalcyonSettings settings = HalcyonSettings.getSettings(); 
-    private final ImageReaderKeyedPool pool = ImageReaderPool.getPool();
-    private final Path fpath = Paths.get(System.getProperty("user.dir")+"/"+settings.getwebfiles());
        
     @Override
     protected void doGet( HttpServletRequest request, HttpServletResponse response ) {
@@ -42,35 +48,43 @@ public class ImageServer extends HttpServlet {
             } catch (URISyntaxException ex) {
                 ReportError(response, "BAD URL");
             }
-            ImageTiler nt = null;
             String target = null;
             if (i.uri.getScheme()==null) {
+                throw new Error("CRASH");
+                /*
                 File image = Paths.get(fpath+"/"+i.uri.getPath()).toFile();
                 target = image.getPath();
+                
                 try {
                     nt = (ImageTiler) pool.borrowObject(target);
                 } catch (Exception ex) {
                     ReportError(response, "Can't get ImageTiler");
-                }
+                }*/
             } else if (i.uri.getScheme().startsWith("http")) {
-                target = i.uri.toString();
-                try {                
-                    nt = (ImageTiler) pool.borrowObject(target);
-                } catch (Exception ex) {
-                    ReportError(response, "Can't get ImageTiler");
-                }
+                //throw new Error("CRASH");
+                
+              //  target = i.uri.toString();
+//                try {                
+  //                  nt = (ImageTiler) pool.borrowObject(target);
+    //            } catch (Exception ex) {
+      //              ReportError(response, "Can't get ImageTiler");
+        //        }
             } else if (i.uri.getScheme().startsWith("file")) {
+                throw new Error("CRASH");
+                /*
                 File image = FileSystems.getDefault().provider().getPath(i.uri).toAbsolutePath().toFile();
                 target = image.getPath();
                 try {
                     nt = (ImageTiler) pool.borrowObject(target);
                 } catch (Exception ex) {
                     ReportError(response, "Can't get ImageTiler");
-                }
+                }*/
             } else {
                 ReportError(response, "I'm so confused as to what I am looking at....");
             }
-            if (nt.isBorked()) {
+            //if (nt.isBorked()) {
+            if (false) {
+                /*
                 response.setContentType("application/json");
                 response.setHeader("Access-Control-Allow-Origin", "*");
                 response.setStatus(500);
@@ -79,23 +93,41 @@ public class ImageServer extends HttpServlet {
                     writer.flush();   
                 } catch (IOException ex) {
                     ReportError(response, "ImageTiler is borked");
-                }
+                }*/
             } else if (i.tilerequest) {
-                BufferedImage originalImage;
+                com.ebremer.halcyon.imagebox.TE.ImageReader ir;
+                ImageMeta meta = null;
+                try {
+                    ir = com.ebremer.halcyon.imagebox.TE.ImageReaderPool.getPool().borrowObject(i.uri);
+                    meta = ir.getMeta();
+                    com.ebremer.halcyon.imagebox.TE.ImageReaderPool.getPool().returnObject(i.uri, ir);
+                } catch (Exception ex) {
+                    Logger.getLogger(ImageServer.class.getName()).log(Level.SEVERE, null, ex);
+                }
                 if (i.fullrequest) {
                     i.x = 0;
                     i.y = 0;
-                    i.w = nt.GetWidth();
-                    i.h = nt.GetHeight();
+                    i.w = meta.getWidth();
+                    i.h = meta.getHeight();
                 } else {
-                    if ((i.x+i.w)>nt.GetWidth()) {
-                        i.w = nt.GetWidth()-i.x;
+                    if ((i.x + i.w) > meta.getWidth()) {
+                        i.w = i.x - meta.getWidth();
                     }
-                    if ((i.y+i.h)>nt.GetHeight()) {
-                        i.h = nt.GetHeight()-i.y;
+                    if ((i.y + i.h) > meta.getHeight()) {
+                        i.h = i.y - meta.getHeight();
                     }                 
                 }
-                originalImage = nt.FetchImage(i.x, i.y, i.w, i.h, i.tx, i.tx);
+                TileRequest tr = TileRequest.genTileRequest(i.uri, new ImageRegion(i.x,i.y,i.w,i.h), new Rectangle(i.tx,i.ty), true);
+                Tile tile = null;
+                try {
+                    TileRequestEngine tre = TileRequestEnginePool.getPool().borrowObject(i.uri);
+                    Future<Tile> ftile = tre.getFutureTile(tr);
+                    tile = ftile.get(30, TimeUnit.SECONDS);
+                    TileRequestEnginePool.getPool().returnObject(i.uri, tre);
+                } catch (Exception ex) {
+                    Logger.getLogger(ImageServer.class.getName()).log(Level.SEVERE, null, ex);
+                }
+                BufferedImage originalImage = tile.image();
                 if (i.imageformat == ImageFormat.JPG) {
                     ImageWriter writer = ImageIO.getImageWritersByFormatName("jpg").next();
                     JPEGImageWriteParam jpegParams = new JPEGImageWriteParam(null);
@@ -139,21 +171,35 @@ public class ImageServer extends HttpServlet {
                         ReportError(response, "error creating ByteArrayOutputStream");
                     }
                 }
-            } else if (i.inforequest) {
-                nt.setURL(request.getRequestURL().toString()+"?"+request.getQueryString());
-                nt.setURL(settings.getProxyHostName()+request.getRequestURI()+"?"+request.getQueryString());
+            } else if (i.inforequest) {                
+                com.ebremer.halcyon.imagebox.TE.ImageReader ir;
+                ImageMeta meta = null;
+                try {
+                    ir = com.ebremer.halcyon.imagebox.TE.ImageReaderPool.getPool().borrowObject(i.uri);
+                    meta = ir.getMeta();
+                } catch (Exception ex) {
+                    Logger.getLogger(ImageServer.class.getName()).log(Level.SEVERE, null, ex);
+                }
                 response.setContentType("application/json");
                 response.setHeader("Access-Control-Allow-Origin", "*");
                 try (PrintWriter writer = response.getWriter()) {
-                    writer.append(nt.GetImageInfo());
+                    String xx = settings.getProxyHostName()+request.getRequestURI()+"?"+request.getQueryString();
+                    if (xx.toLowerCase().endsWith("/info.json")) {
+                        xx = xx.substring(0, xx.length()-"/info.json".length());
+                    } else if (xx.toLowerCase().endsWith("/info.json/")) {
+                        xx = xx.substring(0, xx.length()-"/info.json/".length());
+                    }
+                    URI x = new URI(xx);
+                    writer.append(IIIFMETA.GetImageInfo(x, meta));
                     writer.flush();
                 } catch (IOException ex) {
                     ReportError(response, "issue writing info.json file");
+                } catch (URISyntaxException ex) {
+                    Logger.getLogger(ImageServer.class.getName()).log(Level.SEVERE, null, ex);
                 }
             } else {
                 System.out.println("unknown IIIF request");
             }
-            pool.returnObject(target, nt);
         } else {
             ReportError(response, "NO IIIF Parameter");
         }
