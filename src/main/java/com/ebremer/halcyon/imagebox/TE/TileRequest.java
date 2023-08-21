@@ -1,11 +1,7 @@
-
 package com.ebremer.halcyon.imagebox.TE;
 
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
 import java.awt.image.BufferedImage;
 import java.net.URI;
-import java.time.Duration;
 import java.util.concurrent.Callable;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -18,7 +14,6 @@ public class TileRequest implements Callable<Tile> {
     private final URI uri;
     private final ImageRegion region;
     private final Rectangle preferredsize;
-    private static Cache<TileRequest, BufferedImage> cache;
     private final boolean cachethis;
     
     private TileRequest(URI uri, ImageRegion region, Rectangle preferredsize, boolean cachethis) {
@@ -26,10 +21,6 @@ public class TileRequest implements Callable<Tile> {
         this.region = region;
         this.preferredsize = preferredsize;
         this.cachethis = cachethis;
-        cache = Caffeine.newBuilder()
-            .maximumSize(10000)
-            .expireAfterAccess(Duration.ofMinutes(10))
-            .build();
     }
     
     public ImageRegion getRegion() {
@@ -64,20 +55,23 @@ public class TileRequest implements Callable<Tile> {
 
     @Override
     public Tile call() {
-        BufferedImage bi = cache.getIfPresent(this);
-        ImageReaderPool pool = ImageReaderPool.getPool();
         try {
-            ImageReader reader = pool.borrowObject(uri);
-            bi = reader.readTile(region, preferredsize);
-            pool.returnObject(uri, reader);
-            bi = ImageTools.ScaleBufferedImage(bi,preferredsize);
+            ImageReader reader = ImageReaderPool.getPool().borrowObject(uri);
+            Tile tile = reader.getCache().getIfPresent(this);
+            if (tile==null) {
+                BufferedImage bi = reader.readTile(region, preferredsize);
+                bi = ImageTools.ScaleBufferedImage(bi,preferredsize);
+                tile = new Tile(this,bi);
+                if (cachethis) {
+                    reader.getCache().put(this, tile);
+                }
+            }
+            ImageReaderPool.getPool().returnObject(uri, reader);
+            return tile;
         } catch (Exception ex) {
             Logger.getLogger(TileRequest.class.getName()).log(Level.SEVERE, null, ex);
         }
-        if (cachethis) {
-            cache.put(this, bi);
-        }
-        return new Tile(this, bi);
+        return null;
     }
     
     @Override

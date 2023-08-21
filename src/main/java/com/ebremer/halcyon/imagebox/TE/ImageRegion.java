@@ -26,10 +26,10 @@ public class ImageRegion {
     }
     
     public ImageRegion scaleRegion(double ratio) {
-        int sx = (int) Math.round(x / ratio);
-        int sy = (int) Math.round(y / ratio);
-        int sw = (int) Math.round(width / ratio);
-        int sh = (int) Math.round(height / ratio);
+        int sx = (int) Math.floor(x / ratio);
+        int sy = (int) Math.floor(y / ratio);
+        int sw = (int) Math.floor(width / ratio);
+        int sh = (int) Math.floor(height / ratio);
         return new ImageRegion(sx,sy,sw,sh);
     }
 

@@ -31,9 +31,9 @@ public class SX {
         int numTilesX = (int) Math.round((double) meta.getWidth()/ (double) tileSize.width());
         int numTilesY = (int) Math.round((double) meta.getHeight()/ (double) tileSize.height());
         try {
-            final TileRequestEngine tre = TileRequestEnginePool.getPool().borrowObject(uri);
+            final TileRequestEngine tre = new TileRequestEngine(uri);
             Tile tile = tre.getTile(new ImageRegion(0,0,meta.getWidth(),meta.getHeight()), new Rectangle(meta.getWidth()>>6,0), false);
-            boolean[][] background = BackgroundDetector.getBackgroundMask(tile.image(),numTilesX, numTilesY);
+            boolean[][] background = BackgroundDetector.getBackgroundMask(tile.getBufferedImage(),numTilesX, numTilesY);
             for (int i = 0; i < numTilesX; i++) {
                 for (int j = 0; j < numTilesY; j++) {
                     if (!background[i][j]) {
@@ -53,7 +53,6 @@ public class SX {
                 buffer.add(tre.getFutureTile(tr));
             });
             list.clear();
-            TileRequestEnginePool.getPool().returnObject(uri, tre);
         } catch (Exception ex) {
             Logger.getLogger(SX.class.getName()).log(Level.SEVERE, null, ex);
         }
