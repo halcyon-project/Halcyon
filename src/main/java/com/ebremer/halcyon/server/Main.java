@@ -220,6 +220,7 @@ public class Main {
     }
 
     public static void main(String[] args) throws NoSuchAlgorithmException {
+        ServicesLoader halcyonServiceLoader = new ServicesLoader();
         INIT i = new INIT();
         i.init();
         SpringApplication app = new SpringApplication(Main.class);

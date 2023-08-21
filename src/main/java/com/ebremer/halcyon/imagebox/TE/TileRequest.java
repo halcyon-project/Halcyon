@@ -1,5 +1,6 @@
 package com.ebremer.halcyon.imagebox.TE;
 
+import com.ebremer.halcyon.server.CacheService;
 import com.ebremer.halcyon.utils.ImageTools;
 import java.awt.image.BufferedImage;
 import java.net.URI;
@@ -23,6 +24,10 @@ public class TileRequest implements Callable<Tile> {
         this.region = region;
         this.preferredsize = preferredsize;
         this.cachethis = cachethis;
+    }
+    
+    public boolean isCacheable() {
+        return cachethis;
     }
     
     public ImageRegion getRegion() {
@@ -59,15 +64,9 @@ public class TileRequest implements Callable<Tile> {
     public Tile call() {
         try {
             ImageReader reader = ImageReaderPool.getPool().borrowObject(uri);
-            Tile tile = reader.getCache().getIfPresent(this);
-            if (tile==null) {
-                BufferedImage bi = reader.readTile(region, preferredsize);
-                bi = ImageTools.ScaleBufferedImage(bi,preferredsize);
-                tile = new Tile(this,bi);
-                if (cachethis) {
-                    reader.getCache().put(this, tile);
-                }
-            }
+            BufferedImage bi = reader.readTile(region, preferredsize);
+            bi = ImageTools.ScaleBufferedImage(bi,preferredsize);
+            Tile tile = new Tile(this,bi);
             ImageReaderPool.getPool().returnObject(uri, reader);
             return tile;
         } catch (Exception ex) {

@@ -1,5 +1,6 @@
 package com.ebremer.halcyon.imagebox.TE;
 
+import com.ebremer.halcyon.server.CacheService;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -46,7 +47,7 @@ public class SVSImageReader extends AbstractImageReader {
 
     private BufferedImage readTile(ImageRegion region, int series) {
         reader.setSeries(series);
-        //System.out.println(series+"   "+region+"  "+reader.getSizeX()+" "+reader.getSizeY());
+        System.out.println(series+"   "+region+"  "+reader.getSizeX()+" "+reader.getSizeY()+"   "+CacheService.getCache().stats());
         try {
             return reader.openImage(0, region.getX(), region.getY(), region.getWidth(), region.getHeight());
         } catch (FormatException ex) {
@@ -58,8 +59,12 @@ public class SVSImageReader extends AbstractImageReader {
     }
 
     @Override
-    public void close() throws Exception {
-        reader.close();
+    public void close() {
+        try {
+            reader.close();
+        } catch (IOException ex) {
+            Logger.getLogger(SVSImageReader.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
 
     @Override

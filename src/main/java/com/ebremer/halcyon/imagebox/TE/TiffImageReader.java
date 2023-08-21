@@ -56,7 +56,7 @@ public class TiffImageReader extends AbstractImageReader {
     }
 
     @Override
-    public void close() throws Exception {
+    public void close() {
         reader.dispose();
     }
 

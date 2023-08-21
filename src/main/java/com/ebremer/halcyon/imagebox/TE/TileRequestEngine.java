@@ -1,6 +1,9 @@
 package com.ebremer.halcyon.imagebox.TE;
 
+import com.ebremer.halcyon.server.CacheService;
+import com.github.benmanes.caffeine.cache.Cache;
 import java.net.URI;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -17,25 +20,34 @@ import java.util.logging.Logger;
 public class TileRequestEngine implements AutoCloseable {
     private final ExecutorService executor;
     private final URI uri;
+    private final Cache<TileRequest, Future<Tile>> cache;
     
     public TileRequestEngine(URI uri) throws Exception {
         this.uri = uri;
         executor = Executors.newVirtualThreadPerTaskExecutor();
+        cache = CacheService.getCache();
     }
     
     public Future<Tile> getFutureTile(ImageRegion region, Rectangle preferredsize, boolean keep) {
-        return executor.submit(TileRequest.genTileRequest(uri,region,preferredsize, keep));
+        return getFutureTile(TileRequest.genTileRequest(uri,region,preferredsize, keep));
     }
     
     public Future<Tile> getFutureTile(TileRequest tr) {
-        return executor.submit(tr);
+        Future<Tile> future = cache.getIfPresent(tr);
+        if (future == null) {
+            future = executor.submit(tr);
+            if (tr.isCacheable()) {
+                cache.put(tr, future);
+            }
+        }
+        return future;
     }
     
     public Tile getTile(ImageRegion region, Rectangle preferredsize, boolean keep) {
         //long begin = System.nanoTime();
         TileRequest tr = TileRequest.genTileRequest(uri,region,preferredsize, keep);
         try {
-            return executor.submit(tr).get(1000, TimeUnit.SECONDS);
+            return getFutureTile(tr).get(1000, TimeUnit.SECONDS);
         } catch (InterruptedException ex) {
             Logger.getLogger(TileRequestEngine.class.getName()).log(Level.SEVERE, null, ex);
         } catch (ExecutionException ex) {
