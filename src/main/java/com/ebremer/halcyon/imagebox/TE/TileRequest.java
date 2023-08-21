@@ -16,6 +16,7 @@ public class TileRequest implements Callable<Tile> {
     private final ImageRegion region;
     private final Rectangle preferredsize;
     private final boolean cachethis;
+    //private static final ConcurrentHashMap<TileRequest,Tile> queue = new ConcurrentHashMap<>();
     
     private TileRequest(URI uri, ImageRegion region, Rectangle preferredsize, boolean cachethis) {
         this.uri = uri;
