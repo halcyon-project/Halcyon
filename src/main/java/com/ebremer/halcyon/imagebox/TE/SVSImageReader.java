@@ -65,7 +65,7 @@ public class SVSImageReader extends AbstractImageReader {
     @Override
     public BufferedImage readTile(ImageRegion region, Rectangle preferredsize) {
         ImageMeta.ImageScale scale = meta.getBestMatch(Math.max((double) region.getWidth()/(double) preferredsize.width(),(double) region.getHeight()/ (double) preferredsize.height()));
-        return readTile(region.scaleRegion(scale.scale()),scale.series());
+        return readTile(scale.Validate(region.scaleRegion(scale.scale())),scale.series());
     }
     
     @Override

@@ -14,7 +14,7 @@ import java.util.logging.Logger;
  *
  * @author erich
  */
-public class TileRequestEngine {
+public class TileRequestEngine implements AutoCloseable {
     private final ExecutorService executor;
     private final URI uri;
     
@@ -44,5 +44,10 @@ public class TileRequestEngine {
             Logger.getLogger(TileRequestEngine.class.getName()).log(Level.SEVERE, null, ex);
         }
         return null;
+    }
+
+    @Override
+    public void close() throws Exception {
+        executor.close();
     }
 }

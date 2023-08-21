@@ -45,8 +45,7 @@ public class TiffImageReader extends AbstractImageReader {
 
     private BufferedImage readTile(ImageRegion r, int series) {
         ImageReadParam param = reader.getDefaultReadParam();
-        Rectangle rect = new Rectangle(r.getX(), r.getY(), r.getWidth(), r.getHeight());
-        param.setSourceRegion(rect);
+        param.setSourceRegion(new Rectangle(r.getX(), r.getY(), r.getWidth(), r.getHeight()));
         try {
             return reader.read(series, param);
         } catch (IOException ex) {
@@ -63,7 +62,7 @@ public class TiffImageReader extends AbstractImageReader {
     @Override
     public BufferedImage readTile(ImageRegion region, com.ebremer.halcyon.imagebox.TE.Rectangle preferredsize) {
         ImageMeta.ImageScale scale = meta.getBestMatch(Math.max((double) region.getWidth()/(double) preferredsize.width(),(double) region.getHeight()/ (double) preferredsize.height()));
-        return ImageTools.ScaleBufferedImage(readTile(region.scaleRegion(scale.scale()),scale.series()),preferredsize);
+        return ImageTools.ScaleBufferedImage(readTile(scale.Validate(region.scaleRegion(scale.scale())),scale.series()),preferredsize);
     }
 
     @Override

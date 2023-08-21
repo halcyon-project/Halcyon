@@ -47,7 +47,7 @@ public class ImageMeta {
         } while (ratio<scale.scale);
         return scale;
     }
-
+    
     public int getWidth() {
         return width;
     }
@@ -82,6 +82,17 @@ public class ImageMeta {
         @Override
         public int compareTo(ImageScale other) {
             return Float.compare(this.scale, other.scale);
+        }
+        
+        public ImageRegion Validate(ImageRegion region) {
+           if (((region.getX()+region.getWidth()) < width)&&((region.getY()+region.getHeight()) < height)) {
+                return region;
+            }
+            int w = region.getX()+region.getWidth();
+            int h = region.getY()+region.getHeight();
+            w = (w >= width) ? width - region.getX(): region.getWidth();
+            h = (h >= height) ? height - region.getY(): region.getHeight();
+            return new ImageRegion(region.getX(),region.getY(),w,h);
         }
     };
     
@@ -125,12 +136,12 @@ public class ImageMeta {
             float ratio = ((float)width)/((float)height);
             float d = Math.abs(ratio-aspectratio);
             d = d/aspectratio;
-            if (d<0.001) {
-                //System.out.println("Adding Scale "+d+"  "+ratio+"  "+scales.size()+" "+width+" x "+height);
+            if (d<0.00153) {
+                //System.out.println("Adding Scale "+series+"  "+d+"  "+ratio+"  "+scales.size()+" "+width+" x "+height);
                 scales.add(new ImageScale(series,scale,width,height,ratio));
-            } //else {
-                //System.out.println("Aspect Ratio different "+d+"  "+ratio+"  "+scales.size()+" "+width+" x "+height);
-            //}
+            } else {
+                //System.out.println("Aspect Ratio different "+series+"  "+d+"  "+ratio+"  "+scales.size()+" "+width+" x "+height);
+            }
             return this;
         }
         

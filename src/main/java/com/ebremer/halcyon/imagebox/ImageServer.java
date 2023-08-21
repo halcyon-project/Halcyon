@@ -63,8 +63,7 @@ public class ImageServer extends HttpServlet {
                 }
                 TileRequest tr = TileRequest.genTileRequest(i.uri, new ImageRegion(i.x,i.y,i.w,i.h), new Rectangle(i.tx,i.ty), true);
                 Tile tile = null;
-                try {
-                    TileRequestEngine tre = new TileRequestEngine(i.uri);
+                try (TileRequestEngine tre = new TileRequestEngine(i.uri)){
                     Future<Tile> ftile = tre.getFutureTile(tr);
                     tile = ftile.get(30, TimeUnit.SECONDS);
                 } catch (Exception ex) {
