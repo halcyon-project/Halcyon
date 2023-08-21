@@ -1,5 +1,6 @@
-package com.ebremer.halcyon.imagebox.TE;
+package com.ebremer.halcyon.utils;
 
+import com.ebremer.halcyon.imagebox.TE.Rectangle;
 import java.awt.geom.AffineTransform;
 import java.awt.image.AffineTransformOp;
 import java.awt.image.BufferedImage;

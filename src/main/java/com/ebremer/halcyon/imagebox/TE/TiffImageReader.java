@@ -1,5 +1,6 @@
 package com.ebremer.halcyon.imagebox.TE;
 
+import com.ebremer.halcyon.utils.ImageTools;
 import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 import java.io.File;
