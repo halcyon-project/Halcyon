@@ -5,7 +5,7 @@ import com.ebremer.halcyon.wicket.ListImages;
 import com.ebremer.halcyon.HalcyonSettings;
 import com.ebremer.halcyon.datum.DataCore;
 import com.ebremer.halcyon.fuseki.SPARQLEndPoint;
-import com.ebremer.halcyon.filesystem.FileManager;
+import com.ebremer.halcyon.server.FileManager;
 import com.ebremer.halcyon.puffin.Puffin;
 import com.ebremer.halcyon.puffin.Puffin2;
 import com.ebremer.halcyon.puffin.ResourceConverter;
@@ -19,7 +19,6 @@ import org.apache.wicket.ConverterLocator;
 import org.apache.wicket.IConverterLocator;
 import org.apache.wicket.RuntimeConfigurationType;
 import org.apache.wicket.Session;
-//import org.apache.wicket.devutils.stateless.StatelessChecker;
 import org.apache.wicket.markup.html.WebPage;
 import org.apache.wicket.protocol.http.WebApplication;
 import org.apache.wicket.request.Request;
@@ -28,12 +27,10 @@ import org.apache.wicket.request.Response;
 public class HalcyonApplication extends WebApplication {
     private static final HalcyonSettings settings = HalcyonSettings.getSettings();
     private final DataCore datacore;
-    private final FileManager fm;
     private final SPARQLEndPoint sep;
     
     public HalcyonApplication() {
         datacore = DataCore.getInstance();
-        fm = FileManager.getInstance();
         sep = SPARQLEndPoint.getSPARQLEndPoint();
     }
     

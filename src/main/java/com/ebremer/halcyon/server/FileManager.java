@@ -1,7 +1,9 @@
-package com.ebremer.halcyon.filesystem;
+package com.ebremer.halcyon.server;
 
 import com.ebremer.halcyon.HalcyonSettings;
 import com.ebremer.halcyon.datum.DataCore;
+import com.ebremer.halcyon.filesystem.DirectoryProcessor;
+import com.ebremer.halcyon.filesystem.StorageLocation;
 import static com.ebremer.halcyon.filesystem.DirectoryProcessor.GetExtensions;
 import java.io.FileNotFoundException;
 import java.net.URI;
@@ -27,13 +29,13 @@ import org.apache.jena.update.UpdateRequest;
  *
  * @author erich
  */
-public final class FileManager {
-    private static FileManager fm = null;
+public final class FileManager implements Service {
     private static HalcyonSettings hs = null;
     private Timer timer;
     private TimerTask task;
     
-    private FileManager() {
+    public FileManager() {
+        System.out.println("Starting FileManager...");
         hs = HalcyonSettings.getSettings();
         resume();
     }
@@ -65,14 +67,6 @@ public final class FileManager {
         };
         long delay = 1000L * 10L;
         this.timer.schedule(task, delay);
-    }
-
-    public synchronized static FileManager getInstance() {
-        if (fm==null) {
-            System.out.println("Starting File Manager...");
-            fm = new FileManager();
-        }
-        return fm;
     }
  
     public void ListStorageAreas() {
@@ -119,5 +113,10 @@ public final class FileManager {
         DataCore dc = DataCore.getInstance();
         //while (true) {}
         //FileManager fm = FileManager.getInstance();
+    }
+
+    @Override
+    public String getName() {
+        return "FileManager";
     }
 }

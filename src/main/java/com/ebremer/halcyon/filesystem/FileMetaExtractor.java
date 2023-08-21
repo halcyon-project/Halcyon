@@ -33,7 +33,7 @@ import org.apache.jena.vocabulary.SchemaDO;
  *
  * @author erich
  */
-public final class FileMetaExtractor {
+public final class FileMetaExtractor implements AutoCloseable {
     private final File file;
     private final Dataset ds;
     private final Model coremeta;
@@ -49,6 +49,11 @@ public final class FileMetaExtractor {
         this.s = m.createResource(EB.fix(file));
         ds.addNamedModel(EB.fix(file), m);
         Process();
+    }
+    
+    @Override
+    public void close() {
+        
     }
     
     public Dataset getDataset() {
@@ -138,10 +143,9 @@ public final class FileMetaExtractor {
         DynamicMetadataOptions options = new DynamicMetadataOptions();
         options.setValidate(false);
         options.setMetadataLevel(MetadataLevel.NO_OVERLAYS);
-        ImageReader reader = new ImageReader();
-        reader.setMetadataOptions(options);
-        reader.setOriginalMetadataPopulated(false);
-        try {
+        try (ImageReader reader = new ImageReader()) {
+            reader.setMetadataOptions(options);
+            reader.setOriginalMetadataPopulated(false);
             reader.setId(file.getPath());
             Resource ss = m.createResource(EB.fix(file));
             m.add(ss,RDF.type,SchemaDO.ImageObject);
