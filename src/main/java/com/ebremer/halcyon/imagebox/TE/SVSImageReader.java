@@ -47,7 +47,7 @@ public class SVSImageReader extends AbstractImageReader {
 
     private BufferedImage readTile(ImageRegion region, int series) {
         reader.setSeries(series);
-        System.out.println(series+"   "+region+"  "+reader.getSizeX()+" "+reader.getSizeY()+"   "+CacheService.getCache().stats());
+        //System.out.println(series+"   "+region+"  "+reader.getSizeX()+" "+reader.getSizeY()+"   "+CacheService.getCache().stats());
         try {
             return reader.openImage(0, region.getX(), region.getY(), region.getWidth(), region.getHeight());
         } catch (FormatException ex) {
