@@ -58,6 +58,7 @@ if (!Array.prototype.flat) {
 const colorFilter = OpenSeadragon.Filters.GREYSCALE;
 const colorChannel = 1;
 const alphaChannel = 3;
+const message = "Set OSD viewer: { crossOriginPolicy: \"Anonymous\" }";
 
 // Outline the edge of the polygon
 colorFilter.prototype.OUTLINE = rgba => {
@@ -69,7 +70,7 @@ colorFilter.prototype.OUTLINE = rgba => {
     try {
       imgData = context.getImageData(0, 0, width, height);
     } catch (e) {
-      console.error(`${e.name}\nSet OSD viewer: { crossOriginPolicy: "Anonymous" }`);
+      console.error(`${e.name}\n${message}`);
       return;
     }
 
@@ -156,7 +157,7 @@ colorFilter.prototype.PROBABILITY = (data, rgba) => {
     try {
       imgData = context.getImageData(0, 0, context.canvas.width, context.canvas.height);
     } catch (e) {
-      console.error(`${e.name}\nSet OSD viewer: { crossOriginPolicy: "Anonymous" }`);
+      console.error(`${e.name}\n${message}`);
       return;
     }
 
@@ -197,12 +198,12 @@ colorFilter.prototype.PROBABILITY = (data, rgba) => {
 
 colorFilter.prototype.COLORLEVELS = layerColors => {
   return (context, callback) => {
-    // console.log('colorlevels');
+    // console.log('colorlevels', STATE.renderType);
     let imgData;
     try {
       imgData = context.getImageData(0, 0, context.canvas.width, context.canvas.height);
     } catch (e) {
-      console.error(`${e.name}\nSet OSD viewer: { crossOriginPolicy: "Anonymous" }`);
+      console.error(`${e.name}\n${message}`);
       return;
     }
     const data = bgTrans(imgData.data);
@@ -294,7 +295,7 @@ colorFilter.prototype.THRESHOLDING = thresh => {
       try {
         imgData = context.getImageData(0, 0, context.canvas.width, context.canvas.height);
       } catch (e) {
-        console.error(`${e.name}\nSet OSD viewer: { crossOriginPolicy: "Anonymous" }`);
+        console.error(`${e.name}\n${message}`);
         return;
       }
       let pixels = imgData.data;
@@ -303,13 +304,13 @@ colorFilter.prototype.THRESHOLDING = thresh => {
       if (typeof thresh.rgba !== 'undefined') {
         color = thresh.rgba;
       } else {
-        color = [126, 1, 0, 255]; // #7e0100
+        color = [126, 1, 0, 255]; // #7e0100 (Maroon)
       }
 
       if (typeof thresh.classId !== 'undefined') {
-        let classId = parseInt(thresh.classId);
-        // console.log('classId', classId);
+        // console.log('classId', thresh.classId);
 
+        // Test classId and probability value above threshold.
         for (let i = 0; i < pixels.length; i += 4) {
           if (pixels[i] === thresh.classId && pixels[i + 1] >= thresh.val) {
             pixels[i] = color[0];
@@ -322,8 +323,8 @@ colorFilter.prototype.THRESHOLDING = thresh => {
         }
       } else {
         // console.log('classId undefined');
+        // Test green channel (probability) value above threshold.
         for (let i = 0; i < pixels.length; i += 4) {
-          // Test green channel value above threshold.
           if (pixels[i + 1] >= thresh.val) {
             pixels[i] = color[0];
             pixels[i + 1] = color[1];
