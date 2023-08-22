@@ -35,7 +35,7 @@
 }
 
 body {
-  font-family: effra,Verdana,Tahoma,'DejaVu Sans',sans-serif !important;
+  font-family: effra, Verdana, Tahoma, 'DejaVu Sans', sans-serif !important;
   font-size: 1rem !important;
   font-weight: 400 !important;
   line-height: 1.438rem !important;
@@ -51,42 +51,17 @@ a:link {
 
 .navbar {
   overflow: hidden;
-
   -webkit-transition: background-color .2s linear;
-       -o-transition: background-color .2s linear;
-          transition: background-color .2s linear;
-  /* -webkit-animation: 1s ease-out 0s 1 slide-in-from-top; */
-          /* animation: 1s ease-out 0s 1 slide-in-from-top; */
-
+  -o-transition: background-color .2s linear;
+  transition: background-color .2s linear;
   background-color: var(--text-light);
 }
 
 .navbar a:hover,
 .dropdown:hover .dropbtn {
   color: var(--text-light);
-  background-color: var(--text-dark);;
+  background-color: var(--text-dark);
 }
-
-/* @-webkit-keyframes slide-in-from-top {
-  0% {
-    -webkit-transform: translateY(-100%);
-    transform: translateY(-100%);
-  }
-  100% {
-    -webkit-transform: translateY(0);
-    transform: translateY(0);
-  }
-}
-@keyframes slide-in-from-top {
-  0% {
-    -webkit-transform: translateY(-100%);
-    transform: translateY(-100%);
-  }
-  100% {
-    -webkit-transform: translateY(0);
-    transform: translateY(0);
-  }
-} */
 
 .divSquare {
   float: left;
@@ -116,14 +91,6 @@ a:link {
   display: table-cell;
   vertical-align: middle;
 }
-
-/* scroll interferes with visibility slider... */
-/* .scroll {
-  overflow-y: auto;
-  overflow-x: hidden;
-  width: 200px;
-  height: 475px;
-} */
 
 .hide {
   z-index: 10;
@@ -155,7 +122,6 @@ a:link {
 *[draggable=true] {
   cursor: move;
   -webkit-user-drag: element;
-     -moz-user-drag: element;
 }
 
 .fas:focus,
@@ -164,7 +130,7 @@ a:link {
 }
 
 .layer-icons {
-  padding: .5px;
+  padding: 1px;
 }
 
 .layer-icons:hover {
@@ -173,8 +139,8 @@ a:link {
 }
 
 .btnOn {
-  color: #15f4ee;
   padding: .2em .7em;
+  color: #15f4ee;
 }
 
 .annotationBtn,
@@ -187,7 +153,8 @@ a:link {
   border-radius: 5px;
 }
 
-.annotationBtn:active, .layer:active {
+.annotationBtn:active,
+.layer:active {
   position: relative;
   top: 1px;
 }
@@ -216,20 +183,19 @@ a:link {
   width: 90px;
   padding: .5em 1em;
   cursor: move;
-  -webkit-transform: skew(-10deg);
-      -ms-transform: skew(-10deg);
-          transform: skew(-10deg);
+  -ms-transform: skew(-10deg);
+  transform: skew(-10deg);
   white-space: nowrap;
-  -o-text-overflow: ellipsis;
-     text-overflow: ellipsis;
+  text-overflow: ellipsis;
   color: var(--text-light);
   background: -webkit-gradient(linear, left top, left bottom, color-stop(5%, #ededed), to(var(--grad)));
   background: -o-linear-gradient(top, #ededed 5%, var(--grad) 100%);
   background: linear-gradient(to bottom, #ededed 5%, var(--grad) 100%);
   background-color: #ededed;
   -webkit-box-shadow: 3px 4px 0 0 var(--shadow);
-          box-shadow: 3px 4px 0 0 var(--shadow);
+  box-shadow: 3px 4px 0 0 var(--shadow);
   text-shadow: 0 1px 0 #e1e2ed;
+  -o-text-overflow: ellipsis;
 }
 
 .layer:hover {
@@ -255,34 +221,29 @@ a:link {
   display: block;
   width: 90px;
   padding: .5em 1em;
-
   cursor: move;
   -webkit-transition: background-color 1000ms linear;
-       -o-transition: background-color 1000ms linear;
-          transition: background-color 1000ms linear;
-  -webkit-transform: skew(-10deg);
-      -ms-transform: skew(-10deg);
-          transform: skew(-10deg);
+  -o-transition: background-color 1000ms linear;
+  transition: background-color 1000ms linear;
+  -ms-transform: skew(-10deg);
+  transform: skew(-10deg);
 }
 
 .color-fade {
   width: 90px;
   padding: .5em 1em;
-
   cursor: move;
   -webkit-transition: background-color 1000ms linear;
-       -o-transition: background-color 1000ms linear;
-          transition: background-color 1000ms linear;
-  -webkit-transform: skew(-10deg);
-      -ms-transform: skew(-10deg);
-          transform: skew(-10deg);
-
+  -o-transition: background-color 1000ms linear;
+  transition: background-color 1000ms linear;
+  -ms-transform: skew(-10deg);
+  transform: skew(-10deg);
   color: #ccc;
   border: 1px solid #ccc;
   border-radius: 5px;
   background-color: var(--highlight);
   -webkit-box-shadow: 3px 4px 0 0 var(--shadow);
-          box-shadow: 3px 4px 0 0 var(--shadow);
+  box-shadow: 3px 4px 0 0 var(--shadow);
   text-shadow: 0 1px 0 #e1e2ed;
 }
 
@@ -296,7 +257,7 @@ a:link {
   border-radius: 7px;
   background-color: var(--bg-light);
   -webkit-box-shadow: 5px 5px 5px var(--text-light);
-          box-shadow: 5px 5px 5px var(--text-light);
+  box-shadow: 5px 5px 5px var(--text-light);
 }
 
 .popupHeader {
@@ -306,12 +267,12 @@ a:link {
   padding: 10px;
   cursor: move;
   white-space: nowrap;
-  -o-text-overflow: ellipsis;
-     text-overflow: ellipsis;
+  text-overflow: ellipsis;
   color: var(--text-dark);
   border-top-left-radius: 7px;
   border-top-right-radius: 7px;
   background-color: var(--text-light);
+  -o-text-overflow: ellipsis;
 }
 
 .popupBody {
@@ -325,7 +286,7 @@ a:link {
   border-radius: 7px;
   background-color: rgba(249, 249, 249, .5);
   -webkit-box-shadow: 5px 5px 5px var(--text-light);
-          box-shadow: 5px 5px 5px var(--text-light);
+  box-shadow: 5px 5px 5px var(--text-light);
 }
 
 .mag-content a {
@@ -361,11 +322,9 @@ input {
   background: -webkit-gradient(linear, left bottom, left top, color-stop(1em, var(--no-frills)), color-stop(0, transparent));
   background: -o-linear-gradient(bottom, var(--no-frills) 1em, transparent 0);
   background: linear-gradient(0deg, var(--no-frills) 1em, transparent 0);
-
   --dif: calc(var(--max) - var(--min));
-  grid-template: repeat(2, -webkit-max-content) 1em/1fr 1fr;
-  grid-template: repeat(2, -moz-max-content) 1em/1fr 1fr;
-  grid-template: repeat(2, max-content) 1em/1fr 1fr;
+  grid-template-rows: repeat(2, max-content) 1em;
+  grid-template-columns: 1fr 1fr;
 }
 
 .dualSlider::before,
@@ -407,8 +366,8 @@ input {
 .dualSlider input[type='range']::-webkit-slider-thumb,
 .dualSlider input[type='range'] {
   -webkit-appearance: none;
-     -moz-appearance: none;
-          appearance: none;
+  -moz-appearance: none;
+  appearance: none;
 }
 
 .dualSlider input[type='range']::-webkit-slider-runnable-track {
@@ -499,8 +458,8 @@ output::after {
 .dualSlider1 input[type='range']::-webkit-slider-thumb,
 .dualSlider1 input[type='range'] {
   -webkit-appearance: none;
-     -moz-appearance: none;
-          appearance: none;
+  -moz-appearance: none;
+  appearance: none;
 }
 
 .dualSlider1 input[type='range']::-webkit-slider-runnable-track {
@@ -546,12 +505,10 @@ output::after {
 .singleSlider {
   height: 12px;
   opacity: 2;
-
   background: var(--rgb-on);
   background: -webkit-gradient(linear, left top, right top, from(var(--rgba-on)), color-stop(35%, var(--highlight)), to(var(--text-light)));
   background: -o-linear-gradient(left, var(--rgba-on) 0%, var(--highlight) 35%, var(--text-light) 100%);
   background: linear-gradient(90deg, var(--rgba-on) 0%, var(--highlight) 35%, var(--text-light) 100%);
-
   -webkit-appearance: none;
 }
 
@@ -560,10 +517,9 @@ output::after {
   height: 12px;
   cursor: pointer;
   background: var(--text-dark);
-
   -webkit-appearance: none;
-     -moz-appearance: none;
-          appearance: none;
+  -moz-appearance: none;
+  appearance: none;
 }
 
 .singleSlider:hover {
@@ -588,9 +544,8 @@ output::after {
   margin: 0 auto;
   padding: 5px;
   content: attr(data-tooltip);
-  -webkit-transform: translateX(-15%);
-      -ms-transform: translateX(-15%);
-          transform: translateX(-15%);
+  -ms-transform: translateX(-15%);
+  transform: translateX(-15%);
   text-align: center;
   border-radius: 3px;
   background-color: var(--tooltip);
