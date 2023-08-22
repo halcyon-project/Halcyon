@@ -102,7 +102,6 @@ public class HALKeycloakOIDCFilter extends KeycloakOIDCFilter {
             challenge.challenge(facade);
             return;
         }
-        System.out.println("RUBICON!!");
         response.sendError(403);
     }
 }
