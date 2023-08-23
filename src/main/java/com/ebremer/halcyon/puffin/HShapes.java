@@ -173,6 +173,26 @@ public class HShapes {
         return subject;
     }
     
+    public ResultSet getProperties(Node shape) {
+        System.out.println("addResource");
+        ParameterizedSparqlString pss = new ParameterizedSparqlString(
+            """
+            select distinct ?predicate
+            where {  ?shape a sh:NodeShape ; sh:property ?property .
+                            ?property sh:path ?predicate .
+                            optional { ?property sh:name ?name }
+                            optional { ?property sh:order ?order }
+                            optional { ?property sh:node ?subshape }
+            } order by ?order
+            """
+        );
+        pss.setNsPrefix("sh", SHACLM.NS);
+        pss.setNsPrefix("hal", HAL.NS);
+        pss.setIri("shape", shape.getURI());
+        System.out.println(pss.toString());
+        return QueryExecutionFactory.create(pss.toString(),shacl).execSelect();
+    }
+    
     public Resource createResource(Node shape, Resource subject) {
         System.out.println("createResource =========================================== "+subject);
         ParameterizedSparqlString pss = new ParameterizedSparqlString(

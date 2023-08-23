@@ -10,6 +10,7 @@ import org.apache.jena.graph.Node;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.DatasetFactory;
 import org.apache.jena.query.ParameterizedSparqlString;
+import org.apache.jena.query.ResultSet;
 import org.apache.jena.rdf.model.Property;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.wicket.MarkupContainer;
@@ -29,13 +30,13 @@ public class GridPanel extends Panel implements IMarkupResourceStreamProvider {
 
     public GridPanel(String id, Resource subject, Property property, Node shape) {
         super(id);
-        //HShapes hshapes = new HShapes();
+        HShapes hshapes = new HShapes();
         
         List<IColumn<Solution, String>> columns = new LinkedList<>();
-        //ResultSet rs = hshapes.getFormElements(subject, shape);
-        //rs.forEachRemaining(qs->{
-//            columns.add(new NodeColumn<>(Model.of("File URI"),"s","s"));
-  //      });
+        ResultSet rs = hshapes.getProperties(shape);
+        rs.forEachRemaining(qs->{
+            columns.add(new NodeColumn<>(Model.of("File URI"),"s","s"));
+        });
         
         columns.add(new NodeColumn<>(Model.of("hasClass"),"hasClass","hasClass"));
         columns.add(new NodeColumn<>(Model.of("color"),"color","color"));
