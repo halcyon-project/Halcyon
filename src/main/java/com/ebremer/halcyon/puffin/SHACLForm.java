@@ -8,6 +8,7 @@ import org.apache.jena.graph.Triple;
 import org.apache.jena.query.QuerySolution;
 import org.apache.jena.query.ResultSet;
 import org.apache.jena.rdf.model.AnonId;
+import org.apache.jena.rdf.model.Property;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.Statement;
 import org.apache.jena.riot.Lang;
@@ -33,65 +34,66 @@ import org.apache.wicket.util.resource.StringResourceStream;
 public class SHACLForm extends Panel implements IMarkupResourceStreamProvider {
     private final DropDownChoice<Bundle> ddc;
     private Node subject;
-    //private final RDFDetachableModel mod;
 
     public SHACLForm(String id, RDFDetachableModel mod, Resource r, Node shape) {
         super(id);
         this.subject = r.asNode();
-      //  this.mod = mod;
         Form form = new Form("form", mod);
         HShapes ls = new HShapes();       
         RepeatingView parentRepeatingView = new RepeatingView("predicateObjectRepeatingView");
         form.add(parentRepeatingView);
-        ResultSet rs = ls.getFormElements(r,shape);
-        Node predicate = Node.ANY;
+        ResultSet rs = ls.getPredicateFormElements(r,shape);
         WebMarkupContainer parentItem;
-        RepeatingView childRepeatingView = null;
-        int c = 0;
         while (rs.hasNext()) {
+            int c = 0;
             QuerySolution qs = rs.next();
-            if (!predicate.equals(qs.get("predicate").asNode())) {
-                c=0;
-                predicate = qs.get("predicate").asNode();
-                parentItem = new WebMarkupContainer(parentRepeatingView.newChildId());
-                Label predicateGroupMessages;
-                if (qs.contains("pmessages")) {
-                    predicateGroupMessages = new Label("predicatemessages", qs.get("pmessages").asLiteral().getString());
-                    parentItem.add(AttributeModifier.replace("style", "background-color: #FFAAAA;"));
-                    predicateGroupMessages.setVisible(true);
-                } else {
-                    predicateGroupMessages = new Label("predicatemessages", "****");
-                    predicateGroupMessages.setVisible(false);
-                }
-                Label predicateGroupLabel = new Label("predicatename", predicate.getLocalName());
-                predicateGroupLabel.setVisible(false);  //disable for now
-                parentRepeatingView.add(parentItem);
-                parentItem.add(predicateGroupLabel);
-                parentItem.add(predicateGroupMessages);
-                childRepeatingView = new RepeatingView("childRepeatingView");
-                parentItem.add(childRepeatingView);
-                
+            System.out.println("PROPERTY 1 ---> "+qs);
+            Property predicate = Tools.convertRDFNodeToProperty(qs.get("predicate"));
+            parentItem = new WebMarkupContainer(parentRepeatingView.newChildId());
+            Label predicateGroupMessages;
+            if (qs.contains("pmessages")) {
+                predicateGroupMessages = new Label("predicatemessages", qs.get("pmessages").asLiteral().getString());
+                parentItem.add(AttributeModifier.replace("style", "background-color: #FFAAAA;"));
+                predicateGroupMessages.setVisible(true);
             } else {
-                c++;
+                predicateGroupMessages = new Label("predicatemessages", "****");
+                predicateGroupMessages.setVisible(false);
             }
-            Statement ma = Tools.asStatement(r.getModel(), Triple.create(r.asNode(), qs.get("predicate").asNode(), qs.get("object").asNode()));
-            String messages = "";
-            if (qs.contains("messages")) {
-                messages = qs.get("messages").asLiteral().getString();
-            }
-            System.out.println("QS ----> "+qs);
+            Label predicateGroupLabel = new Label("predicatename", qs.get("predicate").asNode().getLocalName());
+            predicateGroupLabel.setVisible(false);  //disable for now
+            parentRepeatingView.add(parentItem);
+            parentItem.add(predicateGroupLabel);
+            parentItem.add(predicateGroupMessages);
+            RepeatingView childRepeatingView = new RepeatingView("childRepeatingView");
+            parentItem.add(childRepeatingView);
             if (qs.contains("viewers")) {
                 Node v = NodeFactory.createURI(qs.get("viewers").asLiteral().getString());
                 if (v.equals(DASH.ValueTableViewer.asNode())) {
-                    GridPanel grid = new GridPanel(childRepeatingView.newChildId(), r, v);
+                    GridPanel grid;
+                    if (qs.contains("subshapes")) {
+                        grid = new GridPanel(childRepeatingView.newChildId(), r, predicate, qs.get("subshapes").asNode());
+                    } else {
+                        grid = new GridPanel(childRepeatingView.newChildId(), r, predicate, null);
+                    }
                     childRepeatingView.add(grid);
                 }
             } else {
-                PredicateObject predicateObject = new PredicateObject(childRepeatingView.newChildId(), mod, ma, ls, messages, shape, this, qs);
-                if (c>0) {
-                   predicateObject.setLabelVisible(false);
+                ResultSet rrs = ls.getStatementFormElements(r,predicate,shape);
+                while (rrs.hasNext()) {
+                    QuerySolution qqs = rrs.next();
+                    Statement ma = r.getModel().asStatement(Triple.create(r.asNode(), predicate.asNode(), qqs.get("object").asNode()));
+                    String messages = "";
+                    if (qqs.contains("messages")) {
+                        messages = qqs.get("messages").asLiteral().getString();
+                    }
+                    System.out.println("QQS ----> "+qqs);
+                    PredicateObject predicateObject = new PredicateObject(childRepeatingView.newChildId(), mod, ma, ls, messages, shape, this, qqs);
+                    if (c>0) {
+                        predicateObject.setLabelVisible(false);
+                    }
+                    childRepeatingView.add(predicateObject);
+                    c++;
                 }
-                childRepeatingView.add(predicateObject);
             }
         }
         form.add(new AjaxButton("saveButton") {

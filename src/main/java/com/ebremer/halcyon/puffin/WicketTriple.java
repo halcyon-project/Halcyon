@@ -21,21 +21,11 @@ public class WicketTriple implements IModel {
     public WicketTriple(final RDFDetachableModel model, final Triple triple) {
         this.model = model;
         this.triple = triple;
-        //System.out.println("WicketTriple --> "+triple);
     }
 
     @Override
     public Object getObject() {
         Model k = model.getObject();
-        /*
-        Resource rr;
-        if (triple.getSubject().isBlank()) {
-            rr = k.createResource(new AnonId(triple.getSubject().getBlankNodeId().getLabelString()));
-        } else if (triple.getSubject().isURI()) {
-            rr = k.createResource(triple.getSubject().getURI());
-        } else {
-            throw new Error("HAHAH");
-        }*/
         RDFNode node = k.asRDFNode(triple.getObject());
         if (triple.getObject().isLiteral()) {
             Literal ha = node.asLiteral();
@@ -63,8 +53,8 @@ public class WicketTriple implements IModel {
     @Override
     public void setObject(Object object) {
         Model m = model.getObject();
-        m.remove(Tools.asStatement(m, triple));
+        m.remove(m.asStatement(triple));
         triple = Tools.newTriple(m, triple, object);
-        m.add(Tools.asStatement(m, triple));
+        m.add(m.asStatement(triple));
     }    
 }

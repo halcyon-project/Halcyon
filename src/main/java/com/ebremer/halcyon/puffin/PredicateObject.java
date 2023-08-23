@@ -58,7 +58,7 @@ public class PredicateObject extends Panel implements IMarkupResourceStreamProvi
             @Override
             public void onSubmit(AjaxRequestTarget target) {
                 Component parent = form.getParent();
-                mod.getObject().remove(Tools.asStatement(mod.getObject(), triple));
+                mod.getObject().remove(mod.getObject().asStatement(triple));
                 SHACLForm newsf;
                 if (triple.getSubject().isBlank()) {
                     newsf = new SHACLForm(form.getId(), mod, mod.getObject().createResource(AnonId.create(triple.getSubject().getBlankNodeLabel())), shape);

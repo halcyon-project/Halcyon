@@ -8,7 +8,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import org.apache.jena.datatypes.RDFDatatype;
@@ -257,7 +256,7 @@ public class HShapes {
         return subject;
     }
     
-    public ResultSet getFormElements(Resource r, Node shape) {
+    public ResultSet getStatementFormElements(Resource r, Property predicate, Node shape) {
         ValidationReport report = Validate(r.getModel());
         Dataset ds = DatasetFactory.create();
         ds.getDefaultModel().add(r.getModel());
@@ -265,7 +264,7 @@ public class HShapes {
         ds.addNamedModel(HAL.ValidationReport.getURI(), report.getModel());
         ParameterizedSparqlString pss = new ParameterizedSparqlString(
             """
-            select distinct ?group ?predicate ?object (GROUP_CONCAT(distinct ?viewer; separator=", ") AS ?viewers) (GROUP_CONCAT(distinct ?order; separator=", ") AS ?orders) (GROUP_CONCAT(distinct ?message; separator=", ") AS ?messages) (GROUP_CONCAT(distinct ?editor; separator=", ") AS ?editors) (GROUP_CONCAT(distinct ?pmessage; separator=", ") AS ?pmessages) (DATATYPE(?object) as ?datatype)
+            select distinct ?object (GROUP_CONCAT(distinct ?viewer; separator=", ") AS ?viewers) (GROUP_CONCAT(distinct ?order; separator=", ") AS ?orders) (GROUP_CONCAT(distinct ?message; separator=", ") AS ?messages) (GROUP_CONCAT(distinct ?editor; separator=", ") AS ?editors) (DATATYPE(?object) as ?datatype)
             where {  graph ?shapes {   ?shape a sh:NodeShape ; sh:property ?property .
                                         ?property sh:path ?predicate .
                                         optional { ?property sh:group ?group .
@@ -278,11 +277,53 @@ public class HShapes {
                                    }
                      ?s ?predicate ?object
             optional {{graph ?validation { ?result sh:focusNode ?s; sh:resultPath ?predicate; sh:value ?object; sh:resultMessage ?message }}}
-            optional {{graph ?validation { ?result sh:focusNode ?s; sh:resultPath ?predicate;                   sh:resultMessage ?pmessage .
+            }
+            group by ?object
+            order by ?object
+            """
+        );
+        pss.setNsPrefix("sh", SHACLM.NS);
+        pss.setNsPrefix("hal", HAL.NS);
+        pss.setNsPrefix("dash", DASH.NS);
+        pss.setNsPrefix("rdfs", RDFS.uri);
+        pss.setIri("shapes", HAL.Shapes.getURI());
+        pss.setIri("validation", HAL.ValidationReport.getURI());
+        pss.setIri("shape", shape.getURI());
+        if (r.isAnon()) {
+            pss.setIri("s", "_:"+r.toString());
+        } else {
+            pss.setIri("s", r.getURI());
+        }
+        pss.setIri("predicate", predicate.getURI());
+        return QueryExecutionFactory.create(pss.toString(),ds).execSelect().materialise();
+    }
+    
+    public ResultSet getPredicateFormElements(Resource r, Node shape) {
+        ValidationReport report = Validate(r.getModel());
+        Dataset ds = DatasetFactory.create();
+        ds.getDefaultModel().add(r.getModel());
+        ds.addNamedModel(HAL.Shapes.getURI(), shacl);
+        ds.addNamedModel(HAL.ValidationReport.getURI(), report.getModel());
+        ParameterizedSparqlString pss = new ParameterizedSparqlString(
+            """
+            select distinct ?group ?predicate (GROUP_CONCAT(distinct ?subshape; separator=", ") AS ?subshapes) (GROUP_CONCAT(distinct ?viewer; separator=", ") AS ?viewers) (GROUP_CONCAT(distinct ?order; separator=", ") AS ?orders) (GROUP_CONCAT(distinct ?editor; separator=", ") AS ?editors) (GROUP_CONCAT(distinct ?pmessage; separator=", ") AS ?pmessages)
+            where {  graph ?shapes {    ?shape a sh:NodeShape ; sh:property ?property .
+                                        ?property sh:path ?predicate .
+                                        optional { ?property sh:group ?group .
+                                                   ?group a sh:PropertyGroup; sh:order ?grouporder; rdfs:label ?grouplabel
+                                        }
+                                        optional { ?property dash:editor ?editor }
+                                        optional { ?property dash:viewer ?viewer }
+                                        optional { ?property sh:node ?subshape }
+                                        optional { ?property sh:order ?order }
+                                        optional { ?property sh:name ?name }
+                                   }
+                     ?s ?predicate ?object
+            optional {{graph ?validation { ?result sh:focusNode ?s; sh:resultPath ?predicate; sh:resultMessage ?pmessage .
                                             minus {?result sh:value ?x}
                 }}}
             }
-            group by ?group ?predicate ?object
+            group by ?group ?predicate
             order by ?group ?grouporder ?order ?predicate 
             """
         );

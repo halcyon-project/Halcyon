@@ -10,6 +10,7 @@ import org.apache.jena.graph.Node;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.DatasetFactory;
 import org.apache.jena.query.ParameterizedSparqlString;
+import org.apache.jena.rdf.model.Property;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.wicket.MarkupContainer;
 import org.apache.wicket.extensions.ajax.markup.html.repeater.data.table.AjaxFallbackDefaultDataTable;
@@ -26,7 +27,7 @@ import org.apache.wicket.util.resource.StringResourceStream;
  */
 public class GridPanel extends Panel implements IMarkupResourceStreamProvider {
 
-    public GridPanel(String id, Resource subject, Node shape) {
+    public GridPanel(String id, Resource subject, Property property, Node shape) {
         super(id);
         //HShapes hshapes = new HShapes();
         
