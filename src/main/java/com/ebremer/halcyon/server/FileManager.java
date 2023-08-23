@@ -111,8 +111,7 @@ public final class FileManager implements Service {
     public static void main(String[] args) throws FileNotFoundException {
         loci.common.DebugTools.setRootLevel("WARN");
         DataCore dc = DataCore.getInstance();
-        //while (true) {}
-        //FileManager fm = FileManager.getInstance();
+        FileManager fm = new FileManager();
     }
 
     @Override

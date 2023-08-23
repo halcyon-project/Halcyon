@@ -17,7 +17,6 @@ public class TileRequest implements Callable<Tile> {
     private final ImageRegion region;
     private final Rectangle preferredsize;
     private final boolean cachethis;
-    //private static final ConcurrentHashMap<TileRequest,Tile> queue = new ConcurrentHashMap<>();
     
     private TileRequest(URI uri, ImageRegion region, Rectangle preferredsize, boolean cachethis) {
         this.uri = uri;
@@ -39,6 +38,7 @@ public class TileRequest implements Callable<Tile> {
     }
     
     public static TileRequest genTileRequest(URI uri, ImageRegion region, Rectangle preferredsize, boolean cachethis) {
+        System.out.println(CacheService.getCache().stats());
         int a = preferredsize.width();
         int b = preferredsize.height();
         if (a>0) {

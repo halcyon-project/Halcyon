@@ -10,7 +10,6 @@ import org.apache.jena.graph.Node;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.DatasetFactory;
 import org.apache.jena.query.ParameterizedSparqlString;
-import org.apache.jena.query.ResultSet;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.wicket.MarkupContainer;
 import org.apache.wicket.extensions.ajax.markup.html.repeater.data.table.AjaxFallbackDefaultDataTable;

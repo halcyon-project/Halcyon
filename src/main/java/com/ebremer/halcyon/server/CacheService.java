@@ -18,7 +18,8 @@ public class CacheService implements Service {
     public CacheService() {
         System.out.println("Starting Cache Service...");
         cache = Caffeine.newBuilder()
-            .maximumSize(100000)
+            .recordStats()
+            .maximumSize(10000)
             .expireAfterAccess(Duration.ofMinutes(10))
             .build();
     }

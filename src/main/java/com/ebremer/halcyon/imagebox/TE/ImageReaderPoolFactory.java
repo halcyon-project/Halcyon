@@ -16,9 +16,7 @@ import org.apache.commons.pool2.impl.DefaultPooledObject;
  */
 public class ImageReaderPoolFactory extends BaseKeyedPooledObjectFactory<URI, ImageReader> {
     
-    public ImageReaderPoolFactory() {
-
-    }
+    public ImageReaderPoolFactory() {}
     
     @Override
     public ImageReader create(URI uri) throws Exception {
