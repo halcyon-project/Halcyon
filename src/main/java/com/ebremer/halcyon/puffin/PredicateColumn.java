@@ -9,16 +9,16 @@ import org.apache.wicket.model.IModel;
 /**
  *
  * @author erich
- * @param <T>
- * @param <S>
+ * @param <Solution>
+ * @param <Node>
  */
-public class PredicateColumn<T, S> extends AbstractColumn<T, S> implements IExportableColumn<T, S> {
+public class PredicateColumn<Solution, Node> extends AbstractColumn<Solution, Node> implements IExportableColumn<Solution, Node> {
 
     public PredicateColumn(IModel<String> displayModel) {
         super(displayModel);
     }
 
-    public PredicateColumn(IModel<String> displayModel, S sortProperty) {
+    public PredicateColumn(IModel<String> displayModel, Node sortProperty) {
         super(displayModel, sortProperty);
     }
 
@@ -38,12 +38,12 @@ public class PredicateColumn<T, S> extends AbstractColumn<T, S> implements IExpo
     }
 
     @Override
-    public void populateItem(Item<ICellPopulator<T>> item, String string, IModel<T> imodel) {
+    public void populateItem(Item<ICellPopulator<Solution>> item, String string, IModel<Solution> imodel) {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
     @Override
-    public IModel<?> getDataModel(IModel<T> imodel) {
+    public IModel<?> getDataModel(IModel<Solution> imodel) {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 }

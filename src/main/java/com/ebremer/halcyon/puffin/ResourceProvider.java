@@ -15,32 +15,33 @@ import org.apache.wicket.model.IModel;
 public class ResourceProvider implements ISortableDataProvider<Resource,Node> {
     
     public ResourceProvider(Resource subject, Property property, Node shape) {
-        
+        HShapes hshapes = new HShapes();
+        HShape hshape = hshapes.getShapeData(shape);
     }
 
     @Override
     public Iterator<? extends Resource> iterator(long first, long count) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     @Override
     public long size() {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     @Override
     public IModel<Resource> model(Resource object) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        throw new UnsupportedOperationException("Not supported yet.");
     }
     
     @Override
     public void detach() {
-        ISortableDataProvider.super.detach(); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/OverriddenMethodBody
+        ISortableDataProvider.super.detach();
     }
 
     @Override
     public ISortState<Node> getSortState() {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        throw new UnsupportedOperationException("Not supported yet.");
     }
     
 }
