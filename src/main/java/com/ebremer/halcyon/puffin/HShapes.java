@@ -189,7 +189,6 @@ public class HShapes {
         pss.setNsPrefix("sh", SHACLM.NS);
         pss.setNsPrefix("hal", HAL.NS);
         pss.setIri("shape", shape.getURI());
-        System.out.println(pss.toString());
         return QueryExecutionFactory.create(pss.toString(),shacl).execSelect();
     }
     

@@ -1,9 +1,7 @@
 package com.ebremer.halcyon.puffin;
 
-import com.ebremer.ethereal.*;
 import com.ebremer.halcyon.gui.HalcyonSession;
 import java.util.UUID;
-import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.wicket.model.LoadableDetachableModel;
 
@@ -25,10 +23,6 @@ public class RDFDetachableResource extends LoadableDetachableModel<Resource> {
         this.uuid = uuid;
         HalcyonSession.get().getBlock().getEphemeralResourceStorage().put(uuid, m);
     }
-     
-    public void flush() {
-        HalcyonSession.get().getBlock().getEphemeralResourceStorage().remove(uuid);
-    }
 
     @Override
     public Resource load() {
@@ -38,10 +32,5 @@ public class RDFDetachableResource extends LoadableDetachableModel<Resource> {
     @Override
     public void detach() {
         super.detach();
-    }
-    
-    public void setModel(Model m) {
-        flush();
-        EphemeralModelStorage.getInstance().put(uuid, m);
     }
 }

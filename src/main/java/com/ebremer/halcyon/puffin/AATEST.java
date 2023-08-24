@@ -27,7 +27,9 @@ public class AATEST {
         query.addResultVar(p);
         query.addResultVar(o);
         query.addResultVar(s);
-
+        query.addOrderBy(o, 0);
+        query.addOrderBy(p, 1);
+        query.getOrderBy().remove(0);
         query.setDistinct(false);
         query.setQueryPattern(block);
         System.out.println("===================================================");

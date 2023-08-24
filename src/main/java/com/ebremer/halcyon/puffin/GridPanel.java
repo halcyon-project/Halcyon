@@ -19,6 +19,8 @@ import org.apache.jena.query.Syntax;
 import org.apache.jena.rdf.model.Property;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.sparql.core.Var;
+import org.apache.jena.sparql.syntax.ElementGroup;
+import org.apache.jena.sparql.syntax.ElementOptional;
 import org.apache.jena.sparql.syntax.ElementTriplesBlock;
 import org.apache.wicket.MarkupContainer;
 import org.apache.wicket.extensions.ajax.markup.html.repeater.data.table.AjaxFallbackDefaultDataTable;
@@ -43,10 +45,11 @@ public class GridPanel extends Panel implements IMarkupResourceStreamProvider {
         Query query = QueryFactory.create();
         query.setQuerySelectType();
         query.setDistinct(true);
-        ElementTriplesBlock block = new ElementTriplesBlock();
         Var bn = Var.alloc("bn");
         query.addResultVar(bn);
-        query.setQueryPattern(block);
+        ElementGroup body = new ElementGroup();
+        ElementTriplesBlock block = new ElementTriplesBlock();
+        body.addElement(block);     
         block.addTriple(Triple.create(subject.asNode(), property.asNode(), bn));
         int c=1;
         while (rs.hasNext()) {
@@ -54,11 +57,15 @@ public class GridPanel extends Panel implements IMarkupResourceStreamProvider {
             String cname = "c"+c;
             Var o = Var.alloc(cname);
             query.addResultVar(o);
-            block.addTriple(Triple.create(bn, qs.get("predicate").asNode(), o));
+            ElementTriplesBlock optionalBlock = new ElementTriplesBlock();
+            ElementOptional optionalElement = new ElementOptional(optionalBlock);
+            optionalBlock.addTriple(Triple.create(bn, qs.get("predicate").asNode(), o));
+            body.addElement(optionalElement);
             String name = qs.contains("name")?qs.getLiteral("name").getString():qs.getResource("predicate").getLocalName();
             columns.add(new NodeColumn<>(Model.of(name),cname,cname));
             c++;
         }
+        query.setQueryPattern(body);
         System.out.println(query.serialize(Syntax.syntaxSPARQL));
         Dataset ds = DatasetFactory.createTxnMem();
         ds.setDefaultModel(subject.getModel());
@@ -74,6 +81,6 @@ public class GridPanel extends Panel implements IMarkupResourceStreamProvider {
             <wicket:panel>
                 <table wicket:id="table"></table>
             </wicket:panel>
-            """);
+        """);
     }
 }
