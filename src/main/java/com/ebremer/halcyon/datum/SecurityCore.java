@@ -1,6 +1,6 @@
 package com.ebremer.halcyon.datum;
 
-import com.ebremer.halcyon.HalcyonSettings;
+import com.ebremer.halcyon.lib.HalcyonSettings;
 import com.ebremer.ns.HAL;
 import java.io.File;
 import org.apache.jena.query.Dataset;

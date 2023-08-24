@@ -1,14 +1,23 @@
 package com.ebremer.halcyon.filesystem;
 
 import com.ebremer.halcyon.datum.DataCore;
-import com.ebremer.halcyon.datum.EB;
-import com.ebremer.halcyon.datum.Scan;
+import com.ebremer.halcyon.datum.URITools;
+import com.ebremer.halcyon.filereaders.FileReader;
+import com.ebremer.halcyon.filereaders.FileReaderFactory;
+import com.ebremer.halcyon.filereaders.FileReaderFactoryProvider;
+import com.ebremer.halcyon.lib.HalcyonSettings;
+import com.ebremer.halcyon.lib.ImageReader;
+import com.ebremer.halcyon.utils.HashTools;
 import com.ebremer.ns.HAL;
+import com.ebremer.ns.LOC;
+import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
@@ -26,6 +35,10 @@ import org.apache.jena.query.ResultSet;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.Resource;
+import org.apache.jena.rdf.model.ResourceFactory;
+import org.apache.jena.riot.Lang;
+import org.apache.jena.riot.RDFDataMgr;
+import org.apache.jena.vocabulary.OWL;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.SchemaDO;
 
@@ -34,18 +47,10 @@ import org.apache.jena.vocabulary.SchemaDO;
  * @author erich
  */
 public class DirectoryProcessor {
-    public static final int DICOM = 0;
-    public static final int HL7 = 1;
-    public static final int XML = 2;
-    public static final int CSV = 3;
-    public static final int ZIP = 4;
-    public static final int SVS = 5;
-    public static final int TIF = 6;
-    public static final int NDPI = 7;
-    public static final int DFIX = 1701;
     public final int cores;
     private final Dataset buffer;
-    private CopyOnWriteArrayList list = null;
+    private final CopyOnWriteArrayList<Resource> list;
+    private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     
     public DirectoryProcessor(Dataset buffer) {
         this.buffer = buffer;
@@ -55,27 +60,23 @@ public class DirectoryProcessor {
     
     public Model PathInfo(String s) {
         Model m = ModelFactory.createDefaultModel();
-        try {
-            URI childuri = new URI(s);
-            Path childpath = Path.of(childuri);
-            Path rootpath = childpath.getRoot();
-            int pd = rootpath.getNameCount();
-            int nc = childpath.getNameCount();
-            for (int i=0; i<nc-pd; i++) {
-                Resource parent = m.createResource(childpath.getParent().toUri().toString());
-                Resource child = m.createResource(childpath.toUri().toString());
-                m.add(parent, SchemaDO.hasPart, child);
-                m.add(parent, RDF.type, SchemaDO.Dataset);
-                m.add(child, SchemaDO.isPartOf, parent);
-                childpath = childpath.getParent();
-            }
-        } catch (URISyntaxException ex) {
-            Logger.getLogger(Scan.class.getName()).log(Level.SEVERE, null, ex);
+        URI childuri = (new File(s)).toURI();
+        Path childpath = Path.of(childuri);
+        Path rootpath = childpath.getRoot();
+        int pd = rootpath.getNameCount();
+        int nc = childpath.getNameCount();
+        for (int i=0; i<nc-pd; i++) {
+            Resource parent = m.createResource(childpath.getParent().toUri().toString());
+            Resource child = m.createResource(childpath.toUri().toString());
+            m.add(parent, SchemaDO.hasPart, child);
+            m.add(parent, RDF.type, SchemaDO.Dataset);
+            m.add(child, SchemaDO.isPartOf, parent);
+            childpath = childpath.getParent();
         }
         return m;
     }
 
-    public void Traverse(Path src, String[] ext, int ftype) {
+    public void Traverse(Path src) {
         try {
             Stream<Path> yay = Files.walk(src);
             ForkJoinPool fjp = null;
@@ -83,33 +84,52 @@ public class DirectoryProcessor {
                 fjp = new ForkJoinPool(cores);
                 fjp.submit(()->yay.collect(toList()).parallelStream()
                     .filter(Objects::nonNull)
-                    .filter(fff -> {
-                        return fff.toFile().isFile();
-                    })
-                    .filter(fff -> {
-                        String v = fff.toFile().toString();
-                        for (String ext1 : ext) {
-                            if (v.toLowerCase().endsWith(ext1)) {
-                                if (!list.contains(EB.fix(fff.toFile()))) {
-                                    return true;
-                                }
+                    .filter(fff -> fff.toFile().isFile())
+                    .map(path->path.toUri())
+                    .map(path-> ResourceFactory.createResource(URITools.fix(path.toString())))
+                    .filter(fff -> !list.contains(fff))
+                    .filter(fff->FileReaderFactoryProvider.hasReaderFor(fff))
+                    .forEach(r -> {
+                        FileReaderFactory frf = FileReaderFactoryProvider.getReaderForFormat(r);
+                        Model m;
+                        try (FileReader fr = frf.create(new URI(r.getURI()))){
+                            m = fr.getMeta();
+                            m.add(r, RDF.type, HAL.FileManagerArtifact);
+                            URI uri = new URI(r.getURI());
+                            File file = new File(uri);
+                            
+                            if (fr instanceof ImageReader) {
+                                long now = System.nanoTime();
+                                String hash = HashTools.GetMD5(file);
+                                System.out.println("Time = "+((System.nanoTime()-now)/1000000000d));
+                                m.add(r,LOC.md5,hash);
+                                m.add(r,OWL.sameAs,m.createResource("urn:md5:"+hash));
                             }
+                            
+                            ZonedDateTime dateTime = ZonedDateTime.now();
+                            m.addLiteral(r, SchemaDO.datePublished, dateTime.format(formatter));
+                            m.add(r, SchemaDO.name, r.getLocalName());
+                            m.addLiteral(r,SchemaDO.contentSize,file.length());
+                            m.add(r,SchemaDO.instrument, HalcyonSettings.HALCYONAGENT);
+                            
+                            Model pathinfo = PathInfo(file.getCanonicalPath());
+                            //System.out.println("============================================================");
+                            //RDFDataMgr.write(System.out, m, Lang.TURTLE);
+                            //System.out.println("============================================================");
+                            //RDFDataMgr.write(System.out, pathinfo, Lang.TURTLE);
+                            buffer.begin(ReadWrite.WRITE);
+                            buffer.addNamedModel(HAL.CollectionsAndResources, pathinfo);
+                            buffer.addNamedModel(r, m);
+                            buffer.commit();
+                            buffer.end();
+                            System.out.println("Processed : "+r);
+                        } catch (URISyntaxException ex) {
+                            Logger.getLogger(DirectoryProcessor.class.getName()).log(Level.SEVERE, null, ex);
+                        } catch (IOException ex) {
+                            Logger.getLogger(DirectoryProcessor.class.getName()).log(Level.SEVERE, null, ex);
+                        } catch (Exception ex) {
+                            Logger.getLogger(DirectoryProcessor.class.getName()).log(Level.SEVERE, null, ex);
                         }
-                        return false;
-                    })
-                    .forEach((Path e) -> {
-                        String xxx = EB.fix(e.toFile());
-                        FileMetaExtractor fe = new FileMetaExtractor(e.toFile());
-                        Model m = fe.getDataset().getNamedModel(xxx);
-                        m.createResource(xxx).addProperty(RDF.type, HAL.FileManagerArtifact);
-                        buffer.begin(ReadWrite.WRITE);
-                        buffer.getDefaultModel().add(fe.getCoreMeta());
-                        Model pathinfo = PathInfo(xxx);
-                        buffer.addNamedModel(HAL.CollectionsAndResources, pathinfo);
-                        buffer.addNamedModel(xxx, m);
-                        buffer.commit();
-                        buffer.end();
-                        System.out.println("Processed : "+xxx);
                     })
                 ).get();
             } catch (InterruptedException | ExecutionException ex) {
@@ -123,23 +143,9 @@ public class DirectoryProcessor {
             Logger.getLogger(DirectoryProcessor.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
-     
-    public static String[] GetExtensions(int ftype) {
-        return switch (ftype) {
-            case ZIP -> new String[] {"zip"};
-            case DICOM -> new String[] {"dcm"};
-            case HL7 -> new String[] {"txt"};
-            case XML -> new String[] {"xml", "xml.gz"};
-            case CSV -> new String[] {"csv"};
-            case SVS -> new String[] {"svs"};
-            case TIF -> new String[] {"tif"};
-            case NDPI -> new String[] {"ndpi"};
-            default -> null;
-        };
-    }
     
     public final CopyOnWriteArrayList GetExisting() {
-        CopyOnWriteArrayList cur = new CopyOnWriteArrayList();
+        CopyOnWriteArrayList<Resource> cur = new CopyOnWriteArrayList<>();
         DataCore dc = DataCore.getInstance();
         Dataset ds = dc.getDataset();
         try {
@@ -148,11 +154,17 @@ public class DirectoryProcessor {
             ResultSet results = qe.execSelect().materialise();
             while (results.hasNext()) {
                 QuerySolution sol = results.nextSolution();
-                cur.add(sol.get("g").toString());
+                cur.add(sol.get("g").asResource());
             }
         } finally {
             ds.end();
         }
         return cur;
+    }
+    
+    public static void main(String[] args) {
+        Dataset ds = DataCore.getInstance().getDataset();
+        DirectoryProcessor dp = new DirectoryProcessor(ds);
+        dp.Traverse(Path.of("D:\\HalcyonStorage"));
     }
 }

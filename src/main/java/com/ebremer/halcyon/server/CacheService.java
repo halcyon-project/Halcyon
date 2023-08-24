@@ -1,7 +1,7 @@
 package com.ebremer.halcyon.server;
 
-import com.ebremer.halcyon.imagebox.TE.Tile;
-import com.ebremer.halcyon.imagebox.TE.TileRequest;
+import com.ebremer.halcyon.lib.Tile;
+import com.ebremer.halcyon.lib.TileRequest;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import java.time.Duration;

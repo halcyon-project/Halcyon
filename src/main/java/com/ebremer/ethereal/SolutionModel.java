@@ -13,11 +13,11 @@ import org.apache.wicket.model.IWrapModel;
  * @param <T>
  */
 public class SolutionModel<T> extends ChainingModel<T> implements IComponentInheritedModel<T> {
-    T rdf;
+    //T rdf;
     
     public SolutionModel(final IModel<T> model) {
         super(model);
-        this.rdf = (T) model;
+        //this.rdf = (T) model;
     }
     
     @Override

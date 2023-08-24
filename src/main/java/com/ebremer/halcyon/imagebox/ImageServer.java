@@ -1,13 +1,14 @@
 package com.ebremer.halcyon.imagebox;
 
-import com.ebremer.halcyon.HalcyonSettings;
+import com.ebremer.halcyon.lib.HalcyonSettings;
 import com.ebremer.halcyon.imagebox.Enums.ImageFormat;
-import com.ebremer.halcyon.imagebox.TE.ImageMeta;
-import com.ebremer.halcyon.imagebox.TE.ImageRegion;
-import com.ebremer.halcyon.imagebox.TE.Rectangle;
-import com.ebremer.halcyon.imagebox.TE.Tile;
-import com.ebremer.halcyon.imagebox.TE.TileRequest;
-import com.ebremer.halcyon.imagebox.TE.TileRequestEngine;
+import com.ebremer.halcyon.lib.ImageMeta;
+import com.ebremer.halcyon.lib.ImageRegion;
+import com.ebremer.halcyon.lib.Rectangle;
+import com.ebremer.halcyon.lib.Tile;
+import com.ebremer.halcyon.lib.TileRequest;
+import com.ebremer.halcyon.lib.TileRequestEngine;
+import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.URI;
@@ -39,12 +40,12 @@ public class ImageServer extends HttpServlet {
                 return;
             }
             if (i.tilerequest) {
-                com.ebremer.halcyon.imagebox.TE.ImageReader ir;
+                com.ebremer.halcyon.lib.ImageReader ir;
                 ImageMeta meta = null;
                 try {
-                    ir = com.ebremer.halcyon.imagebox.TE.ImageReaderPool.getPool().borrowObject(i.uri);
-                    meta = ir.getMeta();
-                    com.ebremer.halcyon.imagebox.TE.ImageReaderPool.getPool().returnObject(i.uri, ir);
+                    ir = com.ebremer.halcyon.lib.ImageReaderPool.getPool().borrowObject(i.uri);
+                    meta = ir.getImageMeta();
+                    com.ebremer.halcyon.lib.ImageReaderPool.getPool().returnObject(i.uri, ir);
                 } catch (Exception ex) {
                     Logger.getLogger(ImageServer.class.getName()).log(Level.SEVERE, null, ex);
                 }
@@ -69,6 +70,10 @@ public class ImageServer extends HttpServlet {
                 } catch (Exception ex) {
                     Logger.getLogger(ImageServer.class.getName()).log(Level.SEVERE, null, ex);
                 }
+                if (tile==null) {
+                    BufferedImage bi = new BufferedImage(tr.getPreferredSize().width(),tr.getPreferredSize().height(),BufferedImage.TYPE_INT_ARGB);
+                    tile = new Tile(tr,bi);
+                }
                 if (i.imageformat == ImageFormat.JPG) {
                     byte[] imageInByte = tile.getJPG();
                     try (ServletOutputStream sos = response.getOutputStream()) {
@@ -91,11 +96,11 @@ public class ImageServer extends HttpServlet {
                     }
                 }
             } else if (i.inforequest) {                
-                com.ebremer.halcyon.imagebox.TE.ImageReader ir;
+                com.ebremer.halcyon.lib.ImageReader ir;
                 ImageMeta meta = null;
                 try {
-                    ir = com.ebremer.halcyon.imagebox.TE.ImageReaderPool.getPool().borrowObject(i.uri);
-                    meta = ir.getMeta();
+                    ir = com.ebremer.halcyon.lib.ImageReaderPool.getPool().borrowObject(i.uri);
+                    meta = ir.getImageMeta();
                 } catch (Exception ex) {
                     Logger.getLogger(ImageServer.class.getName()).log(Level.SEVERE, null, ex);
                 }

@@ -175,7 +175,6 @@ public class UPENN2 {
     }
     
     public static void main(String[] args) throws FileNotFoundException, IOException {
-        loci.common.DebugTools.setRootLevel("ERROR");
         ImageMeta tcga = new ImageMeta();
         Files.list(Path.of("D:\\spiros\\model_CenterCrop"))
             .filter(c -> c.toFile().isDirectory())

@@ -3,7 +3,7 @@ package com.ebremer.halcyon.imagebox;
 import com.ebremer.halcyon.FL.FLKeyedPool;
 import com.ebremer.halcyon.FL.FLKeyedPoolConfig;
 import com.ebremer.halcyon.FL.FLPool;
-import com.ebremer.halcyon.HalcyonSettings;
+import com.ebremer.halcyon.lib.HalcyonSettings;
 import com.ebremer.halcyon.FL.FL;
 import com.ebremer.halcyon.imagebox.Enums.ImageFormat;
 import static com.ebremer.halcyon.imagebox.Enums.ImageFormat.JPG;
@@ -30,20 +30,18 @@ import javax.servlet.http.HttpServletResponse;
  */
 public class FeatureServer extends HttpServlet {
     
-    private final HalcyonSettings settings; 
     private final FLKeyedPool frp;
     
     public FeatureServer() {
-        settings = HalcyonSettings.getSettings();
         FLKeyedPoolConfig<FL> config = new FLKeyedPoolConfig<>();
-        config.setBase(settings.getProxyHostName()+"/halcyon/?iiif=");
+        config.setBase(HalcyonSettings.getSettings().getProxyHostName()+"/halcyon/?iiif=");
         frp = FLPool.getPool(config);
     }
     
     public void ReportError(HttpServletResponse response, String msg) {
         response.setContentType("application/json");
         try (PrintWriter jwriter=response.getWriter()) {
-            jwriter.append("{'error': '"+msg+"'}");
+            jwriter.append("{\"error\": \""+msg+"\"}");
         } catch (IOException ex1) {
             // connection probably closed
         } catch (IllegalStateException ex1) {
@@ -137,7 +135,7 @@ public class FeatureServer extends HttpServlet {
                 } else if (i.inforequest) {
                     response.setContentType("application/json");
                     try (PrintWriter writer = response.getWriter()) {
-                        String id = settings.getProxyHostName()+"/halcyon/?iiif="+request.getParameter("iiif").substring(0, request.getParameter("iiif").length()-"/info.json".length());
+                        String id = HalcyonSettings.getSettings().getProxyHostName()+"/halcyon/?iiif="+request.getParameter("iiif").substring(0, request.getParameter("iiif").length()-"/info.json".length());
                         String blah = fr.GetImageInfo(id);
                         writer.append(blah);
                         writer.flush();

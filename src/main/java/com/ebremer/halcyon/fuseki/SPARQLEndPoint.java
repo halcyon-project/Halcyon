@@ -1,6 +1,6 @@
 package com.ebremer.halcyon.fuseki;
 
-import com.ebremer.halcyon.HalcyonSettings;
+import com.ebremer.halcyon.lib.HalcyonSettings;
 import com.ebremer.halcyon.datum.DataCore;
 //import com.ebremer.halcyon.datum.SessionsManager;
 //import com.ebremer.halcyon.keycloak.HALKeycloakOIDCFilter;

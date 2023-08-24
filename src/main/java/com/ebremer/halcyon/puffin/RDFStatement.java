@@ -15,10 +15,14 @@ import org.apache.wicket.model.IModel;
 public class RDFStatement implements IModel<Object> {
     private final String uuid;
 
-    public RDFStatement(Statement m) {
+    private RDFStatement(Statement m) {
         super();
         this.uuid = UUID.randomUUID().toString();
         HalcyonSession.get().getBlock().getEphemeralStatementStorage().put(uuid, m);
+    }
+    
+    public static RDFStatement of(Statement s) {
+        return new RDFStatement(s);
     }
     
     public Statement getStatement() {
@@ -28,7 +32,7 @@ public class RDFStatement implements IModel<Object> {
     @Override
     public Object getObject() {
         Object x = HalcyonSession.get().getBlock().getEphemeralStatementStorage().get(uuid).getObject();
-        System.out.println("getObject --> "+x+" <------ "+x.getClass().toGenericString());
+        //System.out.println("getObject --> "+x+" <------ "+x.getClass().toGenericString());
         switch (x) {
             case Literal n -> { return n.getValue(); }
             case Resource r -> { return r; }
@@ -38,7 +42,7 @@ public class RDFStatement implements IModel<Object> {
     
     public Class getObjectClass() {
         RDFNode x = HalcyonSession.get().getBlock().getEphemeralStatementStorage().get(uuid).getObject();
-        System.out.println("getObjectClass --> "+x+" <------ "+x.getClass().toGenericString());
+        //System.out.println("getObjectClass --> "+x+" <------ "+x.getClass().toGenericString());
         if (x instanceof Literal n) {
             return n.getValue().getClass();
         } else if (x instanceof Resource) {
@@ -56,7 +60,10 @@ public class RDFStatement implements IModel<Object> {
             case Float o -> s.changeLiteralObject(o);
             case Integer o -> s.changeLiteralObject(o);
             case String o -> s.changeObject(o);
-            case Resource o -> s.changeObject(o);
+            case Resource o -> {
+                s.changeObject(o);
+                s.getObject().asResource().getModel().add(o.getModel());
+            }
             case Boolean o -> s.changeLiteralObject(o);
             default -> throw new Error("cant handle this either "+object.getClass().toGenericString());
         }

@@ -3,10 +3,8 @@ package com.ebremer.halcyon.utils;
 import com.ebremer.ns.EXIF;
 import com.ebremer.ns.LOC;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
@@ -14,8 +12,6 @@ import java.nio.file.Path;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import loci.formats.FormatException;
-import loci.formats.in.SVSReader;
 import org.apache.jena.query.ParameterizedSparqlString;
 import org.apache.jena.query.QueryExecutionFactory;
 import org.apache.jena.query.QuerySolution;
@@ -95,19 +91,17 @@ public class ImageMeta {
         Model m = ModelFactory.createDefaultModel();
         Files.list(path).forEach(p->{
             System.out.println(p);
-            SVSReader reader = new SVSReader();
+            //SVSReader reader = new SVSReader();
             try {
-                reader.setId(p.toString());
-                reader.setSeries(0);
-                System.out.println(reader.getSizeX()+" "+reader.getSizeY());
-                String md5 = Hash.GetMD5(p);
+              //  reader.setId(p.toString());
+                //reader.setSeries(0);
+                //System.out.println(reader.getSizeX()+" "+reader.getSizeY());
+                String md5 = HashTools.GetMD5(p);
                 m.createResource(p.toUri().toString().replace("D:/", ""))
-                    .addLiteral(EXIF.width, reader.getSizeX())
-                    .addLiteral(EXIF.height, reader.getSizeY())
+                  //  .addLiteral(EXIF.width, reader.getSizeX())
+                    //.addLiteral(EXIF.height, reader.getSizeY())
                     .addProperty(LOC.md5, md5)
                     .addProperty(RDF.type, SchemaDO.ImageObject);  
-            } catch (FormatException ex) {
-                Logger.getLogger(ImageMeta.class.getName()).log(Level.SEVERE, null, ex);
             } catch (IOException ex) {
                 Logger.getLogger(ImageMeta.class.getName()).log(Level.SEVERE, null, ex);
             } catch (Exception ex) {
@@ -115,14 +109,6 @@ public class ImageMeta {
             }
         });
         RDFDataMgr.write(new FileOutputStream(new File("/data/erich/images/cptac.ttl")), m, Lang.TURTLE);
-    }
-    
-    public static void main(String[] args) throws FileNotFoundException, UnsupportedEncodingException, IOException {
-        loci.common.DebugTools.setRootLevel("WARN");
-        Path path = Path.of("/data/erich/images/cptac");
-        Scan(path);
-        
-        
     }
     
     public class ImageObject {

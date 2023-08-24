@@ -1,6 +1,5 @@
 package com.ebremer.halcyon.puffin;
 
-import com.ebremer.ethereal.RDFDetachableModel;
 import com.ebremer.halcyon.datum.DataCore;
 import com.ebremer.halcyon.wicket.BasePage;
 import com.ebremer.ns.HAL;
@@ -17,16 +16,16 @@ import org.apache.jena.vocabulary.SchemaDO;
 
 public class Puffin extends BasePage  {
     private static final long serialVersionUID = 1L;
-    private RDFDetachableModel rdm;
+    private final DetachableModel dm;
         
     public Puffin() { 
         Model m = ModelFactory.createDefaultModel();
+        dm = new DetachableModel(m);
         Dataset ds = DataCore.getInstance().getDataset();
         ds.begin(ReadWrite.READ);
         m.add(ds.getNamedModel(HAL.GroupsAndUsers));
         ds.end();
         RDFDataMgr.write(System.out, m, Lang.TURTLE);
-        rdm = new RDFDetachableModel(m);
         Model target = ModelFactory.createDefaultModel();
         Resource r = target.createResource("https://www.ebremer.com/myfirstcolorlist");
         r.addProperty(RDF.type, HAL.AnnotationClassList);
@@ -39,7 +38,7 @@ public class Puffin extends BasePage  {
         bn = target.createResource();
         bn.addProperty(HAL.hasClass, SNO.Necrosis).addProperty(HAL.color, "#00ff00").addProperty(RDF.type, HAL.AnnotationClass);
         r.addProperty(HAL.hasAnnotationClass, bn);
-        SHACLForm sf = new SHACLForm("sform", new RDFDetachableModel(target), r, HAL.AnnotationClassListShape.asNode());
+        SHACLForm sf = new SHACLForm("sform", r, HAL.AnnotationClassListShape.asNode(), null);
         add(sf);
     }
 }

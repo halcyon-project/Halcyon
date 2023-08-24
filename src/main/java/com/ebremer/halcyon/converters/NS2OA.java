@@ -2,14 +2,13 @@ package com.ebremer.halcyon.converters;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.ParameterException;
-import com.ebremer.halcyon.ExtendedPolygon;
-import com.ebremer.halcyon.ExtendedPolygons;
-import com.ebremer.halcyon.HalcyonSettings;
+import com.ebremer.halcyon.lib.ExtendedPolygon;
+import com.ebremer.halcyon.lib.ExtendedPolygons;
+import com.ebremer.halcyon.lib.HalcyonSettings;
 import com.ebremer.halcyon.utils.ImageMeta;
 import com.ebremer.halcyon.utils.ImageMeta.ImageObject;
 import com.ebremer.ns.EXIF;
 import com.ebremer.ns.HAL;
-import com.ebremer.ns.SNO;
 import java.awt.Polygon;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;

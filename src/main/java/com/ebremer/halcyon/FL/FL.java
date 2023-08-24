@@ -9,15 +9,15 @@ import com.apicatalog.jsonld.document.JsonDocument;
 import com.apicatalog.jsonld.serialization.RdfToJsonld;
 import com.apicatalog.rdf.RdfDataset;
 import com.ebremer.beakgraph.rdf.BeakGraph;
-import com.ebremer.halcyon.Standard;
+import com.ebremer.halcyon.lib.Standard;
 import com.ebremer.halcyon.hilbert.HilbertSpace;
-import com.ebremer.halcyon.hsPolygon;
+import com.ebremer.halcyon.lib.hsPolygon;
 import com.ebremer.ns.EXIF;
 import com.ebremer.ns.HAL;
 import com.ebremer.ns.IIIF;
 import com.ebremer.halcyon.imagebox.IIIFUtils;
 import static com.ebremer.halcyon.imagebox.IIIFUtils.IIIFAdjust;
-import com.ebremer.halcyon.utils.StopWatch;
+import com.ebremer.halcyon.utils.ImageTools;
 import jakarta.json.Json;
 import jakarta.json.JsonArray;
 import jakarta.json.JsonObject;
@@ -35,7 +35,6 @@ import java.util.concurrent.Executors;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.LongStream;
-import loci.formats.gui.AWTImageTools;
 import org.apache.commons.collections4.iterators.IteratorChain;
 import org.apache.jena.graph.Graph;
 import org.apache.jena.query.Dataset;
@@ -191,7 +190,7 @@ public class FL {
         int gh=(int) Math.round(h/rr);
         IteratorChain rs = Search(gx, gy, gw, gh, layer);
         BufferedImage bi = generateImage(gx,gy,gw,gh,layer,rs);
-        BufferedImage bix = AWTImageTools.scale(bi, (int) Math.round(w/iratio), (int) Math.round(h/iratio), false);
+        BufferedImage bix = ImageTools.scale(bi, (int) Math.round(w/iratio), (int) Math.round(h/iratio), false);
         return bix;
     }
     

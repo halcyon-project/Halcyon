@@ -1,6 +1,6 @@
 package com.ebremer.halcyon.server.keycloak;
 
-import com.ebremer.halcyon.HalcyonSettings;
+import com.ebremer.halcyon.lib.HalcyonSettings;
 import java.util.NoSuchElementException;
 import org.keycloak.Config;
 import org.keycloak.exportimport.ExportImportManager;

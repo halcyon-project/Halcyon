@@ -1,6 +1,5 @@
 package com.ebremer.halcyon.puffin;
 
-import com.ebremer.ethereal.RDFDetachableModel;
 import java.math.BigInteger;
 import org.apache.jena.graph.Triple;
 import org.apache.jena.rdf.model.Literal;
@@ -15,10 +14,10 @@ import org.apache.wicket.model.IModel;
  */
 public class WicketTriple implements IModel {
     private static final long serialVersionUID = 1L;
-    private final RDFDetachableModel model;
+    private final DetachableModel model;
     private Triple triple;
 
-    public WicketTriple(final RDFDetachableModel model, final Triple triple) {
+    public WicketTriple(final DetachableModel model, final Triple triple) {
         this.model = model;
         this.triple = triple;
     }

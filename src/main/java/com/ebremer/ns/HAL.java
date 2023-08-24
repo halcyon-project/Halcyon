@@ -16,6 +16,9 @@ public class HAL {
  */
     private static final Model m = ModelFactory.createDefaultModel();
     public static final String NS = "https://www.ebremer.com/halcyon/ns/";
+    public static final Resource ColorViewer  = m.createResource( NS + "ColorViewer" );
+    public static final Resource ColorEditor  = m.createResource( NS + "ColorEditor" );
+    public static final Resource SNOMEDEditor = m.createResource(NS+"SNOMEDEditor");
     public static final Resource SHACLForm = m.createResource(NS+"SHACLForm");
     public static final Resource ValidationReport = m.createResource(NS+"ValidationReport");
     public static final Resource AnnotationClass = m.createResource(NS+"AnnotationClass");

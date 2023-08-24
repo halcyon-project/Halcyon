@@ -1,7 +1,7 @@
 package com.ebremer.halcyon.datum;
 
 import com.ebremer.halcyon.fuseki.SPARQLEndPoint;
-import com.ebremer.halcyon.HalcyonSettings;
+import com.ebremer.halcyon.lib.HalcyonSettings;
 import static com.ebremer.halcyon.datum.DataCore.Level.CLOSED;
 import com.ebremer.halcyon.server.FileManager;
 import com.ebremer.ns.HAL;

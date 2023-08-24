@@ -1,7 +1,7 @@
 package com.ebremer.halcyon.converters;
 
 import com.ebremer.beakgraph.rdf.BeakWriter;
-import com.ebremer.halcyon.Standard;
+import com.ebremer.halcyon.lib.Standard;
 import com.ebremer.halcyon.hilbert.HilbertSpace;
 import static com.ebremer.halcyon.hilbert.HilbertSpace.Area;
 import com.ebremer.ns.EXIF;

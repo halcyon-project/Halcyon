@@ -7,10 +7,11 @@ import com.apicatalog.jsonld.JsonLdVersion;
 import com.apicatalog.jsonld.document.Document;
 import com.apicatalog.jsonld.document.JsonDocument;
 import com.apicatalog.jsonld.document.RdfDocument;
+import com.ebremer.halcyon.filereaders.TiffImageReader;
 import static com.ebremer.halcyon.imagebox.IIIFUtils.IIIFAdjust;
-import com.ebremer.halcyon.imagebox.TE.ImageMeta;
-import com.ebremer.halcyon.imagebox.TE.ImageMeta.ImageScale;
-import com.ebremer.halcyon.imagebox.TE.ImageReader;
+import com.ebremer.halcyon.lib.ImageMeta;
+import com.ebremer.halcyon.lib.ImageMeta.ImageScale;
+import com.ebremer.halcyon.lib.ImageReader;
 import com.ebremer.ns.EXIF;
 import com.ebremer.ns.IIIF;
 import jakarta.json.Json;
@@ -50,7 +51,9 @@ public class IIIFMETA {
         m.addLiteral(s, EXIF.resolutionUnit, 3);
         Resource scale = m.createResource();
         ArrayList<ImageScale> scales = meta.getScales();
+        //System.out.println(scales);
         for (int j=scales.size()-1;j>=0;j--) {
+            //System.out.println("SCALE --> "+scales.get(j));
             Resource size = m.createResource();
             m.addLiteral(size,IIIF.width,scales.get(j).width());
             m.addLiteral(size,IIIF.height,scales.get(j).height());
@@ -106,11 +109,10 @@ public class IIIFMETA {
     }
     
     public static void main(String[] args) throws Exception {
-        File file2 = new File("D:\\ATAN\\src\\TCGA-3C-AALI-01Z-00-DX1.F6E9A5DF-D8FB-45CF-B4BD-C6B76294C291.svs");
-        //TileRequestEngine tpe2 = TileRequestEnginePool.getPool().borrowObject(file2.toURI());
-        com.ebremer.halcyon.imagebox.TE.ImageReader ir = com.ebremer.halcyon.imagebox.TE.ImageReaderPool.getPool().borrowObject(file2.toURI());
-        ImageMeta meta = ir.getMeta();
-        com.ebremer.halcyon.imagebox.TE.ImageReaderPool.getPool().returnObject(file2.toURI(), (ImageReader) ir);
+        File file2 = new File("D:\\temp\\LN340032E1-1.tif");
+        URI uri = file2.toURI();
+        ImageReader ir = new TiffImageReader(uri);
+        ImageMeta meta = ir.getImageMeta();
         System.out.println(GetImageInfo(new URI("https://beak.bmi.stonybrook.edu/iiif/?iiif=https://beak.bmi.stonybrook.edu/Storage/images/tcga_data/ov/TCGA-04-1342-01A-01-TS1.66421418-fc94-4215-9ab1-6398f710f6ca.svs"),meta));
     }
 }

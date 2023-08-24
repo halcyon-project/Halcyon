@@ -1,6 +1,6 @@
 package com.ebremer.halcyon.converters;
 
-import com.ebremer.halcyon.ExtendedPolygon;
+import com.ebremer.halcyon.lib.ExtendedPolygon;
 import com.ebremer.halcyon.utils.ImageMeta.ImageObject;
 import com.ebremer.ns.SNO;
 import java.awt.Polygon;
