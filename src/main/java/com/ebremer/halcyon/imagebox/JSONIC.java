@@ -13,34 +13,37 @@ import org.apache.jena.atlas.json.JsonParseException;
  */
 public class JSONIC {
      public void testJSONLDPruneBlank() throws JsonParseException, IOException, JsonLdError {
-           String jsonld = "{\n" + 
-                   "  \"@graph\" : [ {\n" + 
-                   "    \"@type\" : \"adm:Role\",\n" + 
-                   "    \"@id\" : \"bdr:R8LS12819\",\n" + 
-                   "    \"adm:logEntry\" : [ {\n" + 
-                   "      \"adm:logMessage\" : {\n" + 
-                   "        \"@language\" : \"en\",\n" + 
-                   "        \"@value\" : \"added eng desc\"\n" + 
-                   "      }\n" + 
-                   "    } ]\n" + 
-                   "  } ],\n" + 
-                   "  \"@context\" : {\n" + 
-                   "    \"adm\" : \"http://purl.bdrc.io/ontology/admin/\"\n" + 
-                   "  }\n" + 
-                   "}";
-            String frame = "{\n" + 
-                    "  \"@context\" : {\n" + 
-                    "    \"id\" : \"@id\",\n" + 
-                    "    \"adm\" : \"http://purl.bdrc.io/ontology/admin/\"\n" + 
-                    "  },\n" + 
-                    "  \"@type\": \"adm:Role\"\n" + 
-                    "}";
-            String frameNoIdAlias = "{\n" + 
-                    "  \"@context\" : {\n" + 
-                    "    \"adm\" : \"http://purl.bdrc.io/ontology/admin/\"\n" + 
-                    "  },\n" + 
-                    "  \"@type\": \"adm:Role\"\n" + 
-                    "}";
+           String jsonld = """
+                           {
+                             "@graph" : [ {
+                               "@type" : "adm:Role",
+                               "@id" : "bdr:R8LS12819",
+                               "adm:logEntry" : [ {
+                                 "adm:logMessage" : {
+                                   "@language" : "en",
+                                   "@value" : "added eng desc"
+                                 }
+                               } ]
+                             } ],
+                             "@context" : {
+                               "adm" : "http://purl.bdrc.io/ontology/admin/"
+                             }
+                           }""";
+            String frame = """
+                           {
+                             "@context" : {
+                               "id" : "@id",
+                               "adm" : "http://purl.bdrc.io/ontology/admin/"
+                             },
+                             "@type": "adm:Role"
+                           }""";
+            String frameNoIdAlias = """
+                                    {
+                                      "@context" : {
+                                        "adm" : "http://purl.bdrc.io/ontology/admin/"
+                                      },
+                                      "@type": "adm:Role"
+                                    }""";
             Object jsonObject = JsonUtils.fromString(jsonld);
             JsonLdOptions opts = new JsonLdOptions();
             opts.setPruneBlankNodeIdentifiers(true);

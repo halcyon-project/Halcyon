@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.ebremer</groupId>
     <artifactId>Halcyon</artifactId>
-    <version>0.7.0</version>
+    <version>0.8.0</version>
     <packaging>jar</packaging>
     <name>Halcyon</name>
     <description>A whole slide image annotation, management, and visualization system</description>
@@ -80,7 +80,7 @@
         <jakarta.json.version>2.0.1</jakarta.json.version> 
         <titanium-json-ld.ver>1.3.2</titanium-json-ld.ver>
         <dcm4che.ver>5.29.2</dcm4che.ver>
-        <beakgraph.version>0.5.0</beakgraph.version>
+        <beakgraph.version>0.5.1</beakgraph.version>
         <keycloak.version>21.1.1</keycloak.version>
 	<infinispan.version>14.0.8.Final</infinispan.version>
 	<resteasy.version>4.7.7.Final</resteasy.version>
@@ -743,7 +743,6 @@
             <artifactId>BeakGraph</artifactId>
             <version>${beakgraph.version}</version>
         </dependency>
-        
         <dependency>
             <groupId>com.twelvemonkeys.imageio</groupId>
             <artifactId>imageio-tiff</artifactId>

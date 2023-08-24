@@ -1,6 +1,6 @@
 package com.ebremer.ethereal;
 
-import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import org.apache.jena.rdf.model.Model;
 
 /**
@@ -9,11 +9,11 @@ import org.apache.jena.rdf.model.Model;
  */
 public class EphemeralModelStorage {
 
-    private final HashMap<String,Model> map;
+    private final ConcurrentHashMap<String,Model> map;
     private static EphemeralModelStorage ems = null;
     
     private EphemeralModelStorage() {
-        map = new HashMap<>();
+        map = new ConcurrentHashMap<>();
     }
     
     public static EphemeralModelStorage getInstance() {
@@ -23,18 +23,16 @@ public class EphemeralModelStorage {
         return ems;
     }
     
-    public synchronized void put(String key, Model m) {
+    public void put(String key, Model m) {
         map.put(key,m);
     }
     
     public synchronized Model get(String key) {
-        //System.out.println("EphemeralModelStorage (get): "+map.size());
         return map.get(key);
     }
     
     public synchronized void remove(String key) {
         map.remove(key);
         System.out.println("remain temp items "+map.size());
-    }
-    
+    }   
 }

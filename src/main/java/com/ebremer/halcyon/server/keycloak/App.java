@@ -11,6 +11,8 @@ import org.keycloak.services.util.JsonConfigProviderFactory;
 import com.ebremer.halcyon.server.keycloak.providers.JsonProviderFactory;
 import java.io.File;
 import java.io.IOException;
+import javax.ws.rs.ApplicationPath;
+import javax.ws.rs.Path;
 import lombok.extern.slf4j.Slf4j;
 import org.keycloak.exportimport.ExportImportConfig;
 import static org.keycloak.services.resources.KeycloakApplication.getSessionFactory;
@@ -18,8 +20,16 @@ import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 
 @Slf4j
+@Path("/")
+@ApplicationPath("/")
 public class App extends KeycloakApplication {
     static ServerProperties properties;
+    
+    @Override
+    protected void startup() {
+        super.startup();
+        System.out.println("STARTUP =====================================");
+    }
 
     @Override
     protected void loadConfig() {

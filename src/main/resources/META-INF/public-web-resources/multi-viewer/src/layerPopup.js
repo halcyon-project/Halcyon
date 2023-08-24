@@ -6,13 +6,6 @@
  * @param {object} viewer - OpenSeadragon viewer
  */
 const layerPopup = function(divBody, allLayers, viewer) {
-  function switchRenderTypeIfNecessary() {
-    // If the current render type is not by probability, switch it.
-    if (STATE.renderType === 'byProbability') {
-      STATE.renderType = 'byProbability';
-    }
-  }
-
   function createAttenuationBtn(allLayers, viewer) {
     // Color attenuation by probability
     const attId = createId(5, 'atten');
@@ -28,11 +21,14 @@ const layerPopup = function(divBody, allLayers, viewer) {
 
     // Event listener
     icon.addEventListener('click', () => {
-      // Toggle attenuate state
       STATE.attenuate = !STATE.attenuate;
-      // Ensure that either outline or attenuate is on, but not both.
+      // Either outline is on or attenuate is on; not both. #attenuate
       STATE.outline = false;
-      switchRenderTypeIfNecessary();
+      // Attenuate on prob, class, or heatmap, for now.
+      // PTF: Switch to something else if it's by threshold.
+      if (STATE.renderType === 'byThreshold') {
+        STATE.renderType = 'byProbability';
+      }
       setFilter(allLayers, viewer);
     });
     return [label, icon];
@@ -55,11 +51,9 @@ const layerPopup = function(divBody, allLayers, viewer) {
 
     // Event listener
     icon.addEventListener('click', () => {
-      // Toggle outline state
       STATE.outline = !STATE.outline;
-      // Ensure only one flag is active (either attenuate or outline; not both).
+      // Either outline is on or attenuate is on; not both. #outline
       STATE.attenuate = false;
-      switchRenderTypeIfNecessary();
       toggleButton(icon, filledCircle, emptyCircle);
       setFilter(allLayers, viewer);
     });

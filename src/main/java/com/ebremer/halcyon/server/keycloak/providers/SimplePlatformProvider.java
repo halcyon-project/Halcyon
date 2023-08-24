@@ -8,7 +8,6 @@ import org.keycloak.common.Profile;
 import org.keycloak.common.profile.PropertiesFileProfileConfigResolver;
 import org.keycloak.common.profile.PropertiesProfileConfigResolver;
 import org.keycloak.platform.PlatformProvider;
-
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j

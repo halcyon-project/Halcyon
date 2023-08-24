@@ -242,13 +242,15 @@ public class NS2OA {
                     Resource body = m.createResource();
                     m.addLiteral(body,HAL.hasCertainty,1.0f);
                     m.add(body,RDF.type, HAL.ProbabilityBody);
+                    m.add(body,HAL.assertedClass,p.classid);
+                    /*
                     switch (p.classid) {
                         case "0" -> m.add(body,HAL.assertedClass,SNO.NuclearMaterial);
                         case "1" -> m.add(body,HAL.assertedClass,SNO.Lymphocytes);
                         case "2" -> m.add(body,HAL.assertedClass,SNO.TumorCell);
                         case "3" -> m.add(body,HAL.assertedClass,SNO.Cell);
-                        default -> m.add(body,HAL.assertedClass,SNO.Unknown);
-                    }
+                        default ->  m.add(body,HAL.assertedClass,SNO.Unknown);
+                    }*/
                     m.add(a,OA.hasBody,body);
                     m.add(a,OA.hasSelector,s);                        
                 });

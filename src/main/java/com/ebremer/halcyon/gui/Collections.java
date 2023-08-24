@@ -6,6 +6,7 @@ import com.ebremer.halcyon.wicket.ListFeatures;
 import com.ebremer.ethereal.Solution;
 import com.ebremer.halcyon.wicket.DatabaseLocator;
 import com.ebremer.ethereal.NodeColumn;
+import com.ebremer.halcyon.datum.DataCore;
 import com.ebremer.halcyon.datum.HalcyonFactory;
 import com.ebremer.halcyon.gui.tree.NodeNestedTreePage;
 import com.ebremer.ns.HAL;
@@ -29,7 +30,6 @@ import org.apache.wicket.markup.head.CssHeaderItem;
 import org.apache.wicket.markup.head.IHeaderResponse;
 import org.apache.wicket.markup.html.form.Button;
 import org.apache.wicket.markup.html.link.Link;
-import org.apache.wicket.markup.html.panel.FeedbackPanel;
 import org.apache.wicket.markup.html.panel.Panel;
 import org.apache.wicket.markup.repeater.Item;
 import org.apache.wicket.model.IModel;
@@ -42,10 +42,9 @@ import org.apache.wicket.request.resource.CssResourceReference;
  * @author erich
  */
 public class Collections extends BasePage {
-    private final SelectDataProvider rdfsdf;
     
     public Collections() {
-        add(new FeedbackPanel("feedback"));
+    
         List<IColumn<Solution, String>> columns = new ArrayList<>();
         columns.add(new AbstractColumn<Solution, String>(Model.of("")) {
             @Override
@@ -56,19 +55,21 @@ public class Collections extends BasePage {
         });
         columns.add(new NodeColumn<>(Model.of("Collection Name"),"CollectionName","CollectionName"));
         columns.add(new NodeColumn<>(Model.of("UUID"),"s","s"));
+        
         ParameterizedSparqlString pss = new ParameterizedSparqlString();
         pss.setCommandText("select ?CollectionName ?s where {graph ?s {?s a so:Collection; so:name ?CollectionName}} order by ?CollectionName");
         pss.setNsPrefix("so", SchemaDO.NS);
         Dataset ds = DatabaseLocator.getDatabase().getDataset();
-        rdfsdf = new SelectDataProvider(ds,pss.toString());
+        SelectDataProvider rdfsdf = new SelectDataProvider(ds,pss.toString());
         rdfsdf.SetSPARQL(pss.toString());
         add(new AjaxFallbackDefaultDataTable<>("table", columns, rdfsdf,35)); 
+        
         Button button = new Button("newCollection");
         button.add(new AjaxEventBehavior("click") {
             @Override
             protected void onEvent(AjaxRequestTarget target) {
                 String uuid = HalcyonFactory.CreateUUIDResource().getURI();
-                Dataset ds = DatabaseLocator.getDatabase().getDataset();
+                Dataset ds = DataCore.getInstance().getDataset();
                 ds.begin(ReadWrite.WRITE);
                 ds.addNamedModel(uuid, HalcyonFactory.CreateCollection(ResourceFactory.createResource(uuid)));
                 ds.commit();
@@ -90,7 +91,6 @@ public class Collections extends BasePage {
                 UpdateAction.execute(updateRequest, ds);
                 ds.commit();
                 ds.end();
-                
                 PageParameters pageParameters = new PageParameters();
                 pageParameters.add("collection", uuid);
                 setResponsePage(EditCollection.class, pageParameters);
@@ -106,7 +106,6 @@ public class Collections extends BasePage {
     }
     
     private class ActionPanel extends Panel {
-
         public ActionPanel(String id, IModel<Solution> model, String collection) {
             super(id, model);
             add(new Link<Void>("Access") {

@@ -75,7 +75,7 @@ public class IIIFUtils {
                             ooo[ii]=sizes.getJsonObject(ii);
                         }
                     }
-                    Arrays.sort(ooo, new SortSizes());
+                    //Arrays.sort(ooo, new SortSizes());
                     JsonArrayBuilder neosizes = Json.createArrayBuilder();
                     for (JsonObject ooo1 : ooo) {
                         neosizes.add(ooo1);

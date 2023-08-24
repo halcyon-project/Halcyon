@@ -5,65 +5,73 @@
  *
  * @param {Array} layers - Layers (images) to be displayed in viewer
  * @param {object} viewer - OpenSeadragon viewer
- * @param {object} [range] - For inside/outside; e.g. { "min": 70, "max": 170, "type": "inside" }
- * @param {object} [thresh] - Class thresholding; e.g. { "val": 128, "rgba": [ 255, 255, 0, 255 ], "classId": 1 }
+ * @param {object} [range]
+ * @param {object} [thresh] - Thresholding
+ * @param {number} [thresh.val] - From user input
+ * @param {Array<number>} [thresh.rgba] - example: [126, 1, 0, 255]
  */
 function setFilter(layers, viewer, range, thresh) {
   if (viewer.world) {
     // let start = performance.now();
-    // console.log(setFilter.caller);
+    // let caller = setFilter.caller;
+    // console.log('caller', caller);
 
     const itemCount = viewer.world.getItemCount();
     let filterOpts = [];
 
-    // One does not color just the affected layer; you have to do all of them.
+    // Because one does not simply color the affected layer.
+    // No. You have to do all of them.
     for (let i = 0; i < itemCount; i++) {
-      if (i === 0) continue; // Skip base
-
       const tiledImage = viewer.world.getItemAt(i);
-
-      if (!isEmpty(range)) {
-        // Use range values
-        let rgba;
-        if (range.type === 'inside') {
-          rgba = [0, 255, 255, 255]; // #00ffff (Cyan)
-        } else {
-          rgba = [74, 0, 180, 255]; // #4a00b4 (Purple Heart)
+      // Skip base
+      if (i > 0) {
+        if (!isEmpty(range)) {
+          // USE RANGE VALUES
+          let rgba;
+          if (range.type === 'inside') {
+            // Color #00FFFF is cyan
+            rgba = [0, 255, 255, 255];
+          } else {
+            // Color #4A00B4 is Purple Heart
+            rgba = [74, 0, 180, 255];
+          }
+          filterOpts.push({
+            items: tiledImage,
+            processors: colorFilter.prototype.PROBABILITY(range, rgba)
+          });
+        } else if (STATE.outline) {
+          // OUTLINE POLYS
+          // NOTE: Color can not have green in it.
+          // Color #0000FF is blue
+          filterOpts.push({
+            items: tiledImage,
+            processors: colorFilter.prototype.OUTLINE([0, 0, 255, 255]),
+          });
+        } else if (STATE.renderType === 'byProbability') {
+          // USE COLOR SPECTRUM
+          filterOpts.push({
+            items: tiledImage,
+            processors: colorFilter.prototype.COLORLEVELS(layers[i].colorscheme.colorspectrum),
+          });
+        } else if (STATE.renderType === 'byClass' || STATE.renderType === 'byHeatmap') {
+          let processor;
+          if (thresh) {
+            // USE THRESHOLD
+            processor = colorFilter.prototype.THRESHOLDING(thresh);
+          } else {
+            // USE COLOR SCHEME
+            processor = colorFilter.prototype.COLORLEVELS(layers[i].colorscheme.colors);
+          }
+          filterOpts.push({
+            items: tiledImage,
+            processors: processor,
+          });
+        } else if (STATE.renderType === 'byThreshold') {
+          filterOpts.push({
+            items: tiledImage,
+            processors: colorFilter.prototype.THRESHOLDING(thresh)
+          });
         }
-        filterOpts.push({
-          items: tiledImage,
-          processors: colorFilter.prototype.PROBABILITY(range, rgba)
-        });
-      } else if (STATE.outline) {
-        // Outline in blue.  Color can not have green in it.
-        filterOpts.push({
-          items: tiledImage,
-          processors: colorFilter.prototype.OUTLINE([0, 0, 255, 255]),
-        });
-      } else if (STATE.renderType === 'byProbability') {
-        // Use color spectrum
-        filterOpts.push({
-          items: tiledImage,
-          processors: colorFilter.prototype.COLORLEVELS(layers[i].colorscheme.colorspectrum),
-        });
-      } else if (STATE.renderType === 'byClass' || STATE.renderType === 'byHeatmap') {
-        let processor;
-        if (thresh) {
-          // Use threshold
-          processor = colorFilter.prototype.THRESHOLDING(thresh);
-        } else {
-          // Use color scheme
-          processor = colorFilter.prototype.COLORLEVELS(layers[i].colorscheme.colors);
-        }
-        filterOpts.push({
-          items: tiledImage,
-          processors: processor
-        });
-      } else if (STATE.renderType === 'byThreshold') {
-        filterOpts.push({
-          items: tiledImage,
-          processors: colorFilter.prototype.THRESHOLDING(thresh)
-        });
       }
     }
 
@@ -135,8 +143,8 @@ const isEmpty = value => {
     if (typeof a.length === 'undefined') {
       // it's an Object, not an Array
       const hasNonempty = Object.keys(a).some(element => {
-        return !isEmpty(a[element]);
-      });
+          return !isEmpty(a[element]);
+        });
       return hasNonempty ? false : isEmptyObject(Object.keys(a));
     }
 
@@ -237,8 +245,8 @@ const e = (tagName, properties = {}, children = []) => {
 
   // Apply properties
   Object.keys(properties).forEach(property => {
-    element.setAttribute(property, properties[property]);
-  });
+      element.setAttribute(property, properties[property]);
+    });
 
   // Append children
   children.forEach(c => {
@@ -286,8 +294,7 @@ const scaleToRgb = num => {
  *
  * @type {string[]}
  */
-// const RENDER_TYPES = ['byProbability', 'byClass', 'byHeatmap', 'byThreshold'];
-const RENDER_TYPES = ['byProbability', 'byClass', 'byHeatmap'];
+const RENDER_TYPES = ['byProbability', 'byClass', 'byHeatmap', 'byThreshold'];
 
 /**
  * State
@@ -316,7 +323,7 @@ function stringy(param) {
  */
 function populateStorage(canvas, options) {
   localStorage.setItem('theme', document.body.className);
-  const myObject = canvas.toJSON(['name', 'tag']);
+  const myObject = canvas.toJSON(['name','tag']);
   localStorage.setItem('canvas', stringy(myObject));
   localStorage.setItem('state', stringy(STATE));
   localStorage.setItem('options', stringy(options));
@@ -343,7 +350,7 @@ function saveSettings(canvas, options) {
   populateStorage(canvas, options);
   const jsonObject = {
     theme: document.body.className,
-    canvas: canvas.toJSON(['name', 'tag']),
+    canvas: canvas.toJSON(['name','tag']),
     state: STATE,
     options,
   };
