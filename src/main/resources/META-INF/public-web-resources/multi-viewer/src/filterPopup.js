@@ -74,6 +74,7 @@ function createPopup(uniqueId, paletteBtn, title) {
   const widgetId = `filters${uniqueId}`;
   const rect = paletteBtn.getBoundingClientRect();
   // const title = `${title} color levels`;
+  // return createDraggableDiv(widgetId, title, rect.left, rect.top);
   return createDraggableDiv(widgetId, title, rect.left, rect.top);
 }
 
@@ -95,7 +96,7 @@ function setChecked(colorscheme) {
 }
 
 function createThresh(div, layers, viewer, colorPicker, classId) {
-  const val = '1'; // Initial value
+  const val = '1'; // 128
   let color;
   if (colorPicker) {
     color = colorToArray(colorPicker.style.backgroundColor);
@@ -103,7 +104,7 @@ function createThresh(div, layers, viewer, colorPicker, classId) {
       color.push(255);
     }
   } else {
-    color = [126, 1, 0, 255]; // Default thresh color maroon
+    color = [126, 1, 0, 255];
   }
 
   // slider value
@@ -126,16 +127,17 @@ function createThresh(div, layers, viewer, colorPicker, classId) {
   });
 
   div.appendChild(e('div', {}, [number, range]));
+  number.addEventListener('input', function() {
+    range.value = this.value;
+    setFilter(layers, viewer, {}, { val: parseInt(this.value), rgba: color, classId: classId });
+    // console.log('number input');
+  });
 
-  function createInputHandler(updateElement) {
-    return function() {
-      updateElement.value = this.value;
-      setFilter(layers, viewer, {}, { val: parseInt(this.value), rgba: color, classId: classId });
-    };
-  }
-
-  number.addEventListener('input', createInputHandler(range));
-  range.addEventListener('input', createInputHandler(number));
+  range.addEventListener('input', function() {
+    number.value = this.value;
+    setFilter(layers, viewer, {}, { val: parseInt(this.value), rgba: color, classId: classId });
+    // console.log('range input');
+  });
 }
 
 function checkboxHandler(checkboxElement, displayColors, layers, viewer) {
@@ -367,7 +369,6 @@ function createColorPicker(cIdx, uniq, colorObject, layers, viewer) {
       init = false; // Update the state
       return;
     }
-    STATE.outline = false; // Shut outline off
     // console.log([r, g, b, a])
     this.source.value = this.color(r, g, b, a);
     this.source.innerHTML = this.color(r, g, b, a);
