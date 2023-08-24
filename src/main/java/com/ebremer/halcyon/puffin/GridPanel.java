@@ -7,12 +7,19 @@ import com.ebremer.ns.HAL;
 import java.util.LinkedList;
 import java.util.List;
 import org.apache.jena.graph.Node;
+import org.apache.jena.graph.Triple;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.DatasetFactory;
 import org.apache.jena.query.ParameterizedSparqlString;
+import org.apache.jena.query.Query;
+import org.apache.jena.query.QueryFactory;
+import org.apache.jena.query.QuerySolution;
 import org.apache.jena.query.ResultSet;
+import org.apache.jena.query.Syntax;
 import org.apache.jena.rdf.model.Property;
 import org.apache.jena.rdf.model.Resource;
+import org.apache.jena.sparql.core.Var;
+import org.apache.jena.sparql.syntax.ElementTriplesBlock;
 import org.apache.wicket.MarkupContainer;
 import org.apache.wicket.extensions.ajax.markup.html.repeater.data.table.AjaxFallbackDefaultDataTable;
 import org.apache.wicket.extensions.markup.html.repeater.data.table.IColumn;
@@ -31,30 +38,32 @@ public class GridPanel extends Panel implements IMarkupResourceStreamProvider {
     public GridPanel(String id, Resource subject, Property property, Node shape) {
         super(id);
         HShapes hshapes = new HShapes();
-        
         List<IColumn<Solution, String>> columns = new LinkedList<>();
         ResultSet rs = hshapes.getProperties(shape);
-        rs.forEachRemaining(qs->{
-            columns.add(new NodeColumn<>(Model.of("File URI"),"s","s"));
-        });
-        
-        columns.add(new NodeColumn<>(Model.of("hasClass"),"hasClass","hasClass"));
-        columns.add(new NodeColumn<>(Model.of("color"),"color","color"));
-        ParameterizedSparqlString pss = new ParameterizedSparqlString(
-            """
-            select ?color ?hasClass
-            where { ?subject hal:hasAnnotationClass ?ac . ?ac hal:color ?color; hal:hasClass ?hasClass }
-            """
-        );
-        pss.setNsPrefix("hal", HAL.NS);
-        pss.setIri("subject", subject.getURI());
+        Query query = QueryFactory.create();
+        query.setQuerySelectType();
+        query.setDistinct(true);
+        ElementTriplesBlock block = new ElementTriplesBlock();
+        Var bn = Var.alloc("bn");
+        query.addResultVar(bn);
+        query.setQueryPattern(block);
+        block.addTriple(Triple.create(subject.asNode(), property.asNode(), bn));
+        int c=1;
+        while (rs.hasNext()) {
+            QuerySolution qs = rs.next();
+            String cname = "c"+c;
+            Var o = Var.alloc(cname);
+            query.addResultVar(o);
+            block.addTriple(Triple.create(bn, qs.get("predicate").asNode(), o));
+            String name = qs.contains("name")?qs.getLiteral("name").getString():qs.getResource("predicate").getLocalName();
+            columns.add(new NodeColumn<>(Model.of(name),cname,cname));
+            c++;
+        }
+        System.out.println(query.serialize(Syntax.syntaxSPARQL));
         Dataset ds = DatasetFactory.createTxnMem();
         ds.setDefaultModel(subject.getModel());
-        System.out.println("===================================================");
-        System.out.println(pss.toString());
-        System.out.println("===================================================");
-        SelectDataProvider rdfsdf = new SelectDataProvider(ds,pss.toString());
-        rdfsdf.SetSPARQL(pss.toString());
+        SelectDataProvider rdfsdf = new SelectDataProvider(ds,query.serialize(Syntax.syntaxSPARQL));
+        rdfsdf.SetSPARQL(query.serialize(Syntax.syntaxSPARQL));
         AjaxFallbackDefaultDataTable table = new AjaxFallbackDefaultDataTable<>("table", columns, rdfsdf, 25);
         add(table);
     }

@@ -71,7 +71,9 @@ public class SHACLForm extends Panel implements IMarkupResourceStreamProvider {
                 if (v.equals(DASH.ValueTableViewer.asNode())) {
                     GridPanel grid;
                     if (qs.contains("subshapes")) {
-                        grid = new GridPanel(childRepeatingView.newChildId(), r, predicate, qs.get("subshapes").asNode());
+                        String subshape = qs.get("subshapes").asLiteral().getString().split(",")[0];
+                        Node na = NodeFactory.createURI(subshape);
+                        grid = new GridPanel(childRepeatingView.newChildId(), r, predicate, na);
                     } else {
                         grid = new GridPanel(childRepeatingView.newChildId(), r, predicate, null);
                     }

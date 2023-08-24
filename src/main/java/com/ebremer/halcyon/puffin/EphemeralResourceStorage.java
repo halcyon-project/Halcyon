@@ -10,17 +10,9 @@ import org.apache.jena.rdf.model.Resource;
 public class EphemeralResourceStorage {
 
     private final ConcurrentHashMap<String,Resource> map;
-    private static EphemeralResourceStorage ems = null;
-    
-    private EphemeralResourceStorage() {
+
+    public EphemeralResourceStorage() {
         map = new ConcurrentHashMap<>();
-    }
-    
-    public static EphemeralResourceStorage getInstance() {
-        if (ems==null) {
-            ems = new EphemeralResourceStorage();
-        }
-        return ems;
     }
     
     public void put(String key, Resource m) {
