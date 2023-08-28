@@ -21,7 +21,7 @@ const filterPopup = (paletteBtn, title, colorscheme, viewerLayers, viewer) => {
   setChecked(colorscheme);
   const uniqueId = getRandomInt(100, 999);
   const popup = createPopup(uniqueId, paletteBtn, title);
-  const popupBody = popup.lastChild; // known
+  const popupBody = document.getElementById(`${popup.id}Body`);
   const classDiv = e('div');
   const probabilityDiv = e('div');
   const heatmapDiv = e('div');
@@ -73,7 +73,6 @@ const filterPopup = (paletteBtn, title, colorscheme, viewerLayers, viewer) => {
 function createPopup(uniqueId, paletteBtn, title) {
   const widgetId = `filters${uniqueId}`;
   const rect = paletteBtn.getBoundingClientRect();
-  // const title = `${title} color levels`;
   return createDraggableDiv(widgetId, title, rect.left, rect.top);
 }
 
@@ -81,7 +80,6 @@ function setChecked(colorscheme) {
   // colorscheme.colors: is an array of class-colors objects
   // Now, add a flag called 'checked', and set it to true for use later:
   colorscheme.colors.map(a => {
-    // eslint-disable-next-line no-return-assign
     return (a.checked = true);
   });
 
@@ -94,17 +92,22 @@ function setChecked(colorscheme) {
   });
 }
 
-function createThresh(div, layers, viewer, colorPicker, classId) {
-  const val = '1'; // Initial value
+function getThreshColor(colorPicker) {
   let color;
   if (colorPicker) {
     color = colorToArray(colorPicker.style.backgroundColor);
     if (color.length === 3) {
       color.push(255);
     }
+    return color;
+
   } else {
-    color = [126, 1, 0, 255]; // Default thresh color maroon
+    return [126, 1, 0, 255]; // Default thresh color maroon
   }
+}
+
+function createThresh(div, layers, viewer, colorPicker, classId) {
+  const val = '1'; // Initial value
 
   // slider value
   const number = e('input', {
@@ -130,7 +133,7 @@ function createThresh(div, layers, viewer, colorPicker, classId) {
   function createInputHandler(updateElement) {
     return function() {
       updateElement.value = this.value;
-      setFilter(layers, viewer, {}, { val: parseInt(this.value), rgba: color, classId: classId });
+      setFilter(layers, viewer, {}, { val: parseInt(this.value), rgba: getThreshColor(colorPicker), classId: classId });
     };
   }
 
@@ -498,16 +501,19 @@ function setOutlineStyle(a, b, style, color) {
 
 // The "Add color range" event
 function addColor(idx, num1, num2, cpEl, chkEl, uniq, tr, colors, layers, viewer) {
+  // User clicked `+` to add row
   setOutlineStyle(num1, num2, '', ''); // clear any error
   if (num1.value === '0' && num2.value === '0') {
     // indicate 0 and 0 not allowed
     setOutlineStyle(num1, num2, 'solid', 'red');
   } else {
-    // Now replace + with - in UI
+    // Create remove button and add event listener
     const buttonId = `i${num1.id.replace('low', '')}`; // borrowing element id
     const removeBtn = e('i', { id: buttonId, class: 'fas fa-minus pointer' });
-    tr.lastChild.firstChild.remove(); // last element in row is modifier
-    tr.lastChild.appendChild(removeBtn); // replace old modifier with new one
+    // Get the desired <i> element
+    let iconElement = tr.querySelector('td:last-child i:first-child');
+    iconElement.replaceWith(removeBtn);
+
     removeBtn.addEventListener(
       'click',
       removeColor.bind(null, removeBtn, colors, tr, layers, viewer),
@@ -534,13 +540,15 @@ function seq(objArray) {
 
 // Extra row for adding color and range values
 function extraRow(uniq, colors, layers, viewer) {
-  let idx;
-  const nums = seq(colors); // Use 'const'.
-  if (!nums || isEmpty(nums)) {
-    idx = colors.length;
-  } else {
-    idx = Array.isArray(nums) ? nums[0] : nums;
-  }
+  // let idx;
+  // const nums = seq(colors);
+  // if (!nums || isEmpty(nums)) {
+  //   idx = colors.length;
+  // } else {
+  //   idx = Array.isArray(nums) ? nums[0] : nums;
+  // }
+
+  let idx = colors.length;
 
   const colorObject = {
     color: 'rgba(255, 255, 255, 255)',
