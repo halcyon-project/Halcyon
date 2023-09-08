@@ -37,7 +37,7 @@ const img2arrayWithBackgroundCorrection = imgData => {
  **********************/
 const colorChannel = 1;
 const alphaChannel = 3;
-const message = "Set OSD viewer: { crossOriginPolicy: \"Anonymous\" }";
+const maxPixelValue = 255;
 
 // Outline the edge of the polygon
 OpenSeadragon.Filters.OUTLINE = rgba => {
@@ -54,7 +54,7 @@ OpenSeadragon.Filters.OUTLINE = rgba => {
       let currentPixel = data[i];
       let isEdge = false;
 
-      if (currentPixel[alphaChannel] === 255 && currentPixel[colorChannel] > 0) {
+      if (currentPixel[alphaChannel] === maxPixelValue && currentPixel[colorChannel] > 0) {
         // Index calculations
         let right = i + 1;
         let left = i - 1;
@@ -102,6 +102,7 @@ OpenSeadragon.Filters.OUTLINE = rgba => {
 OpenSeadragon.Filters.PROBABILITY = (data, rgba) => {
   return (context, callback) => {
     // console.time('Probability');
+    // console.log("data", data);
     let imgData = context.getImageData(0, 0, context.canvas.width, context.canvas.height);
     let pixels = imgData.data;
 
@@ -109,17 +110,17 @@ OpenSeadragon.Filters.PROBABILITY = (data, rgba) => {
     let shouldColor;
     switch (data.type) {
       case 'inside':
-        shouldColor = probability => probability > data.min && probability <= data.max;
+        shouldColor = greenChannel => greenChannel > data.slideHandle1 && greenChannel <= data.slideHandle2;
         break;
       case 'outside':
-        shouldColor = probability => (probability > 0 && probability <= data.min) || (probability <= 255 && probability >= data.max);
+        shouldColor = greenChannel => (greenChannel > 0 && greenChannel <= data.slideHandle1) || (greenChannel <= maxPixelValue && greenChannel >= data.slideHandle2);
         break;
       default:
         throw new Error(`Invalid type: ${data.type}`);
     }
 
     for (let i = 0; i < pixels.length; i += 4) {
-      const probability = pixels[i + 1];
+      const probability = pixels[i + 1]; // green channel is "probability"
 
       if (shouldColor(probability)) {
         pixels[i] = rgba[0];
@@ -174,7 +175,7 @@ OpenSeadragon.Filters.COLORLEVELS = layerColors => {
 
     const setPix = (myFunction, colorMap) => {
       for (let i = 0; i < data.length; i += 4) {
-        if (data[i + 3] === 255) {
+        if (data[i + 3] === maxPixelValue) {
           const redChannel = data[i];
           const greenChannel = data[i + 1];
           const rgba = STATE.renderType === 'byClass' ? myFunction(redChannel, colorGroup, rgbas) :
@@ -205,13 +206,7 @@ OpenSeadragon.Filters.THRESHOLDING = thresh => {
   return (context, callback) => {
     if (typeof thresh !== 'undefined') {
       // console.time('Thresholding');
-      let imgData;
-      try {
-        imgData = context.getImageData(0, 0, context.canvas.width, context.canvas.height);
-      } catch (e) {
-        console.error(`${e.name}\n${message}`);
-        return;
-      }
+      let imgData = context.getImageData(0, 0, context.canvas.width, context.canvas.height);
       let pixels = imgData.data;
 
       let color;
