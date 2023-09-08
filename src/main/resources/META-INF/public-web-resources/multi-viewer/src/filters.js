@@ -102,41 +102,32 @@ OpenSeadragon.Filters.OUTLINE = rgba => {
 OpenSeadragon.Filters.PROBABILITY = (data, rgba) => {
   return (context, callback) => {
     // console.time('Probability');
-    let imgData;
-    try {
-      imgData = context.getImageData(0, 0, context.canvas.width, context.canvas.height);
-    } catch (e) {
-      console.error(`${e.name}\n${message}`);
-      return;
-    }
-
+    let imgData = context.getImageData(0, 0, context.canvas.width, context.canvas.height);
     let pixels = imgData.data;
 
-    if (data.type === 'inside') {
-      for (let i = 0; i < pixels.length; i += 4) {
-        const probability = pixels[i + 1];
-        // has to be gt zero (not >=)
-        if (probability > data.min && probability <= data.max) {
-          pixels[i] = rgba[0];
-          pixels[i + 1] = rgba[1];
-          pixels[i + 2] = rgba[2];
-          pixels[i + 3] = rgba[3];
-        } else {
-          pixels[i + 3] = 0;
-        }
-      }
-    } else if (data.type === 'outside') {
-      for (let i = 0; i < pixels.length; i += 4) {
-        const probability = pixels[i + 1];
-        // Has to be > zero; not >=.
-        if ((probability > 0 && probability <= data.min) || (probability <= 255 && probability >= data.max)) {
-          pixels[i] = rgba[0];
-          pixels[i + 1] = rgba[1];
-          pixels[i + 2] = rgba[2];
-          pixels[i + 3] = rgba[3];
-        } else {
-          pixels[i + 3] = 0;
-        }
+    // Define the condition check based on the type
+    let shouldColor;
+    switch (data.type) {
+      case 'inside':
+        shouldColor = probability => probability > data.min && probability <= data.max;
+        break;
+      case 'outside':
+        shouldColor = probability => (probability > 0 && probability <= data.min) || (probability <= 255 && probability >= data.max);
+        break;
+      default:
+        throw new Error(`Invalid type: ${data.type}`);
+    }
+
+    for (let i = 0; i < pixels.length; i += 4) {
+      const probability = pixels[i + 1];
+
+      if (shouldColor(probability)) {
+        pixels[i] = rgba[0];
+        pixels[i + 1] = rgba[1];
+        pixels[i + 2] = rgba[2];
+        pixels[i + 3] = rgba[3];
+      } else {
+        pixels[i + 3] = 0;
       }
     }
 
