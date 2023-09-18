@@ -182,6 +182,7 @@ public class ListImages extends BasePage implements IPanelChangeListener {
                     Solution s = model.getObject();
                     String g = s.getMap().get("s").getURI();
                     String mv = "var images = ["+FeatureManager.getFeatures(ff[0],g)+","+FeatureManager.getFeatures(ff[1],g)+","+FeatureManager.getFeatures(ff[2],g)+","+FeatureManager.getFeatures(ff[3],g)+"]";
+                    System.out.println("====================================xxxxxxxxxxxxxxxxx==================================\n"+mv);
                     HalcyonSession.get().SetMV(mv);
                     setResponsePage(MultiViewer.class);
                 }

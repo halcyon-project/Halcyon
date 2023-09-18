@@ -10,6 +10,7 @@ import com.apicatalog.rdf.RdfDataset;
 import com.ebremer.halcyon.lib.HalcyonSettings;
 import com.ebremer.halcyon.lib.PathFinder;
 import com.ebremer.halcyon.datum.DataCore;
+import com.ebremer.halcyon.utils.ColorTools;
 import com.ebremer.halcyon.utils.HFrame;
 import com.ebremer.halcyon.utils.HalColors;
 import com.ebremer.ns.HAL;
@@ -75,7 +76,6 @@ public class FeatureManager {
         pss.setNsPrefix("rdf", RDF.uri);
         pss.setIri("image", urn);
         pss.setValues("selected", createactions);
-        //System.out.println("#1 "+pss.toString());
         ds.begin(ReadWrite.READ);
         ResultSet results = QueryExecutionFactory.create(pss.toString(), ds).execSelect().materialise();
         ds.end();
@@ -98,19 +98,25 @@ public class FeatureManager {
         pss.setNsPrefix("rdfs", RDFS.getURI());
         pss.setNsPrefix("rdf", RDF.uri);        
         pss.setValues("selected", roc);
-        //System.out.println("#2 "+pss.toString());
         ds.begin(ReadWrite.READ);
         ResultSet rs = QueryExecutionFactory.create(pss.toString(), ds).execSelect().materialise();
         ds.end();
-        HashMap<String,String> types = new HashMap<>();
+        HashMap<Resource,String> types = new HashMap<>();
         HalColors cs = new HalColors();
+        UserColorsAndClasses ucac = new UserColorsAndClasses();
         while (rs.hasNext()) {
             QuerySolution qs = rs.next();
-            String key = qs.get("type").asResource().getURI();
-            if (!types.containsKey(key)) {
+            Resource key = qs.get("type").asResource();
+            String color = ucac.getColor(key);
+            if (color!=null) {
+                types.put(key,ColorTools.Hex2RGBA(color));
+            } else if (!types.containsKey(key)) {
                 types.put(key,cs.removeFirst());
             }
         }
+        types.forEach((k,v)->{
+            System.out.println(k+" --xx--> "+v);
+        });
         pss = new ParameterizedSparqlString("""
             select distinct ?roc ?type ?label ?value
             where {
@@ -125,7 +131,6 @@ public class FeatureManager {
         pss.setNsPrefix("rdfs", RDFS.getURI());
         pss.setNsPrefix("rdf", RDF.uri);        
         pss.setValues("selected", roc);
-        //System.out.println("#3 "+pss.toString());
         ds.begin(ReadWrite.READ);
         rs = QueryExecutionFactory.create(pss.toString(), ds).execSelect().materialise();
         ds.end();
@@ -228,11 +233,10 @@ public class FeatureManager {
                 layer.addProperty(HAL.colorscheme,COLORSCHEME);
                 LayerSet.addProperty(HAL.haslayer, layer);
             }
-            //System.out.println("Add a color class layer "+COLORSCHEME.toString()+"  "+qs.get("label").asLiteral().getString()+"  "+qs.get("value").asLiteral().getInt());
             COLORSCHEME.addProperty(HAL.colors, m.createResource()
                     .addLiteral(SchemaDO.name, qs.get("label").asLiteral().getString())
                     .addLiteral(HAL.classid, qs.get("value").asLiteral().getInt())
-                    .addLiteral(HAL.color, types.get(qs.get("type").asResource().getURI()))
+                    .addLiteral(HAL.color, types.get(qs.get("type").asResource()))
             );
         }
         Dataset dss = DatasetFactory.createGeneral();

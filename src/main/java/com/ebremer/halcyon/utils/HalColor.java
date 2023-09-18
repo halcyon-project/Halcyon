@@ -33,6 +33,5 @@ public class HalColor {
     @Override
     public String toString() {
         return name+" ------> "+torgba();
-    }
-    
+    }   
 }

@@ -51,6 +51,8 @@ import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.rdf.model.Statement;
 import org.apache.jena.rdf.model.StmtIterator;
+import org.apache.jena.riot.Lang;
+import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.riot.system.JenaTitanium;
 import org.apache.jena.sparql.vocabulary.DOAP;
 import org.apache.jena.vocabulary.OA;
@@ -335,6 +337,7 @@ public class FL {
             //mm.add(manifest);
             Dataset ds = DatasetFactory.createGeneral();
             ds.getDefaultModel().add(mm);
+            RDFDataMgr.write(System.out, mm, Lang.TURTLE);
             RdfDataset rds = JenaTitanium.convert(ds.asDatasetGraph());
             RdfToJsonld rtj = RdfToJsonld.with(rds);
             JsonArray ja = rtj.useNativeTypes(true).build();
@@ -360,7 +363,7 @@ public class FL {
                     "exif": "http://www.w3.org/2003/12/exif/ns#",
                     "dcterms": "http://purl.org/dc/terms/",
                     "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
-                    "rdfs": "http://www.w3.org/2000/01/rdf-schema#label",
+                    "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
                     "contentSize": "so:contentSize",
                     "description": "so:description",
                     "encodingFormat": "so:encodingFormat",
@@ -409,7 +412,8 @@ public class FL {
                     "resolutionUnit": "exif:resolutionUnit",
                     "protocol": "dcterms:conformsTo",
                     "value": "rdf:value",
-                    "label": "rdfs:label"
+                    "label": "rdfs:label",
+                    "name": "so:name"
                 }],
                 "@explicit": true,
                 "@requireAll": false,
@@ -425,7 +429,8 @@ public class FL {
                     "width": {},
                     "scaleFactor": {}
                 },
-                "hasCreateAction": {"@embed": "@always", "@type": "CreateAction"}
+                "hasCreateAction": {"@embed": "@always", "@type": "CreateAction"},
+                "name": {}
             }
             """).getBytes()))) //
                         .mode(JsonLdVersion.V1_1)
