@@ -7,7 +7,7 @@ import org.apache.jena.rdf.model.Resource;
  *
  * @author erich
  */
-public class EphemeralResourceStorage {
+public class EphemeralResourceStorage implements AutoCloseable {
 
     private final ConcurrentHashMap<String,Resource> map;
 
@@ -26,5 +26,10 @@ public class EphemeralResourceStorage {
     public synchronized void remove(String key) {
         map.remove(key);
         System.out.println("remain temp items "+map.size());
-    }   
+    }
+    
+    @Override
+    public void close() {
+        map.clear();
+    }
 }

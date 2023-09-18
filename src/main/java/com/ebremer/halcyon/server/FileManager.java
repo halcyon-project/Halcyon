@@ -1,11 +1,9 @@
 package com.ebremer.halcyon.server;
 
-import com.ebremer.halcyon.HalcyonSettings;
+import com.ebremer.halcyon.lib.HalcyonSettings;
 import com.ebremer.halcyon.datum.DataCore;
 import com.ebremer.halcyon.filesystem.DirectoryProcessor;
 import com.ebremer.halcyon.filesystem.StorageLocation;
-import static com.ebremer.halcyon.filesystem.DirectoryProcessor.GetExtensions;
-import java.io.FileNotFoundException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
@@ -51,15 +49,12 @@ public final class FileManager implements Service {
             public void run() {
                 pause();
                 Dataset ds = DataCore.getInstance().getDataset();
-                DirectoryProcessor dp = new DirectoryProcessor(ds);
+                DirectoryProcessor dp = new DirectoryProcessor(ds);                
                 ArrayList<StorageLocation> list = hs.getStorageLocations();
                 Iterator<StorageLocation> i = list.iterator();
                 while (i.hasNext()) {
                     Path p = i.next().path;
-                    dp.Traverse(p, GetExtensions(DirectoryProcessor.ZIP), DirectoryProcessor.ZIP);
-                    dp.Traverse(p, GetExtensions(DirectoryProcessor.SVS), DirectoryProcessor.SVS);
-                    dp.Traverse(p, GetExtensions(DirectoryProcessor.TIF), DirectoryProcessor.TIF);
-                    dp.Traverse(p, GetExtensions(DirectoryProcessor.NDPI), DirectoryProcessor.NDPI);
+                    dp.Traverse(p);
                 }
                 ValidateData();
                 resume();
@@ -106,12 +101,6 @@ public final class FileManager implements Service {
                 }
             }
         });
-    }
-    
-    public static void main(String[] args) throws FileNotFoundException {
-        loci.common.DebugTools.setRootLevel("WARN");
-        DataCore dc = DataCore.getInstance();
-        FileManager fm = new FileManager();
     }
 
     @Override

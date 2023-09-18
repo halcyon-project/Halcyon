@@ -1,29 +1,21 @@
 package com.ebremer.halcyon.puffin;
 
-import org.apache.jena.rdf.model.RDFNode;
+import org.apache.jena.rdf.model.Resource;
 import org.apache.wicket.model.IModel;
 
 /**
  *
  * @author erich
- * @param <RDFNode>
  */
-public class ResourceModel implements IModel<RDFNode> {
+public class ResourceModel implements IModel<Resource> {
+    private final DetachableResource subject;
     
-    public ResourceModel() {
-
+    public ResourceModel(Resource sub) {
+        this.subject = new DetachableResource(sub);
     }
 
     @Override
-    public RDFNode getObject() {
-
-       
-       return null;
+    public Resource getObject() {
+        return (Resource) subject.getObject();
     }
-
-    @Override
-    public void setObject(RDFNode object) {
-
-    }
-    
 }

@@ -5,9 +5,7 @@ import org.apache.jena.graph.Triple;
 import org.apache.jena.query.Query;
 import org.apache.jena.query.QueryFactory;
 import org.apache.jena.query.Syntax;
-import org.apache.jena.shared.PrefixMapping;
 import org.apache.jena.sparql.core.Var;
-import org.apache.jena.sparql.expr.Expr;
 import org.apache.jena.sparql.syntax.ElementTriplesBlock;
 
 /**
@@ -35,7 +33,5 @@ public class AATEST {
         System.out.println("===================================================");
         System.out.println(query.serialize(Syntax.syntaxSPARQL));
         ExprFactory ha = new ExprFactory();
-        
     }
-    
 }

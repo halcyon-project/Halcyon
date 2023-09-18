@@ -74,7 +74,6 @@
         <java.version>17</java.version>
         <jena.version>4.9.0</jena.version>
         <wicket.ver>9.13.0</wicket.ver>
-        <bioformats.ver>6.13.0</bioformats.ver>
         <hilbert.ver>0.2.2</hilbert.ver>
         <commons-pool2.ver>2.11.1</commons-pool2.ver>
         <jakarta.json.version>2.0.1</jakarta.json.version> 
@@ -88,6 +87,8 @@
 	<liquibase.version>4.20.0</liquibase.version>
 	<snakeyaml.version>2.0</snakeyaml.version>
         <shiro.version>1.11.0</shiro.version>
+        <jts.version>1.19.0</jts.version>
+        <twelvemonkeys.version>3.9.4</twelvemonkeys.version>
     </properties>
     
     <parent>
@@ -403,6 +404,56 @@
             </build>
         </profile>
         <profile>
+            <id>library</id>
+            <build>
+                <finalName>library-${project.version}</finalName>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-shade-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>libraryshade</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>shade</goal>
+                                </goals>
+                                <configuration>
+                                    <filters>
+                                        <filter>
+                                            <artifact>*:*</artifact>
+                                            <excludes>
+                                                <exclude>META-INF/*.SF</exclude>
+                                                <exclude>META-INF/*.DSA</exclude>
+                                                <exclude>META-INF/*.RSA</exclude>
+                                            </excludes>
+                                        </filter>
+                                    </filters>
+                                    <transformers>
+                                        <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                                            <resource>META-INF/spring.handlers</resource>
+                                        </transformer>
+                                        <transformer implementation="org.springframework.boot.maven.PropertiesMergingResourceTransformer">
+                                            <resource>META-INF/spring.factories</resource>
+                                        </transformer>
+                                        <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                                            <resource>META-INF/spring.schemas</resource>
+                                        </transformer>
+                                        <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"></transformer>
+                                        <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                            <manifestEntries>
+                                                <Multi-Release>true</Multi-Release>
+                                            </manifestEntries>
+                                        </transformer>
+                                    </transformers>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
             <id>ingestjar</id>
             <build>
                 <finalName>ingest-${project.version}</finalName>
@@ -645,6 +696,11 @@
             <type>jar</type>
         </dependency>
         <dependency>
+            <groupId>org.wicketstuff</groupId>
+            <artifactId>wicketstuff-select2</artifactId>
+            <version>${wicket.ver}</version>
+        </dependency>
+        <dependency>
             <groupId>org.apache.jena</groupId>
             <artifactId>jena-core</artifactId>
             <version>${jena.version}</version>
@@ -690,13 +746,6 @@
             <groupId>com.github.davidmoten</groupId>
             <artifactId>hilbert-curve</artifactId>
             <version>${hilbert.ver}</version>
-        </dependency>
-        <!--  BIOFORMAT DEPENDENCIES -->
-        <dependency>
-            <groupId>ome</groupId>
-            <artifactId>formats-gpl</artifactId>
-            <version>${bioformats.ver}</version>
-            <scope>compile</scope>
         </dependency>
         <!-- Shiro -->
         <dependency>
@@ -746,31 +795,13 @@
         <dependency>
             <groupId>com.twelvemonkeys.imageio</groupId>
             <artifactId>imageio-tiff</artifactId>
-            <version>3.9.4</version>
-        </dependency>
-        <!--
-        <dependency>
-            <groupId>org.geotools</groupId>
-            <artifactId>gt-jp2k</artifactId>
-            <version>27.4.01</version>
-        </dependency>-->
-        <!--
-        <dependency>
-            <groupId>it.geosolutions.imageio-ext</groupId>
-            <artifactId>imageio-ext-kakadu</artifactId>
-            <version>1.4.5</version>
-        </dependency>-->
-        <!--
-        <dependency>
-            <groupId>com.github.jai-imageio</groupId>
-            <artifactId>jai-imageio-core</artifactId>
-            <version>1.4.0</version>
+            <version>${twelvemonkeys.version}</version>
         </dependency>
         <dependency>
-            <groupId>com.github.jai-imageio</groupId>
-            <artifactId>jai-imageio-jpeg2000</artifactId>
-            <version>1.4.0</version>
-        </dependency>-->
+            <groupId>org.locationtech.jts</groupId>
+            <artifactId>jts-core</artifactId>
+            <version>${jts.version}</version>
+        </dependency>
     </dependencies>
     <pluginRepositories>
         <pluginRepository>
@@ -791,19 +822,15 @@
             <url>https://repo.spring.io/release</url>
         </repository>
         <repository>
-            <id>unidata</id>
-            <name>Unidata Repository</name>
-            <url>https://artifacts.unidata.ucar.edu/content/repositories/unidata-releases</url>
-        </repository>
-        <repository>
-            <id>ome</id>
-            <name>OME Artifactory</name>
-            <url>https://artifacts.openmicroscopy.org/artifactory/maven/</url>
-        </repository>
-        <repository>
             <id>dcm4che</id>
             <name>dcm4che</name>
             <url>https://www.dcm4che.org/maven2</url>
         </repository>
     </repositories>
+    <distributionManagement>
+        <repository>
+            <id>halcyon</id>
+            <url>https://cursus.bmi.stonybrookmedicine.edu/releases</url>
+        </repository>
+    </distributionManagement>
 </project>

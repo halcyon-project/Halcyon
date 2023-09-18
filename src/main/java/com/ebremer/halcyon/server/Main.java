@@ -1,8 +1,8 @@
 package com.ebremer.halcyon.server;
 
 import com.ebremer.halcyon.keycloak.HALKeycloakOIDCFilter;
-import com.ebremer.halcyon.HalcyonSettings;
-import com.ebremer.halcyon.INIT;
+import com.ebremer.halcyon.lib.HalcyonSettings;
+import com.ebremer.halcyon.lib.INIT;
 import com.ebremer.halcyon.fuseki.HalcyonProxyServlet;
 import com.ebremer.halcyon.datum.SessionsManager;
 import com.ebremer.halcyon.gui.HalcyonApplication;

@@ -1,10 +1,10 @@
 package com.ebremer.halcyon.hilbert;
 
-import com.ebremer.halcyon.Node;
+import com.ebremer.halcyon.lib.Node;
 import com.ebremer.halcyon.geometry.Point;
 import com.ebremer.halcyon.geometry.Box;
 import com.ebremer.halcyon.geometry.Vector2D;
-import com.ebremer.halcyon.hsPolygon;
+import com.ebremer.halcyon.lib.hsPolygon;
 import jakarta.json.Json;
 import jakarta.json.JsonArrayBuilder;
 import jakarta.json.JsonObjectBuilder;

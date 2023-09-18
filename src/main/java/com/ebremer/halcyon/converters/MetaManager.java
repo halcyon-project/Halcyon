@@ -100,10 +100,4 @@ public class MetaManager {
         ROCrate.add(ROCrate.createResource("urn:hal:DataSetTemplate"),RDF.type, SchemaDO.Dataset);
     }
 */
-    public static void main(String[] args) throws BadMetaFile {
-        loci.common.DebugTools.setRootLevel("ERROR");
-        MetaManager mm = new MetaManager();
-        //RDFDataMgr.write(System.out, mm.getCreateAction(mm.getCreateAction().createResource("http://www.ebremer.com/CA").getURI()), Lang.TURTLE);
-        //RDFDataMgr.write(System.out, mm.getCreateAction(mm.getROCrate().createResource("http://www.ebremer.com/DS").getURI()), Lang.TURTLE);
-    }
 }

@@ -1,6 +1,6 @@
 package com.ebremer.halcyon.utils;
 
-import com.ebremer.halcyon.imagebox.TE.Rectangle;
+import com.ebremer.halcyon.lib.Rectangle;
 import java.awt.geom.AffineTransform;
 import java.awt.image.AffineTransformOp;
 import java.awt.image.BufferedImage;
@@ -60,6 +60,16 @@ public class ImageTools {
         AffineTransformOp scaleOp =  new AffineTransformOp(at, AffineTransformOp.TYPE_BILINEAR);
         BufferedImage target = new BufferedImage(preferredsize.width(),preferredsize.height(),bi.getType());
         target.createGraphics().drawImage(bi, scaleOp, (preferredsize.width() - (int) Math.round(bi.getWidth() * s)) / 2, (preferredsize.height() - (int) Math.round(bi.getHeight() * s)) / 2);
+        return target;
+    }
+
+    public static BufferedImage scale(BufferedImage bi, int w, int h, boolean b) {
+        double s = 1.0d/Math.max((double)bi.getWidth()/(double)w,(double)bi.getHeight()/(double)h);
+        AffineTransform at = new AffineTransform();
+        at.scale(s,s);
+        AffineTransformOp scaleOp =  new AffineTransformOp(at, AffineTransformOp.TYPE_BILINEAR);
+        BufferedImage target = new BufferedImage(w,h,bi.getType());
+        target.createGraphics().drawImage(bi, scaleOp, (w - (int) Math.round(bi.getWidth() * s)) / 2, (h - (int) Math.round(bi.getHeight() * s)) / 2);
         return target;
     }
 }

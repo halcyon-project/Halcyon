@@ -1,0 +1,62 @@
+@prefix dash: <https://datashapes.org/dash#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix so: <https://schema.org/> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix hal: <https://www.ebremer.com/halcyon/ns/> .
+
+hal:AnnotationClassListShape a sh:NodeShape ;
+    sh:targetClass hal:AnnotationClassList ;
+    sh:property [ a sh:PropertyShape ;
+        sh:path so:name ;
+        sh:name "Annotation List";
+        sh:order 1 ;
+        sh:maxCount 1;
+        sh:minCount 1;
+        sh:maxLength 200;
+        sh:datatype xsd:string ;
+        sh:defaultValue "Type your new name here";
+        sh:message "Issues with your name"@en
+    ] ;
+
+    sh:property [ a sh:PropertyShape ;
+        sh:path hal:hasAnnotationClass ;
+        dash:viewer dash:ValueTableViewer ;
+        sh:nodeKind sh:BlankNode;
+        sh:order 0 ;
+        sh:maxCount 20;
+        sh:node hal:AnnotationClassShape ;
+        sh:group hal:ColorGroup
+    ] .
+
+hal:ColorGroup a sh:PropertyGroup; sh:order 0; rdfs:label "MY ACTUAL LIST OF COLORS" .
+
+hal:AnnotationClassShape a sh:NodeShape ;
+    sh:targetClass hal:AnnotationClass ;
+    sh:property [ a sh:PropertyShape ;
+        sh:path hal:hasClass ;
+        sh:name "Class";
+        sh:nodeKind sh:IRI;
+        sh:order 0;
+        sh:minCount 1;
+        sh:maxCount 1;
+        dash:viewer hal:SNOMEDEditor;
+        dash:editor hal:SNOMEDEditor;
+        sh:defaultValue <http://mydomain.edu/ns/dummyclass>;
+        sh:message "must have one and only one class specified"@en
+    ] ;
+
+    sh:property [ a sh:PropertyShape ;
+        sh:path hal:color ;
+        sh:name "Color";
+        sh:order 2;
+        sh:datatype xsd:string ;
+        sh:pattern "^#([0-9a-fA-F]{6})$" ;
+        sh:defaultValue "#ffffff";
+        sh:minCount 1;
+        sh:maxCount 1;
+        dash:viewer hal:ColorViewer;
+        dash:editor hal:ColorEditor;
+        sh:message "Problem with your color"@en
+    ] .

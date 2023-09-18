@@ -1,6 +1,6 @@
 package com.ebremer.halcyon.wicket;
 
-import com.ebremer.halcyon.HalcyonSettings;
+import com.ebremer.halcyon.lib.HalcyonSettings;
 import com.ebremer.halcyon.datum.HalcyonPrincipal;
 import com.ebremer.halcyon.gui.HalcyonSession;
 import com.ebremer.halcyon.gui.LogoutLink;
@@ -27,7 +27,8 @@ public class MenuPanel extends Panel {
         add(new ExternalLink("about", host+"/about","About"));
         ExternalLink security = new ExternalLink("security", host+"/admin","Security");
         ExternalLink sparql = new ExternalLink("sparql", host+"/sparql","SPARQL");
-        ExternalLink account = new ExternalLink("account", host+"/account","Account");
+        ExternalLink account = new ExternalLink("account", host+"/user/account","Account");
+        ExternalLink colorclasses = new ExternalLink("colorclasses", host+"/user/colorclasses","Color Classes");
         ExternalLink threed = new ExternalLink("threed", host+"/threed","3D");
         ExternalLink collections = new ExternalLink("collections", host+"/collections","Collections");
         ExternalLink revisionhistory = new ExternalLink("revisionhistory", host+"/revisionhistory","Revision History");
@@ -41,6 +42,7 @@ public class MenuPanel extends Panel {
         };
         LogoutLink logout = new LogoutLink("logoutLink");
         add(account);
+        add(colorclasses);
         add(security);
         add(sparql);
         add(collections);
@@ -51,6 +53,7 @@ public class MenuPanel extends Panel {
         security.setVisible(false);
         threed.setVisible(false);
         account.setVisible(false);
+        colorclasses.setVisible(false);
         collections.setVisible(false);
         sparql.setVisible(false);
         logout.setVisible(false);
@@ -71,6 +74,7 @@ public class MenuPanel extends Panel {
                 security.setVisible(true);
                 //threed.setVisible(true);
                 account.setVisible(true);
+                colorclasses.setVisible(true);
                 collections.setVisible(true);
             }
         } 

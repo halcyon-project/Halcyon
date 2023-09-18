@@ -162,7 +162,6 @@ public class UPENN {
     }
     
     public static void main(String[] args) throws FileNotFoundException, IOException {
-        loci.common.DebugTools.setRootLevel("ERROR");
         // F1 - File file = new File("D:\\Halcyon\\upenn\\final_predictions_with_averaged_probabilities.csv");
         // F1 - UPENN upenn = new UPENN("urn:md5:0fc977067d714b8cbc571266b138bdd7", 21987, 17849, SNO.Lymphocytes);
         new UPENN("Lymphocytes/site1","urn:md5:0fc977067d714b8cbc571266b138bdd7", 21987, 17849, SNO.Lymphocytes).Cool("D:\\upenn\\TCGA-80-5608-01Z-00-DX1.CB85BA53-AF00-4C7D-8489-C2FF0F4F49AB.svs\\site1\\final_predictions_with_averaged_probabilities.csv");

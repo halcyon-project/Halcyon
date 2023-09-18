@@ -4,7 +4,7 @@
  */
 package com.ebremer.halcyon.converters;
 
-import com.ebremer.halcyon.datum.EB;
+import com.ebremer.halcyon.datum.URITools;
 import com.ebremer.ns.EXIF;
 import com.ebremer.ns.HAL;
 import java.io.File;
@@ -155,7 +155,7 @@ public class Legacy2 {
                 String t = xsrc.toString();
                 t = t + ".tif";
                 File x = new File(t);
-                String w = EB.fix(x.toURI().toString());
+                String w = URITools.fix(x.toURI().toString());
                 String dest = xsrc.getParent()+File.separatorChar+xsrc.getName()+".ttl";
                 Legacy k = new Legacy(xsrc.toString());
                 Model mmm = k.Beta();
