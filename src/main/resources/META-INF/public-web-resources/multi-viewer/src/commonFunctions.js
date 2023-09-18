@@ -17,9 +17,7 @@ function setFilter(layers, viewer, range, thresh) {
     let filterOpts = [];
 
     // One does not color just the affected layer; you have to do all of them.
-    for (let i = 0; i < itemCount; i++) {
-      if (i === 0) continue; // Skip base
-
+    for (let i = 1; i < itemCount; i++) {
       const tiledImage = viewer.world.getItemAt(i);
 
       if (!isEmpty(range)) {
@@ -32,28 +30,28 @@ function setFilter(layers, viewer, range, thresh) {
         }
         filterOpts.push({
           items: tiledImage,
-          processors: colorFilter.prototype.PROBABILITY(range, rgba)
+          processors: OpenSeadragon.Filters.PROBABILITY(range, rgba)
         });
       } else if (STATE.outline) {
         // Outline in blue.  Color can not have green in it.
         filterOpts.push({
           items: tiledImage,
-          processors: colorFilter.prototype.OUTLINE([0, 0, 255, 255]),
+          processors: OpenSeadragon.Filters.OUTLINE([0, 0, 255, 255]),
         });
       } else if (STATE.renderType === 'byProbability') {
         // Use color spectrum
         filterOpts.push({
           items: tiledImage,
-          processors: colorFilter.prototype.COLORLEVELS(layers[i].colorscheme.colorspectrum),
+          processors: OpenSeadragon.Filters.COLORLEVELS(layers[i].colorscheme.colorspectrum),
         });
       } else if (STATE.renderType === 'byClass' || STATE.renderType === 'byHeatmap') {
         let processor;
         if (thresh) {
           // Use threshold
-          processor = colorFilter.prototype.THRESHOLDING(thresh);
+          processor = OpenSeadragon.Filters.THRESHOLDING(thresh);
         } else {
           // Use color scheme
-          processor = colorFilter.prototype.COLORLEVELS(layers[i].colorscheme.colors);
+          processor = OpenSeadragon.Filters.COLORLEVELS(layers[i].colorscheme.colors);
         }
         filterOpts.push({
           items: tiledImage,
@@ -62,7 +60,7 @@ function setFilter(layers, viewer, range, thresh) {
       } else if (STATE.renderType === 'byThreshold') {
         filterOpts.push({
           items: tiledImage,
-          processors: colorFilter.prototype.THRESHOLDING(thresh)
+          processors: OpenSeadragon.Filters.THRESHOLDING(thresh)
         });
       }
     }
@@ -121,7 +119,7 @@ function toggleButton(element, class0, class1) {
  * @return {boolean}
  */
 function isRealValue(obj) {
-  return obj && obj !== 'null' && obj !== 'undefined';
+  return obj !== null && obj !== undefined;
 }
 
 /**

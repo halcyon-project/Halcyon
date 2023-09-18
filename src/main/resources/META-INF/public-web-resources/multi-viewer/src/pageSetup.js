@@ -12,8 +12,12 @@
  * @param {object} opts - Multi-viewer options; paintbrush, etc.
  */
 const pageSetup = (divId, images, numViewers, rows, columns, width, height, opts) => {
-  // console.clear();
-  let viewers = []; // eslint-disable-line prefer-const
+  let viewers = [];
+
+  if (!isRealValue(images) || !isRealValue(images[0])) {
+    // No images; notify and send them home.
+    document.write("<script>window.alert('You are logged out...');window.location=`${window.location.origin}/`;</script>");
+  }
 
   document.addEventListener('DOMContentLoaded', setUp);
   window.addEventListener('keydown', hotKeysHandler);
@@ -198,6 +202,5 @@ const pageSetup = (divId, images, numViewers, rows, columns, width, height, opts
         });
       }
     }
-
   }
 };

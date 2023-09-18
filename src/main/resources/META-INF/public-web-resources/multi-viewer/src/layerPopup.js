@@ -110,9 +110,9 @@ const layerPopup = function(divBody, allLayers, viewer) {
       const slideVals = getVals([ARange, BRange]);
 
       if (d.type === 'outside') {
-        setFilter(allLayers, viewer, { min: slideVals[0], max: slideVals[1], type: 'outside' });
+        setFilter(allLayers, viewer, { slideHandle1: slideVals[0], slideHandle2: slideVals[1], type: 'outside' });
       } else {
-        setFilter(allLayers, viewer, { min: slideVals[0], max: slideVals[1], type: 'inside' });
+        setFilter(allLayers, viewer, { slideHandle1: slideVals[0], slideHandle2: slideVals[1], type: 'inside' });
       }
     }
 
