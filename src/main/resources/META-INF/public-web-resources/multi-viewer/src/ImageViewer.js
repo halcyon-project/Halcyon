@@ -6,8 +6,18 @@ class ImageViewer {
   /**
    * @param {object} viewerInfo - Info specific to 'this' viewer
    */
-  constructor(viewerInfo) {
+  constructor(viewerInfo, numViewers, options) {
     const layers = viewerInfo.layers;
+
+    if (numViewers === undefined) numViewers = 1;
+    if (options === undefined) options = {};
+
+    this.checkboxes = { checkPan: true, checkZoom: true };
+
+    if (numViewers > 1) {
+      this.checkboxes.checkPan = document.getElementById(`chkPan${viewerInfo.idx}`);
+      this.checkboxes.checkZoom = document.getElementById(`chkZoom${viewerInfo.idx}`);
+    }
 
     // Array of tileSources for the viewer
     const tileSources = [];
@@ -18,19 +28,22 @@ class ImageViewer {
     // console.log('tileSources', stringy(ts));
 
     // SET UP VIEWER
-    let viewer;
-    try {
-      viewer = OpenSeadragon({
-        id: viewerInfo.osdId,
-        prefixUrl: CONFIG.osdImages,
-        tileSources,
-        crossOriginPolicy: 'Anonymous',
-        blendTime: 0,
-        minZoomImageRatio: 1,
-        maxZoomPixelRatio: 1, // when the user zooms all the way in they are at 100%
-      });
-    } catch (e) {
-      console.error(e.message);
+    let viewer = OpenSeadragon({
+      id: viewerInfo.osdId,
+      prefixUrl: CONFIG.osdImages,
+      tileSources,
+      crossOriginPolicy: 'Anonymous',
+      blendTime: 0,
+      minZoomImageRatio: 1,
+      maxZoomPixelRatio: 1, // when the user zooms all the way in they are at 100%
+    });
+    this.viewer = viewer; // SET THIS VIEWER
+
+    this.overlay = this.viewer.fabricjsOverlay({ scale: 1000 });
+    this.canvas = this.overlay.fabricCanvas();
+
+    if (options.toolbarOn) {
+      markupTools(viewerInfo, options, viewer);
     }
 
     // 2.7.7
@@ -55,24 +68,17 @@ class ImageViewer {
     // make annotatable by Annotorious library
     // anno.makeAnnotatable(viewer);
 
-    let drawer;
-    function addInfo(item) {
-      try {
-        const itemIndex = viewer.world.getIndexOfItem(item);
-        const source = viewer.world.getItemAt(itemIndex).source;
-
-        if (typeof source.prefLabel !== 'undefined') layers[itemIndex].prefLabel = source.prefLabel;
-        if (typeof source.resolutionUnit !== 'undefined') layers[itemIndex].resolutionUnit = source.resolutionUnit;
-        if (typeof source.xResolution !== 'undefined') layers[itemIndex].xResolution = source.xResolution;
-      } catch (e) {
-        console.log(`%c${e.message}`, 'color: #ff6a5a;');
-      }
-    }
-
     // When an item is added to the World, grab the info
     viewer.world.addHandler('add-item', ({ item }) => {
-      addInfo(item);
+      const itemIndex = viewer.world.getIndexOfItem(item);
+      const source = viewer.world.getItemAt(itemIndex).source;
+
+      if (typeof source.prefLabel !== 'undefined') layers[itemIndex].prefLabel = source.prefLabel;
+      if (typeof source.resolutionUnit !== 'undefined') layers[itemIndex].resolutionUnit = source.resolutionUnit;
+      if (typeof source.xResolution !== 'undefined') layers[itemIndex].xResolution = source.xResolution;
     });
+
+    layerUI(document.getElementById(`layersAndColors${viewerInfo.idx}`), layers, viewer);
 
     function _parseHash() {
       const params = {};
@@ -111,6 +117,7 @@ class ImageViewer {
     }
 
     // Image has been downloaded and can be modified before being drawn to the canvas.
+    let drawer;
     viewer.addOnceHandler('tile-loaded', () => {
       drawer = viewer.drawer;
       drawer.imageSmoothingEnabled = false;
@@ -282,11 +289,6 @@ class ImageViewer {
         }
       }
     }
-
-    this.viewer = viewer; // SET THIS VIEWER
-    this.overlay = this.viewer.fabricjsOverlay({ scale: 1000 });
-    this.canvas = this.overlay.fabricCanvas();
-    this.vInfo = viewerInfo;
   }
 
   /**
@@ -294,5 +296,9 @@ class ImageViewer {
    */
   getViewer() {
     return this.viewer;
+  }
+
+  getPanZoom() {
+    return this.checkboxes;
   }
 }

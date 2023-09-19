@@ -102,7 +102,6 @@ OpenSeadragon.Filters.OUTLINE = rgba => {
 OpenSeadragon.Filters.PROBABILITY = (data, rgba) => {
   return (context, callback) => {
     // console.time('Probability');
-    // console.log("data", data);
     let imgData = context.getImageData(0, 0, context.canvas.width, context.canvas.height);
     let pixels = imgData.data;
 

@@ -24,7 +24,7 @@ const layerUI = (layersColumn, images, viewer) => {
 function createLayerElements(layersColumn, layers, viewer) {
   const myEyeArray = [];
 
-  const globalEyeball = globalEye(layersColumn)
+  const globalEyeball = globalEye(layersColumn);
 
   const divTable = e("div", {class: "divTable"});
   // const scrollDiv = e("div", {class: "divTableBody scroll"});
@@ -174,7 +174,23 @@ function addIconRow(myEyeArray, divTable, currentLayer, allLayers, viewer) {
   divTable.appendChild(divTableRow);
 
   const layerNum = currentLayer.layerNum;
-  const featureName = getPreferredLabel(currentLayer);
+  let sections = new URL(currentLayer.location).search.split("/");
+  const elementWithTCGA = sections.find(item => item.startsWith("TCGA"));
+
+  let featureName;
+  if (elementWithTCGA) {
+    const isFeature = currentLayer.location.includes("FeatureStorage");
+
+    if (isFeature) {
+      featureName = currentLayer.name
+        ? currentLayer.name
+        : `${sections[sections.indexOf("FeatureStorage") + 1]}-${sections[sections.indexOf("FeatureStorage") + 2]}`;
+    } else {
+      featureName = elementWithTCGA.split(".")[0];
+    }
+  } else {
+    featureName = currentLayer.location.split('/').pop();
+  }
 
   // FEATURE
   const feat = createDraggableBtn(layerNum, featureName);
@@ -214,29 +230,6 @@ function addIconRow(myEyeArray, divTable, currentLayer, allLayers, viewer) {
   } else {
     divTableRow.appendChild(e("div", {class: "divTableCell"}));
   }
-}
-
-
-function getPreferredLabel(layer) {
-  // Temporary patch for unavailable prefLabel (or 'label') info
-  let name = "undefined";
-  let url = layer.location;
-  try {
-    let search = "FeatureStorage";
-    let sections = url.split("/");
-    let res = sections.indexOf(search);
-    if (res > -1) {
-      name = `${sections[res + 1]}-${sections[res + 2]}`
-    } else {
-      name = sections[sections.length - 2];
-      if (name.includes(".")) {
-        name = name.substring(0, name.indexOf("."));
-      }
-    }
-  } catch (e) {
-    console.log(`%cError. Check WSI URL: ${url}`, "color: #ff6a5a; font-size: larger;");
-  }
-  return name;
 }
 
 // Feature (draggable)

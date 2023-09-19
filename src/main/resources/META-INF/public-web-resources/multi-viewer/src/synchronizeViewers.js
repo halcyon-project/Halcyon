@@ -1,17 +1,17 @@
 /**
  * Synchronize pan & zoom on every viewer in the given array.
  *
- * @param {Array} multiViewerArray - Array of MultiViewer objects
+ * @param {Array} imageViewerArray - Array of ImageViewer objects
  */
-const synchronizeViewers = function(multiViewerArray) {
-  const isGood = checkData(multiViewerArray);
+const synchronizeViewers = function(imageViewerArray) {
+  const isGood = checkData(imageViewerArray);
 
   if (isGood) {
     this.SYNCED_IMAGE_VIEWERS = [];
     this.activeViewerId = null;
-    this.numViewers = multiViewerArray.length;
+    this.numViewers = imageViewerArray.length;
 
-    multiViewerArray.forEach(function(imageViewer) {
+    imageViewerArray.forEach(function(imageViewer) {
       const currentViewer = imageViewer.getViewer();
 
       setPanZoomCurrent(currentViewer, handler);
@@ -94,14 +94,14 @@ function resetFlag() {
   this.activeViewerId = null;
 }
 
-function checkData(multiViewerArray) {
-  if (isEmpty(multiViewerArray)) {
+function checkData(imageViewerArray) {
+  if (isEmpty(imageViewerArray)) {
     console.error('synchronizeViewers.js: Expected input argument, but received none.');
     return false;
   }
 
-  if (!(multiViewerArray[0] instanceof Object)) {
-    console.error('synchronizeViewers.js: Array elements should be MultiViewer objects.');
+  if (!(imageViewerArray[0] instanceof Object)) {
+    console.error('synchronizeViewers.js: Array elements should be ImageViewer objects.');
     return false;
   }
 
