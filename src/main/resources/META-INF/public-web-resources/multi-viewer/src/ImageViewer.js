@@ -73,9 +73,9 @@ class ImageViewer {
       const itemIndex = viewer.world.getIndexOfItem(item);
       const source = viewer.world.getItemAt(itemIndex).source;
 
-      if (typeof source.prefLabel !== 'undefined') layers[itemIndex].prefLabel = source.prefLabel;
-      if (typeof source.resolutionUnit !== 'undefined') layers[itemIndex].resolutionUnit = source.resolutionUnit;
-      if (typeof source.xResolution !== 'undefined') layers[itemIndex].xResolution = source.xResolution;
+      if (isRealValue(source.hasCreateAction) && isRealValue(source.hasCreateAction.name)) layers[itemIndex].name = source.hasCreateAction.name;
+      if (isRealValue(source.resolutionUnit)) layers[itemIndex].resolutionUnit = source.resolutionUnit;
+      if (isRealValue(source.xResolution)) layers[itemIndex].xResolution = source.xResolution;
     });
 
     layerUI(document.getElementById(`layersAndColors${viewerInfo.idx}`), layers, viewer);
