@@ -114,11 +114,8 @@ public class FeatureManager {
                 types.put(key,cs.removeFirst());
             }
         }
-        types.forEach((k,v)->{
-            System.out.println(k+" --xx--> "+v);
-        });
         pss = new ParameterizedSparqlString("""
-            select distinct ?roc ?type ?label ?value
+            select distinct ?roc ?type ?label ?value ?name
             where {
                 values (?roc) {?selected}
                 graph ?roc {?roc hal:hasFeature ?feature .
@@ -196,6 +193,7 @@ public class FeatureManager {
                     .addProperty(RDF.type, HAL.FeatureLayer)
                     .addLiteral(HAL.layerNum, c)
                     .addProperty(HAL.location, host+"/halcyon/?iiif="+qs.get("roc").asResource().getURI()+"/info.json")
+                    .addLiteral(SchemaDO.name, qs.contains("name")?qs.get("name").asLiteral().getString():"Name Unknown")
                     .addLiteral(HAL.opacity, 0.5);
                 COLORSCHEME
                         .addProperty(SchemaDO.name, "Default Color Scheme")

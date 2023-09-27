@@ -8,6 +8,7 @@ import com.apicatalog.jsonld.document.Document;
 import com.apicatalog.jsonld.document.JsonDocument;
 import com.apicatalog.jsonld.serialization.RdfToJsonld;
 import com.apicatalog.rdf.RdfDataset;
+import com.ebremer.beakgraph.ng.BGDatasetGraph;
 import com.ebremer.beakgraph.rdf.BeakGraph;
 import com.ebremer.halcyon.lib.Standard;
 import com.ebremer.halcyon.hilbert.HilbertSpace;
@@ -29,6 +30,7 @@ import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.concurrent.Executors;
@@ -66,8 +68,8 @@ import org.apache.jena.vocabulary.SchemaDO;
 public class FL {
     private int width;
     private int height;
-    private final Model m;
-    private final Model manifest;
+    private final Dataset ds;
+    //private final Model manifest;
     private final HashMap<Integer,HilbertSpace> hspace;
     private int numscales;
     private int numclasses = 0;
@@ -75,13 +77,14 @@ public class FL {
     private final float[] ratios;
     private final String reference;
     
-    public FL(Model m) {
-        this.m = m;
+    public FL(Dataset ds) {
+        this.ds = ds;
         this.hspace = new HashMap<>();
         this.classes = new HashMap<>();
-        BeakGraph bg = (BeakGraph) m.getGraph();
+        BeakGraph bg = (BeakGraph) ds.getDefaultModel().getGraph();
         reference = bg.getReader().getROCReader().getRef();
-        manifest = bg.getReader().getManifest();
+        //manifest = bg.getReader().getManifest();
+        Model manifest = ds.getDefaultModel();
         ParameterizedSparqlString pss = new ParameterizedSparqlString(
             """
             select * where {
@@ -337,7 +340,6 @@ public class FL {
             //mm.add(manifest);
             Dataset ds = DatasetFactory.createGeneral();
             ds.getDefaultModel().add(mm);
-            RDFDataMgr.write(System.out, mm, Lang.TURTLE);
             RdfDataset rds = JenaTitanium.convert(ds.asDatasetGraph());
             RdfToJsonld rtj = RdfToJsonld.with(rds);
             JsonArray ja = rtj.useNativeTypes(true).build();
@@ -445,17 +447,13 @@ public class FL {
         }
         return "{}";
     }
-    
-    public static void ScanAll(Model m) {
-        ParameterizedSparqlString pss = new ParameterizedSparqlString(
-            """
-            PREFIX oa: <http://www.w3.org/ns/oa#>
-                        PREFIX hal: <https://www.ebremer.com/halcyon/ns/>
-                        PREFIX so: <https://schema.org/>
-                select * where {?s oa:hasSelector ?o}
-            """);
-        QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m);
-        ResultSet rs = qe.execSelect();
-        ResultSetFormatter.out(System.out,rs);
+
+    public static void main(String[] args) {
+        File f = new File("/AAA/wow-X6.zip");
+        com.ebremer.beakgraph.ng.BeakGraph g = new com.ebremer.beakgraph.ng.BeakGraph(f.toURI());
+        BGDatasetGraph bg = new BGDatasetGraph(g);
+        Dataset ds = DatasetFactory.wrap(bg);
+        FL fl = new FL(ds);
+        
     }
 }

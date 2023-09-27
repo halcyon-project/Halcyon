@@ -7,6 +7,7 @@ import com.ebremer.halcyon.lib.HalcyonSettings;
 import com.ebremer.ns.EXIF;
 import com.ebremer.ns.HAL;
 import com.ebremer.rocrate4j.ROCrate;
+import com.ebremer.rocrate4j.ROCrate.ROCrateBuilder;
 import com.ebremer.rocrate4j.writers.ZipWriter;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -33,7 +34,7 @@ public class Ingest {
            
     public void OneFile(File source, File dest, boolean optimize) {
         try {
-            ROCrate.ROCrateBuilder builder = new ROCrate.ROCrateBuilder(new ZipWriter(dest));
+            ROCrateBuilder builder = new ROCrate.ROCrateBuilder(new ZipWriter(dest));
             try (BeakWriter bw = new BeakWriter(builder, "halcyon")) {
                 Resource rde = builder.getRDE();
                 Model m = Engine.Load(source,builder.getRDE());

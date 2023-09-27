@@ -14,14 +14,19 @@ import java.awt.Polygon;
 import java.awt.geom.Area;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.List;
 import org.davidmoten.hilbert.HilbertCurve;
 import org.davidmoten.hilbert.Range;
 import org.davidmoten.hilbert.Ranges;
 import org.davidmoten.hilbert.SmallHilbertCurve;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Envelope;
+import org.locationtech.jts.geom.GeometryFactory;
 
 /**
  *
@@ -664,10 +669,89 @@ public final class HilbertSpace {
         rah.add(new Range(sv,ev));
         return rah;
     }
+
+    public final LinkedList<Range> Polygon2Hilbert(org.locationtech.jts.geom.Polygon p) {
+        LinkedList<Range> rah = new LinkedList();
+        GeometryFactory geometryFactory = new GeometryFactory();
+        Envelope r = p.getEnvelopeInternal();
+        int minx = (int) r.getMinX();
+        int maxx = (int) r.getMaxX();
+        int miny = (int) r.getMinY();
+        int maxy = (int) r.getMaxY();
+        LinkedList pp = new LinkedList();       
+        for (int x=minx;x<maxx; x++) {
+            for (int y=miny;y<maxy;y++) {
+               if (p.contains(geometryFactory.createPoint(new Coordinate((double) x, (double) y)))) {
+                   pp.add(hc.index(x,y));
+               }
+            }   
+        }
+        pp.sort(null);
+        Collections.sort(pp);
+        int i = 1;
+        long sv = 0;
+        long ev = 0;
+        if (!pp.isEmpty()) {
+            sv = (long) pp.get(0);
+            ev = (long) pp.get(0);
+        }
+        while (i<pp.size()) {
+            long nv = (long) pp.get(i);
+            if ((nv-ev)==1) {
+                ev = nv;
+            } else {
+                rah.add(new Range(sv,ev));
+                sv = nv;
+                ev = nv;
+            }
+            i++;
+        }
+        rah.add(new Range(sv,ev));
+        return rah;
+    }
+    
+    public final List<Range> Polygon2HilbertV2(org.locationtech.jts.geom.Polygon p) {
+        GeometryFactory geometryFactory = new GeometryFactory();
+        Envelope r = p.getEnvelopeInternal();
+        int minx = (int) r.getMinX();
+        int maxx = (int) r.getMaxX();
+        int miny = (int) r.getMinY();
+        int maxy = (int) r.getMaxY();
+        ArrayList<Long> pp = new ArrayList<>((maxx-minx)*(maxy-miny));       
+        for (int x=minx;x<maxx; x++) {
+            for (int y=miny;y<maxy;y++) {
+               if (p.contains(geometryFactory.createPoint(new Coordinate((double) x, (double) y)))) {
+                   pp.add(hc.index(x,y));
+               }
+            }   
+        }
+        pp.sort(null);
+        Collections.sort(pp);
+        int i = 1;
+        long sv = 0;
+        long ev = 0;
+        if (!pp.isEmpty()) {
+            sv = (long) pp.get(0);
+            ev = (long) pp.get(0);
+        }
+        ArrayList<Range> rah = new ArrayList<>(pp.size());
+        while (i<pp.size()) {
+            long nv = (long) pp.get(i);
+            if ((nv-ev)==1) {
+                ev = nv;
+            } else {
+                rah.add(new Range(sv,ev));
+                sv = nv;
+                ev = nv;
+            }
+            i++;
+        }
+        rah.add(new Range(sv,ev));
+        return rah;
+    }
     
     public static void Hexes(long si[]) {
         for (int i=0; i<si.length; i++) {
-            //System.out.println(Long.toBinaryString(si[i]));
             System.out.println(si[i]+" "+SpaceIT(Long.toBinaryString(si[i])));
         }
     }
