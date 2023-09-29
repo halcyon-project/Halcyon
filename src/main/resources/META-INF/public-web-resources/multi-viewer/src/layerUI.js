@@ -47,7 +47,7 @@ function createLayerElements(layersColumn, layers, viewer) {
 
 function setupDragAndDrop(viewer) {
   // Div containing viewer (Remember this is executed for each viewer.)
-  const sourceDiv = document.getElementById(viewer.id);
+  const currentViewerDiv = document.getElementById(viewer.id);
 
   function handleDrop(evt) {
     // prevent default action (open as link for some elements)
@@ -55,8 +55,8 @@ function setupDragAndDrop(viewer) {
     evt.stopPropagation();
 
     evt.target.classList.remove('drag-over') // restore style
-    const targetElement = evt.target;
-    const targetDiv = targetElement.closest(".viewer"); // where they dropped the feature
+    const targetElement = evt.target; // canvas
+    const targetDiv = targetElement.closest(".viewer"); // div container
 
     // Get neighboring elements
     const columnWithViewer = targetDiv.parentElement;
@@ -103,7 +103,7 @@ function setupDragAndDrop(viewer) {
       }
     }
 
-    const targetViewer = getOsdViewer(evt, targetDiv.id);
+    const targetViewer = getOsdViewer(targetDiv.id);
 
     if (targetViewer !== null) {
       if (foundMatchingSlide) {
@@ -116,23 +116,24 @@ function setupDragAndDrop(viewer) {
     return false;
   }
 
-  sourceDiv.addEventListener("dragover", evt => {
+  // Add event listeners to current div
+  currentViewerDiv.addEventListener("dragover", evt => {
     // prevent default to allow drop
     evt.preventDefault();
     return false;
   });
 
-  sourceDiv.addEventListener("dragenter", function (evt) {
+  currentViewerDiv.addEventListener("dragenter", function (evt) {
     // highlight potential drop target when the draggable element enters it
     evt.target.classList.add('drag-over');
   });
 
-  sourceDiv.addEventListener("dragleave", function (evt) {
+  currentViewerDiv.addEventListener("dragleave", function (evt) {
     // reset border of potential drop target when the draggable element leaves it
     evt.target.classList.remove('drag-over');
   });
 
-  sourceDiv.addEventListener("drop", handleDrop);
+  currentViewerDiv.addEventListener("drop", handleDrop);
 }
 
 async function fetchData(url) {
@@ -393,20 +394,15 @@ function createTachometer(row, featureName) {
   return divBody;
 }
 
-function getOsdViewer(evt, divId) {
-  // Verify the event target is a canvas (versus a button)
-  if (evt.target.tagName.toLowerCase() === "canvas") {
-    try {
-      // Get the viewer to this div id
-      return SYNCED_IMAGE_VIEWERS.find(
-        sync => sync.getViewer().id === divId
-      )?.getViewer() || null;
-    } catch (e) {
-      console.error("Something happened...", e.message);
-    }
+function getOsdViewer(divId) {
+  try {
+    // Get the viewer to this div id
+    return SYNCED_IMAGE_VIEWERS.find(
+      sync => sync.getViewer().id === divId
+    )?.getViewer() || null;
+  } catch (e) {
+    console.error("Something happened...", e.message);
   }
-  // If the target is not a <canvas> or if no matching viewer is found, return null.
-  return null;
 }
 
 function getVals(slides) {
