@@ -550,3 +550,27 @@ output::after {
   border-radius: 3px;
   background-color: var(--tooltip);
 }
+
+.expandable-button {
+  position: relative;
+  display: inline-block;
+  overflow: hidden;
+  width: 90px; /* .layer fixed width */
+  transition: width .5s ease-in-out;
+  white-space: nowrap;
+}
+
+.expandable-button:hover {
+  width: auto;
+  min-width: 90px; /* original .layer width */
+  max-width: 300px; /* maximum expanded width */
+}
+
+.button-text {
+  display: inline-block;
+  transition: transform .5s ease-in-out;
+}
+
+.expandable-button:hover .button-text {
+  transform: translateX(0);
+}

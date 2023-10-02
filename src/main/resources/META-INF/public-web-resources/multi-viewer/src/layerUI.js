@@ -168,14 +168,13 @@ function getFeatureName(layerNum, currentLayer, data) {
 
 function createDraggableBtn(layerNum, currentLayer, featureName) {
   // Create and return the draggable button
+  const span = e("span", {class: "button-text"}, [featureName]);
   const element = e("button", {
     id: `${layerNum}${createId(5, "feat")}`,
-    class: "layer",
-    style: "display: inline-block",
-    draggable: "true",
-    title: featureName
+    class: "layer expandable-button",
+    draggable: "true"
   });
-  element.innerHTML = featureName;
+  element.append(span);
   return element;
 }
 
