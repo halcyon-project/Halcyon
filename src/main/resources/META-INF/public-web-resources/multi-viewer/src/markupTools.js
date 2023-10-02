@@ -21,7 +21,7 @@ const markupTools = (viewerInfo, options, viewer) => {
 
   ruler(document.getElementById(`btnRuler${idx}`), viewer, overlay);
 
-  blender(document.getElementById(`btnBlender${idx}`), viewer);
+  blender(document.getElementById(`btnBlender${idx}`), viewer, false); // Set to true if you want to show descriptions
 
   const canvas = overlay.fabricCanvas();
   canvas.on('after:render', () => {
