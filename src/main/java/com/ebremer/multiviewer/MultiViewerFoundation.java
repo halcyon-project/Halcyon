@@ -68,7 +68,6 @@ public class MultiViewerFoundation {
         AddJSResource(JS.ImageViewer,"src/ImageViewer.js");
         AddJSResource(JS.layerUI,"src/layerUI.js");
         AddJSResource(JS.layerPopup,"src/layerPopup.js");
-        AddJSResource(JS.MultiViewer,"src/MultiViewer.js");
         AddJSResource(JS.synchronizeViewers,"src/synchronizeViewers.js");
     }
     
