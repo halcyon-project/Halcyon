@@ -11,11 +11,14 @@ const ruler = (btnRuler, viewer, overlay) => {
   let zoom;
   let mode = 'x';
   let fText;
-  let fStart = {x: 0, y: 0};
-  let fEnd = {x: 0, y: 0};
+  let fStart = { x: 0, y: 0 };
+  let fEnd = { x: 0, y: 0 };
   let oStart;
   let oEnd;
-  let fontSize = 15;
+
+  // Define original or base font size and rectangle dimensions
+  const baseFontSize = 15;
+  const baseStrokeWidth = 2;
 
   let bgColor, fontColor, lineColor;
   // lineColor = '#ccff00'; // neon yellow
@@ -31,7 +34,6 @@ const ruler = (btnRuler, viewer, overlay) => {
   let canvas = overlay.fabricCanvas();
   fabric.Object.prototype.transparentCorners = false;
 
-  // CLEAR
   function clear() {
     fStart.x = 0.0;
     fEnd.x = 0.0;
@@ -40,7 +42,6 @@ const ruler = (btnRuler, viewer, overlay) => {
     canvas.remove(...canvas.getItemsByName('ruler'));
   }
 
-  // MOUSE DOWN
   function mouseDownHandler(o) {
     clear();
     zoom = viewer.viewport.getZoom(true);
@@ -61,7 +62,7 @@ const ruler = (btnRuler, viewer, overlay) => {
       fStart.x = pointer.x;
       fStart.y = pointer.y;
       line = new fabric.Line(points, {
-        strokeWidth: 2 / zoom, // adjust stroke width on zoom
+        strokeWidth: adjustor().lineWidth, // adjust stroke width on zoom
         stroke: lineColor,
         originX: 'center',
         originY: 'center',
@@ -78,12 +79,15 @@ const ruler = (btnRuler, viewer, overlay) => {
     }
   }
 
-  // CALCULATE
   function difference(a, b) {
     return Math.abs(a - b);
   }
 
   function getHypotenuseLength(a, b, mpp) {
+    if (!mpp || typeof mpp !== 'number' || mpp <= 0) {
+      console.error("Invalid MICRONS_PER_PIX value:", mpp);
+      return 0;
+    }
     return Math.sqrt(a * a * mpp * mpp + b * b * mpp * mpp);
   }
 
@@ -108,14 +112,24 @@ const ruler = (btnRuler, viewer, overlay) => {
     return `${value.toFixed(3)} \u00B5m`;
   }
 
+  function adjustor() {
+    let currentZoom = viewer.viewport.getZoom(true); // Get the current zoom level from OpenSeadragon.
+    let scaleFactor = 1 / currentZoom; // Calculate a scaling factor based on the zoom level.
+    // Adjust original dimensions with scaleFactor
+    let adjustedFontSize = baseFontSize * scaleFactor;
+    let adjustedStrokeWidth = baseStrokeWidth * scaleFactor;
+    return { scaleFactor: scaleFactor, fontSize: adjustedFontSize, lineWidth: adjustedStrokeWidth };
+  }
+
   function drawText(x, y, text) {
+    canvas.remove(fText); // remove text element before re-adding it
+
     fText = new fabric.Text(text, {
       left: x,
       top: y,
       fill: fontColor,
       fontFamily: "effra,Verdana,Tahoma,'DejaVu Sans',sans-serif",
-      // fontSize: fontSize / zoom, // adjust font size on zoom
-      fontSize: zoom >= 100 ? 0.2 : (fontSize / zoom).toFixed(2),
+      fontSize: adjustor().fontSize,
       textBackgroundColor: bgColor,
       selectable: false,
       evented: false,
@@ -124,11 +138,8 @@ const ruler = (btnRuler, viewer, overlay) => {
     canvas.add(fText);
   }
 
-  // MOUSE MOVE
   function mouseMoveHandler(o) {
     if (!isDown) return;
-    canvas.remove(fText); // remove text element before re-adding it
-    canvas.renderAll();
 
     let webPoint = new OpenSeadragon.Point(o.e.clientX, o.e.clientY);
     let viewportPoint = viewer.viewport.pointFromPixel(webPoint);
@@ -140,7 +151,7 @@ const ruler = (btnRuler, viewer, overlay) => {
     let t = valueWithUnit(hypot);
 
     let pointer = canvas.getPointer(o.e);
-    line.set({x2: pointer.x, y2: pointer.y});
+    line.set({ x2: pointer.x, y2: pointer.y });
     fEnd.x = pointer.x;
     fEnd.y = pointer.y;
 
@@ -151,14 +162,11 @@ const ruler = (btnRuler, viewer, overlay) => {
     canvas.renderAll();
   }
 
-  // MOUSE UP
   function mouseUpHandler(o) {
     line.setCoords();
-    canvas.remove(fText);
     isDown = false;
 
     // Make sure user actually drew a line
-    // if (fEnd.x > 0) {
     if (!(fStart.x === fEnd.x || fStart.y === fEnd.y || fEnd.x === 0)) {
       console.log(`%clength: ${fText.text}`, 'color: #ccff00;');
       let pointer = canvas.getPointer(o.e);
