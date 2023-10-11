@@ -74,8 +74,12 @@ class ImageViewer {
       const source = viewer.world.getItemAt(itemIndex).source;
 
       if (isRealValue(source.hasCreateAction) && isRealValue(source.hasCreateAction.name)) layers[itemIndex].name = source.hasCreateAction.name;
-      if (isRealValue(source.resolutionUnit)) layers[itemIndex].resolutionUnit = source.resolutionUnit;
-      if (isRealValue(source.xResolution)) layers[itemIndex].xResolution = source.xResolution;
+
+      if (isRealValue(source.xResolution) && isRealValue(source.resolutionUnit) && source.resolutionUnit === 3) {
+        MICRONS_PER_PIX = 10000 / source.xResolution; // Unit 3 = pixels per centimeter
+        layers[itemIndex].resolutionUnit = source.resolutionUnit;
+        layers[itemIndex].xResolution = source.xResolution;
+      }
     });
 
     layerUI(document.getElementById(`layersAndColors${viewerInfo.idx}`), layers, viewer);
@@ -136,7 +140,6 @@ class ImageViewer {
     viewer.addOnceHandler("open", e => {
       // SETUP ZOOM TO MAGNIFICATION - 10x, 20x, etc.
       let minViewportZoom = viewer.viewport.getMinZoom();
-      // let minImgZoom = viewer.viewport.viewportToImageZoom(minViewportZoom);
       let tiledImage = viewer.world.getItemAt(0);
       let minImgZoom = tiledImage.viewportToImageZoom(minViewportZoom);
 
@@ -279,14 +282,8 @@ class ImageViewer {
       // Get info for scale bar
       const item = layers[0];
       // plugin assumes that the provided pixelsPerMeter is the one of the image at index 0 in world.getItemAt
-      if (isRealValue(item.resolutionUnit)) {
-        if (item.resolutionUnit === 3) {
-          const pixPerCm = item.xResolution;
-          setScaleBar(pixPerCm * 100);
-          MICRONS_PER_PIX = 10000 / pixPerCm;
-        } else {
-          console.warn('resolutionUnit <> 3', item.resolutionUnit);
-        }
+      if (isRealValue(item.xResolution) && isRealValue(item.resolutionUnit) && item.resolutionUnit === 3) {
+        setScaleBar(item.xResolution * 100);
       }
     }
   }

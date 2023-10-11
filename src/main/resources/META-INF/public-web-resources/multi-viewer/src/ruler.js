@@ -6,15 +6,15 @@
  * @param {object} overlay - Canvas on which to draw the measurement
  */
 const ruler = (btnRuler, viewer, overlay) => {
-  let line;
+  let fabLine;
   let isDown;
   let zoom;
   let mode = 'x';
-  let fText;
-  let fStart = { x: 0, y: 0 };
-  let fEnd = { x: 0, y: 0 };
-  let oStart;
-  let oEnd;
+  let fabText;
+  let fabStart = { x: 0, y: 0 };
+  let fabEnd = { x: 0, y: 0 };
+  let osdStart = { x: 0, y: 0 };
+  let osdEnd = { x: 0, y: 0 };
 
   // Define original or base font size and rectangle dimensions
   const baseFontSize = 15;
@@ -32,13 +32,12 @@ const ruler = (btnRuler, viewer, overlay) => {
   lineColor = '#00cc01';
 
   let canvas = overlay.fabricCanvas();
-  fabric.Object.prototype.transparentCorners = false;
 
   function clear() {
-    fStart.x = 0.0;
-    fEnd.x = 0.0;
-    fStart.y = 0.0;
-    fEnd.y = 0.0;
+    fabStart.x = 0.0;
+    fabEnd.x = 0.0;
+    fabStart.y = 0.0;
+    fabEnd.y = 0.0;
     canvas.remove(...canvas.getItemsByName('ruler'));
   }
 
@@ -49,19 +48,25 @@ const ruler = (btnRuler, viewer, overlay) => {
       setOsdTracking(viewer, false);
       isDown = true;
 
-      let webPoint = new OpenSeadragon.Point(o.e.clientX, o.e.clientY);
       try {
+        if (!o || !o.e) throw new Error('Event object or client coordinates are missing');
+        let webPoint = new OpenSeadragon.Point(o.e.clientX, o.e.clientY);
+
+        if (!viewer || !viewer.viewport) throw new Error('Viewer or viewport is not initialized');
         let viewportPoint = viewer.viewport.pointFromPixel(webPoint);
-        oStart = viewer.world.getItemAt(0).viewportToImageCoordinates(viewportPoint);
+
+        let item = viewer.world.getItemAt(0);
+        if (!item) throw new Error('No item found at index 0 in the viewer world');
+        osdStart = item.viewportToImageCoordinates(viewportPoint);
       } catch (e) {
         console.error(e.message);
       }
 
       let pointer = canvas.getPointer(o.e);
       let points = [pointer.x, pointer.y, pointer.x, pointer.y];
-      fStart.x = pointer.x;
-      fStart.y = pointer.y;
-      line = new fabric.Line(points, {
+      fabStart.x = pointer.x;
+      fabStart.y = pointer.y;
+      fabLine = new fabric.Line(points, {
         strokeWidth: adjustor().lineWidth, // adjust stroke width on zoom
         stroke: lineColor,
         originX: 'center',
@@ -70,7 +75,7 @@ const ruler = (btnRuler, viewer, overlay) => {
         evented: false,
         name: 'ruler'
       });
-      canvas.add(line);
+      canvas.add(fabLine);
     } else {
       setOsdTracking(viewer, true); // keep image from panning/zooming as you draw line
       canvas.forEachObject(obj => {
@@ -122,9 +127,9 @@ const ruler = (btnRuler, viewer, overlay) => {
   }
 
   function drawText(x, y, text) {
-    canvas.remove(fText); // remove text element before re-adding it
+    canvas.remove(fabText); // remove text element before re-adding it
 
-    fText = new fabric.Text(text, {
+    fabText = new fabric.Text(text, {
       left: x,
       top: y,
       fill: fontColor,
@@ -135,7 +140,7 @@ const ruler = (btnRuler, viewer, overlay) => {
       evented: false,
       name: 'ruler'
     });
-    canvas.add(fText);
+    canvas.add(fabText);
   }
 
   function mouseMoveHandler(o) {
@@ -143,49 +148,55 @@ const ruler = (btnRuler, viewer, overlay) => {
 
     let webPoint = new OpenSeadragon.Point(o.e.clientX, o.e.clientY);
     let viewportPoint = viewer.viewport.pointFromPixel(webPoint);
-    oEnd = viewer.world.getItemAt(0).viewportToImageCoordinates(viewportPoint);
+    osdEnd = viewer.world.getItemAt(0).viewportToImageCoordinates(viewportPoint);
 
-    let w = difference(oStart.x, oEnd.x);
-    let h = difference(oStart.y, oEnd.y);
+    let w = difference(osdStart.x, osdEnd.x);
+    let h = difference(osdStart.y, osdEnd.y);
     let hypot = getHypotenuseLength(w, h, MICRONS_PER_PIX);
     let t = valueWithUnit(hypot);
 
     let pointer = canvas.getPointer(o.e);
-    line.set({ x2: pointer.x, y2: pointer.y });
-    fEnd.x = pointer.x;
-    fEnd.y = pointer.y;
+    fabLine.set({ x2: pointer.x, y2: pointer.y });
+    fabEnd.x = pointer.x;
+    fabEnd.y = pointer.y;
 
     if (mode === 'draw') {
       // Show info while drawing line
-      drawText(fEnd.x, fEnd.y, t);
+      drawText(fabEnd.x, fabEnd.y, t);
     }
     canvas.renderAll();
   }
 
   function mouseUpHandler(o) {
-    line.setCoords();
     isDown = false;
+    // canvas.forEachObject(function(object) {
+    //   console.log("object", object);
+    //   object.setCoords(); // update coordinates
+    //   object.set('selectable', true);
+    // });
+    fabLine.setCoords();
+    fabText.setCoords();
 
     // Make sure user actually drew a line
-    if (!(fStart.x === fEnd.x || fStart.y === fEnd.y || fEnd.x === 0)) {
-      console.log(`%clength: ${fText.text}`, 'color: #ccff00;');
+    if (!(fabStart.x === fabEnd.x || fabStart.y === fabEnd.y || fabEnd.x === 0)) {
+      console.log(`%clength: ${fabText.text}`, 'color: #ccff00;');
       let pointer = canvas.getPointer(o.e);
-      drawText(pointer.x, pointer.y, fText.text);
+      drawText(pointer.x, pointer.y, fabText.text);
       canvas.renderAll();
     }
   }
 
   btnRuler.addEventListener('click', () => {
-    if (mode === 'draw') {
-      // Turn off
+    const isDrawMode = mode === 'draw';
+
+    mode = isDrawMode ? 'x' : 'draw';
+
+    if (isDrawMode) {
       canvas.remove(...canvas.getItemsByName('ruler'));
-      mode = 'x';
       canvas.off('mouse:down', mouseDownHandler);
       canvas.off('mouse:move', mouseMoveHandler);
       canvas.off('mouse:up', mouseUpHandler);
     } else {
-      // Turn on
-      mode = 'draw';
       canvas.on('mouse:down', mouseDownHandler);
       canvas.on('mouse:move', mouseMoveHandler);
       canvas.on('mouse:up', mouseUpHandler);
