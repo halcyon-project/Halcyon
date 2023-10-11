@@ -13,9 +13,9 @@
                 <exec.longClasspath>true</exec.longClasspath>
                 <exec.args>${exec.vmArgs} -classpath %classpath ${exec.mainClass} ${exec.appArgs}</exec.args>
                 <exec.executable>java</exec.executable>
-                <exec.vmArgs>-Xmx61G --add-opens=java.base/java.nio=ALL-UNNAMED --enable-preview  -Darrow.memory.debug.allocator=true</exec.vmArgs>
-                <exec.appArgs>-v -src "D:\acc\src" -dest "D:\acc\zip" -heatmap</exec.appArgs>
-                <exec.mainClass>com.ebremer.halcyon.raptor.AAA</exec.mainClass>
+                <exec.vmArgs>-Xmx61G --add-opens=java.base/java.nio=ALL-UNNAMED --enable-preview  -Darrow.memory.debug.allocator=false</exec.vmArgs>
+                <exec.appArgs>-v -src "D:\tcga\cvpr-data\rdf\coad" -dest "D:\HalcyonStorage\nuclearsegmentation2019\coad" -v</exec.appArgs>
+                <exec.mainClass>com.ebremer.halcyon.converters.Test</exec.mainClass>
             </properties>
         </action>
         <action>
@@ -32,9 +32,9 @@
                 <exec.args>${exec.vmArgs} -classpath %classpath ${exec.mainClass} ${exec.appArgs}</exec.args>
                 <exec.executable>java</exec.executable>
                 <jpda.listen>true</jpda.listen>
-                <exec.vmArgs>-Xmx61G --add-opens=java.base/java.nio=ALL-UNNAMED --enable-preview  -Darrow.memory.debug.allocator=true -agentlib:jdwp=transport=dt_socket,server=n,address=${jpda.address}</exec.vmArgs>
-                <exec.appArgs>-v -src "D:\acc\src" -dest "D:\acc\zip" -heatmap</exec.appArgs>
-                <exec.mainClass>com.ebremer.halcyon.raptor.AAA</exec.mainClass>
+                <exec.vmArgs>-Xmx61G --add-opens=java.base/java.nio=ALL-UNNAMED --enable-preview  -Darrow.memory.debug.allocator=false -agentlib:jdwp=transport=dt_socket,server=n,address=${jpda.address}</exec.vmArgs>
+                <exec.appArgs>-v -src "D:\tcga\cvpr-data\rdf\coad" -dest "D:\HalcyonStorage\nuclearsegmentation2019\coad" -v</exec.appArgs>
+                <exec.mainClass>com.ebremer.halcyon.converters.Test</exec.mainClass>
             </properties>
         </action>
         <action>
@@ -50,9 +50,9 @@
                 <exec.longClasspath>true</exec.longClasspath>
                 <exec.args>${exec.vmArgs} -classpath %classpath ${exec.mainClass} ${exec.appArgs}</exec.args>
                 <exec.executable>java</exec.executable>
-                <exec.vmArgs>-Xmx61G --add-opens=java.base/java.nio=ALL-UNNAMED --enable-preview  -Darrow.memory.debug.allocator=true</exec.vmArgs>
-                <exec.appArgs>-v -src "D:\acc\src" -dest "D:\acc\zip" -heatmap</exec.appArgs>
-                <exec.mainClass>com.ebremer.halcyon.raptor.AAA</exec.mainClass>
+                <exec.vmArgs>-Xmx61G --add-opens=java.base/java.nio=ALL-UNNAMED --enable-preview  -Darrow.memory.debug.allocator=false</exec.vmArgs>
+                <exec.appArgs>-v -src "D:\tcga\cvpr-data\rdf\coad" -dest "D:\HalcyonStorage\nuclearsegmentation2019\coad" -v</exec.appArgs>
+                <exec.mainClass>com.ebremer.halcyon.converters.Test</exec.mainClass>
             </properties>
         </action>
         <action>

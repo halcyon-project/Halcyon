@@ -3,7 +3,7 @@ package com.ebremer.halcyon.raptor;
 import com.ebremer.beakgraph.ng.BG;
 import com.ebremer.beakgraph.ng.BG.PropertyAndDataType;
 import com.ebremer.beakgraph.ng.BeakGraph;
-import com.ebremer.ns.HAL;
+import com.ebremer.beakgraph.ng.SpecialProcess;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -11,17 +11,18 @@ import java.util.ArrayList;
 import java.util.Random;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.DatasetFactory;
+import org.apache.jena.query.ParameterizedSparqlString;
+import org.apache.jena.query.QueryExecution;
+import org.apache.jena.query.QueryExecutionFactory;
+import org.apache.jena.query.ResultSetFormatter;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
+import org.apache.jena.vocabulary.OA;
+import org.apache.jena.vocabulary.RDF;
+import org.apache.jena.vocabulary.VOID;
 import org.apache.jena.vocabulary.XSD;
-import ch.qos.logback.classic.Level;
-import ch.qos.logback.classic.Logger;
-import ch.qos.logback.classic.LoggerContext;
-import com.ebremer.beakgraph.ng.BGDatasetGraph;
-import com.ebremer.beakgraph.ng.SpecialProcess;
-import java.util.zip.GZIPInputStream;
 import org.slf4j.LoggerFactory;
 
 /**
@@ -31,62 +32,77 @@ import org.slf4j.LoggerFactory;
 public class AAA {
     
     public static void main(String[] args) throws IOException {
-        LoggerContext loggerContext = (LoggerContext) LoggerFactory.getILoggerFactory();
-        for (Logger logger : loggerContext.getLoggerList()) {
-            System.out.println("Logger: " + logger.getName());
-        }
-        Logger logger = (Logger) LoggerFactory.getLogger("ROOT");
+        ch.qos.logback.classic.Logger root = (ch.qos.logback.classic.Logger)LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME);
+        root.setLevel(ch.qos.logback.classic.Level.OFF);
+        java.util.logging.LogManager.getLogManager().reset();
+        File f = new File("/AAA/x1.zip");
+        File x = new File("/AAA/fc.ttl");
         
-        logger.setLevel(Level.OFF);
-        File f = new File("/AAA/wow-X6.zip");
-        //File x = new File("D:\\tcga\\cvpr-data\\rdf\\coad\\TCGA-CM-5348-01Z-00-DX1.2ad0b8f6-684a-41a7-b568-26e97675cce9.ttl.gz");
-        //File x = new File("/AAA/smallGS.ttl.gz");
-        File x = new File("/AAA/fc.ttl.gz");
         
-        Dataset dsi = DatasetFactory.create();
-        try (
-            FileInputStream fis = new FileInputStream(x);
-            GZIPInputStream gis = new GZIPInputStream(fis);
-        ) {
-            RDFDataMgr.read(dsi.getDefaultModel(), gis, Lang.TURTLE);
-        }
-        ArrayList<PropertyAndDataType> list = new ArrayList<>();
-        list.add(new PropertyAndDataType(HAL.low.getURI(), XSD.xlong));
-        list.add(new PropertyAndDataType(HAL.high.getURI(), XSD.xlong));
-        list.add(new PropertyAndDataType(HAL.hasRange.getURI(), null));
+        ArrayList<BG.PropertyAndDataType>    list = new ArrayList<>();
+        //list.add(new BG.PropertyAndDataType(HAL.low.getURI(), XSD.xlong));
+        //list.add(new BG.PropertyAndDataType(HAL.high.getURI(), XSD.xlong));
+        //list.add(new BG.PropertyAndDataType(HAL.hasRange.getURI(), null));                
         ArrayList<SpecialProcess> specials = new ArrayList<>();
-        specials.add(new HilbertSpecial(150000,150000));
+        Dataset dsi = DatasetFactory.create();
+        RDFDataMgr.read(dsi.getDefaultModel(), new FileInputStream(x), Lang.TURTLE);
         BG.getBuilder()
-            .dataset(dsi)
-            .handle(list)
-            .setProcess(new HilbertProcess(150000,150000,512,512))
-            .Extra(specials)
-            .file(f)
-            .build();
+                .dataset(dsi)
+                .handle(list)
+                .setProcess(new HilbertProcess(112231,82984,512,512))
+                .Extra(specials)
+                .file(f)
+                .build();   
         BeakGraph g = new BeakGraph(f.toURI());
+        
+        /*
+long start = System.nanoTime();
+        ParameterizedSparqlString pss = new ParameterizedSparqlString(
+            """
+            select ?s
+            where {
+                graph ?g {
+                    ?s a oa:Annotation;
+                       oa:hasBody [ a hal:ProbabilityBody ];
+                       oa:hasSelector [ a oa:FragmentSelector;
+                                         rdf:value ?polygon ] .
+            
+                }
+            } limit 10
+            """
+        );
+        pss.setNsPrefix("oa", OA.NS);
+        pss.setNsPrefix("rdf", RDF.uri);
+        pss.setNsPrefix("hal", "https://www.ebremer.com/halcyon/ns/");
+        pss.setIri("g", "https://www.ebremer.com/halcyon/ns/grid/0/344/69");
+        BGDatasetGraph bg = new BGDatasetGraph(g);
+        Dataset ds = DatasetFactory.wrap(bg);
+        QueryExecution qe = QueryExecutionFactory.create(pss.toString(),ds);
+        ResultSetFormatter.out(System.out, qe.execSelect());
+        
+        double time = (System.nanoTime() - start);
+        time = time / 1000000d;
+        System.out.println(time);
+        */
+        
         
         Random rnd = new Random();
         long start = System.nanoTime();
+        
         int num = 1;
         int maxngnum = 1;
         for (int u=0; u<num; u++)  {
             int rr = rnd.nextInt(0, maxngnum);
-            g.getReader().setCurrentGraph(rr);
+            //g.getReader().setCurrentGraph(rr);
             Model m = ModelFactory.createModelForGraph(g);
             Model s = ModelFactory.createDefaultModel();
             s.add(m);
-           System.out.println(s.size());
-       //     RDFDataMgr.write(System.out, s, Lang.TURTLE);
+           //System.out.println(s.size());
+            //RDFDataMgr.write(System.out, s, Lang.TURTLE);
         }
         double time = (System.nanoTime() - start);
         time = time / 1000000d;
         time = time / ((double) num);
         System.out.println(time);
-        //Model m = ModelFactory.createModelForGraph(g);
-    //    BGDatasetGraph bg = new BGDatasetGraph(g);
-//        Dataset ds = DatasetFactory.wrap(bg);
-  //      System.out.println("================================ END ==============================================");
-    //    Model done = ds.getDefaultModel();
-      //  RDFDataMgr.write(System.out, done, Lang.TURTLE);
     }
 }

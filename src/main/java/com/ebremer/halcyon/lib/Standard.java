@@ -1,6 +1,6 @@
 package com.ebremer.halcyon.lib;
 
-import com.ebremer.beakgraph.rdf.BG;
+import com.ebremer.beakgraph.ng.BG;
 import com.ebremer.ns.EXIF;
 import com.ebremer.ns.HAL;
 import org.apache.jena.shared.PrefixMapping;

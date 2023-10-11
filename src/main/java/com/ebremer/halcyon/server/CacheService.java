@@ -31,6 +31,5 @@ public class CacheService implements Service {
     
     public static Cache<TileRequest, Future<Tile>> getCache() {
         return cache;
-    }
-    
+    }    
 }

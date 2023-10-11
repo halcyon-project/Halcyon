@@ -123,14 +123,14 @@ public class A1TTL2JSONLD {
         });
         neocontext.add("id","@id");
         neocontext.add("type","@type");
-         neocontext.add("creator", Json.createObjectBuilder().add(Keywords.ID, "so:creator").add(Keywords.TYPE, Keywords.ID));
-         neocontext.add("datePublished", Json.createObjectBuilder().add(Keywords.ID, "so:datePublished").add(Keywords.TYPE, XSD.dateTime.getURI()));
-         cxt.add(Keywords.CONTEXT, neocontext);
-         cxt.add(Keywords.EMBED, Keywords.ALWAYS);
-         cxt.add(Keywords.EXPLICIT, false);
-         cxt.add(Keywords.OMIT_DEFAULT, true);
-         cxt.add(Keywords.REQUIRE_ALL, false);
-         cxt.add(Keywords.TYPE, Json.createArrayBuilder().add("Dataset"));
+        neocontext.add("creator", Json.createObjectBuilder().add(Keywords.ID, "so:creator").add(Keywords.TYPE, Keywords.ID));
+        neocontext.add("datePublished", Json.createObjectBuilder().add(Keywords.ID, "so:datePublished").add(Keywords.TYPE, XSD.dateTime.getURI()));
+        cxt.add(Keywords.CONTEXT, neocontext);
+        cxt.add(Keywords.EMBED, Keywords.ALWAYS);
+        cxt.add(Keywords.EXPLICIT, false);
+        cxt.add(Keywords.OMIT_DEFAULT, true);
+        cxt.add(Keywords.REQUIRE_ALL, false);
+        cxt.add(Keywords.TYPE, Json.createArrayBuilder().add("Dataset"));
         cxt.add("hasPart",Json.createObjectBuilder()
                 .add(Keywords.TYPE, "CreateAction")
                 .add(Keywords.EXPLICIT, true)

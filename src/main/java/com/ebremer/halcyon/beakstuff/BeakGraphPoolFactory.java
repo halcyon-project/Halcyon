@@ -1,6 +1,6 @@
 package com.ebremer.halcyon.beakstuff;
 
-import com.ebremer.beakgraph.rdf.BeakGraph;
+import com.ebremer.beakgraph.ng.BeakGraph;
 import java.net.URI;
 import org.apache.commons.pool2.BaseKeyedPooledObjectFactory;
 import org.apache.commons.pool2.DestroyMode;
@@ -12,16 +12,11 @@ import org.apache.commons.pool2.impl.DefaultPooledObject;
  * @author erich
  */
 public class BeakGraphPoolFactory extends BaseKeyedPooledObjectFactory<URI, BeakGraph> {
-    private final String base;
     
-    public BeakGraphPoolFactory(String base) {
-        this.base = base;
-    }
+    public BeakGraphPoolFactory(String base) {}
 
     @Override
     public BeakGraph create(URI uri) throws Exception {
-        System.out.println("Create BeakGraph "+base);
-        //return new BeakGraph(base,uri);
         return new BeakGraph(uri);
     }
     
@@ -32,7 +27,7 @@ public class BeakGraphPoolFactory extends BaseKeyedPooledObjectFactory<URI, Beak
 
     @Override
     public void destroyObject(URI key, PooledObject p, DestroyMode mode) throws Exception {
-        System.out.println("Destroying BeakGraph");
+        System.out.println("Closing BeakGraph "+key);
         ((BeakGraph) p.getObject()).close();
         super.destroyObject(key, p, mode);
     }  

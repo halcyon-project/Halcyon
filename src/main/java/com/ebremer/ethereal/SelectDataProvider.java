@@ -1,6 +1,5 @@
 package com.ebremer.ethereal;
 
-import com.ebremer.halcyon.utils.StopWatch;
 import java.util.ArrayList;
 import java.util.Iterator;
 import org.apache.jena.query.Dataset;
@@ -52,7 +51,6 @@ public class SelectDataProvider extends SortableDataProvider<Solution, String> {
     }
 
     private void updateCount() {
-        StopWatch w = new StopWatch();
         Query q = getQuery();
         Dataset ds = dds.load();
         QueryExecution qe = QueryExecutionFactory.create(q,ds);
@@ -64,7 +62,6 @@ public class SelectDataProvider extends SortableDataProvider<Solution, String> {
             size++;
         }
         ds.end();
-        w.getTime("updateCount() "+size);
     }    
 
     @Override

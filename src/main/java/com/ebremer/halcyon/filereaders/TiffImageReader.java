@@ -96,4 +96,9 @@ public class TiffImageReader extends AbstractImageReader {
         set.add("tiff");
         return set;
     }
+
+    @Override
+    public Model readTileMeta(ImageRegion region, com.ebremer.halcyon.lib.Rectangle preferredsize) {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
 }

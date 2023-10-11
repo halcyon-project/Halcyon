@@ -37,12 +37,11 @@ public class Tools {
         return polygon;
     }
     
-    public static Polygon scaleAndSimplifyPolygon(Polygon polygon, double scaleFactor) {
-        GeometryFactory geometryFactory = new GeometryFactory();
+    public static Polygon scaleAndSimplifyPolygon(Polygon polygon, double scaleFactor) {        
         AffineTransformation transformation = new AffineTransformation();
         transformation.scale(scaleFactor, scaleFactor);
         Geometry scaledPolygon = transformation.transform(polygon);
-        HashSet<Coordinate> uniqueCoords = new HashSet<>();
+        HashSet<Coordinate> uniqueCoords = new HashSet<>(scaledPolygon.getCoordinates().length);
         ArrayList<Coordinate> roundedCoordsList = new ArrayList<>();
         for (Coordinate coord : scaledPolygon.getCoordinates()) {
             Coordinate roundedCoord = new Coordinate(Math.round(coord.x), Math.round(coord.y));
@@ -57,7 +56,26 @@ public class Tools {
             return null;
         }
         Coordinate[] roundedCoordsArray = roundedCoordsList.toArray(new Coordinate[0]);
+        GeometryFactory geometryFactory = new GeometryFactory();
         LinearRing roundedRing = geometryFactory.createLinearRing(roundedCoordsArray);
         return geometryFactory.createPolygon(roundedRing, null);
+    }
+    
+    public static java.awt.Polygon JTS2AWT(Polygon jtsPolygon) {
+        java.awt.Polygon awtPolygon = new java.awt.Polygon();
+        Coordinate[] coordinates = jtsPolygon.getCoordinates();
+        for (Coordinate coordinate : coordinates) {
+            awtPolygon.addPoint((int) coordinate.x, (int) coordinate.y);
+        }        
+        return awtPolygon;
+    }
+    
+    public static java.awt.Polygon JTS2AWT(Polygon jtsPolygon, int offsetx, int offsety) {
+        java.awt.Polygon awtPolygon = new java.awt.Polygon();
+        Coordinate[] coordinates = jtsPolygon.getCoordinates();
+        for (Coordinate coordinate : coordinates) {
+            awtPolygon.addPoint((int) (coordinate.x - offsetx), (int) (coordinate.y - offsety));
+        }        
+        return awtPolygon;
     }
 }

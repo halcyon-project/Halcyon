@@ -364,16 +364,16 @@
             </build>
         </profile>
         <profile>
-            <id>heatmap2oa</id>
+            <id>heatmap2geosparql</id>
             <build>
-                <finalName>heatmap2oa-${project.version}</finalName>
+                <finalName>heatmap2geosparql-${project.version}</finalName>
                 <plugins>
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-shade-plugin</artifactId>
                         <executions>
                             <execution>
-                                <id>heatmap2oashade</id>
+                                <id>heatmap2geosparqlshade</id>
                                 <phase>package</phase>
                                 <goals>
                                     <goal>shade</goal>
@@ -394,7 +394,7 @@
                                             <manifestEntries>
                                                 <Multi-Release>true</Multi-Release>
                                             </manifestEntries>
-                                            <mainClass>com.ebremer.halcyon.converters.HeatMap2OA</mainClass>
+                                            <mainClass>com.ebremer.halcyon.converters.HeatMap2GEOSPARQL</mainClass>
                                         </transformer>
                                     </transformers>
                                 </configuration>
@@ -453,6 +453,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-shade-plugin</artifactId>
+                        <version>3.5.1</version>
                         <executions>
                             <execution>
                                 <id>libraryshade</id>
@@ -491,6 +492,13 @@
                                 </configuration>
                             </execution>
                         </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-deploy-plugin</artifactId>
+                        <configuration>
+                            <skip>false</skip>
+                        </configuration>
                     </plugin>
                 </plugins>
             </build>

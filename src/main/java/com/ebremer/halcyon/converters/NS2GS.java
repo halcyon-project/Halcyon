@@ -1,5 +1,6 @@
 package com.ebremer.halcyon.converters;
 
+import com.ebremer.halcyon.converters.hold.NeoSegmentations;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.ParameterException;
 import com.ebremer.halcyon.lib.ExtendedPolygon;
@@ -8,7 +9,7 @@ import com.ebremer.halcyon.lib.HalcyonSettings;
 import com.ebremer.halcyon.utils.ImageMeta;
 import com.ebremer.halcyon.utils.ImageMeta.ImageObject;
 import com.ebremer.ns.EXIF;
-import com.ebremer.ns.GS;
+import com.ebremer.ns.GEO;
 import com.ebremer.ns.HAL;
 import com.ebremer.ns.SNO;
 import java.awt.Polygon;
@@ -170,7 +171,7 @@ public class NS2GS {
             LinkedList<ExtendedPolygon> list = eps2.GetPolygons();
             m.setNsPrefix("xsd", XSD.NS);
             m.setNsPrefix("sno", "http://snomed.info/id/");
-            m.setNsPrefix("geo", GS.NS);
+            m.setNsPrefix("geo", GEO.NS);
             m.setNsPrefix("dc", DCTerms.NS);
             m.setNsPrefix("rdfs", RDFS.uri);
             m.setNsPrefix("so", SchemaDO.NS);
@@ -183,7 +184,7 @@ public class NS2GS {
                 .addProperty(EXIF.width,width)
                 .addProperty(EXIF.height,height);                    
             Resource SpatialObjectCollection = m.createResource()
-                    .addProperty(RDF.type, GS.FeatureCollection)
+                    .addProperty(RDF.type, GEO.FeatureCollection)
                     .addProperty(DCTerms.title, "cnn-nuclear-segmentations-2019")
                     .addProperty(DCTerms.description, "Nuclear segmentation of TCGA cancer types")
                     .addProperty(DCTerms.date, dateTimeLiteral)
@@ -203,10 +204,10 @@ public class NS2GS {
                 })
                 .forEach(p->{
                     Resource SpatialObject = m.createResource()
-                            .addProperty(RDF.type, GS.Feature);
+                            .addProperty(RDF.type, GEO.Feature);
                     Resource geometry = m.createResource()
-                            .addLiteral(GS.asWKT, Polygon2WKT(p.polygon));
-                    SpatialObject.addProperty(GS.hasGeometry, geometry);                    
+                            .addLiteral(GEO.asWKT, Polygon2WKT(p.polygon));
+                    SpatialObject.addProperty(GEO.hasGeometry, geometry);                    
                     SpatialObjectCollection.addProperty(RDFS.member, SpatialObject);
                     Resource classification = m.createResource()
                         .addLiteral(HAL.hasProbability,1.0f)

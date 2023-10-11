@@ -22,7 +22,6 @@ public class TileRequest implements Callable<Tile> {
         this.region = region;
         this.preferredsize = preferredsize;
         this.cachethis = cachethis;
-        //System.out.println("TileRequest --> "+region+"  "+preferredsize);
     }
     
     public boolean isCacheable() {
@@ -38,8 +37,6 @@ public class TileRequest implements Callable<Tile> {
     }
     
     public static TileRequest genTileRequest(URI uri, ImageRegion region, Rectangle preferredsize, boolean cachethis) {
-        //System.out.println(CacheService.getCache().stats());
-        //System.out.println("genTileRequest --> "+region+"  "+preferredsize);
         int a = preferredsize.width();
         int b = preferredsize.height();
         if (a>0) {
@@ -66,8 +63,8 @@ public class TileRequest implements Callable<Tile> {
         try {
             ImageReader reader = ImageReaderPool.getPool().borrowObject(uri);
             BufferedImage bi = reader.readTile(region, preferredsize);
-            bi = ImageTools.ScaleBufferedImage(bi,preferredsize);
-            Tile tile = new Tile(this,bi);
+            bi = ImageTools.ScaleBufferedImage(bi, preferredsize);
+            Tile tile = new Tile(this, bi);
             ImageReaderPool.getPool().returnObject(uri, reader);
             return tile;
         } catch (Exception ex) {

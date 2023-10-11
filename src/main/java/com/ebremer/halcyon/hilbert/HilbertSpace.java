@@ -34,9 +34,6 @@ import org.locationtech.jts.geom.GeometryFactory;
  */
 public final class HilbertSpace {
     public SmallHilbertCurve hc;
-    public int height;
-    public int width;
-    public int bits;
     public static final byte N = 0;
     public static final byte NE = 1;
     public static final byte E = 2;
@@ -46,11 +43,8 @@ public final class HilbertSpace {
     public static final byte W = 6;
     public static final byte NW = 7;
     
-    public HilbertSpace(int width, int height) {
-        this.height = height;
-        this.width = width;
-        this.bits = (int) Math.ceil(Math.log( Math.max(width, height))/Math.log(2));
-        this.hc = HilbertCurve.small().bits(this.bits).dimensions(2);
+    public HilbertSpace() {
+        this.hc = HilbertCurve.small().bits(31).dimensions(2);
     }
     
     public boolean inRange(LinkedList<Range> rr, Point p, Byte neighbor) {
@@ -182,10 +176,6 @@ public final class HilbertSpace {
             case NW: return new Point(p.x-1,p.y-1);
         }
         return null;
-    }
-    
-    public int getNumBits() {
-        return this.bits;
     }
     
     public Point GetXY(long p) {

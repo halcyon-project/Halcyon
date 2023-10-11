@@ -3,7 +3,7 @@ package com.ebremer.halcyon.raptor;
 import com.ebremer.beakgraph.ng.BeakWriter;
 import com.ebremer.beakgraph.ng.SpecialProcess;
 import com.ebremer.halcyon.hilbert.HilbertSpace;
-import com.ebremer.ns.GS;
+import com.ebremer.ns.GEO;
 import com.ebremer.ns.HAL;
 import java.util.ArrayList;
 import java.util.List;
@@ -27,12 +27,12 @@ import org.apache.jena.rdf.model.Statement;
  * @author erich
  */
 public class HilbertSpecial implements SpecialProcess {
-    private final int width;
-    private final int height;
+    //private final int width;
+    //private final int height;
     
-    public HilbertSpecial(int width, int height) {
-        this.width = width;
-        this.height = height;
+    public HilbertSpecial() {
+      //  this.width = width;
+        //this.height = height;
     }
     
     private void GenerateHilbertData(BeakWriter bw, Model m) {
@@ -44,7 +44,7 @@ public class HilbertSpecial implements SpecialProcess {
             }
             """
         );
-        pss.setNsPrefix("geo", GS.NS);
+        pss.setNsPrefix("geo", GEO.NS);
         QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m);
         ConcurrentLinkedQueue<Future<List<Statement>>> list = new ConcurrentLinkedQueue<>();
         try (ExecutorService engine = Executors.newVirtualThreadPerTaskExecutor()) {
@@ -81,7 +81,7 @@ public class HilbertSpecial implements SpecialProcess {
 
         @Override
         public List<Statement> call() throws Exception {
-            HilbertSpace hs = new HilbertSpace(width, height);
+            HilbertSpace hs = new HilbertSpace();
             List<Statement> list = new ArrayList<>();
             hs.Polygon2HilbertV2(Tools.WKT2Polygon(wkt)).forEach(k->{
                 Resource bnode = geometry.getModel().createResource();

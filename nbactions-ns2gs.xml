@@ -14,8 +14,8 @@
                 <exec.args>${exec.vmArgs} -classpath %classpath ${exec.mainClass} ${exec.appArgs}</exec.args>
                 <exec.executable>java</exec.executable>
                 <exec.vmArgs>--enable-preview -Xmx50G -Xms50G --add-opens=java.base/java.nio=ALL-UNNAMED</exec.vmArgs>
-                <exec.appArgs>-src D:\tcga\cvpr-data\coad_polygon -type coad2 -threads 1</exec.appArgs>
-                <exec.mainClass>com.ebremer.halcyon.raptor.AAA</exec.mainClass>
+                <exec.appArgs>-src D:\tcga\cvpr-data\coad_polygon -type coad -threads 1</exec.appArgs>
+                <exec.mainClass>com.ebremer.halcyon.converters.NS2GS</exec.mainClass>
             </properties>
         </action>
         <action>
@@ -33,8 +33,8 @@
                 <exec.executable>java</exec.executable>
                 <jpda.listen>true</jpda.listen>
                 <exec.vmArgs>--enable-preview -Xmx50G -Xms50G --add-opens=java.base/java.nio=ALL-UNNAMED -agentlib:jdwp=transport=dt_socket,server=n,address=${jpda.address}</exec.vmArgs>
-                <exec.appArgs>-src D:\tcga\cvpr-data\coad_polygon -type coad2 -threads 1</exec.appArgs>
-                <exec.mainClass>com.ebremer.halcyon.raptor.AAA</exec.mainClass>
+                <exec.appArgs>-src D:\tcga\cvpr-data\coad_polygon -type coad -threads 1</exec.appArgs>
+                <exec.mainClass>com.ebremer.halcyon.converters.NS2GS</exec.mainClass>
             </properties>
         </action>
         <action>
@@ -51,8 +51,8 @@
                 <exec.args>${exec.vmArgs} -classpath %classpath ${exec.mainClass} ${exec.appArgs}</exec.args>
                 <exec.executable>java</exec.executable>
                 <exec.vmArgs>--enable-preview -Xmx50G -Xms50G --add-opens=java.base/java.nio=ALL-UNNAMED</exec.vmArgs>
-                <exec.appArgs>-src D:\tcga\cvpr-data\coad_polygon -type coad2 -threads 1</exec.appArgs>
-                <exec.mainClass>com.ebremer.halcyon.raptor.AAA</exec.mainClass>
+                <exec.appArgs>-src D:\tcga\cvpr-data\coad_polygon -type coad -threads 1</exec.appArgs>
+                <exec.mainClass>com.ebremer.halcyon.converters.NS2GS</exec.mainClass>
             </properties>
         </action>
         <action>

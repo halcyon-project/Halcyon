@@ -33,10 +33,10 @@ public class Puffin extends BasePage  {
         r.addProperty(SchemaDO.name, r.getModel().createResource("http://www.google.com"));
         r.addProperty(SchemaDO.name, "HI!");
         Resource bn = target.createResource();
-        bn.addProperty(HAL.hasClass, SNO.Lymphocytes).addProperty(HAL.color, "#0000ff").addProperty(RDF.type, HAL.AnnotationClass);
+        bn.addProperty(HAL.hasClassification, SNO.Lymphocytes).addProperty(HAL.color, "#0000ff").addProperty(RDF.type, HAL.AnnotationClass);
         r.addProperty(HAL.hasAnnotationClass, bn);
         bn = target.createResource();
-        bn.addProperty(HAL.hasClass, SNO.Necrosis).addProperty(HAL.color, "#00ff00").addProperty(RDF.type, HAL.AnnotationClass);
+        bn.addProperty(HAL.hasClassification, SNO.Necrosis).addProperty(HAL.color, "#00ff00").addProperty(RDF.type, HAL.AnnotationClass);
         r.addProperty(HAL.hasAnnotationClass, bn);
         SHACLForm sf = new SHACLForm("sform", r, HAL.AnnotationClassListShape.asNode(), null);
         add(sf);

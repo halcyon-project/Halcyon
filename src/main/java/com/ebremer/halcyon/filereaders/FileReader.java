@@ -8,6 +8,7 @@ import org.apache.jena.rdf.model.Model;
  * @author erich
  */
 public interface FileReader extends AutoCloseable {
+    
     public Model getMeta();
     public String getFormat();
     public Set<String> getSupportedFormats();

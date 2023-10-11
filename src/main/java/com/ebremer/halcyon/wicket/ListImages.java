@@ -33,6 +33,7 @@ import org.apache.jena.query.QueryFactory;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.sparql.core.TriplePath;
 import org.apache.jena.sparql.core.Var;
+import org.apache.jena.vocabulary.DCTerms;
 import org.apache.jena.vocabulary.OWL;
 import org.apache.jena.vocabulary.SchemaDO;
 import org.apache.wicket.ajax.AjaxRequestTarget;
@@ -143,15 +144,16 @@ public class ListImages extends BasePage implements IPanelChangeListener {
     private void UpdateTHIS() {
         HashSet<Node> features = lf.getSelectedFeatures();
         ParameterizedSparqlString pss = rdfsdf.getPSS();
-        //pss.setIri("collection", ddc.getModelObject().toString());
         pss.setIri("collection", selected);
         Query q = QueryFactory.create(pss.toString());
         if (!features.isEmpty()) {
             WhereHandler wh = new WhereHandler(q);
-            TriplePath tp = new TriplePath(Triple.create(NodeFactory.createVariable("ca"), SchemaDO.object.asNode(), NodeFactory.createVariable("md5")));
+            TriplePath tpx = new TriplePath(Triple.create(NodeFactory.createVariable("featureCollection"), DCTerms.source.asNode(), NodeFactory.createVariable("md5")));
+            wh.addGraph(NodeFactory.createVariable("roc"), tpx);
+            TriplePath tp = new TriplePath(Triple.create(NodeFactory.createVariable("featureCollection"), DCTerms.creator.asNode(), NodeFactory.createVariable("creator")));
             wh.addGraph(NodeFactory.createVariable("roc"), tp);
             ValuesHandler vh = new ValuesHandler(q);
-            vh.addValueVar(Var.alloc("ca"), features);
+            vh.addValueVar(Var.alloc("creator"), features);
             vh.build();
             wh.addWhere(vh);
             rdfsdf.setQuery(q);                  
@@ -175,16 +177,37 @@ public class ListImages extends BasePage implements IPanelChangeListener {
     private class ActionPanel extends Panel {
         public ActionPanel(String id, IModel<Solution> model) {
             super(id, model);
-            add(new Link<Void>("select") {               
+            add(new Link<Void>("one") {               
                 @Override
                 public void onClick() {
                     HashSet<String>[] ff = lf.getFeatures();                    
                     Solution s = model.getObject();
                     String g = s.getMap().get("s").getURI();
-                    String mv = "var images = ["+FeatureManager.getFeatures(ff[0],g)+","+FeatureManager.getFeatures(ff[1],g)+","+FeatureManager.getFeatures(ff[2],g)+","+FeatureManager.getFeatures(ff[3],g)+"]";
-                    System.out.println("====================================xxxxxxxxxxxxxxxxx==================================\n"+mv);
+                    String mv = "var images = ["+FeatureManager.getFeatures(ff[0],g)+"]";
                     HalcyonSession.get().SetMV(mv);
-                    setResponsePage(MultiViewer.class);
+                    setResponsePage(new MultiViewer(1,1,1600,800));
+                }
+            });
+            add(new Link<Void>("two") {               
+                @Override
+                public void onClick() {
+                    HashSet<String>[] ff = lf.getFeatures();                    
+                    Solution s = model.getObject();
+                    String g = s.getMap().get("s").getURI();
+                    String mv = "var images = ["+FeatureManager.getFeatures(ff[0],g)+","+FeatureManager.getFeatures(ff[0],g)+"]";
+                    HalcyonSession.get().SetMV(mv);
+                    setResponsePage(new MultiViewer(1,2,750,750));
+                }
+            });
+            add(new Link<Void>("four") {               
+                @Override
+                public void onClick() {
+                    HashSet<String>[] ff = lf.getFeatures();                    
+                    Solution s = model.getObject();
+                    String g = s.getMap().get("s").getURI();
+                    String mv = "var images = ["+FeatureManager.getFeatures(ff[0],g)+","+FeatureManager.getFeatures(ff[0],g)+","+FeatureManager.getFeatures(ff[0],g)+","+FeatureManager.getFeatures(ff[0],g)+"]";
+                    HalcyonSession.get().SetMV(mv);
+                    setResponsePage(new MultiViewer(2,2,640,480));
                 }
             });
         }

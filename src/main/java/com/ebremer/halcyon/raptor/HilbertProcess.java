@@ -1,10 +1,12 @@
 package com.ebremer.halcyon.raptor;
 
+import com.ebremer.halcyon.raptor.spatial.scale;
 import com.ebremer.beakgraph.ng.AbstractProcess;
 import com.ebremer.beakgraph.ng.BeakWriter;
-import static com.ebremer.halcyon.raptor.scale.POLYGONEMPTY;
+import com.ebremer.halcyon.raptor.Objects.Scale;
+import com.ebremer.halcyon.raptor.spatial.Area;
 import com.ebremer.ns.EXIF;
-import com.ebremer.ns.GS;
+import com.ebremer.ns.GEO;
 import com.ebremer.ns.HAL;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -30,8 +32,11 @@ import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.sparql.function.FunctionRegistry;
 import org.apache.jena.update.UpdateAction;
 import org.apache.jena.vocabulary.DCTerms;
+import org.apache.jena.vocabulary.OWL;
 import org.apache.jena.vocabulary.RDF;
+import org.apache.jena.vocabulary.RDFS;
 import org.apache.jena.vocabulary.SchemaDO;
+import org.apache.jena.vocabulary.XSD;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Polygon;
@@ -46,15 +51,18 @@ public class HilbertProcess implements AbstractProcess {
     private final int height;
     private final int tileSizeX;
     private final int tileSizeY;
+    private final HashSet<Integer> scaleset;
+    private final int numscales;
     private final String uuid = "urn:uuid"+UUID.randomUUID().toString();
     private final String annotations = "urn:uuid"+UUID.randomUUID().toString();
     private final ArrayList<Scale> scales = new ArrayList<>();
-    private record Scale(int scale, int width, int height, int numTilesX, int numTilesY) {}
     
     public HilbertProcess(int width, int height, int tileSizeX, int tileSizeY) {
+        scaleset = new HashSet<>();
         FunctionRegistry.get().put(HAL.NS+"eStarts", eStarts.class);
         FunctionRegistry.get().put(HAL.NS+"Intersects", Intersects.class);
         FunctionRegistry.get().put(HAL.NS+"scale", scale.class);
+        FunctionRegistry.get().put(HAL.NS+"Area", Area.class);
         this.width = width;
         this.height = height;
         this.tileSizeX = tileSizeX;
@@ -72,42 +80,116 @@ public class HilbertProcess implements AbstractProcess {
             w = (int) Math.round((double)w/2d);
             h = (int) Math.round((double)h/2d);
         }
-       // scales.forEach(s->{
-         //   System.out.println("Scale --> "+s);
-       // });
+        numscales = max;
+    }
+    
+    public void FindClassifications(Dataset ds) {
+        ParameterizedSparqlString pssx = new ParameterizedSparqlString(
+            """
+            insert {
+                ?featureCollection hal:hasClassification ?class
+            }
+            where {
+                {
+                    ?featureCollection a geo:FeatureCollection; rdfs:member ?feature .
+                    ?feature a geo:Feature; hal:classification ?class
+                    filter (!bnode(?class))
+                } union {
+                    ?featureCollection a geo:FeatureCollection; rdfs:member ?feature .
+                    ?feature a geo:Feature; hal:classification ?bnode .
+                    ?bnode a ?class .
+                }
+            }
+            """
+        );
+        pssx.setNsPrefix("rdfs", RDFS.uri);
+        pssx.setNsPrefix("rdf", RDF.uri);
+        pssx.setNsPrefix("hal", HAL.NS);
+        pssx.setNsPrefix("geo", GEO.NS);
+        pssx.setIri("annotations", annotations);
+        UpdateAction.parseExecute(pssx.toString(), ds);
     }
     
     public void SeparateAnnotations(Dataset ds) {
         ParameterizedSparqlString pssx = new ParameterizedSparqlString(
             """
             delete {
-                    ?feature
-                        a geo:Feature; hal:classification ?class; geo:hasGeometry ?geometry .
-                        ?class ?tp ?to .
-                        ?geometry ?gp ?go
+                ?feature
+                    geo:hasGeometry ?geometry .
+                    ?geometry ?gp ?go
             }
             insert {
                 graph ?annotations {
                     ?feature
-                        a geo:Feature; hal:classification ?class; geo:hasGeometry ?geometry .
-                        ?class ?tp ?to .
+                        geo:hasGeometry ?geometry .
                         ?geometry ?gp ?go
                 }
             }
             where {
                 ?feature
-                    a geo:Feature; hal:classification ?class; geo:hasGeometry ?geometry .
-                    ?class ?tp ?to .
+                    geo:hasGeometry ?geometry .
                     ?geometry ?gp ?go
             }
             """
         );
         pssx.setNsPrefix("rdf", RDF.uri);
         pssx.setNsPrefix("hal", HAL.NS);
-        pssx.setNsPrefix("geo", GS.NS);
+        pssx.setNsPrefix("geo", GEO.NS);
         pssx.setIri("annotations", annotations);
-        UpdateAction.parseExecute(pssx.toString(), ds);
-       // RDFDataMgr.write(System.out, ds, Lang.TRIG);        
+        UpdateAction.parseExecute(pssx.toString(), ds);     
+    }
+    
+        public void Skolemize(Model m) {
+        ParameterizedSparqlString pssx = new ParameterizedSparqlString(
+            """
+            insert {
+                ?nf owl:sameAs ?feature
+            }
+            where {
+                ?feature a geo:Feature
+                bind (UUID() as ?nf)
+            }
+            """
+        );
+        pssx.setNsPrefix("rdf", RDF.uri);
+        pssx.setNsPrefix("hal", HAL.NS);
+        pssx.setNsPrefix("geo", GEO.NS);
+        pssx.setNsPrefix("owl", OWL.NS);
+        UpdateAction.parseExecute(pssx.toString(), m);     
+        pssx = new ParameterizedSparqlString(
+            """
+            insert {
+                ?nf ?p ?o
+            }
+            where {
+                ?nf owl:sameAs ?feature .
+                ?feature ?p ?o                
+            }
+            """
+        );
+        pssx.setNsPrefix("rdf", RDF.uri);
+        pssx.setNsPrefix("hal", HAL.NS);
+        pssx.setNsPrefix("geo", GEO.NS);
+        pssx.setNsPrefix("owl", OWL.NS);
+        UpdateAction.parseExecute(pssx.toString(), m);
+        pssx = new ParameterizedSparqlString(
+            """
+            delete {
+                ?nf owl:sameAs ?feature .
+                ?feature ?p ?o                
+            }
+            where {
+                ?nf owl:sameAs ?feature .
+                ?feature ?p ?o
+            }
+            """
+        );
+        pssx.setNsPrefix("rdf", RDF.uri);
+        pssx.setNsPrefix("hal", HAL.NS);
+        pssx.setNsPrefix("geo", GEO.NS);
+        pssx.setNsPrefix("owl", OWL.NS);
+        UpdateAction.parseExecute(pssx.toString(), m);
+        //RDFDataMgr.write(System.out, m, Lang.TURTLE);
     }
     
     public List<RDFNode> getNGs(Polygon swkt, int scale, int w, int h) {
@@ -130,7 +212,7 @@ public class HilbertProcess implements AbstractProcess {
             } else {
                 System.out.println("ARGH --> "+swkt);
             }
-            Logger.getLogger(SpatialX.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(HilbertProcess.class.getName()).log(Level.SEVERE, null, ex);
         }
         return list;
     }
@@ -142,11 +224,11 @@ public class HilbertProcess implements AbstractProcess {
             """
             select ?a ?wkt
             where {
-                graph ?annotations { ?a a geo:Feature; geo:hasGeometry/geo:asWKT ?wkt }
+                graph ?annotations { ?a geo:hasGeometry/geo:asWKT ?wkt }
             }
             """
         );
-        pss.setNsPrefix("geo", GS.NS);
+        pss.setNsPrefix("geo", GEO.NS);
         pss.setNsPrefix("rdf", RDF.uri);
         pss.setNsPrefix("hal", HAL.NS);
         pss.setIri("annotations", annotations);
@@ -165,7 +247,6 @@ public class HilbertProcess implements AbstractProcess {
                 });
             }
         }
-        System.out.println("Buffer --> "+buffer.size());
         return ngs;
     }
         
@@ -178,8 +259,7 @@ public class HilbertProcess implements AbstractProcess {
             insert {
                 graph ?ng {
                    ?feature
-                        a geo:Feature; hal:classification ?class; geo:hasGeometry ?geometry .
-                        ?class ?tp ?to .
+                        geo:hasGeometry ?geometry .
                         ?geometry ?gp ?go
                 }
             }
@@ -187,8 +267,7 @@ public class HilbertProcess implements AbstractProcess {
                 graph ?grid { ?feature so:containedIn ?ng }
                 graph ?annotations {
                    ?feature
-                        a geo:Feature; hal:classification ?class; geo:hasGeometry ?geometry .
-                        ?class ?tp ?to .
+                        geo:hasGeometry ?geometry .
                         ?geometry ?gp ?go
                 }
             }
@@ -197,15 +276,13 @@ public class HilbertProcess implements AbstractProcess {
         pssx.setNsPrefix("rdf", RDF.uri);
         pssx.setNsPrefix("hal", HAL.NS);
         pssx.setNsPrefix("so", SchemaDO.NS);
-        pssx.setNsPrefix("geo", GS.NS);
+        pssx.setNsPrefix("geo", GEO.NS);
         pssx.setIri("grid", uuid);
         pssx.setIri("annotations", annotations);
         UpdateAction.parseExecute(pssx.toString(), ds);
         System.out.println("Missing polygons...");
-     //   RDFDataMgr.write(System.out, ds.getNamedModel(uuid), Lang.TURTLE);
         System.out.println("Annotations binned...");
         System.out.println("POLYGONS --> "+buffer.size());
-     //   RDFDataMgr.write(System.out, ds, Lang.TRIG);
     }
     
     public void ScalePolygons(Dataset ds) {
@@ -220,51 +297,60 @@ public class HilbertProcess implements AbstractProcess {
             """
         );
         pssx.setNsPrefix("rdf", RDF.uri);
-        pssx.setNsPrefix("geo", GS.NS);
+        pssx.setNsPrefix("geo", GEO.NS);
         pssx.setNsPrefix("hal", HAL.NS);
-      //  pssx.setNsPrefix("so", SchemaDO.NS);
-        pssx.setIri("annotations", annotations);
         UpdateAction.parseExecute(pssx.toString(), ds.getNamedModel(annotations));
     }
     
-    public void RemoveEmptyPolygons(Dataset ds) {
+    public void RemoveRuntPolygons(Dataset ds) {
         ParameterizedSparqlString pssx = new ParameterizedSparqlString(
             """
-            delete where {
+            delete {
                 graph ?annotations {
                     ?feature
-                        a geo:Feature; hal:classification ?class; geo:hasGeometry ?geometry .
-                        ?class ?tp ?to .
-                        ?geometry ?gp ?go; geo:asWKT ?polgyon
+                        geo:hasGeometry ?geometry .
+                        ?geometry ?gp ?go; geo:asWKT ?wkt .                    
+                    }
+            }
+            where {
+                graph ?annotations {
+                    ?feature
+                        geo:hasGeometry ?geometry .
+                        ?geometry ?gp ?go; geo:asWKT ?wkt .                    
                 }
+                filter (hal:Area(?wkt)<2)
             }
             """
         );
-        pssx.setNsPrefix("geo", GS.NS);
+        pssx.setNsPrefix("geo", GEO.NS);
         pssx.setNsPrefix("rdf", RDF.uri);
         pssx.setNsPrefix("hal", HAL.NS);
-        pssx.setLiteral("polygon", POLYGONEMPTY);
-        pssx.setIri("annotations", annotations);
+        pssx.setNsPrefix("xsd", XSD.NS);
         UpdateAction.parseExecute(pssx.toString(), ds);
     }
     
-    public void RemoveChunks(Dataset ds) {
+    public void RemoveCrud(Model m) {
         ParameterizedSparqlString pssx = new ParameterizedSparqlString(
             """
-            delete where {
-                graph ?g { ?s ?p ?o }
-                filter (strstarts(str(?g),?grid))
+            delete {
+                ?featureCollection rdfs:member ?feature
+            }
+            where {
+                ?featureCollection a geo:FeatureCollection; rdfs:member ?feature
             }
             """
         );
-        pssx.setLiteral("grid", HAL.Grid.toString().toLowerCase()+"/");
-        UpdateAction.parseExecute(pssx.toString(), ds);
+        pssx.setNsPrefix("geo", GEO.NS);
+        pssx.setNsPrefix("rdfs", RDFS.uri);
+        pssx.setNsPrefix("rdf", RDF.uri);
+        pssx.setNsPrefix("hal", HAL.NS);
+        UpdateAction.parseExecute(pssx.toString(), m);
     }
 
     @Override
     public void Process(BeakWriter bw, Dataset ds) {        
         Model xxx = ds.getDefaultModel();
-        Resource root = xxx.createResource("");
+        Resource root = xxx.createResource();
         root.addProperty(RDF.type, HAL.Segmentation);
         Literal tx = xxx.createTypedLiteral(String.valueOf(512), XSDDatatype.XSDint);
         Literal ty = xxx.createTypedLiteral(String.valueOf(512), XSDDatatype.XSDint);
@@ -286,29 +372,31 @@ public class HilbertProcess implements AbstractProcess {
                 .addProperty(EXIF.height, h);   
             spatialGrid.addProperty(HAL.scale, scale);
         });
-        
+        //Skolemize(ds.getDefaultModel());
         ds.addNamedModel(uuid, ModelFactory.createDefaultModel());
         ds.addNamedModel(annotations, ModelFactory.createDefaultModel());
+        System.out.println("Find Classifications...");
+        FindClassifications(ds);
         System.out.println("Separate Annotations...");
         SeparateAnnotations(ds);
+        System.out.println("Remove Crud...");
+        RemoveCrud(ds.getDefaultModel());
+     //   RDFDataMgr.write(System.out, ds.getDefaultModel(), RDFFormat.TURTLE_PRETTY);
         System.out.println("Analyze Dataset...");
         bw.Analyze(ds);
         System.out.println("Write Default Graph...");
         Resource dg = ResourceFactory.createResource("urn:halcyon:defaultgraph");
         System.out.println("Created Resource for Default Graph...");
-        
-        
-        
         bw.RegisterNamedGraph(dg);
         System.out.println("Registered Default Graph...");
         bw.Add(dg, ds.getDefaultModel());
         System.out.println("Added Default Graph...");
-        int ns = scales.size();
-        for (int s = 0; s < ns; s++) {
+        for (int ss=0; ss<scales.size();ss++) {
+            scaleset.add(ss);
+            HashSet<RDFNode> ngs = CreateNamedGraphs(ds,ss);
             System.out.println("# of triples in annotations --> "+ds.getNamedModel(annotations).size());
-            System.out.println("Create Named Graphs..."+s);
-            HashSet<RDFNode> ngs = CreateNamedGraphs(ds,s);
-            System.out.println("Bin Annotations..."+s);
+            System.out.println("Create Named Graphs..."+ss);
+            System.out.println("Bin Annotations..."+ss);
             BinTheAnnotations(ds);
             int c = ngs.size();
             for (RDFNode node : ngs) {
@@ -325,23 +413,18 @@ public class HilbertProcess implements AbstractProcess {
                 end = end / 1000000d;
                 c--;
                 System.out.println(ng+" "+c+"  "+end);
-            }
-            
-            if (s+1 < ns) {
-                System.out.println("RemoveChunks..."+s);
-                ngs.forEach(node->{
-                    Resource ng = node.asResource();
-                    ds.removeNamedModel(ng);
-                });
-                //RemoveChunks(ds);
-                System.out.println("Scaling Polygons..."+s);
-                ScalePolygons(ds);
-                System.out.println("Remove Empty Polygons..."+s);
-                RemoveEmptyPolygons(ds);
-            }
+            }            
+            System.out.println("RemoveChunks..."+ss);
+            ngs.forEach(node->{
+                Resource ng = node.asResource();
+                ds.removeNamedModel(ng);
+            });
+            System.out.println("Scaling Polygons..."+ss);
+            ScalePolygons(ds);     
+            System.out.println("Remove Runt/Empty Polygons..."+ss);
+            RemoveRuntPolygons(ds);  
             ngs.clear();
         }
-        
         Model last = ModelFactory.createDefaultModel();
         ParameterizedSparqlString pssx = new ParameterizedSparqlString(
             """
@@ -365,7 +448,7 @@ public class HilbertProcess implements AbstractProcess {
             """
         );
         pssx.setNsPrefix("so", SchemaDO.NS);
-        pssx.setNsPrefix("geo", GS.NS);
+        pssx.setNsPrefix("geo", GEO.NS);
         pssx.setIri("roc", bw.getROC().getRDE().getURI());
         pssx.setNsPrefix("dcterms", DCTerms.NS);
         QueryExecution qe = QueryExecutionFactory.create(pssx.toString(), ds.getDefaultModel());
@@ -374,22 +457,24 @@ public class HilbertProcess implements AbstractProcess {
             """
             construct {
                 _:CreateAction a so:CreateAction;
+                    so:name ?title;
                     so:instrument ?creator;
                     so:object ?source
             }
             where {
                 ?featureCollection a geo:FeatureCollection;
+                    dcterms:title ?title;
                     dcterms:source ?source;
                     dcterms:creator ?creator .
             }
             """
         );
         pssx.setNsPrefix("so", SchemaDO.NS);
-        pssx.setNsPrefix("geo", GS.NS);
+        pssx.setNsPrefix("geo", GEO.NS);
         pssx.setNsPrefix("dcterms", DCTerms.NS);
         qe = QueryExecutionFactory.create(pssx.toString(), ds.getDefaultModel());
         last.add(qe.execConstruct());
-                pssx = new ParameterizedSparqlString(
+        pssx = new ParameterizedSparqlString(
             """
             construct {
                 ?source ?sp ?so .
@@ -402,13 +487,33 @@ public class HilbertProcess implements AbstractProcess {
             """
         );
         pssx.setNsPrefix("so", SchemaDO.NS);
-        pssx.setNsPrefix("geo", GS.NS);
+        pssx.setNsPrefix("geo", GEO.NS);
+        pssx.setNsPrefix("dcterms", DCTerms.NS);
+        qe = QueryExecutionFactory.create(pssx.toString(), ds.getDefaultModel());
+        last.add(qe.execConstruct());
+        pssx = new ParameterizedSparqlString(
+            """
+            construct {
+                ?roc so:hasPart ?featureCollection .
+                ?featureCollection a geo:FeatureCollection; ?p ?o
+            }
+            where {
+                ?featureCollection a geo:FeatureCollection; ?p ?o
+            }
+            """
+        );
+        pssx.setNsPrefix("so", SchemaDO.NS);
+        pssx.setNsPrefix("geo", GEO.NS);
+        pssx.setIri("roc", bw.getROC().getRDE().getURI());
         pssx.setNsPrefix("dcterms", DCTerms.NS);
         qe = QueryExecutionFactory.create(pssx.toString(), ds.getDefaultModel());
         last.add(qe.execConstruct());
         Resource CA = last.listResourcesWithProperty(RDF.type, SchemaDO.CreateAction).next();
+        Resource FC = last.listResourcesWithProperty(RDF.type, GEO.FeatureCollection).next();
+        
         CA.addProperty(SchemaDO.result, bw.getTarget());
+        FC.addProperty(RDFS.member, bw.getTarget());
+        
         bw.getROC().getManifest().getManifestModel().add(last);
-       // RDFDataMgr.write(System.out, last, Lang.TURTLE);
     }
 }

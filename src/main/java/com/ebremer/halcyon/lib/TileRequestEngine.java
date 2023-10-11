@@ -3,7 +3,6 @@ package com.ebremer.halcyon.lib;
 import com.ebremer.halcyon.server.CacheService;
 import com.github.benmanes.caffeine.cache.Cache;
 import java.net.URI;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -44,7 +43,7 @@ public class TileRequestEngine implements AutoCloseable {
     }
     
     public Tile getTile(ImageRegion region, Rectangle preferredsize, boolean keep) {
-        TileRequest tr = TileRequest.genTileRequest(uri,region,preferredsize, keep);
+        TileRequest tr = TileRequest.genTileRequest(uri, region, preferredsize, keep);
         try {
             return getFutureTile(tr).get(1000, TimeUnit.SECONDS);
         } catch (InterruptedException ex) {

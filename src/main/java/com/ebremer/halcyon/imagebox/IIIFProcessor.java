@@ -16,7 +16,7 @@ import java.util.regex.Pattern;
  * @author Erich Bremer
  */
 public class IIIFProcessor {
-    private static final Pattern PATTERN1 = Pattern.compile("(.*)?/(\\d*),(\\d*),(\\d*),(\\d*)/(\\d*),/(\\d*)/default.(jpg|png|json)");
+    private static final Pattern PATTERN1 = Pattern.compile("(.*)?/(\\d*),(\\d*),(\\d*),(\\d*)/(\\d*),/(\\d*)/default.(jpg|png|json|ttl)");
     private static final Pattern PATTERN2 = Pattern.compile("(.*)?/full/(\\d*),/(\\d*)/default.(jpg|png|json)");
     private static final Pattern INFO = Pattern.compile("(.*)?/info.json");
     
@@ -55,6 +55,9 @@ public class IIIFProcessor {
                 case "json":
                     imageformat = ImageFormat.JSON;
                     break;
+                case "ttl":
+                    imageformat = ImageFormat.TTL;
+                    break;    
                 default:
                     break;
             }
@@ -88,6 +91,9 @@ public class IIIFProcessor {
                         case "json":
                             imageformat = ImageFormat.JSON;
                             break;
+                        case "ttl":
+                            imageformat = ImageFormat.TTL;
+                            break;    
                         default:
                             break;
                     }
