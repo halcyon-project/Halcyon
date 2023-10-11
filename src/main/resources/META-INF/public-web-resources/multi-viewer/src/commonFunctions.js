@@ -90,12 +90,12 @@ function setFilter(layers, viewer, range, thresh) {
  * Freeze/unfreeze viewer to allow for drawing.
  *
  * @param {object} viewer - OpenSeadragon.Viewer
- * @param {boolean} myBool - enable/disable
+ * @param {boolean} enable - toggle (enable/disable)
  */
-function setOsdTracking(viewer, myBool) {
-  viewer.setMouseNavEnabled(myBool);
-  viewer.outerTracker.setTracking(myBool);
-  viewer.gestureSettingsMouse.clickToZoom = myBool;
+function setOsdTracking(viewer, enable) {
+  viewer.setMouseNavEnabled(enable);
+  viewer.outerTracker.setTracking(enable);
+  viewer.gestureSettingsMouse.clickToZoom = enable;
 }
 
 /**
