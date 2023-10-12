@@ -133,7 +133,7 @@ const ruler = (btnRuler, viewer, overlay) => {
       left: x,
       top: y,
       fill: fontColor,
-      fontFamily: "effra,Verdana,Tahoma,'DejaVu Sans',sans-serif",
+      fontFamily: "Arial,Helvetica,sans-serif",
       fontSize: adjustor().fontSize,
       textBackgroundColor: bgColor,
       selectable: false,
