@@ -8,7 +8,7 @@
 const layerPopup = function(divBody, allLayers, viewer) {
   function switchRenderTypeIfNecessary() {
     // If the current render type is not by probability, switch it.
-    if (STATE.renderType === 'byProbability') {
+    if (STATE.renderType !== 'byProbability') {
       STATE.renderType = 'byProbability';
     }
   }
