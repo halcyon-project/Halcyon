@@ -130,8 +130,10 @@ const ruler = (btnRuler, viewer, overlay) => {
     canvas.remove(fabText); // remove text element before re-adding it
 
     fabText = new fabric.Text(text, {
-      left: x,
-      top: y,
+      left: x - 0.5,
+      top: y - 0.5,
+      originX: 'left',
+      originY: 'top',
       fill: fontColor,
       fontFamily: "Arial,Helvetica,sans-serif",
       fontSize: adjustor().fontSize,
