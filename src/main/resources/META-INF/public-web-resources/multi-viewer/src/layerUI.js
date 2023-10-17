@@ -16,12 +16,12 @@
  * @param {object} images - The images to be displayed in this viewer
  * @param {object} viewer - OpenSeadragon viewer
  */
-const layerUI = (layersColumn, images, viewer) => {
-  createLayerElements(layersColumn, images, viewer);
-  setupDragAndDrop(viewer);
+const layerUI = (layersColumn, images, viewer, vInfo) => {
+  createLayerElements(layersColumn, images, viewer, vInfo);
+  setupDragAndDrop(viewer, vInfo);
 };
 
-function createLayerElements(layersColumn, layers, viewer) {
+function createLayerElements(layersColumn, layers, viewer, vInfo) {
   const myEyeArray = [];
 
   const globalEyeball = globalEye(layersColumn);
@@ -38,14 +38,14 @@ function createLayerElements(layersColumn, layers, viewer) {
   divTableRow.appendChild(e("div", {class: "divTableCell"}, [globalEyeball]));
 
   layers.forEach(layer => {
-    addIconRow(myEyeArray, scrollDiv, layer, layers, viewer);
+    addIconRow(myEyeArray, scrollDiv, layer, layers, viewer, vInfo);
   });
 
   globalEyeEvent(globalEyeball, myEyeArray);
 
 }
 
-function setupDragAndDrop(viewer) {
+function setupDragAndDrop(viewer, vInfo) {
   // Div containing viewer (Remember this is executed for each viewer.)
   const currentViewerDiv = document.getElementById(viewer.id);
 
@@ -65,55 +65,56 @@ function setupDragAndDrop(viewer) {
     const tableLayAndColor = columnWithViewer.nextSibling.querySelector('.divTableBody');
     const movedFeatId = evt.dataTransfer.getData("text");
     const movedFeature = document.getElementById(movedFeatId);
-    const featureName = movedFeature.innerHTML;
 
-    let layNum;
-    let foundMatchingSlide = false;
+    if (isRealValue(movedFeature)) {
+      const featureName = movedFeature.innerHTML;
+      let layNum;
+      let foundMatchingSlide = false;
 
-    // Iterate table rows
-    let myHTMLCollection = tableLayAndColor.children;
-    for (let i = 1; i < myHTMLCollection.length; i++) {
-      // Skip first row (globals)
-      const [firstCell, secondCell] = myHTMLCollection[i].children;
-      const lay = firstCell.firstChild;
-      const eye = secondCell.firstChild;
+      // Iterate table rows
+      let myHTMLCollection = tableLayAndColor.children;
+      for (let i = 1; i < myHTMLCollection.length; i++) {
+        // Skip first row (globals)
+        const [firstCell, secondCell] = myHTMLCollection[i].children;
+        const lay = firstCell.firstChild;
+        const eye = secondCell.firstChild;
 
-      layNum = lay.id[0]; // 1st char is array index
+        layNum = lay.id[0]; // 1st char is array index
 
-      // css transition: .block, .color-fade
-      if (lay.innerHTML === featureName) {
-        foundMatchingSlide = true;
+        // css transition: .block, .color-fade
+        if (lay.innerHTML === featureName) {
+          foundMatchingSlide = true;
 
-        // Highlight the layer
-        lay.classList.remove("layer");
-        lay.classList.add("block");
-        lay.classList.add("color-fade");
+          // Highlight the layer
+          lay.classList.remove("layer");
+          lay.classList.add("block");
+          lay.classList.add("color-fade");
 
-        /** timeout to turn it back to normal **/
-        setTimeout(() => {
-          lay.classList.remove("color-fade");
-          lay.classList.remove("block");
-          lay.classList.add("layer");
-        }, 2000);
+          /** timeout to turn it back to normal **/
+          setTimeout(() => {
+            lay.classList.remove("color-fade");
+            lay.classList.remove("block");
+            lay.classList.add("layer");
+          }, 2000);
 
-        // Toggle eyeball
-        eye.classList.remove("fa-eye-slash");
-        eye.classList.add("fa-eye");
-        break;
+          // Toggle eyeball
+          eye.classList.remove("fa-eye-slash");
+          eye.classList.add("fa-eye");
+          break;
+        }
+      }
+
+      const targetViewer = getOsdViewer(targetDiv.id);
+
+      if (targetViewer !== null) {
+        if (foundMatchingSlide) {
+          targetViewer.world.getItemAt(layNum).setOpacity(1); // show
+          // (And we already turned on target feature eyeball)
+        } else {
+          console.warn("Did not find matching slide. Feature:", featureName);
+        }
       }
     }
-
-    const targetViewer = getOsdViewer(targetDiv.id);
-
-    if (targetViewer !== null) {
-      if (foundMatchingSlide) {
-        targetViewer.world.getItemAt(layNum).setOpacity(1); // show
-        // (And we already turned on target feature eyeball)
-      } else {
-        console.warn("Did not find matching slide. Feature:", featureName);
-      }
-    }
-    return false;
   }
 
   // Add event listeners to current div
@@ -188,7 +189,7 @@ function handleDragEnd(evt) {
   evt.target.style.opacity = "1"; // this = the draggable feature
 }
 
-async function addIconRow(myEyeArray, divTable, currentLayer, allLayers, viewer) {
+async function addIconRow(myEyeArray, divTable, currentLayer, allLayers, viewer, vInfo) {
   const divTableRow = e("div", {class: "divTableRow"});
   divTable.appendChild(divTableRow);
 
@@ -228,16 +229,16 @@ async function addIconRow(myEyeArray, divTable, currentLayer, allLayers, viewer)
 
     if (layerNum > 0) {
       // Color Palette
-      createColorPalette(divTableRow, featureName, currentLayer, allLayers, viewer);
+      createColorPalette(divTableRow, featureName, currentLayer, allLayers, viewer, vInfo);
 
       // Tachometer
       const divBody = createTachometer(divTableRow, featureName);
-      layerPopup(divBody, allLayers, viewer);
+      layerPopup(divBody, allLayers, viewer, vInfo);
     } else {
       divTableRow.appendChild(e("div", {class: "divTableCell"}));
     }
   } catch (error) {
-    console.error("There was a problem:", error);
+    console.error("Something bad happened:", error);
   }
 }
 
@@ -351,7 +352,7 @@ function transparencySlider(currentLayer, faEye, viewer) {
 }
 
 // Color palette
-function createColorPalette(row, featureName, currentLayer, allLayers, viewer) {
+function createColorPalette(row, featureName, currentLayer, allLayers, viewer, vInfo) {
   const icon = e("i", {
     id: createId(5, "palette"),
     class: "fas fa-palette pointer layer-icons",
@@ -369,7 +370,8 @@ function createColorPalette(row, featureName, currentLayer, allLayers, viewer) {
     `${featureName} colors`,
     currentLayer.colorscheme,
     allLayers,
-    viewer
+    viewer,
+    vInfo
   );
 }
 
@@ -396,9 +398,7 @@ function createTachometer(row, featureName) {
 function getOsdViewer(divId) {
   try {
     // Get the viewer to this div id
-    return SYNCED_IMAGE_VIEWERS.find(
-      sync => sync.getViewer().id === divId
-    )?.getViewer() || null;
+    return SYNCED_IMAGE_VIEWERS.find(sync => sync.getViewer().id === divId)?.getViewer() || null;
   } catch (e) {
     console.error("Something happened...", e.message);
   }

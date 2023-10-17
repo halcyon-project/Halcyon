@@ -6,8 +6,14 @@ class ImageViewer {
   /**
    * @param {object} viewerInfo - Info specific to 'this' viewer
    */
-  constructor(viewerInfo, numViewers, options) {
-    const layers = viewerInfo.layers;
+  constructor(vInfo, numViewers, options) {
+    this.viewerInfo = vInfo;
+    this.viewerInfo.STATE = {
+      attenuate: false,
+      outline: false,
+      renderType: RENDER_TYPES[0]
+    }
+    const layers = this.viewerInfo.layers;
 
     if (numViewers === undefined) numViewers = 1;
     if (options === undefined) options = {};
@@ -15,8 +21,8 @@ class ImageViewer {
     this.checkboxes = { checkPan: true, checkZoom: true };
 
     if (numViewers > 1) {
-      this.checkboxes.checkPan = document.getElementById(`chkPan${viewerInfo.idx}`);
-      this.checkboxes.checkZoom = document.getElementById(`chkZoom${viewerInfo.idx}`);
+      this.checkboxes.checkPan = document.getElementById(`chkPan${this.viewerInfo.idx}`);
+      this.checkboxes.checkZoom = document.getElementById(`chkZoom${this.viewerInfo.idx}`);
     }
 
     // Array of tileSources for the viewer
@@ -29,7 +35,7 @@ class ImageViewer {
 
     // SET UP VIEWER
     let viewer = OpenSeadragon({
-      id: viewerInfo.osdId,
+      id: this.viewerInfo.osdId,
       prefixUrl: CONFIG.osdImages,
       tileSources,
       crossOriginPolicy: 'Anonymous',
@@ -43,7 +49,7 @@ class ImageViewer {
     this.canvas = this.overlay.fabricCanvas();
 
     if (options.toolbarOn) {
-      markupTools(viewerInfo, options, viewer);
+      markupTools(this.viewerInfo, options, viewer);
     }
 
     // 2.7.7
@@ -60,7 +66,7 @@ class ImageViewer {
     // anno.setDrawingEnabled(true);
 
     // 0.6.4
-    // const button = document.getElementById(`btnAnnotate${viewerInfo.idx}`);
+    // const button = document.getElementById(`btnAnnotate${this.viewerInfo.idx}`);
     // button.addEventListener("click", function() {
     //   anno.activateSelector();
     //   return false;
@@ -82,7 +88,7 @@ class ImageViewer {
       }
     });
 
-    layerUI(document.getElementById(`layersAndColors${viewerInfo.idx}`), layers, viewer);
+    layerUI(document.getElementById(`layersAndColors${this.viewerInfo.idx}`), layers, viewer, this.viewerInfo);
 
     function _parseHash() {
       const params = {};
@@ -133,7 +139,7 @@ class ImageViewer {
         _useParams(params);
       }
       addCustomButtons();
-      setFilter(layers, viewer);
+      setFilter(vInfo, layers, viewer);
       getInfoForScalebar();
     });
 
@@ -178,7 +184,7 @@ class ImageViewer {
     });
 
     // BOOKMARK URL with ZOOM and X,Y
-    document.getElementById(`btnShare${viewerInfo.idx}`).addEventListener('click', () => {
+    document.getElementById(`btnShare${this.viewerInfo.idx}`).addEventListener('click', () => {
       const zoom = viewer.viewport.getZoom();
       const pan = viewer.viewport.getCenter();
       const url = `${location.origin}${location.pathname}#zoom=${zoom}&x=${pan.x}&y=${pan.y}`;
@@ -203,8 +209,8 @@ class ImageViewer {
     /**
      * Download image snapshot
      */
-    document.getElementById(`btnCam${viewerInfo.idx}`).addEventListener('click', () => {
-      const parent = document.getElementById(viewerInfo.osdId);
+    document.getElementById(`btnCam${this.viewerInfo.idx}`).addEventListener('click', () => {
+      const parent = document.getElementById(this.viewerInfo.osdId);
       const children = parent.querySelectorAll('[id^="osd-overlaycanvas"]');
 
       for (const canvasEl of children) {
@@ -297,5 +303,9 @@ class ImageViewer {
 
   getPanZoom() {
     return this.checkboxes;
+  }
+
+  getVInfo() {
+    return this.viewerInfo;
   }
 }

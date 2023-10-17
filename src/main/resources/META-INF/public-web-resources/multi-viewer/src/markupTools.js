@@ -1,15 +1,15 @@
 /**
  * Create the fabric.js overlay and pass it to the markup tools.
  *
- * @param {object} viewerInfo - Info specific to 'this' viewer
+ * @param {object} vInfo - Info specific to 'this' viewer
  * @param {object} options - Filters, paintbrush, etc.
  * @param {object} viewer - OpenSeadragon viewer
  */
-const markupTools = (viewerInfo, options, viewer) => {
+const markupTools = (vInfo, options, viewer) => {
   const overlay = viewer.fabricjsOverlay({ scale: 1, static: false });
-  const idx = viewerInfo.idx;
+  const idx = vInfo.idx;
 
-  drawPolygon(viewerInfo, viewer, overlay);
+  drawPolygon(vInfo, viewer, overlay);
 
   editPolygon(document.getElementById(`btnEdit${idx}`), overlay);
 
@@ -28,8 +28,8 @@ const markupTools = (viewerInfo, options, viewer) => {
     canvas.calcOffset();
   });
 
-  const btnSave = document.getElementById(`btnSave${viewerInfo.idx}`);
+  const btnSave = document.getElementById(`btnSave${vInfo.idx}`);
   btnSave.addEventListener('click', () => {
-    saveSettings(canvas, options);
+    saveSettings(canvas, options, vInfo.STATE);
   });
 };

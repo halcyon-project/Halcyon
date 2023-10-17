@@ -8,7 +8,7 @@
  * @param {object} [range] - For inside/outside; e.g. { "min": 70, "max": 170, "type": "inside" }
  * @param {object} [thresh] - Class thresholding; e.g. { "val": 128, "rgba": [ 255, 255, 0, 255 ], "classId": 1 }
  */
-function setFilter(layers, viewer, range, thresh) {
+function setFilter(vInfo, layers, viewer, range, thresh) {
   if (viewer.world) {
     // let start = performance.now();
     // console.log(setFilter.caller);
@@ -32,32 +32,32 @@ function setFilter(layers, viewer, range, thresh) {
           items: tiledImage,
           processors: OpenSeadragon.Filters.PROBABILITY(range, rgba)
         });
-      } else if (STATE.outline) {
+      } else if (vInfo.STATE.outline) {
         // Outline in blue.  Color can not have green in it.
         filterOpts.push({
           items: tiledImage,
           processors: OpenSeadragon.Filters.OUTLINE([0, 0, 255, 255]),
         });
-      } else if (STATE.renderType === 'byProbability') {
+      } else if (vInfo.STATE.renderType === 'byProbability') {
         // Use color spectrum
         filterOpts.push({
           items: tiledImage,
-          processors: OpenSeadragon.Filters.COLORLEVELS(layers[i].colorscheme.colorspectrum),
+          processors: OpenSeadragon.Filters.COLORLEVELS(vInfo, layers[i].colorscheme.colorspectrum),
         });
-      } else if (STATE.renderType === 'byClass' || STATE.renderType === 'byHeatmap') {
+      } else if (vInfo.STATE.renderType === 'byClass' || vInfo.STATE.renderType === 'byHeatmap') {
         let processor;
         if (thresh) {
           // Use threshold
           processor = OpenSeadragon.Filters.THRESHOLDING(thresh);
         } else {
           // Use color scheme
-          processor = OpenSeadragon.Filters.COLORLEVELS(layers[i].colorscheme.colors);
+          processor = OpenSeadragon.Filters.COLORLEVELS(vInfo, layers[i].colorscheme.colors);
         }
         filterOpts.push({
           items: tiledImage,
           processors: processor
         });
-      } else if (STATE.renderType === 'byThreshold') {
+      } else if (vInfo.STATE.renderType === 'byThreshold') {
         filterOpts.push({
           items: tiledImage,
           processors: OpenSeadragon.Filters.THRESHOLDING(thresh)
@@ -288,17 +288,6 @@ const scaleToRgb = num => {
 const RENDER_TYPES = ['byProbability', 'byClass', 'byHeatmap'];
 
 /**
- * State
- *
- * @type {{attenuate: boolean, outline: boolean, renderType: string}}
- */
-const STATE = {
-  attenuate: false,
-  outline: false,
-  renderType: RENDER_TYPES[0]
-};
-
-/**
  * Stringify shortcut
  * @param param
  * @return {string}
@@ -312,11 +301,11 @@ function stringy(param) {
  * @param canvas
  * @param options
  */
-function populateStorage(canvas, options) {
+function populateStorage(canvas, options, state) {
   localStorage.setItem('theme', document.body.className);
   const myObject = canvas.toJSON(['name', 'tag']);
   localStorage.setItem('canvas', stringy(myObject));
-  localStorage.setItem('state', stringy(STATE));
+  localStorage.setItem('state', stringy(state));
   localStorage.setItem('options', stringy(options));
   // console.log("saved", window.localStorage);
 }
@@ -336,14 +325,14 @@ function populateStorage(canvas, options) {
  * @param {string} options.paintbrushColor - example: "#0ff"
  * @param {boolean} options.toolbarOn - example: true
  */
-function saveSettings(canvas, options) {
+function saveSettings(canvas, options, state) {
   // For now, set values in localStorage
-  populateStorage(canvas, options);
+  populateStorage(canvas, options, state);
   const jsonObject = {
     theme: document.body.className,
     canvas: canvas.toJSON(['name', 'tag']),
-    state: STATE,
-    options,
+    state: state,
+    options
   };
   console.log('saved', jsonObject);
   // console.log('canvas', jsonObject.canvas.objects);

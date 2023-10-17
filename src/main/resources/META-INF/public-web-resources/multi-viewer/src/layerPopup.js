@@ -5,15 +5,15 @@
  * @param {Array} allLayers - Array of layers displayed in this viewer
  * @param {object} viewer - OpenSeadragon viewer
  */
-const layerPopup = function(divBody, allLayers, viewer) {
+const layerPopup = function(divBody, allLayers, viewer, vInfo) {
   function switchRenderTypeIfNecessary() {
     // If the current render type is not by probability, switch it.
-    if (STATE.renderType !== 'byProbability') {
-      STATE.renderType = 'byProbability';
+    if (vInfo.STATE.renderType !== 'byProbability') {
+      vInfo.STATE.renderType = 'byProbability';
     }
   }
 
-  function createAttenuationBtn(allLayers, viewer) {
+  function createAttenuationBtn(allLayers, viewer, vInfo) {
     // Color attenuation by probability
     const attId = createId(5, 'atten');
     const label = e('label', { for: attId });
@@ -29,17 +29,17 @@ const layerPopup = function(divBody, allLayers, viewer) {
     // Event listener
     icon.addEventListener('click', () => {
       // Toggle attenuate state
-      STATE.attenuate = !STATE.attenuate;
+      vInfo.STATE.attenuate = !vInfo.STATE.attenuate;
       // Ensure that either outline or attenuate is on, but not both.
-      STATE.outline = false;
+      vInfo.STATE.outline = false;
       switchRenderTypeIfNecessary();
-      setFilter(allLayers, viewer);
+      setFilter(vInfo, allLayers, viewer);
     });
     return [label, icon];
   }
 
   // un/fill polygon
-  function createOutlineBtn(allLayers, viewer) {
+  function createOutlineBtn(allLayers, viewer, vInfo) {
     const fillId = createId(5, 'fill');
     const label = e('label', { for: fillId });
     label.innerHTML = '&nbsp;&nbsp;&#58;&nbsp;un/fill polygon<br>';
@@ -56,12 +56,12 @@ const layerPopup = function(divBody, allLayers, viewer) {
     // Event listener
     icon.addEventListener('click', () => {
       // Toggle outline state
-      STATE.outline = !STATE.outline;
+      vInfo.STATE.outline = !vInfo.STATE.outline;
       // Ensure only one flag is active (either attenuate or outline; not both).
-      STATE.attenuate = false;
+      vInfo.STATE.attenuate = false;
       switchRenderTypeIfNecessary();
       toggleButton(icon, filledCircle, emptyCircle);
-      setFilter(allLayers, viewer);
+      setFilter(vInfo, allLayers, viewer);
     });
     return [label, icon];
   }
@@ -110,7 +110,7 @@ const layerPopup = function(divBody, allLayers, viewer) {
       const slideVals = getVals([ARange, BRange]);
 
       // Pass layers, viewer, and range info
-      setFilter(allLayers, viewer, {
+      setFilter(vInfo, allLayers, viewer, {
         slideHandle1: slideVals[0],
         slideHandle2: slideVals[1],
         type: (d.type === 'outside') ? 'outside' : 'inside'
@@ -124,8 +124,8 @@ const layerPopup = function(divBody, allLayers, viewer) {
   }
 
   // Append to body
-  const [label1, atten] = createAttenuationBtn(allLayers, viewer);
-  const [label2, fillPoly] = createOutlineBtn(allLayers, viewer);
+  const [label1, atten] = createAttenuationBtn(allLayers, viewer, vInfo);
+  const [label2, fillPoly] = createOutlineBtn(allLayers, viewer, vInfo);
   divBody.appendChild(e('div', {}, [atten, label1, fillPoly, label2]));
 
   // todo: scale initial values
