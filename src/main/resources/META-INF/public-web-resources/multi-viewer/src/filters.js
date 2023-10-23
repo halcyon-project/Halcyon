@@ -209,38 +209,30 @@ OpenSeadragon.Filters.THRESHOLDING = thresh => {
       let pixels = imgData.data;
 
       let color;
-      if (typeof thresh.rgba !== 'undefined') {
+      if (isRealValue(thresh.rgba)) {
         color = thresh.rgba;
       } else {
         color = [126, 1, 0, 255]; // #7e0100 (Maroon)
       }
 
-      if (typeof thresh.classId !== 'undefined') {
-        // console.log('classId', thresh.classId);
+      let shouldColor;
 
+      if (isRealValue(thresh.classId)) {
         // Test classId and probability value above threshold.
-        for (let i = 0; i < pixels.length; i += 4) {
-          if (pixels[i] === thresh.classId && pixels[i + 1] >= thresh.val) {
-            pixels[i] = color[0];
-            pixels[i + 1] = color[1];
-            pixels[i + 2] = color[2];
-            pixels[i + 3] = color[3];
-          } else {
-            pixels[i + 3] = 0;
-          }
-        }
+        shouldColor = (i) => pixels[i] === thresh.classId && pixels[i + 1] >= thresh.val;
       } else {
-        // console.log('classId undefined');
-        // Test green channel (probability) value above threshold.
-        for (let i = 0; i < pixels.length; i += 4) {
-          if (pixels[i + 1] >= thresh.val) {
-            pixels[i] = color[0];
-            pixels[i + 1] = color[1];
-            pixels[i + 2] = color[2];
-            pixels[i + 3] = color[3];
-          } else {
-            pixels[i + 3] = 0;
-          }
+        // Test probability (green channel) value above threshold.
+        shouldColor = (i) => pixels[i + 1] >= thresh.val;
+      }
+
+      for (let i = 0; i < pixels.length; i += 4) {
+        if (shouldColor(i)) {
+          pixels[i] = color[0];
+          pixels[i + 1] = color[1];
+          pixels[i + 2] = color[2];
+          pixels[i + 3] = color[3];
+        } else {
+          pixels[i + 3] = 0;
         }
       }
 
