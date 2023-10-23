@@ -146,9 +146,9 @@ const getRangeColor = (channelValue, colorRanges, rgbas) => {
   return [0, 0, 0, 0];
 };
 
-const getClassColor = (channelValue, classifications, rgbas) => {
+const getClassColor = (channelValue, greenChannel, classifications, rgbas) => {
   for (let i = 0; i < classifications.length; i++) {
-    if (channelValue === classifications[i].classid) {
+    if (channelValue === classifications[i].classid && greenChannel >= classifications[i].val) {
       return rgbas[i];
     }
   }
@@ -177,7 +177,7 @@ OpenSeadragon.Filters.COLORLEVELS = (vInfo, layerColors) => {
         if (data[i + 3] === maxPixelValue) {
           const redChannel = data[i];
           const greenChannel = data[i + 1];
-          const rgba = vInfo.STATE.renderType === 'byClass' ? myFunction(redChannel, colorGroup, rgbas) :
+          const rgba = vInfo.STATE.renderType === 'byClass' ? myFunction(redChannel, greenChannel, colorGroup, rgbas) :
             vInfo.STATE.renderType === 'byProbability' ? myFunction(greenChannel, colorGroup, rgbas) :
               vInfo.STATE.renderType === 'byHeatmap' ? colorMap[greenChannel] :
                 (console.error('renderType?', vInfo.STATE.renderType), [0, 0, 0, 0]);

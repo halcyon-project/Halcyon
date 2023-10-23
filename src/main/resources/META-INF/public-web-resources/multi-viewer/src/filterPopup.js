@@ -108,8 +108,9 @@ function getThreshColor(colorPicker) {
   }
 }
 
-function createThresh(div, layers, viewer, colorPicker, classId, vInfo) {
-  const val = '1'; // Initial value
+function createThresh(div, layers, viewer, colorPicker, colorObject, vInfo) {
+  const val = 1; // Initial value
+  colorObject.val = val;
 
   // slider value
   const number = e('input', {
@@ -135,9 +136,10 @@ function createThresh(div, layers, viewer, colorPicker, classId, vInfo) {
   function createInputHandler(updateElement) {
     return function() {
       if (vInfo.STATE.outline === true) { vInfo.STATE.outline = false; }
-      updateElement.value = this.value;
+      updateElement.value = colorObject.val = this.value;
       // Layers, viewer, and threshold
-      setFilter(vInfo, layers, viewer, {}, { val: parseInt(this.value), rgba: getThreshColor(colorPicker), classId: classId });
+      // setFilter(vInfo, layers, viewer, {}, { val: parseInt(this.value), rgba: getThreshColor(colorPicker), classId: classId });
+      setFilter(vInfo, layers, viewer);
     };
   }
 
@@ -283,7 +285,7 @@ function createUI(uniq, div, layerColors, layers, viewer, vInfo, type) {
         ]);
       } else if (byClass) {
         let d = e('div');
-        createThresh(d, layers, viewer, colorPicker, colorObject.classid, vInfo);
+        createThresh(d, layers, viewer, colorPicker, colorObject, vInfo);
         tr = e('tr', {}, [
           e('td', {}, [checkbox]),
           e('td', {}, [colorPicker]),
