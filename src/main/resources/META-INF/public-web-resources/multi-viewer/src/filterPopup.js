@@ -25,12 +25,13 @@ const filterPopup = (paletteBtn, title, colorscheme, viewerLayers, viewer, vInfo
   const classDiv = e('div');
   const probabilityDiv = e('div');
   const heatmapDiv = e('div');
-  const thresholdDiv = e('div');
+  // const thresholdDiv = e('div');
 
   // <select>
   const selectList = createDropdown(
     uniqueId,
-    [classDiv, probabilityDiv, heatmapDiv, thresholdDiv],
+    // [classDiv, probabilityDiv, heatmapDiv, thresholdDiv],
+    [classDiv, probabilityDiv, heatmapDiv],
     viewerLayers,
     viewer,
     vInfo
@@ -64,10 +65,9 @@ const filterPopup = (paletteBtn, title, colorscheme, viewerLayers, viewer, vInfo
   heatmapDiv.innerHTML = `<p style="color: #ffffff; background: -webkit-linear-gradient(#FF0000, #0000FF);">${msg}</p>`;
 
   // By threshold
-  thresholdDiv.style.display = vInfo.STATE.renderType === 'byThreshold' ? 'block' : 'none';
-  popupBody.appendChild(thresholdDiv);
-
-  createThresh(thresholdDiv, viewerLayers, viewer, vInfo); // no cp
+  // thresholdDiv.style.display = vInfo.STATE.renderType === 'byThreshold' ? 'block' : 'none';
+  // popupBody.appendChild(thresholdDiv);
+  // createThresh(thresholdDiv, viewerLayers, viewer, vInfo); // no cp
 
   return popup;
 };
@@ -192,17 +192,18 @@ function createDropdown(uniqueId, divArr, allLayers, viewer, vInfo) {
       divArr[1].style.display = 'block';
     } else if (vInfo.STATE.renderType === 'byHeatmap') {
       divArr[2].style.display = 'block';
-    } else if (vInfo.STATE.renderType === 'byThreshold') {
-      divArr[3].style.display = 'block';
     }
+    // else if (vInfo.STATE.renderType === 'byThreshold') {
+    //   divArr[3].style.display = 'block';
+    // }
 
     // Initial values set
-    if (vInfo.STATE.renderType === 'byThreshold') {
-      // Layers, viewer, and threshold
-      setFilter(vInfo, allLayers, viewer, {}, { val: 1, rgba: [126, 1, 0, 255] });
-    } else {
-      setFilter(vInfo, allLayers, viewer);
-    }
+    // if (vInfo.STATE.renderType === 'byThreshold') {
+    //   // Layers, viewer, and threshold
+    //   setFilter(vInfo, allLayers, viewer, {}, { val: 1, rgba: [126, 1, 0, 255] });
+    // } else {
+    setFilter(vInfo, allLayers, viewer);
+    // }
   });
 
   return selectDiv;

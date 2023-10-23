@@ -57,12 +57,13 @@ function setFilter(vInfo, layers, viewer, range, thresh) {
           items: tiledImage,
           processors: processor
         });
-      } else if (vInfo.STATE.renderType === 'byThreshold') {
-        filterOpts.push({
-          items: tiledImage,
-          processors: OpenSeadragon.Filters.THRESHOLDING(thresh)
-        });
       }
+      // else if (vInfo.STATE.renderType === 'byThreshold') {
+      //   filterOpts.push({
+      //     items: tiledImage,
+      //     processors: OpenSeadragon.Filters.THRESHOLDING(thresh)
+      //   });
+      // }
     }
 
     if (!isEmpty(filterOpts)) {
