@@ -2,6 +2,7 @@
 
 const bgTrans = function(imageData) {
   for (let i = 0; i < imageData.length; i += 4) {
+    // Sometimes 128 (should be zero)
     if (imageData[i + 1] === 0) {
       imageData[i + 3] = 0;
     }
@@ -11,15 +12,17 @@ const bgTrans = function(imageData) {
 
 const img2arrayWithBackgroundCorrection = imgData => {
   return imgData.data.reduce((pixel, key, index) => {
+    // return a 2d array
     if (index % 4 === 0) {
       pixel.push([key]);
     } else {
       pixel[pixel.length - 1].push(key);
     }
 
-    // Apply background correction if the RGBA values for the pixel are fully populated
     if (index % 4 === 3) {
       const px = pixel[pixel.length - 1];
+      // If there's no data in the green channel or if it's
+      // completely transparent, turn the pixel off.
       if (px[1] === 0 || px[3] === 0) {
         px[0] = 0;
         px[1] = 0;
