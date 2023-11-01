@@ -1,7 +1,6 @@
 package com.ebremer.halcyon.imagebox;
 
 import com.ebremer.halcyon.lib.HalcyonSettings;
-import com.ebremer.halcyon.imagebox.Enums.ImageFormat;
 import com.ebremer.halcyon.lib.ImageMeta;
 import com.ebremer.halcyon.lib.ImageReaderPool;
 import com.ebremer.halcyon.lib.ImageRegion;
@@ -68,7 +67,7 @@ public class ImageServer extends HttpServlet {
                 Tile tile = null;
                 try (TileRequestEngine tre = new TileRequestEngine(i.uri)){
                     Future<Tile> ftile = tre.getFutureTile(tr);
-                    tile = ftile.get(30, TimeUnit.SECONDS);
+                    tile = ftile.get(90, TimeUnit.SECONDS);
                 } catch (Exception ex) {
                     Logger.getLogger(ImageServer.class.getName()).log(Level.SEVERE, null, ex);
                 }
@@ -117,6 +116,7 @@ public class ImageServer extends HttpServlet {
                 try {
                     ir = ImageReaderPool.getPool().borrowObject(i.uri);
                     meta = ir.getImageMeta();
+                    ImageReaderPool.getPool().returnObject(i.uri, ir);
                 } catch (Exception ex) {
                     Logger.getLogger(ImageServer.class.getName()).log(Level.SEVERE, null, ex);
                 }

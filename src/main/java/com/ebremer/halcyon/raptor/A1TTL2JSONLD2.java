@@ -52,7 +52,7 @@ import org.slf4j.LoggerFactory;
  *
  * @author erich
  */
-public class A1TTL2JSONLD {
+public class A1TTL2JSONLD2 {
     private static Map<String, ?> configIndented = Map.of(JsonGenerator.PRETTY_PRINTING, true);
     private static Map<String, ?> configFlat = Map.of();
     
@@ -75,6 +75,17 @@ public class A1TTL2JSONLD {
             RDFDataMgr.read(dsx.getDefaultModel(), fis, Lang.TURTLE);
         }
         
+        dsx.getPrefixMapping().setNsPrefix("references", "dc:references");
+        dsx.getPrefixMapping().setNsPrefix("title", "dc:title");
+        dsx.getPrefixMapping().setNsPrefix("date", "dc:date");
+        dsx.getPrefixMapping().setNsPrefix("creator", "dc:creator");
+        dsx.getPrefixMapping().setNsPrefix("publisher", "dc:publisher");
+        dsx.getPrefixMapping().setNsPrefix("description", "dc:description");
+        
+        dsx.getPrefixMapping().setNsPrefix("used", "prov:used");
+        dsx.getPrefixMapping().setNsPrefix("wasAssociatedWith", "prov:wasAssociatedWith");
+        dsx.getPrefixMapping().setNsPrefix("wasGeneratedBy", "prov:wasGeneratedBy");
+        dsx.getPrefixMapping().setNsPrefix("Activity", "prov:Activity");
         
         dsx.getPrefixMapping().setNsPrefix("asWKT", "geo:asWKT");
         dsx.getPrefixMapping().setNsPrefix("Feature", "geo:Feature");
@@ -86,12 +97,12 @@ public class A1TTL2JSONLD {
         dsx.getPrefixMapping().setNsPrefix("ImageObject", "so:ImageObject");
         dsx.getPrefixMapping().setNsPrefix("object", "so:object");
         dsx.getPrefixMapping().setNsPrefix("name", "so:name");
-        dsx.getPrefixMapping().setNsPrefix("publisher", "so:publisher");
+        //dsx.getPrefixMapping().setNsPrefix("publisher", "so:publisher");
         dsx.getPrefixMapping().setNsPrefix("result", "so:result");
         dsx.getPrefixMapping().setNsPrefix("keywords", "so:keywords");
        // dsx.getPrefixMapping().setNsPrefix("creator", "so:creator");
        // dsx.getPrefixMapping().setNsPrefix("datePublished", "so:datePublished");
-        dsx.getPrefixMapping().setNsPrefix("description", "so:description");
+        //dsx.getPrefixMapping().setNsPrefix("description", "so:description");
         dsx.getPrefixMapping().setNsPrefix("instrument", "so:instrument");
         dsx.getPrefixMapping().setNsPrefix("CreateAction", "so:CreateAction");
         dsx.getPrefixMapping().setNsPrefix("height", "exif:height");
@@ -121,18 +132,23 @@ public class A1TTL2JSONLD {
             if ( ! k.isEmpty() )
                 neocontext.add(k, v);
         });
-        neocontext.add("id","@id");
-        neocontext.add("type","@type");
-        neocontext.add("creator", Json.createObjectBuilder().add(Keywords.ID, "so:creator").add(Keywords.TYPE, Keywords.ID));
-        neocontext.add("datePublished", Json.createObjectBuilder().add(Keywords.ID, "so:datePublished").add(Keywords.TYPE, XSD.dateTime.getURI()));
+        //neocontext.add("id","@id");
+        //neocontext.add("type","@type");
+        //neocontext.add("creator", Json.createObjectBuilder().add(Keywords.ID, "so:creator").add(Keywords.TYPE, Keywords.ID));
+        //neocontext.add("datePublished", Json.createObjectBuilder().add(Keywords.ID, "so:datePublished").add(Keywords.TYPE, XSD.dateTime.getURI()));
+        neocontext.add("wasAssociatedWith", Json.createObjectBuilder().add(Keywords.ID, "prov:wasAssociatedWith").add(Keywords.TYPE, Keywords.ID));
+        
+        neocontext.add("publisher", Json.createObjectBuilder().add(Keywords.ID, "dc:publisher").add(Keywords.TYPE, Keywords.ID));
+        neocontext.add("date", Json.createObjectBuilder().add(Keywords.ID, "dc:date").add(Keywords.TYPE, XSD.dateTime.getURI()));
         cxt.add(Keywords.CONTEXT, neocontext);
         cxt.add(Keywords.EMBED, Keywords.ALWAYS);
         cxt.add(Keywords.EXPLICIT, false);
         cxt.add(Keywords.OMIT_DEFAULT, true);
         cxt.add(Keywords.REQUIRE_ALL, false);
-        cxt.add(Keywords.TYPE, Json.createArrayBuilder().add("Dataset"));
-        cxt.add("hasPart",Json.createObjectBuilder()
-                .add(Keywords.TYPE, "CreateAction")
+        cxt.add(Keywords.TYPE, Json.createArrayBuilder().add("FeatureCollection"));
+  //      cxt.add("hasPart",Json.createObjectBuilder()
+    //            .add(Keywords.TYPE, "FeatuteCollection")
+                /*
                 .add(Keywords.EXPLICIT, true)
                 .add("result", Json.createObjectBuilder()
                         .add(Keywords.TYPE, "FeatureCollection")
@@ -141,8 +157,8 @@ public class A1TTL2JSONLD {
                                 .add(Keywords.TYPE, "Feature")
                                 .add("geometry", Json.createObjectBuilder())
                         )
-                )
-        );
+                )*/
+      //  );
         jakarta.json.JsonObject context = cxt.build();   
         Document contextDoc = JsonDocument.of(context);
         FramingApi api = JsonLd.frame(JsonDocument.of(writeRdf), contextDoc);

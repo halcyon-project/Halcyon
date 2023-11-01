@@ -17,11 +17,13 @@ public class FLKeyedPool<URI, FL> extends GenericKeyedObjectPool<URI, FL> {
     
     @Override
     public FL borrowObject(final URI key) throws Exception {
+        //System.out.println("FL Borrow --> "+key);
         return (FL) super.borrowObject(key);
     }
     
     @Override
     public void returnObject(final URI key, final FL reader) {
+        //System.out.println("FL Return --> "+key);
         super.returnObject(key, reader);
     }
 }

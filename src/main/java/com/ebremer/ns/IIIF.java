@@ -51,6 +51,7 @@ public class IIIF {
             "jsonldMediaType": {"@id": "iiif:jsonLdMediaTypeFeature"},
             "height": {"@id": "exif:height"},
             "width": {"@id": "exif:width"},
+            "name": {"@id": "so:name"},
             "xResolution": {"@id": "exif:xResolution"},
             "yResolution": {"@id": "exif:yResolution"},            
             "resolutionUnit": {"@id": "exif:resolutionUnit"},

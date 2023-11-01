@@ -21,7 +21,7 @@ public class FLPool {
     
     public static synchronized FLKeyedPool<URI, FL> getPool(FLKeyedPoolConfig config) {
         if (pool == null) {
-            config.setMaxTotalPerKey(5);
+            config.setMaxTotalPerKey(Runtime.getRuntime().availableProcessors());
             config.setMinIdlePerKey(0);
             config.setMaxWait(Duration.ofMillis(60000));
             config.setBlockWhenExhausted(true);

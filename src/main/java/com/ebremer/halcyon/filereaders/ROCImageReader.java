@@ -35,7 +35,8 @@ public class ROCImageReader extends AbstractImageReader {
         for (int s=1; s<fl.getScales().size(); s++) {
             Scale scale = fl.getScales().get(s);
             builder.addScale(s, scale.width(), scale.height());
-        }        
+        }
+        builder.setMeta(fl.getManifest());
         FLPool.getPool().returnObject(uri,fl);
         meta = builder.build();
     }

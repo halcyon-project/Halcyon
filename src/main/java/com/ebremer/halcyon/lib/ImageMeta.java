@@ -26,7 +26,7 @@ public class ImageMeta {
         this.tileSizeY = builder.tileSizeY;
         this.scales = builder.scales;
         this.aspectratio = builder.aspectratio;
-        this.meta = ModelFactory.createDefaultModel();
+        this.meta = builder.meta;
     }
     
     public ArrayList<ImageScale> getScales() {
@@ -105,6 +105,7 @@ public class ImageMeta {
         private final boolean useWidth;
         private final float aspectratio;
         private boolean filter = true;
+        private final Model meta = ModelFactory.createDefaultModel();
 
         private Builder(int series, int width, int height) {
             this.series = series;
@@ -118,6 +119,11 @@ public class ImageMeta {
         
         public Builder setSeries(int series) {
             this.series = series;
+            return this;
+        }
+        
+        public Builder setMeta(Model m) {
+            meta.add(m);
             return this;
         }
         

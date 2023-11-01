@@ -11,6 +11,7 @@ import com.ebremer.halcyon.utils.ImageMeta.ImageObject;
 import com.ebremer.ns.EXIF;
 import com.ebremer.ns.GEO;
 import com.ebremer.ns.HAL;
+import com.ebremer.ns.PROVO;
 import com.ebremer.ns.SNO;
 import java.awt.Polygon;
 import java.io.BufferedInputStream;
@@ -170,30 +171,34 @@ public class NS2GS {
             Literal dateTimeLiteral = m.createTypedLiteral(snow, XSDDatatype.XSDdateTime);
             LinkedList<ExtendedPolygon> list = eps2.GetPolygons();
             m.setNsPrefix("xsd", XSD.NS);
-            m.setNsPrefix("sno", "http://snomed.info/id/");
+            m.setNsPrefix("sno", SNO.NS);
             m.setNsPrefix("geo", GEO.NS);
             m.setNsPrefix("dc", DCTerms.NS);
             m.setNsPrefix("rdfs", RDFS.uri);
             m.setNsPrefix("so", SchemaDO.NS);
             m.setNsPrefix("hal", HAL.NS);
             m.setNsPrefix("exif", EXIF.NS);
+            m.setNsPrefix("prov", PROVO.NS);
             Literal width = m.createTypedLiteral(String.valueOf(io.width), XSDDatatype.XSDint);
             Literal height = m.createTypedLiteral(String.valueOf(io.height), XSDDatatype.XSDint);
             Resource image = m.createResource("urn:md5:"+io.md5)
                 .addProperty(RDF.type, SchemaDO.ImageObject)
                 .addProperty(EXIF.width,width)
-                .addProperty(EXIF.height,height);                    
+                .addProperty(EXIF.height,height);
+            Resource Activity = m.createResource()
+                    .addProperty(RDF.type, PROVO.Activity)
+                    .addProperty(PROVO.wasAssociatedWith, m.createResource("https://github.com/SBU-BMI/quip_cnn_segmentation/releases/tag/v1.1"))
+                    .addProperty(PROVO.used, image);
             Resource SpatialObjectCollection = m.createResource()
                     .addProperty(RDF.type, GEO.FeatureCollection)
                     .addProperty(DCTerms.title, "cnn-nuclear-segmentations-2019")
                     .addProperty(DCTerms.description, "Nuclear segmentation of TCGA cancer types")
                     .addProperty(DCTerms.date, dateTimeLiteral)
                     .addProperty(DCTerms.references, "https://doi.org/10.1038/s41597-020-0528-1")
-                    .addProperty(DCTerms.contributor, "http://orcid.org/0000-0003-0223-1059")
-                    .addProperty(DCTerms.creator, m.createResource("https://github.com/SBU-BMI/quip_cnn_segmentation/releases/tag/v1.1"))
+                    .addProperty(DCTerms.creator, "http://orcid.org/0000-0003-0223-1059")
+                    .addProperty(PROVO.wasGeneratedBy, Activity)
                     .addProperty(DCTerms.publisher, m.createResource("https://ror.org/05qghxh33"))
-                    .addProperty(DCTerms.publisher, m.createResource("https://ror.org/01882y777"))
-                    .addProperty(DCTerms.source, image);
+                    .addProperty(DCTerms.publisher, m.createResource("https://ror.org/01882y777"));
             list.stream()
                 .filter(p->{
                     if (p.polygon.npoints>0) {

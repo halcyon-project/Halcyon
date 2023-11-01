@@ -19,6 +19,7 @@ public class BeakGraphKeyedPool<URI, BeakGraph> extends GenericKeyedObjectPool<U
     
     @Override
     public BeakGraph borrowObject(final URI key) {
+        //System.out.println("BG Borrow --> "+key);
         BeakGraph f;
         try {
             f = (BeakGraph) super.borrowObject(key);
@@ -31,6 +32,7 @@ public class BeakGraphKeyedPool<URI, BeakGraph> extends GenericKeyedObjectPool<U
     
     @Override
     public void returnObject(final URI key, final BeakGraph reader) {
+        //System.out.println("BG Return --> "+key);
         super.returnObject(key, reader);
     }
 }

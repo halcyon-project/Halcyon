@@ -43,7 +43,7 @@ public class UserColorsAndClasses {
                 ?colorlist a hal:AnnotationClassList;
                     hal:hasAnnotationClass [
                         hal:hasClass ?class;
-                        hal:color ?color
+                        hal:color ?color;
                     ] .
                     ?class so:name ?name;
             }

@@ -106,7 +106,7 @@ public class FeatureManager {
         ds.begin(ReadWrite.READ);
         ResultSet rs = QueryExecutionFactory.create(pss.toString(), ds).execSelect().materialise();
         ds.end();
-        record ColorCode(String color, int code) {}
+        record ColorCode(String color, int code, String name) {}
         HashMap<Resource,ColorCode> types = new HashMap<>();
         HalColors cs = new HalColors();
         UserColorsAndClasses ucac = new UserColorsAndClasses();
@@ -116,10 +116,11 @@ public class FeatureManager {
             Resource key = qs.get("type").asResource();
             rocs.add(qs.get("roc").asResource());
             String color = ucac.getColor(key);
+            String name = ucac.getName(key);
             if (color!=null) {
-                types.put(key,new ColorCode(ColorTools.Hex2RGBA(color),types.size()+1));
+                types.put(key,new ColorCode(ColorTools.Hex2RGBA(color),types.size()+1,name));
             } else if (!types.containsKey(key)) {
-                types.put(key,new ColorCode(cs.removeFirst(),types.size()+1));
+                types.put(key,new ColorCode(cs.removeFirst(),types.size()+1,"Unknown"));
             }
         }
 
@@ -226,7 +227,7 @@ public class FeatureManager {
                 LayerSet.addProperty(HAL.haslayer, layer);
             
             COLORSCHEME.addProperty(HAL.colors, m.createResource()
-                    .addLiteral(SchemaDO.name, "IDK!")
+                    .addLiteral(SchemaDO.name, types.get(typekey).name())
                     .addLiteral(HAL.classid, types.get(typekey).code())
                     .addLiteral(HAL.color, types.get(typekey).color())
             );

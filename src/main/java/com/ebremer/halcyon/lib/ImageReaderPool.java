@@ -29,12 +29,12 @@ public class ImageReaderPool extends GenericKeyedObjectPool<URI, ImageReader> {
     
     public static synchronized ImageReaderPool getPool() {
         GenericKeyedObjectPoolConfig<ImageReader> config = new GenericKeyedObjectPoolConfig<>();
-        config.setMaxTotalPerKey(10);
+        config.setMaxTotalPerKey(Runtime.getRuntime().availableProcessors());
         config.setMinIdlePerKey(0);
         //config.setMaxWait(Duration.ofMillis(60000));
         config.setBlockWhenExhausted(true);
         config.setMinEvictableIdleTime(Duration.ofMillis(60000));
-        config.setTimeBetweenEvictionRuns(Duration.ofMillis(600000));
+        config.setTimeBetweenEvictionRuns(Duration.ofMillis(60000));
         if (pool==null) {
             pool = new ImageReaderPool(new ImageReaderPoolFactory(), config);
         }

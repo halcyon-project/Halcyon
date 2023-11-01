@@ -17,6 +17,7 @@ public class BeakGraphPoolFactory extends BaseKeyedPooledObjectFactory<URI, Beak
 
     @Override
     public BeakGraph create(URI uri) throws Exception {
+        System.out.println("Creating BeakGraph "+uri);
         return new BeakGraph(uri);
     }
     

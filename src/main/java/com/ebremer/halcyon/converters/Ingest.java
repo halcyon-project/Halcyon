@@ -7,6 +7,7 @@ import com.ebremer.beakgraph.ng.SpecialProcess;
 import com.ebremer.halcyon.lib.HalcyonSettings;
 import com.ebremer.halcyon.raptor.HilbertProcess;
 import com.ebremer.halcyon.raptor.HilbertSpecial;
+import com.ebremer.ns.GEO;
 import com.ebremer.ns.HAL;
 import java.io.File;
 import java.io.FileInputStream;
@@ -42,7 +43,9 @@ public class Ingest {
         list = new ArrayList<>();
         list.add(new BG.PropertyAndDataType(HAL.low.getURI(), XSD.xlong));
         list.add(new BG.PropertyAndDataType(HAL.high.getURI(), XSD.xlong));
-        list.add(new BG.PropertyAndDataType(HAL.hasRange.getURI(), null));                
+        list.add(new BG.PropertyAndDataType(HAL.hasRange.getURI(), null)); 
+        //list.add(new BG.PropertyAndDataType(GEO.hasPerimeterLength.getURI(), XSD.xdouble));
+        //list.add(new BG.PropertyAndDataType(GEO.hasArea.getURI(), XSD.xdouble));
         specials = new ArrayList<>();
         specials.add(new HilbertSpecial());
     }

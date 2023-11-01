@@ -48,6 +48,7 @@ public class IIIFUtils {
                 .replaceAll("doap:implements", "profile")
                 .replaceAll("dcterms:conformsTo", "protocol")
                 .replaceAll("iiif:supports", "supports")
+                .replaceAll("https://schema.org/name", "name")
                 .replaceAll("exif:xResolution","xResolution")
                 .replaceAll("exif:yResolution","yResolution")
                 .replaceAll("exif:resolutionUnit","resolutionUnit");

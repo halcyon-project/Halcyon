@@ -16,6 +16,7 @@ public class FLPoolFactory extends BaseKeyedPooledObjectFactory<URI, FL> {
 
     @Override
     public FL create(URI uri) throws Exception {
+        System.out.println("Creating FL "+uri);
         return new FL(uri);
     }
     

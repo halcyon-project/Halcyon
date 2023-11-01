@@ -15,7 +15,7 @@
                 <exec.executable>java</exec.executable>
                 <exec.vmArgs>-Xmx61G --add-opens=java.base/java.nio=ALL-UNNAMED --enable-preview  -Darrow.memory.debug.allocator=false</exec.vmArgs>
                 <exec.appArgs>-v -src "D:\tcga\cvpr-data\rdf\coad" -dest "D:\HalcyonStorage\nuclearsegmentation2019\coad" -v</exec.appArgs>
-                <exec.mainClass>com.ebremer.halcyon.converters.Test</exec.mainClass>
+                <exec.mainClass>com.ebremer.halcyon.converters.Ingest</exec.mainClass>
             </properties>
         </action>
         <action>
@@ -34,7 +34,7 @@
                 <jpda.listen>true</jpda.listen>
                 <exec.vmArgs>-Xmx61G --add-opens=java.base/java.nio=ALL-UNNAMED --enable-preview  -Darrow.memory.debug.allocator=false -agentlib:jdwp=transport=dt_socket,server=n,address=${jpda.address}</exec.vmArgs>
                 <exec.appArgs>-v -src "D:\tcga\cvpr-data\rdf\coad" -dest "D:\HalcyonStorage\nuclearsegmentation2019\coad" -v</exec.appArgs>
-                <exec.mainClass>com.ebremer.halcyon.converters.Test</exec.mainClass>
+                <exec.mainClass>com.ebremer.halcyon.converters.Ingest</exec.mainClass>
             </properties>
         </action>
         <action>
@@ -52,7 +52,7 @@
                 <exec.executable>java</exec.executable>
                 <exec.vmArgs>-Xmx61G --add-opens=java.base/java.nio=ALL-UNNAMED --enable-preview  -Darrow.memory.debug.allocator=false</exec.vmArgs>
                 <exec.appArgs>-v -src "D:\tcga\cvpr-data\rdf\coad" -dest "D:\HalcyonStorage\nuclearsegmentation2019\coad" -v</exec.appArgs>
-                <exec.mainClass>com.ebremer.halcyon.converters.Test</exec.mainClass>
+                <exec.mainClass>com.ebremer.halcyon.converters.Ingest</exec.mainClass>
             </properties>
         </action>
         <action>

@@ -47,15 +47,13 @@ import org.apache.jena.query.QuerySolution;
 import org.apache.jena.query.ResultSet;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
-import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.rdf.model.Statement;
 import org.apache.jena.rdf.model.StmtIterator;
-import org.apache.jena.riot.Lang;
-import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.riot.system.JenaTitanium;
 import org.apache.jena.sparql.vocabulary.DOAP;
+import org.apache.jena.vocabulary.DCTerms;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.SchemaDO;
 import org.locationtech.jts.geom.Polygon;
@@ -120,6 +118,19 @@ public class FL {
         pss.setNsPrefix("exif", EXIF.NS);
         Model ff = QueryExecutionFactory.create(pss.toString(), ds.getDefaultModel()).execConstruct();
         manifest.add(ff);
+
+        pss = new ParameterizedSparqlString(
+            """
+            construct { ?fc a geo:FeatureCollection; dct:title ?title }
+            where { ?fc a geo:FeatureCollection; dct:title ?title }
+            """
+        );
+        pss.setNsPrefix("geo", GEO.NS);
+        pss.setNsPrefix("exif", EXIF.NS);
+        pss.setNsPrefix("dct", DCTerms.NS);
+        ff = QueryExecutionFactory.create(pss.toString(), ds.getDefaultModel()).execConstruct();
+        manifest.add(ff);
+
         BeakGraphPool.getPool().returnObject(uri, bg);
         pss = new ParameterizedSparqlString(
             """
@@ -192,6 +203,23 @@ public class FL {
 
     public int getHeight() {
         return height;
+    }
+    
+    public String getTitle() {
+        ParameterizedSparqlString pss = new ParameterizedSparqlString(
+            """
+            select ?title
+            where { ?fc a geoFeatureCollection; dct:title ?title }
+            limit 1
+            """
+        );
+        pss.setNsPrefix("geo", GEO.NS);
+        pss.setNsPrefix("dct", DCTerms.NS);
+        ResultSet rsx = QueryExecutionFactory.create(pss.toString(), manifest).execSelect();
+        if (rsx.hasNext()) {
+            return rsx.next().get("title").asLiteral().getString();
+        }
+        return "Unknown";
     }
     
     public int getTileSizeX() {

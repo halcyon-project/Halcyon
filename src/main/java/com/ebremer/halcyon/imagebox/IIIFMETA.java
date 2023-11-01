@@ -7,12 +7,14 @@ import com.apicatalog.jsonld.JsonLdVersion;
 import com.apicatalog.jsonld.document.Document;
 import com.apicatalog.jsonld.document.JsonDocument;
 import com.apicatalog.jsonld.document.RdfDocument;
+import com.ebremer.halcyon.filereaders.ROCImageReader;
 import com.ebremer.halcyon.filereaders.TiffImageReader;
 import static com.ebremer.halcyon.imagebox.IIIFUtils.IIIFAdjust;
 import com.ebremer.halcyon.lib.ImageMeta;
 import com.ebremer.halcyon.lib.ImageMeta.ImageScale;
 import com.ebremer.halcyon.lib.ImageReader;
 import com.ebremer.ns.EXIF;
+import com.ebremer.ns.GEO;
 import com.ebremer.ns.IIIF;
 import jakarta.json.Json;
 import jakarta.json.JsonArray;
@@ -29,11 +31,16 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.apache.jena.query.ParameterizedSparqlString;
+import org.apache.jena.query.QueryExecutionFactory;
+import org.apache.jena.query.ResultSet;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
+import org.apache.jena.vocabulary.DCTerms;
+import org.apache.jena.vocabulary.SchemaDO;
 
 /**
  *
@@ -43,7 +50,9 @@ public class IIIFMETA {
     
     public static String GetImageInfo(URI uri, ImageMeta meta) {
         Model m = ModelFactory.createDefaultModel();
+        m.setNsPrefix("so", SchemaDO.NS);
         Resource s = m.createResource(uri.toString());
+        s.addProperty(SchemaDO.name, getTitle(meta.getRDF()));
         m.addLiteral(s, EXIF.height, meta.getHeight());
         m.addLiteral(s, EXIF.width, meta.getWidth());
         //m.addLiteral(s, EXIF.xResolution, Math.round(10000/mppx));
@@ -108,10 +117,27 @@ public class IIIFMETA {
         return null;
     }
     
+    public static String getTitle(Model mm) {
+        ParameterizedSparqlString pss = new ParameterizedSparqlString(
+            """
+            select ?title
+            where { ?fc a geo:FeatureCollection; dct:title ?title }
+            limit 1
+            """
+        );
+        pss.setNsPrefix("geo", GEO.NS);
+        pss.setNsPrefix("dct", DCTerms.NS);
+        ResultSet rsx = QueryExecutionFactory.create(pss.toString(), mm).execSelect();
+        if (rsx.hasNext()) {
+            return rsx.next().get("title").asLiteral().getString();
+        }
+        return "Unknown";
+    }
+    
     public static void main(String[] args) throws Exception {
-        File file2 = new File("D:\\temp\\LN340032E1-1.tif");
+        File file2 = new File("/HalcyonStorage/nuclearsegmentation2019/coad/TCGA-CM-5348-01Z-00-DX1.2ad0b8f6-684a-41a7-b568-26e97675cce9.zip");
         URI uri = file2.toURI();
-        ImageReader ir = new TiffImageReader(uri);
+        ImageReader ir = new ROCImageReader(uri);
         ImageMeta meta = ir.getImageMeta();
         System.out.println(GetImageInfo(new URI("https://beak.bmi.stonybrook.edu/iiif/?iiif=https://beak.bmi.stonybrook.edu/Storage/images/tcga_data/ov/TCGA-04-1342-01A-01-TS1.66421418-fc94-4215-9ab1-6398f710f6ca.svs"),meta));
     }

@@ -5,6 +5,7 @@ import com.ebremer.beakgraph.ng.AbstractProcess;
 import com.ebremer.beakgraph.ng.BeakWriter;
 import com.ebremer.halcyon.raptor.Objects.Scale;
 import com.ebremer.halcyon.raptor.spatial.Area;
+import com.ebremer.halcyon.raptor.spatial.Perimeter;
 import com.ebremer.ns.EXIF;
 import com.ebremer.ns.GEO;
 import com.ebremer.ns.HAL;
@@ -29,10 +30,11 @@ import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.ResourceFactory;
+import org.apache.jena.riot.RDFDataMgr;
+import org.apache.jena.riot.RDFFormat;
 import org.apache.jena.sparql.function.FunctionRegistry;
 import org.apache.jena.update.UpdateAction;
 import org.apache.jena.vocabulary.DCTerms;
-import org.apache.jena.vocabulary.OWL;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.RDFS;
 import org.apache.jena.vocabulary.SchemaDO;
@@ -62,7 +64,8 @@ public class HilbertProcess implements AbstractProcess {
         FunctionRegistry.get().put(HAL.NS+"eStarts", eStarts.class);
         FunctionRegistry.get().put(HAL.NS+"Intersects", Intersects.class);
         FunctionRegistry.get().put(HAL.NS+"scale", scale.class);
-        FunctionRegistry.get().put(HAL.NS+"Area", Area.class);
+        FunctionRegistry.get().put(HAL.NS+"area", Area.class);
+        FunctionRegistry.get().put(HAL.NS+"perimeter", Perimeter.class);
         this.width = width;
         this.height = height;
         this.tileSizeX = tileSizeX;
@@ -138,60 +141,7 @@ public class HilbertProcess implements AbstractProcess {
         pssx.setIri("annotations", annotations);
         UpdateAction.parseExecute(pssx.toString(), ds);     
     }
-    
-        public void Skolemize(Model m) {
-        ParameterizedSparqlString pssx = new ParameterizedSparqlString(
-            """
-            insert {
-                ?nf owl:sameAs ?feature
-            }
-            where {
-                ?feature a geo:Feature
-                bind (UUID() as ?nf)
-            }
-            """
-        );
-        pssx.setNsPrefix("rdf", RDF.uri);
-        pssx.setNsPrefix("hal", HAL.NS);
-        pssx.setNsPrefix("geo", GEO.NS);
-        pssx.setNsPrefix("owl", OWL.NS);
-        UpdateAction.parseExecute(pssx.toString(), m);     
-        pssx = new ParameterizedSparqlString(
-            """
-            insert {
-                ?nf ?p ?o
-            }
-            where {
-                ?nf owl:sameAs ?feature .
-                ?feature ?p ?o                
-            }
-            """
-        );
-        pssx.setNsPrefix("rdf", RDF.uri);
-        pssx.setNsPrefix("hal", HAL.NS);
-        pssx.setNsPrefix("geo", GEO.NS);
-        pssx.setNsPrefix("owl", OWL.NS);
-        UpdateAction.parseExecute(pssx.toString(), m);
-        pssx = new ParameterizedSparqlString(
-            """
-            delete {
-                ?nf owl:sameAs ?feature .
-                ?feature ?p ?o                
-            }
-            where {
-                ?nf owl:sameAs ?feature .
-                ?feature ?p ?o
-            }
-            """
-        );
-        pssx.setNsPrefix("rdf", RDF.uri);
-        pssx.setNsPrefix("hal", HAL.NS);
-        pssx.setNsPrefix("geo", GEO.NS);
-        pssx.setNsPrefix("owl", OWL.NS);
-        UpdateAction.parseExecute(pssx.toString(), m);
-        //RDFDataMgr.write(System.out, m, Lang.TURTLE);
-    }
-    
+        
     public List<RDFNode> getNGs(Polygon swkt, int scale, int w, int h) {
         List<RDFNode> list = new LinkedList<>();
         Geometry geometry = null;
@@ -350,6 +300,12 @@ public class HilbertProcess implements AbstractProcess {
     @Override
     public void Process(BeakWriter bw, Dataset ds) {        
         Model xxx = ds.getDefaultModel();
+        System.out.println("Calculate Areas...");
+        FeatureGeneration.AddAreas(xxx);
+        System.out.println("Calculate Perimeters...");
+        FeatureGeneration.AddPerimeters(xxx);
+        //FeatureGeneration.Display(xxx);
+        //RDFDataMgr.write(System.out, ds.getDefaultModel(), RDFFormat.TURTLE_PRETTY);
         Resource root = xxx.createResource();
         root.addProperty(RDF.type, HAL.Segmentation);
         Literal tx = xxx.createTypedLiteral(String.valueOf(512), XSDDatatype.XSDint);
@@ -372,16 +328,16 @@ public class HilbertProcess implements AbstractProcess {
                 .addProperty(EXIF.height, h);   
             spatialGrid.addProperty(HAL.scale, scale);
         });
-        //Skolemize(ds.getDefaultModel());
         ds.addNamedModel(uuid, ModelFactory.createDefaultModel());
-        ds.addNamedModel(annotations, ModelFactory.createDefaultModel());
+        ds.addNamedModel(annotations, ModelFactory.createDefaultModel());        
         System.out.println("Find Classifications...");
         FindClassifications(ds);
         System.out.println("Separate Annotations...");
         SeparateAnnotations(ds);
+        //RDFDataMgr.write(System.out, ds.getDefaultModel(), RDFFormat.TURTLE_PRETTY);
         System.out.println("Remove Crud...");
-        RemoveCrud(ds.getDefaultModel());
-     //   RDFDataMgr.write(System.out, ds.getDefaultModel(), RDFFormat.TURTLE_PRETTY);
+        RemoveCrud(ds.getDefaultModel());        
+        //RDFDataMgr.write(System.out, ds.getDefaultModel(), RDFFormat.TURTLE_PRETTY);
         System.out.println("Analyze Dataset...");
         bw.Analyze(ds);
         System.out.println("Write Default Graph...");
