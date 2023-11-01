@@ -1,0 +1,3 @@
+com.ebremer.halcyon.filereaders.TiffImageReaderFactory
+com.ebremer.halcyon.filereaders.BeakGraphReaderFactory
+com.ebremer.halcyon.filereaders.ROCImageReaderFactory

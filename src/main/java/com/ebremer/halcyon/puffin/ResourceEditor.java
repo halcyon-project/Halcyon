@@ -26,7 +26,7 @@ public class ResourceEditor extends Panel implements IMarkupResourceStreamProvid
             String uuid = UUID.randomUUID().toString();
             System.out.println("ADDING --> "+uuid);
             list.add(uuid);
-            form.add(new PredicateObject(uuid,mod,s,null,null,null,null));
+            form.add(new PredicateObject(uuid,s,null,null,null,null,null,null));
         });            
         form.add(new Button("saveButton") {
             @Override

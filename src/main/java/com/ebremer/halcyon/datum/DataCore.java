@@ -1,9 +1,9 @@
 package com.ebremer.halcyon.datum;
 
 import com.ebremer.halcyon.fuseki.SPARQLEndPoint;
-import com.ebremer.halcyon.HalcyonSettings;
+import com.ebremer.halcyon.lib.HalcyonSettings;
 import static com.ebremer.halcyon.datum.DataCore.Level.CLOSED;
-import com.ebremer.halcyon.filesystem.FileManager;
+import com.ebremer.halcyon.server.FileManager;
 import com.ebremer.ns.HAL;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.DatasetFactory;
@@ -59,7 +59,7 @@ public final class DataCore {
     }
     
     public synchronized void shutdown() {
-        FileManager.getInstance().pause();
+       // FileManager.getInstance().pause();
         SPARQLEndPoint.getSPARQLEndPoint().shutdown();
         ds.close();
     }

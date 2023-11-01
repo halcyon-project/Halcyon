@@ -2,10 +2,9 @@ package com.ebremer.halcyon.gui;
 
 import com.ebremer.halcyon.sparql.Sparql;
 import com.ebremer.halcyon.wicket.ListImages;
-import com.ebremer.halcyon.HalcyonSettings;
+import com.ebremer.halcyon.lib.HalcyonSettings;
 import com.ebremer.halcyon.datum.DataCore;
 import com.ebremer.halcyon.fuseki.SPARQLEndPoint;
-import com.ebremer.halcyon.filesystem.FileManager;
 import com.ebremer.halcyon.puffin.Puffin;
 import com.ebremer.halcyon.puffin.ResourceConverter;
 import com.ebremer.halcyon.wicket.AccountPage;
@@ -18,7 +17,6 @@ import org.apache.wicket.ConverterLocator;
 import org.apache.wicket.IConverterLocator;
 import org.apache.wicket.RuntimeConfigurationType;
 import org.apache.wicket.Session;
-//import org.apache.wicket.devutils.stateless.StatelessChecker;
 import org.apache.wicket.markup.html.WebPage;
 import org.apache.wicket.protocol.http.WebApplication;
 import org.apache.wicket.request.Request;
@@ -27,12 +25,10 @@ import org.apache.wicket.request.Response;
 public class HalcyonApplication extends WebApplication {
     private static final HalcyonSettings settings = HalcyonSettings.getSettings();
     private final DataCore datacore;
-    private final FileManager fm;
     private final SPARQLEndPoint sep;
     
     public HalcyonApplication() {
         datacore = DataCore.getInstance();
-        fm = FileManager.getInstance();
         sep = SPARQLEndPoint.getSPARQLEndPoint();
     }
     
@@ -69,17 +65,17 @@ public class HalcyonApplication extends WebApplication {
         ch.qos.logback.classic.Logger jena = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger("org.apache.jena");
         jena.setLevel(ch.qos.logback.classic.Level.ERROR);
         ch.qos.logback.classic.Logger XX = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(org.apache.wicket.util.thread.Task.class);
-        XX.setLevel(ch.qos.logback.classic.Level.ERROR);
-              
+        XX.setLevel(ch.qos.logback.classic.Level.ERROR);             
         this.getRequestLoggerSettings().setRequestLoggerEnabled(true);
         this.getRequestLoggerSettings().setRecordSessionSize(true);
-        //if (RuntimeConfigurationType.DEVELOPMENT.equals(getConfigurationType())) {
-          //  getComponentPostOnBeforeRenderListeners().add(new StatelessChecker());
-        //}
         getCspSettings().blocking().disabled();
+        getApplicationSettings().setUploadProgressUpdatesEnabled(true);
+        getResourceSettings().setThrowExceptionOnMissingResource(false);
+        getDebugSettings().setAjaxDebugModeEnabled(true);
         mountPage("/", HomePage.class);
         mountPage("/admin", AdminPage.class);
-        mountPage("/account", AccountPage.class);
+        mountPage("/user/account", AccountPage.class);
+        mountPage("/user/colorclasses", ColorClasses.class); 
         mountPage("/login", Login.class);
         mountPage("/ListImages", ListImages.class);
         mountPage("/viewer", MultiViewer.class); 
@@ -92,6 +88,7 @@ public class HalcyonApplication extends WebApplication {
         mountPage("/viewall", ViewAll.class); 
         mountPage("/testviewall", TestViewAll.class); 
         mountPage("/puffin", Puffin.class); 
+        
         //mountPage("/login", LogHal.class);
         //mountPage("/gui/dicom", DICOM.class);
         //mountPage("/gui/dicom2", DCM.class);
@@ -100,6 +97,7 @@ public class HalcyonApplication extends WebApplication {
     @Override
     public RuntimeConfigurationType getConfigurationType() {
         return RuntimeConfigurationType.DEVELOPMENT;
+        //return RuntimeConfigurationType.DEPLOYMENT;
     }
 }
 

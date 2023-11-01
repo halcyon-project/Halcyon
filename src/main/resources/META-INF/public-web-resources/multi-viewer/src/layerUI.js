@@ -47,94 +47,63 @@ function createLayerElements(layersColumn, layers, viewer) {
 
 // VIEWER'S DRAGGABLE LAYERS
 function handleDrag(layers, viewer) {
-  // Div containing viewer (Remember this is executed for each viewer.)
-  const osdDiv = document.getElementById(viewer.id);
+  // Wrap everything related to drag and drop inside an IIFE
+  (function (viewer) {
+    // These variables are now specific to this viewer
+    let sourceViewer;
+    let draggedFeature;
 
-  // The features/layers to the right of the viewer
-  const features = document.querySelectorAll(".layer");
-  features.forEach(feature => {
-    feature.addEventListener("dragstart", handleDragStart);
-    feature.addEventListener("dragend", handleDragEnd);
-  });
+    // Div containing viewer (Remember this is executed for each viewer.)
+    const osdDiv = document.getElementById(viewer.id);
 
-  /* events fired on the draggable target */
-
-  function handleDragStart(evt) {
-    evt.target.style.opacity = "0.4";
-    sourceViewer = viewer; // eslint-disable-line no-undef
-    draggedFeature = this; // eslint-disable-line no-undef
-    evt.dataTransfer.effectAllowed = "move";
-    evt.dataTransfer.setData("text/plain", evt.target.id);
-  }
-
-  function handleDragEnd(evt) {
-    evt.target.style.opacity = "1"; // this = the draggable feature
-    osdDiv.classList.remove("drag-over");
-  }
-
-  /* events fired on the drop targets */
-
-  osdDiv.addEventListener("dragover", evt => {
-    // prevent default to allow drop
-    evt.preventDefault();
-    return false;
-  });
-
-  osdDiv.addEventListener("dragenter", function (evt) {
-    // highlight potential drop target when the draggable element enters it
-    evt.target.classList.add('drag-over');
-  });
-
-  osdDiv.addEventListener("dragleave", function (evt) {
-    // reset border of potential drop target when the draggable element leaves it
-    evt.target.classList.remove('drag-over')
-  });
-
-  osdDiv.addEventListener("drop", handleDrop);
-
-  function handleDrop(evt) {
-    // prevent default action (open as link for some elements)
-    evt.preventDefault();
-    evt.stopPropagation();
-
-    evt.target.classList.remove('drag-over') // restore style
-    const targetElement = evt.target;
-    const viewerDiv = targetElement.closest(".viewer"); // where they dropped the feature
-
-    if (!viewerDiv) {
-      console.error("!viewerDiv");
-      return false;
+    function handleDragStart(evt) {
+      evt.target.style.opacity = "0.4";
+      sourceViewer = viewer;
+      draggedFeature = this;
+      evt.dataTransfer.effectAllowed = "move";
+      evt.dataTransfer.setData("text/plain", evt.target.id);
     }
 
-    // Find neighboring layersColumn
-    const columnWithViewer = viewerDiv.parentElement;
-    const columnLayAndCol = columnWithViewer.nextSibling; // Target viewer's layersAndColors column
+    function handleDragEnd(evt) {
+      evt.target.style.opacity = "1"; // this = the draggable feature
+      osdDiv.classList.remove("drag-over");
+    }
 
-    // Find the neighboring table (we will add this feature here)
-    const divClassScroll = columnLayAndCol.firstChild;
-    const tableLayAndColor = divClassScroll.firstChild;
+    function handleDrop(evt) {
+      // prevent default action (open as link for some elements)
+      evt.preventDefault();
+      evt.stopPropagation();
 
-    const movedFeatId = evt.dataTransfer.getData("text");
-    const movedFeature = document.getElementById(movedFeatId);
-    const featureName = movedFeature.innerHTML;
+      evt.target.classList.remove('drag-over') // restore style
+      const targetElement = evt.target;
+      const viewerDiv = targetElement.closest(".viewer"); // where they dropped the feature
 
-    let row;
-    let cells;
-    let lay;
-    let layNum;
-    let eye;
-    let foundMatchingSlide = false;
+      if (!viewerDiv) {
+        console.error("!viewerDiv");
+        return false;
+      }
 
-    // Iterate table rows
-    let myHTMLCollection = tableLayAndColor.children
-    for (let i = 0; i < myHTMLCollection.length; i++) {
-      // Skip first row (globals)
-      if (i > 0) {
-        row = myHTMLCollection[i];
-        cells = row.children
-        lay = cells[0].firstChild;
+      // Get neighboring elements
+      const columnWithViewer = viewerDiv.parentElement;
+
+      // Directly find the .divTableBody within the sibling column
+      const tableLayAndColor = columnWithViewer.nextSibling.querySelector('.divTableBody');
+      const movedFeatId = evt.dataTransfer.getData("text");
+      const movedFeature = document.getElementById(movedFeatId);
+      const featureName = movedFeature.innerHTML;
+
+      let layNum;
+      let foundMatchingSlide = false;
+
+      // Iterate table rows
+      let myHTMLCollection = tableLayAndColor.children;
+      for (let i = 1; i < myHTMLCollection.length; i++) {
+        // Skip first row (globals)
+        const [firstCell, secondCell] = myHTMLCollection[i].children;
+        const lay = firstCell.firstChild;
+        const eye = secondCell.firstChild;
+
         layNum = lay.id[0]; // 1st char is array index
-        eye = cells[1].children[0];
 
         // css transition: .block, .color-fade
         if (lay.innerHTML === featureName) {
@@ -146,7 +115,7 @@ function handleDrag(layers, viewer) {
           lay.classList.add("color-fade");
 
           /** timeout to turn it back to normal **/
-          setTimeout(function () {
+          setTimeout(() => {
             lay.classList.remove("color-fade");
             lay.classList.remove("block");
             lay.classList.add("layer");
@@ -158,38 +127,46 @@ function handleDrag(layers, viewer) {
           break;
         }
       }
-    }
 
-    const targetViewer = getOsdViewer(evt, viewerDiv);
-    if (targetViewer !== null) {
-      if (foundMatchingSlide) {
-        console.log("Found matching slide");
-        try {
+      const targetViewer = getOsdViewer(evt, viewerDiv);
+
+      if (targetViewer !== null) {
+        if (foundMatchingSlide) {
           targetViewer.world.getItemAt(layNum).setOpacity(1); // show
-          // We already turned on target feature eyeball
-
-          // TODO: Uncomment if we want "move" instead of "copy":
-          // sourceViewer.world.getItemAt(layNum).setOpacity(0) // hide
-          // let eye1 = draggedFeature.parentNode.nextSibling.firstChild
-          // Toggle eyeball on source feature
-          // eye1.classList.remove('fa-eye');
-          // eye1.classList.add('fa-eye-slash');
-        } catch (e) {
-          // It may get here if the handler executes twice on one drop
-          console.warn(e.message);
+          // (And we already turned on target feature eyeball)
+        } else {
+          console.warn("Did not find matching slide. Feature:", featureName);
         }
-      } else {
-        let location;
-        try {
-          location = sourceViewer.tileSources[layNum].tileSource;
-        } catch (e) {
-          console.error("oops.", e.message);
-        }
-        console.error("Did not find matching slide\nLocation:", location);
       }
+      return false;
     }
-    return false;
-  }
+
+    // Attach the event listeners
+    const features = document.querySelectorAll(".layer");
+    features.forEach(feature => {
+      feature.addEventListener("dragstart", handleDragStart);
+      feature.addEventListener("dragend", handleDragEnd);
+    });
+
+    osdDiv.addEventListener("dragover", evt => {
+      // prevent default to allow drop
+      evt.preventDefault();
+      return false;
+    });
+
+    osdDiv.addEventListener("dragenter", function (evt) {
+      // highlight potential drop target when the draggable element enters it
+      evt.target.classList.add('drag-over');
+    });
+
+    osdDiv.addEventListener("dragleave", function (evt) {
+      // reset border of potential drop target when the draggable element leaves it
+      evt.target.classList.remove('drag-over');
+    });
+
+    osdDiv.addEventListener("drop", handleDrop);
+
+  })(viewer); // Pass the viewer into the IIFE
 }
 
 function addIconRow(myEyeArray, divTable, currentLayer, allLayers, viewer) {
@@ -239,37 +216,27 @@ function addIconRow(myEyeArray, divTable, currentLayer, allLayers, viewer) {
   }
 }
 
-function _extractLocation(layer) {
-  let loc;
-  if (typeof layer.location === 'string') {
-    loc = layer.location;
-  } else if (typeof layer.location === 'object') {
-    loc = layer.location.url;
-  } else {
-    throw new TypeError(`Unidentified URL type... ${layer.location}`);
-  }
-  return loc;
-}
 
 function getPreferredLabel(layer) {
-  let featureName;
-  const loc = _extractLocation(layer);
-  const sections = loc.split("/");
-  const re = /^(?:[a-z]+:)?\b/gm;
-
-  if (loc.match(re)) {
-    // Absolute URL
-    featureName = sections[sections.length - 2];
-  } else {
-    // Relative URL
-    featureName = sections[sections.length - 1];
+  // Temporary patch for unavailable prefLabel (or 'label') info
+  let name = "undefined";
+  let url = layer.location;
+  try {
+    let search = "FeatureStorage";
+    let sections = url.split("/");
+    let res = sections.indexOf(search);
+    if (res > -1) {
+      name = `${sections[res + 1]}-${sections[res + 2]}`
+    } else {
+      name = sections[sections.length - 2];
+      if (name.includes(".")) {
+        name = name.substring(0, name.indexOf("."));
+      }
+    }
+  } catch (e) {
+    console.log(`%cError. Check WSI URL: ${url}`, "color: #ff6a5a; font-size: larger;");
   }
-
-  if (featureName.includes(".")) {
-    featureName = featureName.substring(0, featureName.indexOf("."));
-  }
-
-  return featureName;
+  return name;
 }
 
 // Feature (draggable)
@@ -434,7 +401,7 @@ function createTachometer(row, featureName) {
   const id = createId(5, "pop");
   const rect = icon.getBoundingClientRect();
   const popup = createDraggableDiv(id, `${featureName} settings`, rect.left, rect.top);
-  const divBody = popup.lastChild;
+  const divBody = document.getElementById(`${popup.id}Body`);
 
   icon.addEventListener("click", () => {
     popup.style.display = "block";

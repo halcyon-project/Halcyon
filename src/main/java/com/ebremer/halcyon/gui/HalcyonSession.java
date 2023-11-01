@@ -1,10 +1,12 @@
 package com.ebremer.halcyon.gui;
 
 import com.ebremer.halcyon.keycloak.KeycloakTokenFilter;
-import com.ebremer.halcyon.HalcyonSettings;
+import com.ebremer.halcyon.lib.HalcyonSettings;
 import com.ebremer.halcyon.datum.DataCore;
 import com.ebremer.halcyon.datum.HalcyonPrincipal;
 import com.ebremer.halcyon.fuseki.shiro.JwtToken;
+import com.ebremer.halcyon.puffin.Block;
+import com.ebremer.halcyon.puffin.UserSessionDataStorage;
 import com.ebremer.ns.HAL;
 import jakarta.json.Json;
 import jakarta.json.JsonArray;
@@ -13,6 +15,8 @@ import jakarta.json.JsonReader;
 import java.io.StringReader;
 import java.util.Locale;
 import java.util.UUID;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Invocation;
 import javax.ws.rs.core.Response;
@@ -38,6 +42,7 @@ public final class HalcyonSession extends WebSession {
     private String user;
     private String mv;
     private final String uuid;
+    private final String uuidurn;
     //private final String token;
     private final HalcyonPrincipal principal;
 
@@ -46,17 +51,24 @@ public final class HalcyonSession extends WebSession {
         HalcyonSettings s = HalcyonSettings.getSettings();
         setLocale(Locale.ENGLISH);
         ServletWebRequest req = (ServletWebRequest) request;
+        HttpServletRequest servletRequest = (HttpServletRequest) request.getContainerRequest();
+        HttpSession httpSession = servletRequest.getSession(true);
+        httpSession.setMaxInactiveInterval(60*60*24); // 1 day for now
+
         KeycloakSecurityContext securityContext = (KeycloakSecurityContext) req.getContainerRequest().getAttribute(KeycloakSecurityContext.class.getName());
         if (securityContext==null) {
-            uuid = "urn:uuid:"+UUID.randomUUID().toString();
+            uuid = UUID.randomUUID().toString();
+            uuidurn = "urn:uuid:"+UUID.randomUUID().toString();
             principal = new HalcyonPrincipal(uuid, true);
         } else {
             AccessToken token2 = securityContext.getToken();
-            uuid = "urn:uuid:"+token2.getSubject();
+            uuid = token2.getSubject();
+            uuidurn = "urn:uuid:"+token2.getSubject();
             principal = new HalcyonPrincipal(new JwtToken(securityContext.getTokenString()),false);
             //principal = new HalcyonPrincipal(uuid, false);
         }
-
+        System.out.println("    Creating session --> "+uuid);
+        UserSessionDataStorage.getInstance().put(uuid, new Block());
         if (securityContext!=null) {
             ResteasyClientBuilder builder =  (ResteasyClientBuilder) ClientBuilder.newBuilder();
             builder.disableTrustManager();
@@ -111,8 +123,23 @@ public final class HalcyonSession extends WebSession {
         }
     }
     
+    public String getUUIDURN() {
+        return uuidurn;
+    }
+    
     public String getUUID() {
         return uuid;
+    }
+    
+    public Block getBlock() {
+        return UserSessionDataStorage.getInstance().get(uuid);
+    }
+    
+    @Override
+    public void onInvalidate() {
+        super.onInvalidate();
+        System.out.println("Invalidating session --> "+uuid);
+        UserSessionDataStorage.getInstance().remove(uuid);
     }
     
     public Model ParseLab(JsonObject jo) {

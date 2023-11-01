@@ -2,27 +2,32 @@ package com.ebremer.halcyon.converters;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.ParameterException;
-import com.ebremer.beakgraph.rdf.BeakWriter;
-import com.ebremer.halcyon.HalcyonSettings;
-import com.ebremer.ns.EXIF;
+import com.ebremer.beakgraph.ng.BG;
+import com.ebremer.beakgraph.ng.SpecialProcess;
+import com.ebremer.halcyon.lib.HalcyonSettings;
+import com.ebremer.halcyon.raptor.HilbertProcess;
+import com.ebremer.halcyon.raptor.HilbertSpecial;
 import com.ebremer.ns.HAL;
-import com.ebremer.rocrate4j.ROCrate;
-import com.ebremer.rocrate4j.writers.ZipWriter;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.concurrent.Callable;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.apache.arrow.memory.OutOfMemoryException;
+import java.util.zip.GZIPInputStream;
+import org.apache.jena.query.Dataset;
+import org.apache.jena.query.DatasetFactory;
 import org.apache.jena.rdf.model.Model;
-import org.apache.jena.rdf.model.Resource;
-import org.apache.jena.vocabulary.RDF;
+import org.apache.jena.riot.Lang;
+import org.apache.jena.riot.RDFDataMgr;
+import org.apache.jena.vocabulary.XSD;
 import org.slf4j.LoggerFactory;
 
 /**
@@ -30,36 +35,36 @@ import org.slf4j.LoggerFactory;
  * @author erich
  */
 public class Ingest {
+    private final ArrayList<BG.PropertyAndDataType> list;
+    private final ArrayList<SpecialProcess> specials;
+    
+    public Ingest() {
+        list = new ArrayList<>();
+        list.add(new BG.PropertyAndDataType(HAL.low.getURI(), XSD.xlong));
+        list.add(new BG.PropertyAndDataType(HAL.high.getURI(), XSD.xlong));
+        list.add(new BG.PropertyAndDataType(HAL.hasRange.getURI(), null));                
+        specials = new ArrayList<>();
+        specials.add(new HilbertSpecial());
+    }
            
     public void OneFile(File source, File dest, boolean optimize) {
-        try {
-            ROCrate.ROCrateBuilder builder = new ROCrate.ROCrateBuilder(new ZipWriter(dest));
-            try (BeakWriter bw = new BeakWriter(builder, "halcyon")) {
-                Resource rde = builder.getRDE();
-                Model m = Engine.Load(source,builder.getRDE());
-                Engine engine = new Engine(m, optimize);  
-                bw.Register(m);
-                bw.CreateDictionary();
-                engine.HilbertPhase(bw);
-                System.out.println("Process Triples : "+m.size());
-                bw.Add(m);
-                bw.Create(builder);
-                rde.getModel().add(Engine.getMeta(m, rde));
-                Model whack = Engine.getHalcyonFeatures(m, rde);
-                rde.getModel().add(whack);
-                rde
-                    .addProperty(RDF.type, HAL.HalcyonROCrate)
-                    .addLiteral(EXIF.width,engine.getWidth())
-                    .addLiteral(EXIF.height,engine.getHeight());
-            } catch (java.lang.IllegalStateException ex) {
-                System.out.println("AA : "+ex.toString());
-            } catch (OutOfMemoryException ex) {
-                System.out.println("BB : "+ex.toString());
-                Logger.getLogger(Ingest.class.getName()).log(Level.SEVERE, null, ex);
-            }
-            builder.build();
+        Dataset dsi = DatasetFactory.create();
+        try (
+            FileInputStream fis = new FileInputStream(source);
+            GZIPInputStream gis = new GZIPInputStream(fis);
+        ) {
+            RDFDataMgr.read(dsi.getDefaultModel(), gis, Lang.TURTLE);
+            BG.getBuilder()
+                .dataset(dsi)
+                .handle(list)
+                .setProcess(new HilbertProcess(112231,82984,512,512))
+               // .Extra(specials)
+                .file(dest)
+                .build();
+        } catch (FileNotFoundException ex) {
+            Logger.getLogger(Ingest.class.getName()).log(Level.SEVERE, null, ex);
         } catch (IOException ex) {
-            System.out.println("File does not exist : "+source.toString());
+            Logger.getLogger(Ingest.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
     
@@ -99,7 +104,7 @@ public class Ingest {
                 long ram = (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())/1024L/1024L;
                 System.out.println("file jobs completed : "+(totaljobs-c)+" remaining file jobs: "+c+"  Total RAM used : "+ram+"MB  Maximum RAM : "+(Runtime.getRuntime().maxMemory()/1024L/1024L)+"MB");
                 try {
-                    Thread.sleep(1000);
+                    Thread.sleep(5000);
                 } catch (InterruptedException ex) {
                     Logger.getLogger(Ingest.class.getName()).log(Level.SEVERE, null, ex);
                 }
@@ -155,3 +160,38 @@ public class Ingest {
         }
     }
 }
+
+
+/*
+Old
+
+        try {            
+            ROCrateBuilder builder = new ROCrate.ROCrateBuilder(new ZipWriter(dest));
+            try (BeakWriter bw = new BeakWriter(builder, "halcyon")) {
+                Resource rde = builder.getRDE();
+                Model m = Engine.Load(source,builder.getRDE());
+                Engine engine = new Engine(m, optimize);  
+                //bw.Register(m);
+                //bw.CreateDictionary();
+                engine.HilbertPhase(bw);
+                System.out.println("Process Triples : "+m.size());
+                //bw.Add(m);
+                //bw.Create(builder);
+                rde.getModel().add(Engine.getMeta(m, rde));
+                Model whack = Engine.getHalcyonFeatures(m, rde);
+                rde.getModel().add(whack);
+                rde
+                    .addProperty(RDF.type, HAL.HalcyonROCrate)
+                    .addLiteral(EXIF.width,engine.getWidth())
+                    .addLiteral(EXIF.height,engine.getHeight());
+            } catch (java.lang.IllegalStateException ex) {
+                System.out.println("AA : "+ex.toString());
+            } catch (OutOfMemoryException ex) {
+                System.out.println("BB : "+ex.toString());
+                Logger.getLogger(Ingest.class.getName()).log(Level.SEVERE, null, ex);
+            }
+            builder.build();
+        } catch (IOException ex) {
+            System.out.println("File does not exist : "+source.toString());
+        }
+*/

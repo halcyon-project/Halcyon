@@ -11,6 +11,7 @@ import javax.imageio.ImageReadParam;
 import javax.imageio.metadata.IIOMetadata;
 import javax.imageio.plugins.tiff.TIFFDirectory;
 import javax.imageio.plugins.tiff.TIFFField;
+import javax.imageio.plugins.tiff.TIFFTagSet;
 import javax.imageio.stream.ImageInputStream;
 
 /**
@@ -28,21 +29,27 @@ public class Test {
                 throw new IllegalArgumentException("No reader for: " + file);
             }
             TIFFImageReader reader = (TIFFImageReader) readers.next();
+            System.out.println(reader.getClass().toGenericString());
             try {
                 reader.setInput(input);
                 System.out.println(reader.getTileWidth(0)+"--"+reader.getTileHeight(0)+"  "+reader.getWidth(0)+" X "+reader.getHeight(0));
                 System.out.println(reader.getNumImages(true));
-                BufferedImage image = reader.readTile(0, 10, 10);
-                ImageReadParam param = reader.getDefaultReadParam();
-                int numThumbs = reader.getNumThumbnails(0);
-                ImageIO.write(image, "jpeg", new File("\\ATAN\\x.jpg"));
+                //BufferedImage image = reader.readTile(0, 0, 0);
+                //ImageReadParam param = reader.getDefaultReadParam();
+                //int numThumbs = reader.getNumThumbnails(0);
+                //ImageIO.write(image, "jpeg", new File("\\ATAN\\x.jpg"));
                 
                 IIOMetadata metadata = reader.getImageMetadata(0);
                 TIFFDirectory ifd = TIFFDirectory.createFromMetadata(metadata);
                 System.out.println(ifd);
                 TIFFField f = ifd.getTIFFField(TIFF.TAG_JPEG_TABLES);
                 System.out.println(ifd.containsTIFFField(TIFF.TAG_JPEG_TABLES));
-                
+                TIFFField f2 = ifd.getTIFFField(TIFF.TAG_TILE_OFFSETS);
+                System.out.println(f2);
+                TIFFTagSet[] set = ifd.getTagSets();
+                for (TIFFTagSet set1 : set) {
+                    System.out.println("SET --> " + set1);
+                }
                 
             } finally {
                 reader.dispose();

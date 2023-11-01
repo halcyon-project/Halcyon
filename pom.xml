@@ -3,15 +3,15 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.ebremer</groupId>
     <artifactId>Halcyon</artifactId>
-    <version>0.7.0</version>
+    <version>0.8.0</version>
     <packaging>jar</packaging>
     <name>Halcyon</name>
     <description>A whole slide image annotation, management, and visualization system</description>
     
     <licenses>
         <license>
-            <name>MIT License</name>
-            <url>https://github.com/halcyon-project/Halcyon/blob/master/LICENSE</url>
+            <name>The Apache Software License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
         </license>
     </licenses>
     
@@ -69,18 +69,17 @@
     
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <maven.compiler.source>20</maven.compiler.source>
-        <maven.compiler.target>20</maven.compiler.target>
-        <java.version>17</java.version>
+        <java.version>201</java.version>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
         <jena.version>4.9.0</jena.version>
         <wicket.ver>9.13.0</wicket.ver>
-        <bioformats.ver>6.13.0</bioformats.ver>
         <hilbert.ver>0.2.2</hilbert.ver>
         <commons-pool2.ver>2.11.1</commons-pool2.ver>
         <jakarta.json.version>2.0.1</jakarta.json.version> 
-        <titanium-json-ld.ver>1.3.2</titanium-json-ld.ver>
+        <titanium-json-ld.ver>1.3.3-SNAPSHOT</titanium-json-ld.ver>
         <dcm4che.ver>5.29.2</dcm4che.ver>
-        <beakgraph.version>0.5.0</beakgraph.version>
+        <beakgraph.version>0.6.0</beakgraph.version>
         <keycloak.version>21.1.1</keycloak.version>
 	<infinispan.version>14.0.8.Final</infinispan.version>
 	<resteasy.version>4.7.7.Final</resteasy.version>
@@ -88,6 +87,9 @@
 	<liquibase.version>4.20.0</liquibase.version>
 	<snakeyaml.version>2.0</snakeyaml.version>
         <shiro.version>1.11.0</shiro.version>
+        <jts.version>1.19.0</jts.version>
+        <twelvemonkeys.version>3.9.4</twelvemonkeys.version>
+        <projectlombok.version>1.18.30</projectlombok.version>
     </properties>
     
     <parent>
@@ -321,16 +323,16 @@
             </build>
         </profile>
         <profile>
-            <id>heatmap2oa</id>
+            <id>ns2gs</id>
             <build>
-                <finalName>heatmap2oa-${project.version}</finalName>
+                <finalName>ns2gs-${project.version}</finalName>
                 <plugins>
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-shade-plugin</artifactId>
                         <executions>
                             <execution>
-                                <id>heatmap2oashade</id>
+                                <id>ns2gsshade</id>
                                 <phase>package</phase>
                                 <goals>
                                     <goal>shade</goal>
@@ -351,7 +353,48 @@
                                             <manifestEntries>
                                                 <Multi-Release>true</Multi-Release>
                                             </manifestEntries>
-                                            <mainClass>com.ebremer.halcyon.converters.HeatMap2OA</mainClass>
+                                            <mainClass>com.ebremer.halcyon.converters.NS2GS</mainClass>
+                                        </transformer>
+                                    </transformers>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>heatmap2geosparql</id>
+            <build>
+                <finalName>heatmap2geosparql-${project.version}</finalName>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-shade-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>heatmap2geosparqlshade</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>shade</goal>
+                                </goals>
+                                <configuration>
+                                    <transformers>
+                                        <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                                            <resource>META-INF/spring.handlers</resource>
+                                        </transformer>
+                                        <transformer implementation="org.springframework.boot.maven.PropertiesMergingResourceTransformer">
+                                            <resource>META-INF/spring.factories</resource>
+                                        </transformer>
+                                        <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                                            <resource>META-INF/spring.schemas</resource>
+                                        </transformer>
+                                        <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
+                                        <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                            <manifestEntries>
+                                                <Multi-Release>true</Multi-Release>
+                                            </manifestEntries>
+                                            <mainClass>com.ebremer.halcyon.converters.HeatMap2GEOSPARQL</mainClass>
                                         </transformer>
                                     </transformers>
                                 </configuration>
@@ -398,6 +441,64 @@
                                 </configuration>
                             </execution>
                         </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>library</id>
+            <build>
+                <finalName>library-${project.version}</finalName>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-shade-plugin</artifactId>
+                        <version>3.5.1</version>
+                        <executions>
+                            <execution>
+                                <id>libraryshade</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>shade</goal>
+                                </goals>
+                                <configuration>
+                                    <filters>
+                                        <filter>
+                                            <artifact>*:*</artifact>
+                                            <excludes>
+                                                <exclude>META-INF/*.SF</exclude>
+                                                <exclude>META-INF/*.DSA</exclude>
+                                                <exclude>META-INF/*.RSA</exclude>
+                                            </excludes>
+                                        </filter>
+                                    </filters>
+                                    <transformers>
+                                        <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                                            <resource>META-INF/spring.handlers</resource>
+                                        </transformer>
+                                        <transformer implementation="org.springframework.boot.maven.PropertiesMergingResourceTransformer">
+                                            <resource>META-INF/spring.factories</resource>
+                                        </transformer>
+                                        <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                                            <resource>META-INF/spring.schemas</resource>
+                                        </transformer>
+                                        <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"></transformer>
+                                        <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                            <manifestEntries>
+                                                <Multi-Release>true</Multi-Release>
+                                            </manifestEntries>
+                                        </transformer>
+                                    </transformers>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-deploy-plugin</artifactId>
+                        <configuration>
+                            <skip>false</skip>
+                        </configuration>
                     </plugin>
                 </plugins>
             </build>
@@ -463,7 +564,6 @@
                 <configuration>
                     <compilerArgs>
                         <arg>--enable-preview</arg>
-                        <arg>--enable-preview</arg>
                     </compilerArgs>
                 </configuration>
             </plugin>
@@ -502,6 +602,7 @@
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <optional>true</optional>
+            <version>${projectlombok.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -597,12 +698,6 @@
             <version>1.1.2</version>
         </dependency>
         <dependency>
-            <groupId>com.apicatalog</groupId>
-            <artifactId>titanium-json-ld</artifactId>
-            <version>${titanium-json-ld.ver}</version>
-            <type>jar</type>
-        </dependency>
-        <dependency>
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-api</artifactId>
         </dependency>
@@ -645,6 +740,11 @@
             <type>jar</type>
         </dependency>
         <dependency>
+            <groupId>org.wicketstuff</groupId>
+            <artifactId>wicketstuff-select2</artifactId>
+            <version>${wicket.ver}</version>
+        </dependency>
+        <dependency>
             <groupId>org.apache.jena</groupId>
             <artifactId>jena-core</artifactId>
             <version>${jena.version}</version>
@@ -661,6 +761,12 @@
             <artifactId>jena-arq</artifactId>
             <version>${jena.version}</version>
             <type>jar</type>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.apicatalog</groupId>
+                    <artifactId>titanium-json-ld</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.apache.jena</groupId>
@@ -690,13 +796,6 @@
             <groupId>com.github.davidmoten</groupId>
             <artifactId>hilbert-curve</artifactId>
             <version>${hilbert.ver}</version>
-        </dependency>
-        <!--  BIOFORMAT DEPENDENCIES -->
-        <dependency>
-            <groupId>ome</groupId>
-            <artifactId>formats-gpl</artifactId>
-            <version>${bioformats.ver}</version>
-            <scope>compile</scope>
         </dependency>
         <!-- Shiro -->
         <dependency>
@@ -742,36 +841,28 @@
             <groupId>com.ebremer</groupId>
             <artifactId>BeakGraph</artifactId>
             <version>${beakgraph.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.apicatalog</groupId>
+                    <artifactId>titanium-json-ld</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
-        
         <dependency>
             <groupId>com.twelvemonkeys.imageio</groupId>
             <artifactId>imageio-tiff</artifactId>
-            <version>3.9.4</version>
-        </dependency>
-        <!--
-        <dependency>
-            <groupId>org.geotools</groupId>
-            <artifactId>gt-jp2k</artifactId>
-            <version>27.4.01</version>
-        </dependency>-->
-        <!--
-        <dependency>
-            <groupId>it.geosolutions.imageio-ext</groupId>
-            <artifactId>imageio-ext-kakadu</artifactId>
-            <version>1.4.5</version>
-        </dependency>-->
-        <!--
-        <dependency>
-            <groupId>com.github.jai-imageio</groupId>
-            <artifactId>jai-imageio-core</artifactId>
-            <version>1.4.0</version>
+            <version>${twelvemonkeys.version}</version>
         </dependency>
         <dependency>
-            <groupId>com.github.jai-imageio</groupId>
-            <artifactId>jai-imageio-jpeg2000</artifactId>
-            <version>1.4.0</version>
-        </dependency>-->
+            <groupId>org.locationtech.jts</groupId>
+            <artifactId>jts-core</artifactId>
+            <version>${jts.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.apicatalog</groupId>
+            <artifactId>titanium-json-ld</artifactId>
+            <version>1.3.3-SNAPSHOT</version>
+        </dependency>
     </dependencies>
     <pluginRepositories>
         <pluginRepository>
@@ -792,19 +883,15 @@
             <url>https://repo.spring.io/release</url>
         </repository>
         <repository>
-            <id>unidata</id>
-            <name>Unidata Repository</name>
-            <url>https://artifacts.unidata.ucar.edu/content/repositories/unidata-releases</url>
-        </repository>
-        <repository>
-            <id>ome</id>
-            <name>OME Artifactory</name>
-            <url>https://artifacts.openmicroscopy.org/artifactory/maven/</url>
-        </repository>
-        <repository>
             <id>dcm4che</id>
             <name>dcm4che</name>
             <url>https://www.dcm4che.org/maven2</url>
         </repository>
     </repositories>
+    <distributionManagement>
+        <repository>
+            <id>halcyon</id>
+            <url>https://cursus.bmi.stonybrookmedicine.edu/releases</url>
+        </repository>
+    </distributionManagement>
 </project>

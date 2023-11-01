@@ -8,16 +8,19 @@ import com.apicatalog.jsonld.document.Document;
 import com.apicatalog.jsonld.document.JsonDocument;
 import com.apicatalog.jsonld.serialization.RdfToJsonld;
 import com.apicatalog.rdf.RdfDataset;
-import com.ebremer.beakgraph.rdf.BeakGraph;
-import com.ebremer.halcyon.Standard;
-import com.ebremer.halcyon.hilbert.HilbertSpace;
-import com.ebremer.halcyon.hsPolygon;
+import com.ebremer.beakgraph.ng.BGDatasetGraph;
+import com.ebremer.beakgraph.ng.BeakGraph;
+import com.ebremer.halcyon.beakstuff.BeakGraphPool;
 import com.ebremer.ns.EXIF;
 import com.ebremer.ns.HAL;
 import com.ebremer.ns.IIIF;
 import com.ebremer.halcyon.imagebox.IIIFUtils;
 import static com.ebremer.halcyon.imagebox.IIIFUtils.IIIFAdjust;
-import com.ebremer.halcyon.utils.StopWatch;
+import com.ebremer.halcyon.lib.ImageRegion;
+import com.ebremer.halcyon.raptor.Objects.Scale;
+import com.ebremer.halcyon.raptor.Tools;
+import com.ebremer.halcyon.utils.ImageTools;
+import com.ebremer.ns.GEO;
 import jakarta.json.Json;
 import jakarta.json.JsonArray;
 import jakarta.json.JsonObject;
@@ -29,131 +32,158 @@ import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.net.URI;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.concurrent.Executors;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.stream.LongStream;
-import loci.formats.gui.AWTImageTools;
-import org.apache.commons.collections4.iterators.IteratorChain;
-import org.apache.jena.graph.Graph;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.DatasetFactory;
 import org.apache.jena.query.ParameterizedSparqlString;
-import org.apache.jena.query.QueryExecution;
 import org.apache.jena.query.QueryExecutionFactory;
 import org.apache.jena.query.QuerySolution;
 import org.apache.jena.query.ResultSet;
-import org.apache.jena.query.ResultSetFormatter;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
+import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.rdf.model.Statement;
 import org.apache.jena.rdf.model.StmtIterator;
+import org.apache.jena.riot.Lang;
+import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.riot.system.JenaTitanium;
 import org.apache.jena.sparql.vocabulary.DOAP;
-import org.apache.jena.vocabulary.OA;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.SchemaDO;
+import org.locationtech.jts.geom.Polygon;
 
 /**
  *
  * @author erich
  */
 public class FL {
-    private int width;
-    private int height;
-    private final Model m;
+    private int width = 0;
+    private int height = 0;
+    private int tileSizeX = 0;
+    private int tileSizeY = 0;
     private final Model manifest;
-    private final HashMap<Integer,HilbertSpace> hspace;
+    private final ArrayList<Scale> scales;
     private int numscales;
     private int numclasses = 0;
     private final HashMap<String,Integer> classes;
-    private final float[] ratios;
-    private final String reference;
+    private final String reference = null;
+    private final URI uri;
     
-    public FL(Model m) {
-        this.m = m;
-        this.hspace = new HashMap<>();
+    public FL(URI uri) {
+        this.uri = uri;
+        this.scales = new ArrayList<>();
         this.classes = new HashMap<>();
-        BeakGraph bg = (BeakGraph) m.getGraph();
-        reference = bg.getReader().getROCReader().getRef();
-        manifest = bg.getReader().getManifest();
+        BeakGraph bg = BeakGraphPool.getPool().borrowObject(uri);
+        Dataset ds = DatasetFactory.wrap(new BGDatasetGraph(bg));             
         ParameterizedSparqlString pss = new ParameterizedSparqlString(
             """
-            select * where {
-                ?result a hal:HalcyonROCrate; exif:width ?width; exif:height ?height
-            } limit 1
-            """, Standard.getStandardPrefixes());
+            construct { ?grid a ?gridType; exif:height ?height; exif:width ?width; hal:tileSizeX ?tileSizeX; hal:tileSizeY ?tileSizeY }
+            where { ?grid a ?gridType; exif:height ?height; exif:width ?width; hal:tileSizeX ?tileSizeX; hal:tileSizeY ?tileSizeY }
+            limit 1
+            """
+        );
         pss.setNsPrefix("hal", HAL.NS);
         pss.setNsPrefix("exif", EXIF.NS);
-        QueryExecution qe = QueryExecutionFactory.create(pss.toString(), manifest);
-        ResultSet rs = qe.execSelect();
-        if (rs.hasNext()) {
-            QuerySolution qs = rs.next();
-            width = qs.get("width").asLiteral().getInt();
-            height = qs.get("height").asLiteral().getInt();
-        } else {
-            throw new Error("Cannot find CreateAction/ROCrate");
-        }
+        manifest = QueryExecutionFactory.create(pss.toString(), ds.getDefaultModel()).execConstruct();
+
         pss = new ParameterizedSparqlString(
             """
-            select ?class where {
-                ?body hal:assertedClass ?class
+            construct {
+                ?grid a ?gridType; hal:scale ?scale .
+                ?scale exif:width ?width; exif:height ?height; hal:scaleIndex ?index
             }
-            """); 
-        pss.setNsPrefix("hal", HAL.NS);
-        qe = QueryExecutionFactory.create(pss.toString(), m);
-        rs = qe.execSelect();
-        while (rs.hasNext()) {
-            String clazz = rs.next().get("class").asResource().getURI();
-            if (!classes.containsKey(clazz)) {
-                numclasses++;
-                classes.put(clazz, numclasses);
-            }
-        }
-        pss = new ParameterizedSparqlString(
-            """
-            select distinct ?o where {
-                ?s bg:property ?o
-                filter(strstarts(str(?o),?k))
+            where {
+                ?grid a ?gridType; hal:scale ?scale .
+                ?scale exif:width ?width; exif:height ?height; hal:scaleIndex ?index
             }
             """
         );
-        pss.setNsPrefix("bg", "https://www.ebremer.com/beakgraph/ns/");
-        pss.setLiteral("k", HAL.hasRange.getURI());
-        qe = QueryExecutionFactory.create(pss.toString(), manifest);
-        rs = qe.execSelect();    
-        numscales = 0;
-        rs.forEachRemaining(qs->{
-            numscales++;
-            String s = qs.get("o").asResource().getURI();
-            s = s.substring("https://www.ebremer.com/beakgraph/ns/hasRange/".length()-2);
-            int ss = Integer.parseInt(s);
-            hspace.put(ss, new HilbertSpace(width>>ss,height>>ss));
-        });
-        ratios = new float[numscales];
-        // if 1 then it's a heatmap.
-        if (hspace.size()==1) {
-            hspace.clear();
-            hspace.put(1, new HilbertSpace(width,height));
+        pss.setNsPrefix("hal", HAL.NS);
+        pss.setNsPrefix("exif", EXIF.NS);
+        manifest.add(QueryExecutionFactory.create(pss.toString(), ds.getDefaultModel()).execConstruct());
+        
+        pss = new ParameterizedSparqlString(
+            """
+            construct { ?fc hal:hasClassification ?class }
+            where { ?fc hal:hasClassification ?class }
+            """
+        );
+        pss.setNsPrefix("hal", HAL.NS);
+        pss.setNsPrefix("exif", EXIF.NS);
+        Model ff = QueryExecutionFactory.create(pss.toString(), ds.getDefaultModel()).execConstruct();
+        manifest.add(ff);
+        BeakGraphPool.getPool().returnObject(uri, bg);
+        pss = new ParameterizedSparqlString(
+            """
+            select ?gridType ?width ?height ?tileSizeX ?tileSizeY
+            where { ?grid a ?gridType; exif:height ?height; exif:width ?width; hal:tileSizeX ?tileSizeX; hal:tileSizeY ?tileSizeY }
+            limit 1
+            """
+        );
+        pss.setNsPrefix("hal", HAL.NS);
+        pss.setNsPrefix("exif", EXIF.NS);
+        ResultSet rsx = QueryExecutionFactory.create(pss.toString(), manifest).execSelect();
+        if (rsx.hasNext()) {
+            QuerySolution qss = rsx.next();
+            width = qss.get("width").asLiteral().getInt();
+            height = qss.get("height").asLiteral().getInt();
+            tileSizeX = qss.get("tileSizeX").asLiteral().getInt();
+            tileSizeY = qss.get("tileSizeY").asLiteral().getInt();
+            pss = new ParameterizedSparqlString(
+                """
+                select ?class where {
+                    ?fc hal:hasClassification ?class
+                }
+                """); 
+            pss.setNsPrefix("hal", HAL.NS);
+            ResultSet rs = QueryExecutionFactory.create(pss.toString(), manifest).execSelect();
+            while (rs.hasNext()) {
+                String clazz = rs.next().get("class").asResource().getURI();
+                if (!classes.containsKey(clazz)) {
+                    numclasses++;
+                    classes.put(clazz, numclasses);
+                }
+            }       
+            pss = new ParameterizedSparqlString(
+                """
+                select distinct ?gridType ?index ?width ?height where {
+                    ?grid a ?gridType; hal:scale ?scale .
+                    ?scale exif:width ?width; exif:height ?height; hal:scaleIndex ?index                
+                } order by ?index
+                """
+            );
+            pss.setNsPrefix("hal", HAL.NS);
+            pss.setNsPrefix("exif", EXIF.NS);
+            rs = QueryExecutionFactory.create(pss.toString(), manifest).execSelect();    
+            numscales = 0;
+            while (rs.hasNext()) {
+                QuerySolution qs = rs.next();
+                numscales++;
+                scales.add(new Scale(qs.getLiteral("index").getInt(), qs.getLiteral("width").getInt(), qs.getLiteral("height").getInt(),0,0));
+            }
         } else {
-            hspace.forEach((k,v)->{
-                ratios[k] = ((float) width)/((float) hspace.get(k).width);
-            });
+            System.out.println("bad file");
         }
+    }
+        
+    public List<Scale> getScales() {
+        return scales;
+    }
+    
+    public Model getManifest() {
+        return manifest;
     }
     
     public void close() {
-        System.out.println("closing FL...");
-        Graph g = m.getGraph();
-        System.out.println(g.getClass().toString());
-        if (g instanceof BeakGraph bg) {
-            System.out.println("closing underlying BeakGraph");
-            bg.close();
-        }
+        manifest.close();
     }
     
     public int getWidth() {
@@ -164,123 +194,124 @@ public class FL {
         return height;
     }
     
+    public int getTileSizeX() {
+        return tileSizeX;
+    }
+
+    public int getTileSizeY() {
+        return tileSizeY;
+    }
+    
     public int getBest(float r) {
-        int best = ratios.length-1;
-        float rr = 0.8f*ratios[best];
-        while ((r<rr)&&(best>0)) {
+        int best = scales.size()-1;
+        float rr = 0.8f*(((float) width ) / ((float) scales.get(best).width()));
+        while ((r<rr)&&(best>=0)) {
             best--;
-            rr = 0.8f*ratios[best];
+            rr =   0.8f*(((float) width ) / ((float) scales.get(best).width()));
         }
         return best;
     }
     
+    public List<String> Search( int x, int y, int w, int h, int scale ) {
+        List<String> list = new ArrayList<>();
+        int minx = (int) (x/512);
+        int miny = (int) (y/512);
+        int maxx = (int) Math.ceil(((float)(x+w))/512f);
+        int maxy = (int) Math.ceil(((float)(y+h))/512f);
+        for (int a=minx; a<maxx; a++) {
+            for (int b=miny; b<maxy; b++) {
+                list.add(HAL.Grid.getURI().toLowerCase()+"/"+scale+"/"+a+"/"+b);
+            }            
+        }
+        return list;
+    }
+    
     public BufferedImage FetchImage(int x, int y, int w, int h, int tx, int ty) {
-        //System.out.println("FetchImage : "+x+" "+y+" "+w+" "+h+" "+tx+" "+ty);
+       // System.out.println("FetchImage : "+x+" "+y+" "+w+" "+h+" "+tx+" "+ty);
         float iratio = ((float) w)/((float) tx);
-        int layer;
+        int scale;
         float rr = 1.0f;
-        if (hspace.size()==1) {
-            layer = hspace.keySet().iterator().next();
+        if (scales.size()==1) {
+            scale = scales.get(0).scale();
         } else {
-            layer = getBest(iratio);
-            rr = ratios[layer];
+            scale = getBest(iratio);
+            rr = ((float) width)/((float) scales.get(scale).width());
         }
         int gx=(int) Math.round(x/rr);
         int gy=(int) Math.round(y/rr);
         int gw=(int) Math.round(w/rr);
         int gh=(int) Math.round(h/rr);
-        IteratorChain rs = Search(gx, gy, gw, gh, layer);
-        BufferedImage bi = generateImage(gx,gy,gw,gh,layer,rs);
-        BufferedImage bix = AWTImageTools.scale(bi, (int) Math.round(w/iratio), (int) Math.round(h/iratio), false);
+        //System.out.println("scale --> "+scale+"  "+scales.get(scale));
+        List<String> list = Search(gx, gy, gw, gh, scale);
+        BufferedImage bi = generateImage(gx,gy,gw,gh,scale,list);
+        BufferedImage bix = ImageTools.scale(bi, (int) Math.round(w/iratio), (int) Math.round(h/iratio), false);
         return bix;
     }
     
-    public IteratorChain<QuerySolution> Search(int x, int y, int w, int h, int scale) {
-        hsPolygon p = hspace.get(scale).Box(x, y, w, h);
-        //System.out.println("Search ( "+x+", "+y+" by "+w+"x"+h+" scale -> "+scale+" ) ---> "+p.getRanges().size());
-        ParameterizedSparqlString pss = new ParameterizedSparqlString(
-            """
-            select distinct ?polygon ?low ?high ?class ?certainty where {
-                {
-                    select ?polygon ?low ?high ?class ?certainty where {
-                        ?range ?plow ?low .
-                        ?range ?phigh ?high .
-                        ?polygon ?p ?range .
-                        ?annotation oa:hasSelector ?polygon .
-                        ?annotation oa:hasBody ?body .
-                        ?body hal:assertedClass ?class .
-                        ?body hal:hasCertainty ?certainty .
-                        filter(?low>=?rlow)
-                        filter(?low<=?rhigh)
-                    }
-                } union {
-                    select ?polygon ?low ?high ?class ?certainty where {
-                        ?range ?plow ?low .
-                        ?range ?phigh ?high .
-                        ?polygon ?p ?range .
-                        ?annotation oa:hasSelector ?polygon .
-                        ?annotation oa:hasBody ?body .
-                        ?body hal:assertedClass ?class .
-                        ?body hal:hasCertainty ?certainty .
-                        filter(?high>=?rlow)
-                        filter(?high<=?rhigh)
-                    }
-                }
+    public BufferedImage readTile(ImageRegion r, int series) {
+        List<String> list = Search(r.getX(), r.getY(), r.getWidth(), r.getHeight(), series);
+        BufferedImage bi = generateImage(r.getX(), r.getY(), r.getWidth(), r.getHeight(), series, list);
+        return bi;
+    }
+    
+    public Model readTileMeta(ImageRegion r, int series) {
+        List<String> list = Search(r.getX(), r.getY(), r.getWidth(), r.getHeight(), series);
+        return generateImageMeta(r.getX(), r.getY(), r.getWidth(), r.getHeight(), series, list);
+    }
+    
+    public Model generateImageMeta(int x, int y, int w, int h, int scale, List<String> list) {
+        Model m = ModelFactory.createDefaultModel();
+        list.parallelStream().forEach(r->{
+            Model mx = ModelFactory.createDefaultModel();
+            mx.setNsPrefix("geo", GEO.NS);
+            mx.setNsPrefix("hal", HAL.NS);
+            BeakGraph bg = BeakGraphPool.getPool().borrowObject(uri);
+            Dataset ds = DatasetFactory.wrap(new BGDatasetGraph(bg));           
+            if (ds.containsNamedModel(r)) {
+                mx.add(ds.getNamedModel(r));
             }
-            """);
-        pss.setNsPrefix("so", SchemaDO.NS);
-        pss.setIri("p", HAL.hasRange.toString()+"/"+scale);
-        pss.setIri("plow", HAL.low.toString()+"/"+scale);
-        pss.setIri("phigh", HAL.high.toString()+"/"+scale);
-        pss.setNsPrefix("oa", OA.NS);
-        pss.setNsPrefix("hal", HAL.NS);
-        IteratorChain<QuerySolution> ic = new IteratorChain<>();
-        p.getRanges().forEach(r->{
-            pss.setLiteral("rlow", r.low());
-            pss.setLiteral("rhigh", r.high());
-            ResultSet rs = QueryExecutionFactory.create(pss.toString(), m).execSelect();
-            ic.addIterator(rs);
+            BeakGraphPool.getPool().returnObject(uri, bg);
         });
-        return ic;
+        return m;
     }
     
-    public BufferedImage getImage(int x, int y, int w, int h, int scale) {
-        IteratorChain rs = Search(x, y, w, h, scale);
-        return generateImage(x, y, w, h, scale, rs);
-    }
-    
-    public BufferedImage generateImage(int x, int y, int w, int h, int scale, IteratorChain<QuerySolution> rs) {
-       // System.out.println("generateImage "+x+", "+y+" "+w+", "+h+"  "+scale);
-        //StopWatch sw = new StopWatch();
-        HilbertSpace hs = hspace.get(scale);
+    public BufferedImage generateImage(int x, int y, int w, int h, int scale, List<String> list) {
         BufferedImage bi = new BufferedImage(w,h,BufferedImage.TYPE_INT_ARGB);
-        Graphics2D g2 = bi.createGraphics();
-        g2.setColor(new Color(128,0,128,128));
-        g2.fillRect(0, 0, w, h);
-        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
-            rs.forEachRemaining(qs->{
-                long low = qs.get("low").asLiteral().getLong();
-                long high = qs.get("high").asLiteral().getLong();
-                //System.out.println(low+"->"+high);
-                executor.submit(() -> {
-                    float pc = qs.get("certainty").asLiteral().getFloat();
-                    int classid = classes.get(qs.get("class").asResource().getURI());
-                    int prob = (int) (pc*255f+0.5);
-                    int color = (0xFF000000)+(classid<<16)+(prob<<8);
-                    LongStream.rangeClosed(low, high).forEach(k->{
-                        long[] point = hs.hc.point(k);
-                        int a = (int)(point[0] - x);
-                        int b = (int)(point[1] - y);
-                        try {
-                            bi.setRGB(a, b, color);
-                        } catch (java.lang.ArrayIndexOutOfBoundsException ex) {
-                            //System.out.println("Out of Bounds "+w+","+h+"   "+b+","+a);
-                        }
-                    });
+        Graphics2D g2d = bi.createGraphics();
+        g2d.setColor(new Color(255,255,255,0));
+        g2d.fillRect(0, 0, w, h);
+        BeakGraph bg = BeakGraphPool.getPool().borrowObject(uri);
+        Dataset ds = DatasetFactory.wrap(new BGDatasetGraph(bg));
+        list.forEach(r->{
+            if (ds.containsNamedModel(r)) {
+                ParameterizedSparqlString pss = new ParameterizedSparqlString(
+                    """
+                    select ?type ?probability ?wkt where {
+                        graph ?g { ?feature geo:hasGeometry/geo:asWKT ?wkt }
+                        ?feature hal:classification ?class .
+                        ?class a ?type; hal:hasProbability ?probability
+                    }
+                    """
+                );
+                pss.setNsPrefix("hal", HAL.NS);
+                pss.setNsPrefix("geo", GEO.NS);
+                pss.setIri("g", r);
+                ResultSet rs = QueryExecutionFactory.create(pss.toString(), ds).execSelect();
+                rs.forEachRemaining(qs->{
+                    Polygon jtsPolygon = Tools.WKT2Polygon(qs.get("wkt").asLiteral().getString());
+                    java.awt.Polygon awtPolygon = Tools.JTS2AWT(jtsPolygon, x, y);
+                    float pc = qs.get("probability").asLiteral().getFloat();
+                    int classid = classes.get(qs.get("type").asResource().getURI());
+                    int prob = Math.round(pc*255);
+                  //  int color = (0xFF000000)+(classid<<16)+(prob<<8);
+                    g2d.setColor(new Color(classid,prob,0,255));
+                    //g2d.setColor(new Color(color));
+                    g2d.draw(awtPolygon);
+                    g2d.fill(awtPolygon);
                 });
-            });
-        }
-       // sw.getLapseTime("genImage");
+            }            
+        });
+        BeakGraphPool.getPool().returnObject(uri, bg);
         return bi;
     }
     
@@ -305,7 +336,7 @@ public class FL {
     public String GetImageInfo(String xurl) {
         try {
             //System.out.println("GetImageInfo : "+xurl);
-            String modbase = xurl;// + "/";
+            String modbase = xurl;
             Model mm = ModelFactory.createDefaultModel();
             mm.setNsPrefix("so", SchemaDO.NS);
             mm.setNsPrefix("hal", HAL.NS);
@@ -319,12 +350,12 @@ public class FL {
             mm.add(s, IIIF.tiles, tiles);
             mm.addLiteral(tiles,IIIF.width,512);
             mm.addLiteral(tiles,IIIF.height,512);
-            hspace.forEach((k,v)->{
+            scales.forEach(scale->{
                 Resource size = mm.createResource();
-                mm.addLiteral(size,IIIF.width,hspace.get(k).width);
-                mm.addLiteral(size,IIIF.height,hspace.get(k).height);
+                mm.addLiteral(size,IIIF.width,scale.width());
+                mm.addLiteral(size,IIIF.height,scale.height());
                 mm.add(s,IIIF.sizes,size);
-                mm.addLiteral(tiles, IIIF.scaleFactors,((int)(width/hspace.get(k).width)));            
+                mm.addLiteral(tiles, IIIF.scaleFactors,((int)(width/scale.width())));            
             });
             mm.add(s, IIIF.preferredFormats, "png");
             mm.add(s, RDF.type, HAL.HalcyonROCrate);
@@ -333,10 +364,9 @@ public class FL {
             Model whoa = ModelFactory.createDefaultModel();
             whoa.add(mm);
             mm.add(whoa);
-            //mm.add(manifest);
-            Dataset ds = DatasetFactory.createGeneral();
-            ds.getDefaultModel().add(mm);
-            RdfDataset rds = JenaTitanium.convert(ds.asDatasetGraph());
+            Dataset dsx = DatasetFactory.createGeneral();
+            dsx.getDefaultModel().add(mm);
+            RdfDataset rds = JenaTitanium.convert(dsx.asDatasetGraph());
             RdfToJsonld rtj = RdfToJsonld.with(rds);
             JsonArray ja = rtj.useNativeTypes(true).build();
             JsonWriterFactory writerFactory = Json.createWriterFactory(Collections.singletonMap(JsonGenerator.PRETTY_PRINTING, true));
@@ -361,7 +391,7 @@ public class FL {
                     "exif": "http://www.w3.org/2003/12/exif/ns#",
                     "dcterms": "http://purl.org/dc/terms/",
                     "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
-                    "rdfs": "http://www.w3.org/2000/01/rdf-schema#label",
+                    "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
                     "contentSize": "so:contentSize",
                     "description": "so:description",
                     "encodingFormat": "so:encodingFormat",
@@ -410,7 +440,8 @@ public class FL {
                     "resolutionUnit": "exif:resolutionUnit",
                     "protocol": "dcterms:conformsTo",
                     "value": "rdf:value",
-                    "label": "rdfs:label"
+                    "label": "rdfs:label",
+                    "name": "so:name"
                 }],
                 "@explicit": true,
                 "@requireAll": false,
@@ -426,7 +457,8 @@ public class FL {
                     "width": {},
                     "scaleFactor": {}
                 },
-                "hasCreateAction": {"@embed": "@always", "@type": "CreateAction"}
+                "hasCreateAction": {"@embed": "@always", "@type": "CreateAction"},
+                "name": {}
             }
             """).getBytes()))) //
                         .mode(JsonLdVersion.V1_1)
@@ -441,17 +473,27 @@ public class FL {
         }
         return "{}";
     }
-    
-    public static void ScanAll(Model m) {
-        ParameterizedSparqlString pss = new ParameterizedSparqlString(
-            """
-            PREFIX oa: <http://www.w3.org/ns/oa#>
-                        PREFIX hal: <https://www.ebremer.com/halcyon/ns/>
-                        PREFIX so: <https://schema.org/>
-                select * where {?s oa:hasSelector ?o}
-            """);
-        QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m);
-        ResultSet rs = qe.execSelect();
-        ResultSetFormatter.out(System.out,rs);
-    }
+
+    /*
+    public static void main(String[] args) throws IOException {
+        LoggerContext loggerContext = (LoggerContext) LoggerFactory.getILoggerFactory();
+        for (ch.qos.logback.classic.Logger logger : loggerContext.getLoggerList()) {
+            System.out.println("Logger: " + logger.getName());
+        }
+        ch.qos.logback.classic.Logger logger = (ch.qos.logback.classic.Logger) LoggerFactory.getLogger("ROOT");        
+        logger.setLevel(ch.qos.logback.classic.Level.OFF);        
+        StopWatch sw = StopWatch.getInstance();
+        File f = new File("/AAA/wow-X7.zip");
+        com.ebremer.beakgraph.ng.BeakGraph g = new com.ebremer.beakgraph.ng.BeakGraph(f.toURI());
+        BGDatasetGraph bg = new BGDatasetGraph(g);      
+        FL fl = new FL(DatasetFactory.wrap(bg));
+        BufferedImage bi = fl.FetchImage(0,0, 112231, 82984, 2000, 2000);
+        try {
+            File outputFile = new File("/AAA/output.png");
+            ImageIO.write(bi, "PNG", outputFile);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        sw.Lapse("DONE");
+    }*/
 }

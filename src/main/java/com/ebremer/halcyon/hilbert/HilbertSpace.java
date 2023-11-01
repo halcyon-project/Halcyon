@@ -1,10 +1,10 @@
 package com.ebremer.halcyon.hilbert;
 
-import com.ebremer.halcyon.Node;
+import com.ebremer.halcyon.lib.Node;
 import com.ebremer.halcyon.geometry.Point;
 import com.ebremer.halcyon.geometry.Box;
 import com.ebremer.halcyon.geometry.Vector2D;
-import com.ebremer.halcyon.hsPolygon;
+import com.ebremer.halcyon.lib.hsPolygon;
 import jakarta.json.Json;
 import jakarta.json.JsonArrayBuilder;
 import jakarta.json.JsonObjectBuilder;
@@ -14,14 +14,19 @@ import java.awt.Polygon;
 import java.awt.geom.Area;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.List;
 import org.davidmoten.hilbert.HilbertCurve;
 import org.davidmoten.hilbert.Range;
 import org.davidmoten.hilbert.Ranges;
 import org.davidmoten.hilbert.SmallHilbertCurve;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Envelope;
+import org.locationtech.jts.geom.GeometryFactory;
 
 /**
  *
@@ -29,9 +34,6 @@ import org.davidmoten.hilbert.SmallHilbertCurve;
  */
 public final class HilbertSpace {
     public SmallHilbertCurve hc;
-    public int height;
-    public int width;
-    public int bits;
     public static final byte N = 0;
     public static final byte NE = 1;
     public static final byte E = 2;
@@ -41,11 +43,8 @@ public final class HilbertSpace {
     public static final byte W = 6;
     public static final byte NW = 7;
     
-    public HilbertSpace(int width, int height) {
-        this.height = height;
-        this.width = width;
-        this.bits = (int) Math.ceil(Math.log( Math.max(width, height))/Math.log(2));
-        this.hc = HilbertCurve.small().bits(this.bits).dimensions(2);
+    public HilbertSpace() {
+        this.hc = HilbertCurve.small().bits(31).dimensions(2);
     }
     
     public boolean inRange(LinkedList<Range> rr, Point p, Byte neighbor) {
@@ -177,10 +176,6 @@ public final class HilbertSpace {
             case NW: return new Point(p.x-1,p.y-1);
         }
         return null;
-    }
-    
-    public int getNumBits() {
-        return this.bits;
     }
     
     public Point GetXY(long p) {
@@ -664,10 +659,89 @@ public final class HilbertSpace {
         rah.add(new Range(sv,ev));
         return rah;
     }
+
+    public final LinkedList<Range> Polygon2Hilbert(org.locationtech.jts.geom.Polygon p) {
+        LinkedList<Range> rah = new LinkedList();
+        GeometryFactory geometryFactory = new GeometryFactory();
+        Envelope r = p.getEnvelopeInternal();
+        int minx = (int) r.getMinX();
+        int maxx = (int) r.getMaxX();
+        int miny = (int) r.getMinY();
+        int maxy = (int) r.getMaxY();
+        LinkedList pp = new LinkedList();       
+        for (int x=minx;x<maxx; x++) {
+            for (int y=miny;y<maxy;y++) {
+               if (p.contains(geometryFactory.createPoint(new Coordinate((double) x, (double) y)))) {
+                   pp.add(hc.index(x,y));
+               }
+            }   
+        }
+        pp.sort(null);
+        Collections.sort(pp);
+        int i = 1;
+        long sv = 0;
+        long ev = 0;
+        if (!pp.isEmpty()) {
+            sv = (long) pp.get(0);
+            ev = (long) pp.get(0);
+        }
+        while (i<pp.size()) {
+            long nv = (long) pp.get(i);
+            if ((nv-ev)==1) {
+                ev = nv;
+            } else {
+                rah.add(new Range(sv,ev));
+                sv = nv;
+                ev = nv;
+            }
+            i++;
+        }
+        rah.add(new Range(sv,ev));
+        return rah;
+    }
+    
+    public final List<Range> Polygon2HilbertV2(org.locationtech.jts.geom.Polygon p) {
+        GeometryFactory geometryFactory = new GeometryFactory();
+        Envelope r = p.getEnvelopeInternal();
+        int minx = (int) r.getMinX();
+        int maxx = (int) r.getMaxX();
+        int miny = (int) r.getMinY();
+        int maxy = (int) r.getMaxY();
+        ArrayList<Long> pp = new ArrayList<>((maxx-minx)*(maxy-miny));       
+        for (int x=minx;x<maxx; x++) {
+            for (int y=miny;y<maxy;y++) {
+               if (p.contains(geometryFactory.createPoint(new Coordinate((double) x, (double) y)))) {
+                   pp.add(hc.index(x,y));
+               }
+            }   
+        }
+        pp.sort(null);
+        Collections.sort(pp);
+        int i = 1;
+        long sv = 0;
+        long ev = 0;
+        if (!pp.isEmpty()) {
+            sv = (long) pp.get(0);
+            ev = (long) pp.get(0);
+        }
+        ArrayList<Range> rah = new ArrayList<>(pp.size());
+        while (i<pp.size()) {
+            long nv = (long) pp.get(i);
+            if ((nv-ev)==1) {
+                ev = nv;
+            } else {
+                rah.add(new Range(sv,ev));
+                sv = nv;
+                ev = nv;
+            }
+            i++;
+        }
+        rah.add(new Range(sv,ev));
+        return rah;
+    }
     
     public static void Hexes(long si[]) {
         for (int i=0; i<si.length; i++) {
-            //System.out.println(Long.toBinaryString(si[i]));
             System.out.println(si[i]+" "+SpaceIT(Long.toBinaryString(si[i])));
         }
     }

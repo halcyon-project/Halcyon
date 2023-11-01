@@ -1,6 +1,6 @@
 package com.ebremer.halcyon.server.keycloak;
 
-import com.ebremer.halcyon.HalcyonSettings;
+import com.ebremer.halcyon.lib.HalcyonSettings;
 import org.keycloak.models.AdminRoles;
 import org.keycloak.models.GroupModel;
 import org.keycloak.models.KeycloakSession;

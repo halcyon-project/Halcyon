@@ -95,7 +95,7 @@ class ImageViewer {
     }
 
     function _useParams(params) {
-      console.log("params", typeof params, params);
+      // console.log("params", typeof params, params);
       const zoom = viewer.viewport.getZoom();
       const pan = viewer.viewport.getCenter();
 

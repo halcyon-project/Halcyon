@@ -1,6 +1,6 @@
 package com.ebremer.halcyon.gui;
 
-import com.ebremer.halcyon.HalcyonSettings;
+import com.ebremer.halcyon.lib.HalcyonSettings;
 import org.apache.wicket.markup.html.link.StatelessLink;
 import org.apache.wicket.request.cycle.RequestCycle;
 import org.apache.wicket.request.http.handler.RedirectRequestHandler;
