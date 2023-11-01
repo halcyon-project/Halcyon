@@ -3,6 +3,7 @@ package com.ebremer.halcyon.imagebox;
 import com.ebremer.halcyon.lib.HalcyonSettings;
 import com.ebremer.halcyon.imagebox.Enums.ImageFormat;
 import com.ebremer.halcyon.lib.ImageMeta;
+import com.ebremer.halcyon.lib.ImageReaderPool;
 import com.ebremer.halcyon.lib.ImageRegion;
 import com.ebremer.halcyon.lib.Rectangle;
 import com.ebremer.halcyon.lib.Tile;
@@ -21,6 +22,7 @@ import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import org.apache.jena.riot.RDFFormat;
 
 /**
  *
@@ -74,32 +76,46 @@ public class ImageServer extends HttpServlet {
                     BufferedImage bi = new BufferedImage(tr.getPreferredSize().width(),tr.getPreferredSize().height(),BufferedImage.TYPE_INT_ARGB);
                     tile = new Tile(tr,bi);
                 }
-                if (i.imageformat == ImageFormat.JPG) {
-                    byte[] imageInByte = tile.getJPG();
-                    try (ServletOutputStream sos = response.getOutputStream()) {
-                        response.setContentType("image/jpg");
-                        response.setContentLength(imageInByte.length);
+                if (null != i.imageformat) switch (i.imageformat) {
+                    case JPG:{
+                        byte[] imageInByte = tile.getJPG();
+                        try (ServletOutputStream sos = response.getOutputStream()) {
+                            response.setContentType("image/jpg");
+                            response.setContentLength(imageInByte.length);
+                            response.setHeader("Access-Control-Allow-Origin", "*");
+                            sos.write(imageInByte);
+                        } catch (IOException ex) {
+                            ReportError(response, "error writing image");
+                        }       break;
+                        }
+                    case PNG:{
+                        byte[] imageInByte = tile.getPNG();
+                        try (ServletOutputStream sos = response.getOutputStream()) {
+                            response.setContentType("image/png");
+                            response.setContentLength(imageInByte.length);
+                            response.setHeader("Access-Control-Allow-Origin", "*");
+                            sos.write(imageInByte);
+                        } catch (IOException ex) {
+                            ReportError(response, "error writing image");
+                        }       break;
+                        }
+                    case TTL:
+                        response.setContentType("application/x-turtle");
                         response.setHeader("Access-Control-Allow-Origin", "*");
-                        sos.write(imageInByte);
-                    } catch (IOException ex) {
-                         ReportError(response, "error writing image");
-                    }
-                } else if (i.imageformat == ImageFormat.PNG) {
-                    byte[] imageInByte = tile.getPNG();
-                    try (ServletOutputStream sos = response.getOutputStream()) {
-                        response.setContentType("image/png");
-                        response.setContentLength(imageInByte.length);
-                        response.setHeader("Access-Control-Allow-Origin", "*");
-                        sos.write(imageInByte);
-                    } catch (IOException ex) {
-                        ReportError(response, "error writing image");
-                    }
+                        try (PrintWriter writer = response.getWriter()) {
+                            writer.append(tile.getMeta(RDFFormat.TURTLE));
+                            writer.flush();
+                        } catch (IOException ex) {
+                            ReportError(response, "issue writing image.ttl file");
+                        }   break;
+                    default:
+                        break;
                 }
             } else if (i.inforequest) {                
                 com.ebremer.halcyon.lib.ImageReader ir;
                 ImageMeta meta = null;
                 try {
-                    ir = com.ebremer.halcyon.lib.ImageReaderPool.getPool().borrowObject(i.uri);
+                    ir = ImageReaderPool.getPool().borrowObject(i.uri);
                     meta = ir.getImageMeta();
                 } catch (Exception ex) {
                     Logger.getLogger(ImageServer.class.getName()).log(Level.SEVERE, null, ex);

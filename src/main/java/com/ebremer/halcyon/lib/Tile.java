@@ -3,6 +3,7 @@ package com.ebremer.halcyon.lib;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.imageio.IIOImage;
@@ -11,16 +12,22 @@ import javax.imageio.ImageWriteParam;
 import javax.imageio.ImageWriter;
 import javax.imageio.plugins.jpeg.JPEGImageWriteParam;
 import javax.imageio.stream.ImageOutputStream;
+import org.apache.jena.rdf.model.Model;
+import org.apache.jena.rdf.model.ModelFactory;
+import org.apache.jena.riot.RDFDataMgr;
+import org.apache.jena.riot.RDFFormat;
 
 /**
  *
  * @author erich
  */
 public class Tile {
+    public static enum TileType {RDF, BUFFEREDIMAGE};   
     private final TileRequest tilerequest;
     private final BufferedImage bi;
     private byte[] jpg = null;
     private byte[] png = null;
+    private Model meta = null;
     
     public Tile(TileRequest tilerequest, BufferedImage bi) {
         this.tilerequest = tilerequest;
@@ -48,6 +55,18 @@ public class Tile {
             }
         }
         return jpg;
+    }
+    
+    public String getMeta(RDFFormat format) {
+        if (meta==null) {
+            meta = ModelFactory.createDefaultModel();
+        }
+        try (ByteArrayOutputStream bos = new ByteArrayOutputStream(2000)) {
+            RDFDataMgr.write(bos, meta, format);
+            return new String(bos.toByteArray(), StandardCharsets.UTF_8);
+        } catch (IOException ex) {
+            return "";
+        }
     }
     
     public byte[] getPNG() {

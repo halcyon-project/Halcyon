@@ -6,7 +6,6 @@ import com.ebremer.halcyon.lib.INIT;
 import com.ebremer.halcyon.fuseki.HalcyonProxyServlet;
 import com.ebremer.halcyon.datum.SessionsManager;
 import com.ebremer.halcyon.gui.HalcyonApplication;
-import com.ebremer.halcyon.imagebox.FeatureServer;
 import com.ebremer.halcyon.imagebox.ImageServer;
 import com.ebremer.halcyon.server.keycloak.ServerProperties;
 import io.undertow.UndertowOptions;
@@ -103,15 +102,6 @@ public class Main {
         srb.setOrder(Ordered.HIGHEST_PRECEDENCE+2);
         srb.setServlet(new ImageServer());
         srb.setUrlMappings(Arrays.asList("/iiif/*"));
-        return srb;
-    }
-    
-    @Bean
-    ServletRegistrationBean FeatureServerRegistration () {
-        ServletRegistrationBean srb = new ServletRegistrationBean();
-        srb.setOrder(Ordered.HIGHEST_PRECEDENCE+3);
-        srb.setServlet(new FeatureServer());
-        srb.setUrlMappings(Arrays.asList("/halcyon/*"));
         return srb;
     }
     

@@ -24,7 +24,7 @@ public class BeakGraphReaderFactory implements FileReaderFactory {
     @Override
     public Set<String> getSupportedFormats() {
         Set<String> set = new HashSet<>();
-        set.add("zip");
+        set.add("zipx");
         return set;
     }
 }

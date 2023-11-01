@@ -19,11 +19,10 @@ import org.apache.jena.update.UpdateRequest;
  *
  * @author erich
  */
-public class BeakGraphFileReader implements ROCrateFileReader {
-    private final URI uri;
+public class BeakGraphFileReader extends AbstractFileReader {
     
     public BeakGraphFileReader(URI uri) {
-        this.uri = uri;
+        super(uri);
     }
 
     @Override

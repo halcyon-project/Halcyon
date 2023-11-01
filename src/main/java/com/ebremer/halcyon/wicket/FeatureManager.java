@@ -40,6 +40,7 @@ import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.riot.system.JenaTitanium;
+import org.apache.jena.vocabulary.DCTerms;
 import org.apache.jena.vocabulary.OWL;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.RDFS;
@@ -64,14 +65,18 @@ public class FeatureManager {
         ParameterizedSparqlString pss = new ParameterizedSparqlString("""
             select distinct ?roc
             where {
-                values (?ca) {?selected}
-                graph ?roc {?ca so:object ?md5}
+                values (?creator) {?selected}
+                graph ?roc {
+                    ?fc dct:source ?md5;
+                        dct:creator ?creator
+                }
                 graph ?image {?image owl:sameAs ?md5}
             }
             """);
         pss.setNsPrefix("so", SchemaDO.NS);
         pss.setNsPrefix("owl", OWL.NS);
         pss.setNsPrefix("hal", HAL.NS);
+        pss.setNsPrefix("dct", DCTerms.NS);
         pss.setNsPrefix("rdfs", RDFS.getURI());
         pss.setNsPrefix("rdf", RDF.uri);
         pss.setIri("image", urn);
@@ -84,13 +89,13 @@ public class FeatureManager {
             QuerySolution qs = results.next();
             roc.add(qs.get("roc"));
         }
+        
         pss = new ParameterizedSparqlString("""
-            select distinct ?roc ?type ?label ?value
+            select distinct ?roc ?type
             where {
                 values (?roc) {?selected}
-                graph ?roc {?roc hal:hasFeature ?feature .
-                ?feature a ?type; rdfs:label ?label; rdf:value ?value
-            }}
+                graph ?roc {?rocx hal:hasClassification ?type }
+            }
             """);        
         pss.setNsPrefix("so", SchemaDO.NS);
         pss.setNsPrefix("owl", OWL.NS);
@@ -101,40 +106,23 @@ public class FeatureManager {
         ds.begin(ReadWrite.READ);
         ResultSet rs = QueryExecutionFactory.create(pss.toString(), ds).execSelect().materialise();
         ds.end();
-        HashMap<Resource,String> types = new HashMap<>();
+        record ColorCode(String color, int code) {}
+        HashMap<Resource,ColorCode> types = new HashMap<>();
         HalColors cs = new HalColors();
         UserColorsAndClasses ucac = new UserColorsAndClasses();
+        HashSet<Resource> rocs = new HashSet<>();
         while (rs.hasNext()) {
             QuerySolution qs = rs.next();
             Resource key = qs.get("type").asResource();
+            rocs.add(qs.get("roc").asResource());
             String color = ucac.getColor(key);
             if (color!=null) {
-                types.put(key,ColorTools.Hex2RGBA(color));
+                types.put(key,new ColorCode(ColorTools.Hex2RGBA(color),types.size()+1));
             } else if (!types.containsKey(key)) {
-                types.put(key,cs.removeFirst());
+                types.put(key,new ColorCode(cs.removeFirst(),types.size()+1));
             }
         }
-        types.forEach((k,v)->{
-            System.out.println(k+" --xx--> "+v);
-        });
-        pss = new ParameterizedSparqlString("""
-            select distinct ?roc ?type ?label ?value
-            where {
-                values (?roc) {?selected}
-                graph ?roc {?roc hal:hasFeature ?feature .
-                ?feature a ?type; rdfs:label ?label; rdf:value ?value
-            }} order by ?roc
-            """);        
-        pss.setNsPrefix("so", SchemaDO.NS);
-        pss.setNsPrefix("owl", OWL.NS);
-        pss.setNsPrefix("hal", HAL.NS);
-        pss.setNsPrefix("rdfs", RDFS.getURI());
-        pss.setNsPrefix("rdf", RDF.uri);        
-        pss.setValues("selected", roc);
-        ds.begin(ReadWrite.READ);
-        rs = QueryExecutionFactory.create(pss.toString(), ds).execSelect().materialise();
-        ds.end();
-        String lroc = "";
+
         Model m = ModelFactory.createDefaultModel();
         int c = 0;
         Resource layer = m.createResource()
@@ -187,15 +175,19 @@ public class FeatureManager {
         Resource LayerSet = m.createResource().addProperty(RDF.type, HAL.LayerSet);
         LayerSet.addProperty(HAL.haslayer, layer);
         Resource COLORSCHEME = m.createResource();
-        while (rs.hasNext()) {
-            QuerySolution qs = rs.next();
-            if ((layer==null)||(!lroc.equals(qs.get("roc").asResource().getURI()))) {
-                c++;
-                lroc = qs.get("roc").asResource().getURI();
+        Iterator<Resource> rocx = rocs.iterator();        
+        while (rocx.hasNext()) {
+            c++;
+            Resource rockey = rocx.next();
+            Iterator<Resource> typex = types.keySet().iterator();
+        while (typex.hasNext()) {
+            Resource typekey = typex.next();                          
                 layer = m.createResource()
                     .addProperty(RDF.type, HAL.FeatureLayer)
                     .addLiteral(HAL.layerNum, c)
-                    .addProperty(HAL.location, host+"/halcyon/?iiif="+qs.get("roc").asResource().getURI()+"/info.json")
+                    .addProperty(HAL.location, host+"/iiif/?iiif="+host+PathFinder.Path2URL(rockey.getURI())+"/info.json")
+                    //.addProperty(HAL.location, host+"/halcyon/?iiif="+rockey.getURI()+"/info.json")
+                    .addLiteral(SchemaDO.name, "Name Unknown")
                     .addLiteral(HAL.opacity, 0.5);
                 COLORSCHEME
                         .addProperty(SchemaDO.name, "Default Color Scheme")
@@ -232,12 +224,13 @@ public class FeatureManager {
                         );
                 layer.addProperty(HAL.colorscheme,COLORSCHEME);
                 LayerSet.addProperty(HAL.haslayer, layer);
-            }
+            
             COLORSCHEME.addProperty(HAL.colors, m.createResource()
-                    .addLiteral(SchemaDO.name, qs.get("label").asLiteral().getString())
-                    .addLiteral(HAL.classid, qs.get("value").asLiteral().getInt())
-                    .addLiteral(HAL.color, types.get(qs.get("type").asResource()))
+                    .addLiteral(SchemaDO.name, "IDK!")
+                    .addLiteral(HAL.classid, types.get(typekey).code())
+                    .addLiteral(HAL.color, types.get(typekey).color())
             );
+        }
         }
         Dataset dss = DatasetFactory.createGeneral();
         dss.getDefaultModel().add(m);

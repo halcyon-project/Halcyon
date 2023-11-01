@@ -1,7 +1,6 @@
 package com.ebremer.halcyon.lib;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 
@@ -105,6 +104,7 @@ public class ImageMeta {
         private int tileSizeY;
         private final boolean useWidth;
         private final float aspectratio;
+        private boolean filter = true;
 
         private Builder(int series, int width, int height) {
             this.series = series;
@@ -118,6 +118,11 @@ public class ImageMeta {
         
         public Builder setSeries(int series) {
             this.series = series;
+            return this;
+        }
+        
+        public Builder filter(boolean filter) {
+            this.filter = filter;
             return this;
         }
         
@@ -136,8 +141,8 @@ public class ImageMeta {
             float ratio = ((float)width)/((float)height);
             float d = Math.abs(ratio-aspectratio);
             d = d/aspectratio;
-            if (d<0.00153) {
-                //System.out.println("Adding Scale "+series+"  "+d+"  "+ratio+"  "+scales.size()+" "+width+" x "+height);
+            if (!filter||(d<0.00153)) {
+               // System.out.println("Adding Scale "+series+"  "+d+"  "+ratio+"  "+scales.size()+" "+width+" x "+height);
                 scales.add(new ImageScale(series,scale,width,height,ratio));
             } else {
                 //System.out.println("Aspect Ratio different "+series+"  "+d+"  "+ratio+"  "+scales.size()+" "+width+" x "+height);
@@ -153,20 +158,6 @@ public class ImageMeta {
             //Collections.sort(scales, (ImageScale s1, ImageScale s2) -> Integer.compare(s1.width(), s2.width()));
             return new ImageMeta(this);
         }
-    }
-    
-    public static void main(String[] args) {
-        ImageMeta im = ImageMeta.Builder.getBuilder(0,1024,512)
-                .setSeries(0)
-                .setTileSizeX(240)
-                .setTileSizeY(241)
-                .addScale(4, 64, 32)
-                .addScale(5, 32, 16)
-                .addScale(2, 256, 128)
-                .addScale(1, 512, 256)
-                .addScale(3, 128, 64)
-                .build();
-        System.out.println(im);
     }
 }
 

@@ -20,7 +20,6 @@ public class ImageReaderPoolFactory extends BaseKeyedPooledObjectFactory<URI, Im
     
     @Override
     public ImageReader create(URI uri) throws Exception {
-        //System.out.println("Creating reader");
         String f = uri.toString();
         String getthis;
         HalcyonSettings settings = HalcyonSettings.getSettings();
@@ -62,7 +61,7 @@ public class ImageReaderPoolFactory extends BaseKeyedPooledObjectFactory<URI, Im
     
    @Override
     public void destroyObject(URI key, PooledObject p, DestroyMode mode) throws Exception {
-        System.out.println("Destroying Image Reader ---> "+key);
+        //System.out.println("Destroying Image Reader ---> "+key);
         ImageReader nt = (ImageReader) p.getObject();
         nt.close();
         super.destroyObject(key, p, mode);

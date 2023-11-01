@@ -1,5 +1,6 @@
 package com.ebremer.halcyon.converters;
 
+import com.ebremer.halcyon.converters.hold.NeoSegmentations;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.ParameterException;
 import com.ebremer.halcyon.lib.ExtendedPolygon;

@@ -1,5 +1,7 @@
 package com.ebremer.halcyon.beakstuff;
 
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.apache.commons.pool2.BaseKeyedPooledObjectFactory;
 import org.apache.commons.pool2.impl.GenericKeyedObjectPool;
 
@@ -16,11 +18,15 @@ public class BeakGraphKeyedPool<URI, BeakGraph> extends GenericKeyedObjectPool<U
     }
     
     @Override
-    public BeakGraph borrowObject(final URI key) throws Exception {
-        System.out.println("borrowObject : "+key.toString());
-        BeakGraph f = (BeakGraph) super.borrowObject(key);
-        System.out.println(f==null);
-        return f;
+    public BeakGraph borrowObject(final URI key) {
+        BeakGraph f;
+        try {
+            f = (BeakGraph) super.borrowObject(key);
+            return f;
+        } catch (Exception ex) {
+            Logger.getLogger(BeakGraphKeyedPool.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        return null;
     }
     
     @Override
