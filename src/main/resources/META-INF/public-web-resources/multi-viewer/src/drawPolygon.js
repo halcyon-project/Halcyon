@@ -1,12 +1,12 @@
 /**
  * Allow user to draw a polygon on the image.
  *
- * @param {object} viewerInfo - Info specific to 'this' viewer
+ * @param {object} vInfo - Info specific to 'this' viewer
  * @param {object} viewer - OSD viewer object
  * @param {object} overlay - Canvas on which to draw the polygon
  */
-const drawPolygon = (viewerInfo, viewer, overlay) => {
-  let idx = viewerInfo.idx;
+const drawPolygon = (vInfo, viewer, overlay) => {
+  let idx = vInfo.idx;
   let btnDraw = document.getElementById(`btnDraw${idx}`);
   let mark = document.getElementById(`mark${idx}`);
   let canvas = overlay.fabricCanvas();

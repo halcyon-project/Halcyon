@@ -3,12 +3,12 @@
  * at that location on all viewers.
  *
  * @param {object} osdViewer - The OpenSeadragon viewer that has the focus
- * @param {object} multiViewerArray - Array of MultiViewers
+ * @param {object} imageViewerArray - Array of ImageViewers
  */
-const mapMarker = (osdViewer, multiViewerArray) => {
+const mapMarker = (osdViewer, imageViewerArray) => {
   overrideRightClickMenu(osdViewer.element);
 
-  handleMarkerDisplay(osdViewer, multiViewerArray);
+  handleMarkerDisplay(osdViewer, imageViewerArray);
 
   handleButtonShowHide();
 };
@@ -19,7 +19,7 @@ function overrideRightClickMenu(viewerDiv) {
   });
 }
 
-function handleMarkerDisplay(osdViewer, multiViewerArray) {
+function handleMarkerDisplay(osdViewer, imageViewerArray) {
   osdViewer.addHandler('canvas-nonprimary-press', osdEvent => {
     if (isRightClick(osdEvent)) {
       const clickPosition = osdEvent.position;
@@ -29,7 +29,7 @@ function handleMarkerDisplay(osdViewer, multiViewerArray) {
       buttons.forEach(item => {
         item.style.display = 'block';
       });
-      displayMapMarker(clickPositionViewport, osdViewer, multiViewerArray);
+      displayMapMarker(clickPositionViewport, osdViewer, imageViewerArray);
     }
   });
 }
@@ -38,8 +38,8 @@ function isRightClick(evt) {
   return evt.button === 2;
 }
 
-function displayMapMarker(point, osdViewer, multiViewerArray) {
-  multiViewerArray.forEach(item => {
+function displayMapMarker(point, osdViewer, imageViewerArray) {
+  imageViewerArray.forEach(item => {
     item.getViewer().addOverlay({
       element: createLink(),
       location: point,

@@ -16,18 +16,17 @@
  * @param {object} images - The images to be displayed in this viewer
  * @param {object} viewer - OpenSeadragon viewer
  */
-const layerUI = (layersColumn, images, viewer) => {
-  createLayerElements(layersColumn, images, viewer);
-  handleDrag(images, viewer);
+const layerUI = (layersColumn, images, viewer, vInfo) => {
+  createLayerElements(layersColumn, images, viewer, vInfo);
+  setupDragAndDrop(viewer);
 };
 
-function createLayerElements(layersColumn, layers, viewer) {
+function createLayerElements(layersColumn, layers, viewer, vInfo) {
   const myEyeArray = [];
 
-  const globalEyeball = globalEye(layersColumn)
+  const globalEyeball = globalEye(layersColumn);
 
   const divTable = e("div", {class: "divTable"});
-  // const scrollDiv = e("div", {class: "divTableBody scroll"});
   const scrollDiv = e("div", {class: "divTableBody"});
   layersColumn.appendChild(divTable);
   divTable.appendChild(scrollDiv);
@@ -38,60 +37,38 @@ function createLayerElements(layersColumn, layers, viewer) {
   divTableRow.appendChild(e("div", {class: "divTableCell"}, [globalEyeball]));
 
   layers.forEach(layer => {
-    addIconRow(myEyeArray, scrollDiv, layer, layers, viewer);
+    addIconRow(myEyeArray, scrollDiv, layer, layers, viewer, vInfo);
   });
 
   globalEyeEvent(globalEyeball, myEyeArray);
 
 }
 
-// VIEWER'S DRAGGABLE LAYERS
-function handleDrag(layers, viewer) {
-  // Wrap everything related to drag and drop inside an IIFE
-  (function (viewer) {
-    // These variables are now specific to this viewer
-    let sourceViewer;
-    let draggedFeature;
+function setupDragAndDrop(viewer) {
+  // For the draggable layers
 
-    // Div containing viewer (Remember this is executed for each viewer.)
-    const osdDiv = document.getElementById(viewer.id);
+  // Div containing viewer (Remember this is executed for each viewer.)
+  const currentViewerDiv = document.getElementById(viewer.id);
 
-    function handleDragStart(evt) {
-      evt.target.style.opacity = "0.4";
-      sourceViewer = viewer;
-      draggedFeature = this;
-      evt.dataTransfer.effectAllowed = "move";
-      evt.dataTransfer.setData("text/plain", evt.target.id);
-    }
+  function handleDrop(evt) {
+    // prevent default action (open as link for some elements)
+    evt.preventDefault();
+    evt.stopPropagation();
 
-    function handleDragEnd(evt) {
-      evt.target.style.opacity = "1"; // this = the draggable feature
-      osdDiv.classList.remove("drag-over");
-    }
+    evt.target.classList.remove('drag-over') // restore style
+    const targetElement = evt.target; // canvas
+    const targetDiv = targetElement.closest(".viewer"); // div container
 
-    function handleDrop(evt) {
-      // prevent default action (open as link for some elements)
-      evt.preventDefault();
-      evt.stopPropagation();
+    // Get neighboring elements
+    const columnWithViewer = targetDiv.parentElement;
 
-      evt.target.classList.remove('drag-over') // restore style
-      const targetElement = evt.target;
-      const viewerDiv = targetElement.closest(".viewer"); // where they dropped the feature
+    // Directly find the .divTableBody within the sibling column
+    const tableLayAndColor = columnWithViewer.nextSibling.querySelector('.divTableBody');
+    const movedFeatId = evt.dataTransfer.getData("text");
+    const movedFeature = document.getElementById(movedFeatId);
 
-      if (!viewerDiv) {
-        console.error("!viewerDiv");
-        return false;
-      }
-
-      // Get neighboring elements
-      const columnWithViewer = viewerDiv.parentElement;
-
-      // Directly find the .divTableBody within the sibling column
-      const tableLayAndColor = columnWithViewer.nextSibling.querySelector('.divTableBody');
-      const movedFeatId = evt.dataTransfer.getData("text");
-      const movedFeature = document.getElementById(movedFeatId);
+    if (isRealValue(movedFeature)) {
       const featureName = movedFeature.innerHTML;
-
       let layNum;
       let foundMatchingSlide = false;
 
@@ -128,7 +105,7 @@ function handleDrag(layers, viewer) {
         }
       }
 
-      const targetViewer = getOsdViewer(evt, viewerDiv);
+      const targetViewer = getOsdViewer(targetDiv.id);
 
       if (targetViewer !== null) {
         if (foundMatchingSlide) {
@@ -138,122 +115,144 @@ function handleDrag(layers, viewer) {
           console.warn("Did not find matching slide. Feature:", featureName);
         }
       }
-      return false;
     }
+  }
 
-    // Attach the event listeners
-    const features = document.querySelectorAll(".layer");
-    features.forEach(feature => {
-      feature.addEventListener("dragstart", handleDragStart);
-      feature.addEventListener("dragend", handleDragEnd);
-    });
+  // Add event listeners to current div
+  currentViewerDiv.addEventListener("dragover", evt => {
+    // prevent default to allow drop
+    evt.preventDefault();
+    return false;
+  });
 
-    osdDiv.addEventListener("dragover", evt => {
-      // prevent default to allow drop
-      evt.preventDefault();
-      return false;
-    });
+  currentViewerDiv.addEventListener("dragenter", function (evt) {
+    // highlight potential drop target when the draggable element enters it
+    evt.target.classList.add('drag-over');
+  });
 
-    osdDiv.addEventListener("dragenter", function (evt) {
-      // highlight potential drop target when the draggable element enters it
-      evt.target.classList.add('drag-over');
-    });
+  currentViewerDiv.addEventListener("dragleave", function (evt) {
+    // reset border of potential drop target when the draggable element leaves it
+    evt.target.classList.remove('drag-over');
+  });
 
-    osdDiv.addEventListener("dragleave", function (evt) {
-      // reset border of potential drop target when the draggable element leaves it
-      evt.target.classList.remove('drag-over');
-    });
-
-    osdDiv.addEventListener("drop", handleDrop);
-
-  })(viewer); // Pass the viewer into the IIFE
+  currentViewerDiv.addEventListener("drop", handleDrop);
 }
 
-function addIconRow(myEyeArray, divTable, currentLayer, allLayers, viewer) {
+async function fetchData(url) {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`HTTP error! Status: ${response.status}`);
+  }
+  return response.json();
+}
+
+function getFeatureName(layerNum, currentLayer, data) {
+  // Extract featureName and return
+  let sections = new URL(currentLayer.location).search.split("/");
+  const elementWithTCGA = sections.find(item => item.startsWith("TCGA"));
+
+  let featureName;
+  if (elementWithTCGA) {
+    const isFeature = currentLayer.location.includes("FeatureStorage");
+
+    if (isFeature) {
+      featureName = data.hasCreateAction.name
+        ? data.hasCreateAction.name
+        : `${sections[sections.indexOf("FeatureStorage") + 1]}-${sections[sections.indexOf("FeatureStorage") + 2]}`;
+      if (featureName === "TIL Pipeline") featureName = `${featureName} ${sections[6]}`; // gives more info
+    } else {
+      featureName = elementWithTCGA.split(".")[0];
+    }
+  } else {
+    featureName = currentLayer.location.split('/').pop();
+  }
+  return featureName;
+}
+
+function createDraggableBtn(layerNum, currentLayer, featureName) {
+  // Create and return the draggable button
+  const span = e("span", {class: "button-text"}, [featureName]);
+  const element = e("button", {
+    id: `${layerNum}${createId(5, "feat")}`,
+    class: "layer expandable-button",
+    draggable: "true"
+  });
+  element.append(span);
+  return element;
+}
+
+function handleDragStart(evt) {
+  evt.target.style.opacity = "0.4";
+  evt.dataTransfer.effectAllowed = "move";
+  evt.dataTransfer.setData("text/plain", evt.target.id);
+}
+
+function handleDragEnd(evt) {
+  evt.target.style.opacity = "1"; // this = the draggable feature
+}
+
+async function addIconRow(myEyeArray, divTable, currentLayer, allLayers, viewer, vInfo) {
+  // Set up row of icons for the layer
   const divTableRow = e("div", {class: "divTableRow"});
   divTable.appendChild(divTableRow);
 
   const layerNum = currentLayer.layerNum;
-  const featureName = getPreferredLabel(currentLayer);
+  let featureName;
 
-  // FEATURE
-  const feat = createDraggableBtn(layerNum, featureName);
-  divTableRow.appendChild(e("div", {class: "divTableCell", style: "padding: 3px"}, [feat]));
-
-  // VISIBILITY TOGGLE
-  const faEye = layerEye(currentLayer);
-  if (layerNum > 0) {
-    myEyeArray.push(faEye);
-  }
-
-  divTableRow.appendChild(e("div", {class: "divTableCell"}, [faEye]));
-
-  // TRANSPARENCY SLIDER
-  const [icon, slider] = transparencySlider(currentLayer, faEye, viewer);
-
-  // .myDIV
-  const div = e("div", {class: "myDIV", title: "transparency slider"}, [icon]);
-
-  // .hide
-  div.appendChild(e("div", {class: "hide"}, [slider]));
-
-  // VISIBILITY
-  // faEye.addEventListener('click', () => { layerEyeEvent(faEye, slider, layerNum, viewer) });
-  faEye.addEventListener("click", layerEyeEvent.bind(null, faEye, slider, layerNum, viewer), false);
-
-  divTableRow.appendChild(e("div", {class: "divTableCell"}, [div]));
-
-  if (layerNum > 0) {
-    // COLOR PALETTE
-    createColorPalette(divTableRow, featureName, currentLayer, allLayers, viewer);
-
-    // TACHOMETER
-    const divBody = createTachometer(divTableRow, featureName);
-
-    layerPopup(divBody, allLayers, viewer);
-  } else {
-    divTableRow.appendChild(e("div", {class: "divTableCell"}));
-  }
-}
-
-
-function getPreferredLabel(layer) {
-  // Temporary patch for unavailable prefLabel (or 'label') info
-  let name = "undefined";
-  let url = layer.location;
   try {
-    let search = "FeatureStorage";
-    let sections = url.split("/");
-    let res = sections.indexOf(search);
-    if (res > -1) {
-      name = `${sections[res + 1]}-${sections[res + 2]}`
+    if (currentLayer.location.endsWith("info.json")) {
+      let data = await fetchData(currentLayer.location);
+      featureName = getFeatureName(layerNum, currentLayer, data);
     } else {
-      name = sections[sections.length - 2];
-      if (name.includes(".")) {
-        name = name.substring(0, name.indexOf("."));
-      }
+      featureName = currentLayer.location.split('/').pop();
     }
-  } catch (e) {
-    console.log(`%cError. Check WSI URL: ${url}`, "color: #ff6a5a; font-size: larger;");
-  }
-  return name;
-}
 
-// Feature (draggable)
-function createDraggableBtn(layerNum, featureName) {
-  const element = e("button", {
-    id: `${layerNum}${createId(5, "feat")}`,
-    class: "layer",
-    style: "display: inline-block",
-    draggable: "true",
-    title: featureName
-  });
-  element.innerHTML = featureName;
-  return element;
+    const element = createDraggableBtn(layerNum, currentLayer, featureName);
+    divTableRow.appendChild(e("div", {class: "divTableCell", style: "padding: 3px"}, [element]));
+
+    // Attach drag & drop event listeners
+    element.addEventListener("dragstart", handleDragStart);
+    element.addEventListener("dragend", handleDragEnd);
+
+    // Visibility toggle
+    const faEye = layerEye(currentLayer);
+    if (layerNum > 0) {
+      myEyeArray.push(faEye);
+    }
+    divTableRow.appendChild(e("div", {class: "divTableCell"}, [faEye]));
+
+    // Transparency slider
+    const [icon, slider] = transparencySlider(currentLayer, faEye, viewer);
+
+    // .myDIV
+    const div = e("div", {class: "myDIV", title: "transparency slider"}, [icon]);
+
+    // .hide
+    div.appendChild(e("div", {class: "hide"}, [slider]));
+
+    // Visibility
+    faEye.addEventListener("click", layerEyeEvent.bind(null, faEye, slider, layerNum, viewer), false);
+
+    divTableRow.appendChild(e("div", {class: "divTableCell"}, [div]));
+
+    if (layerNum > 0) {
+      // Color Palette
+      createColorPalette(divTableRow, featureName, currentLayer, allLayers, viewer, vInfo);
+
+      // Tachometer
+      const divBody = createTachometer(divTableRow, featureName);
+      layerPopup(divBody, allLayers, viewer, vInfo);
+    } else {
+      divTableRow.appendChild(e("div", {class: "divTableCell"}));
+    }
+  } catch (error) {
+    console.error("Something bad happened:", error);
+  }
 }
 
 // Eyeball visibility: layer
 function layerEye(currentLayer) {
+  // Set up layer eye
   const cssClass = currentLayer.opacity === 0 ? "fas fa-eye-slash" : "fas fa-eye";
   return e("i", {
     id: createId(5, "eye"),
@@ -263,32 +262,28 @@ function layerEye(currentLayer) {
 }
 
 function layerEyeEvent(icon, slider, layerNum, viewer) {
+  // User clicked the layer eye
   toggleButton(icon, "fa-eye", "fa-eye-slash");
   const tiledImage = viewer.world.getItemAt(layerNum);
 
-  if (typeof tiledImage !== "undefined") {
-    if (icon.classList.contains("fa-eye-slash")) {
-      // Turn off layer
-      tiledImage.setOpacity(0);
-      // slider.value = "0" // Set slider to 0
-    } else {
-      // Turn on layer
-      let opacity;
-      if (parseInt(slider.value) === 0) {
-        opacity = 1;
-        slider.value = "100";
-      } else {
-        opacity = slider.value / 100
-      }
-      tiledImage.setOpacity(opacity);
-      // tiledImage.setOpacity(1) // Turn on layer
-      // slider.value = "100" // Set slider to (opacity * 100)
+  if (!tiledImage) return;
+
+  if (icon.classList.contains("fa-eye-slash")) {
+    tiledImage.setOpacity(0);
+  } else {
+    const sliderValue = parseInt(slider.value);
+    const opacity = (sliderValue === 0) ? 1 : sliderValue / 100;
+    tiledImage.setOpacity(opacity);
+
+    if (sliderValue === 0) {
+      slider.value = "100";
     }
   }
 }
 
 // Eyeball visibility: global
 function globalEye(layersColumn) {
+  // Set up global eye
   const vNum = layersColumn.id.slice(-1);
   // 'fas fa-eye-slash' : 'fas fa-eye'
   return e("i", {
@@ -299,8 +294,10 @@ function globalEye(layersColumn) {
 }
 
 function globalEyeEvent(element, arr) {
+  // Global eye event handler
 
   element.addEventListener("click", function () {
+    // Toggle global eye on and off.
     let activate;
     if (this.classList.contains("fa-eye-slash")) {
       this.classList.remove("fa-eye-slash");
@@ -312,6 +309,7 @@ function globalEyeEvent(element, arr) {
       activate = false;
     }
 
+    // Toggle the other layers' eyes
     arr.forEach(eye => {
       if (activate) {
         // If it's off, switch it on.
@@ -330,6 +328,7 @@ function globalEyeEvent(element, arr) {
 }
 
 function transparencySlider(currentLayer, faEye, viewer) {
+  // Set up layer transparency slider
   // Icon
   const icon = document.createElement("i");
   icon.classList.add("fas");
@@ -349,13 +348,16 @@ function transparencySlider(currentLayer, faEye, viewer) {
   });
 
   element.addEventListener("input", function () {
+    // Layer's transparency slider event
     const worldItem = viewer.world.getItemAt(currentLayer.layerNum);
     if (worldItem !== undefined) {
       worldItem.setOpacity(this.value / 100);
+      // If zero, toggle eye off.
       if (this.value === "0") {
         faEye.classList.remove("fa-eye");
         faEye.classList.add("fa-eye-slash");
       }
+      // Greater than zero, toggle eye on.
       if (parseFloat(this.value) > 0) {
         faEye.classList.remove("fa-eye-slash");
         faEye.classList.add("fa-eye");
@@ -368,7 +370,8 @@ function transparencySlider(currentLayer, faEye, viewer) {
 }
 
 // Color palette
-function createColorPalette(row, featureName, currentLayer, allLayers, viewer) {
+function createColorPalette(row, featureName, currentLayer, allLayers, viewer, vInfo) {
+  // Set up icon and draggable popup div
   const icon = e("i", {
     id: createId(5, "palette"),
     class: "fas fa-palette pointer layer-icons",
@@ -386,11 +389,13 @@ function createColorPalette(row, featureName, currentLayer, allLayers, viewer) {
     `${featureName} colors`,
     currentLayer.colorscheme,
     allLayers,
-    viewer
+    viewer,
+    vInfo
   );
 }
 
 function createTachometer(row, featureName) {
+  // Set up clickable icon and draggable settings div
   const icon = e("i", {
     id: createId(5, "tach"),
     class: "fas fa-tachometer-alt layer-icons",
@@ -410,32 +415,17 @@ function createTachometer(row, featureName) {
   return divBody;
 }
 
-function getOsdViewer(evt, sourceViewerDiv) {
-  const targetElement = evt.target;
-  const tagName = targetElement.tagName.toLowerCase();
-
-  if (tagName === "canvas") {
-    try {
-      let retVal;
-      try {
-        for (const sync of SYNCED_IMAGE_VIEWERS) {
-          if (sync.getViewer().id === sourceViewerDiv.id) {
-            retVal = sync.getViewer();
-            break;
-          }
-        }
-      } catch (e) {
-        console.error("message:", e.message);
-      }
-      return retVal;
-    } catch (e) {
-      console.error(e.message)
-    }
+function getOsdViewer(divId) {
+  try {
+    // Get the viewer to this div id
+    return SYNCED_IMAGE_VIEWERS.find(sync => sync.getViewer().id === divId)?.getViewer() || null;
+  } catch (e) {
+    console.error("Something happened...", e.message);
   }
-  return null;
 }
 
 function getVals(slides) {
+  // For the dual handle sliders
   // Get slider values
   let slide1 = parseFloat(slides[0].value);
   let slide2 = parseFloat(slides[1].value);

@@ -166,15 +166,15 @@ const pageSetup = (divId, images, numViewers, rows, columns, width, height, opts
             });
 
             const vInfo = { idx, osdId, layers: images[idx] };
-            // Create MultiViewer object and add to array
-            viewers.push(new MultiViewer(vInfo, numViewers, opts));
+            // Create ImageViewer object and add to array
+            viewers.push(new ImageViewer(vInfo, numViewers, opts));
           }
         }
 
         return viewers;
       })
       .then(viewers => {
-        // PAN/ZOOM CONTROLLER - accepts array of MultiViewers
+        // PAN/ZOOM CONTROLLER - accepts array of ImageViewers
         synchronizeViewers(viewers);
       });
   }
