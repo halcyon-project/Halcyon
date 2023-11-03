@@ -79,7 +79,7 @@ class ImageViewer {
       const itemIndex = viewer.world.getIndexOfItem(item);
       const source = viewer.world.getItemAt(itemIndex).source;
 
-      if (isRealValue(source.hasCreateAction) && isRealValue(source.hasCreateAction.name)) layers[itemIndex].name = source.hasCreateAction.name;
+      if (isRealValue(source.name)) layers[itemIndex].name = source.name;
 
       if (isRealValue(source.xResolution) && isRealValue(source.resolutionUnit) && source.resolutionUnit === 3) {
         MICRONS_PER_PIX = 10000 / source.xResolution; // Unit 3 = pixels per centimeter

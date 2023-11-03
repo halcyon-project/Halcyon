@@ -156,8 +156,8 @@ function getFeatureName(layerNum, currentLayer, data) {
     const isFeature = currentLayer.location.includes("FeatureStorage");
 
     if (isFeature) {
-      featureName = data.hasCreateAction.name
-        ? data.hasCreateAction.name
+      featureName = data.name
+        ? data.name
         : `${sections[sections.indexOf("FeatureStorage") + 1]}-${sections[sections.indexOf("FeatureStorage") + 2]}`;
       if (featureName === "TIL Pipeline") featureName = `${featureName} ${sections[6]}`; // gives more info
     } else {
