@@ -1,0 +1,58 @@
+spring:
+  main:
+    lazy-initialization: false
+    allow-circular-references: true
+  h2:
+    console:
+      enabled: true
+      path: /h2
+  datasource:
+    username: sa
+    password:
+    url: jdbc:h2:file:./data/keycloak;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: update
+#security:
+#    oauth2:
+#      client:
+#        registration:
+#          keycloak:
+#            client-id: account
+#            client-name: Keycloak
+#            authorization-grant-type: authorization_code
+#            redirect-uri: "http://localhost:8888/login/oauth2/code/{registrationId}"
+#            scope: openid, profile, email
+#            client-authentication-method: none  # Indicates a public client
+#        provider:
+#          keycloak:
+#            issuer-uri: http://localhost:8888/auth/realms/Halcyon
+        
+keycloak:
+  server:
+    context-path: /auth
+    username: admin
+    password: admin
+    context-redirect: true
+    address: 0.0.0.0
+
+logging:
+  file:
+    name: logs/halcyon.log
+    max-size: 100MB
+    max-history: 10
+  level:
+    root: ERROR
+    com.ebremer.halcyon: ERROR
+    com.ebremer.beakgraph: ERROR
+    #org.apache.wicket.Application: ERROR
+    #org.keycloak.adapters: TRACE
+    #org.jgroups: TRACE
+    #org.infinispan: INFO
+    #org.keycloak: DEBUG
+    #org.keycloak.services.managers.DefaultBruteForceProtector: WARN
+    #org.keycloak.services.scheduled.ClusterAwareScheduledTaskRunner: ERROR
+    #org.keycloak.services.managers.UserSessionManager: ERROR
+    #org.keycloak.timer.basic: ERROR
