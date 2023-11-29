@@ -6,7 +6,7 @@ import com.ebremer.beakgraph.ng.BG;
 import com.ebremer.beakgraph.ng.SpecialProcess;
 import com.ebremer.halcyon.raptor.HeatmapProcess;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
-import com.ebremer.halcyon.raptor.HilbertProcess;
+import com.ebremer.halcyon.raptor.SegmentationProcess;
 import com.ebremer.halcyon.raptor.HilbertSpecial;
 import com.ebremer.ns.EXIF;
 import com.ebremer.ns.GEO;
@@ -56,6 +56,7 @@ public class Ingest {
         list.add(new BG.PropertyAndDataType(HAL.low.getURI(), XSD.xlong));
         list.add(new BG.PropertyAndDataType(HAL.high.getURI(), XSD.xlong));
         list.add(new BG.PropertyAndDataType(HAL.hasRange.getURI(), null)); 
+        list.add(new BG.PropertyAndDataType(HAL.asHilbert.getURI(), null)); 
         //list.add(new BG.PropertyAndDataType(GEO.hasPerimeterLength.getURI(), XSD.xdouble));
         //list.add(new BG.PropertyAndDataType(GEO.hasArea.getURI(), XSD.xdouble));
         specials = new ArrayList<>();
@@ -75,8 +76,8 @@ public class Ingest {
                 BG.getBuilder()
                     .dataset(dsi)
                     .handle(list)
-                    .setProcess(new HilbertProcess(pair.width(),pair.height(),512,512))
-                // .Extra(specials)
+                    .setProcess(new SegmentationProcess(pair.width(),pair.height(),512,512))
+                    .Extra(specials)
                     .file(dest)
                     .build();
             } else {
@@ -84,7 +85,7 @@ public class Ingest {
                 BG.getBuilder()
                     .dataset(dsi)
                     .handle(list)
-                    .setProcess(new HeatmapProcess(pair.width(),pair.height(),512,512))
+                    .setProcess(new HeatmapProcess(pair.width(),pair.height()))
                 // .Extra(specials)
                     .file(dest)
                     .build();
@@ -172,7 +173,7 @@ public class Ingest {
    
     public static void main(String[] args) throws FileNotFoundException, IOException {
         Configurator.setRootLevel(Level.ERROR);
-        Configurator.setLevel("com.ebremer.halcyon", Level.DEBUG);
+        Configurator.setLevel("com.ebremer.halcyon.raptor", Level.ERROR);
         Configurator.setLevel("com.ebremer.beakgraph", Level.ERROR);        
         logger.info("ingest "+Arrays.toString(args));
         IngestParameters params = new IngestParameters();   
