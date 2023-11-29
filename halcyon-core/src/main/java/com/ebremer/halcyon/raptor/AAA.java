@@ -49,7 +49,7 @@ public class AAA {
         BG.getBuilder()
                 .dataset(dsi)
                 .handle(list)
-                .setProcess(new HilbertProcess(112231,82984,512,512))
+                .setProcess(new SegmentationProcess(112231,82984,512,512))
                 .Extra(specials)
                 .file(f)
                 .build();   

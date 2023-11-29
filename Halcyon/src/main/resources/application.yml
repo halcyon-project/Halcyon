@@ -15,6 +15,9 @@ spring:
     database-platform: org.hibernate.dialect.H2Dialect
     hibernate:
       ddl-auto: update
+server:
+  undertow:
+    max-parameters: 8888      
 #security:
 #    oauth2:
 #      client:

@@ -47,7 +47,7 @@ import org.slf4j.LoggerFactory;
  *
  * @author erich
  */
-public class HilbertProcess implements AbstractProcess {
+public class SegmentationProcess implements AbstractProcess {
     private final ConcurrentHashMap<Resource,Polygon> buffer;
     private final int width;
     private final int height;
@@ -58,9 +58,9 @@ public class HilbertProcess implements AbstractProcess {
     private final String uuid = "urn:uuid"+UUID.randomUUID().toString();
     private final String annotations = "urn:uuid"+UUID.randomUUID().toString();
     private final ArrayList<Scale> scales = new ArrayList<>();
-    private static final Logger logger = LoggerFactory.getLogger(HilbertProcess.class);
+    private static final Logger logger = LoggerFactory.getLogger(SegmentationProcess.class);
     
-    public HilbertProcess(int width, int height, int tileSizeX, int tileSizeY) {
+    public SegmentationProcess(int width, int height, int tileSizeX, int tileSizeY) {
         scaleset = new HashSet<>();
         FunctionRegistry.get().put(HAL.NS+"eStarts", eStarts.class);
         FunctionRegistry.get().put(HAL.NS+"Intersects", Intersects.class);

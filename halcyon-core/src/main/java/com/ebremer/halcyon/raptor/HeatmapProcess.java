@@ -39,16 +39,16 @@ public class HeatmapProcess implements AbstractProcess {
     private final ConcurrentHashMap<Resource,Polygon> buffer;
     private final int width;
     private final int height;
-    private final int tileSizeX;
-    private final int tileSizeY;
+    //private final int tileSizeX;
+    //private final int tileSizeY;
     private final HashSet<Integer> scaleset;
-    private final int numscales;
+    //private final int numscales;
     private final String uuid = "urn:uuid"+UUID.randomUUID().toString();
     private final String annotations = "urn:uuid"+UUID.randomUUID().toString();
     private final ArrayList<Scale> scales = new ArrayList<>();
     private static final Logger logger = LoggerFactory.getLogger(HeatmapProcess.class);
     
-    public HeatmapProcess(int width, int height, int tileSizeX, int tileSizeY) {
+    public HeatmapProcess(int width, int height) {
         scaleset = new HashSet<>();
         FunctionRegistry.get().put(HAL.NS+"eStarts", eStarts.class);
         FunctionRegistry.get().put(HAL.NS+"Intersects", Intersects.class);
@@ -57,22 +57,22 @@ public class HeatmapProcess implements AbstractProcess {
         FunctionRegistry.get().put(HAL.NS+"perimeter", Perimeter.class);
         this.width = width;
         this.height = height;
-        this.tileSizeX = tileSizeX;
-        this.tileSizeY = tileSizeY;
+        //this.tileSizeX = tileSizeX;
+        //this.tileSizeY = tileSizeY;
         buffer = new ConcurrentHashMap<>();
-        int max = Math.max(width, height);
-        max = ((int) Math.ceil(Math.log(max)/Math.log(2))) - ((int) Math.ceil(Math.log(tileSizeX)/Math.log(2)))+1;
-        logger.info("# of levels --> "+max);
-        int w = this.width;
-        int h = this.height;
-        for (int i=0; i<max; i++) {
-            int numTilesX = (int) Math.ceil(((double)w)/((double)tileSizeX));
-            int numTilesY = (int) Math.ceil(((double)h)/((double)tileSizeY));
-            scales.add(new Scale(i, w, h, numTilesX, numTilesY));
-            w = (int) Math.round(((double)w)/2d);
-            h = (int) Math.round(((double)h)/2d);
-        }
-        numscales = max;
+        //int max = Math.max(width, height);
+        //max = ((int) Math.ceil(Math.log(max)/Math.log(2))) - ((int) Math.ceil(Math.log(tileSizeX)/Math.log(2)))+1;
+        //logger.info("# of levels --> "+max);
+       // int w = this.width;
+        //int h = this.height;
+        //for (int i=0; i<max; i++) {
+          //  int numTilesX = (int) Math.ceil(((double)w)/((double)tileSizeX));
+            //int numTilesY = (int) Math.ceil(((double)h)/((double)tileSizeY));
+            //scales.add(new Scale(i, w, h, numTilesX, numTilesY));
+            //w = (int) Math.round(((double)w)/2d);
+            //h = (int) Math.round(((double)h)/2d);
+        //}
+        //numscales = max;
     }
     
     public void FindClassifications(Dataset ds) {
