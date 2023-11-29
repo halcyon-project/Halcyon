@@ -1,13 +1,10 @@
 package com.ebremer.halcyon.raptor;
 
 import com.ebremer.halcyon.lib.GeometryTools;
-import com.ebremer.halcyon.raptor.spatial.scale;
 import com.ebremer.beakgraph.ng.AbstractProcess;
-import com.ebremer.beakgraph.ng.BG;
 import com.ebremer.beakgraph.ng.BeakWriter;
 import com.ebremer.halcyon.raptor.Objects.Scale;
-import com.ebremer.halcyon.raptor.spatial.Area;
-import com.ebremer.halcyon.raptor.spatial.Perimeter;
+import com.ebremer.halcyon.lib.spatial.Spatial;
 import com.ebremer.ns.EXIF;
 import com.ebremer.ns.GEO;
 import com.ebremer.ns.HAL;
@@ -28,9 +25,9 @@ import org.apache.jena.rdf.model.Literal;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.RDFNode;
+import org.apache.jena.rdf.model.ResIterator;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.ResourceFactory;
-import org.apache.jena.sparql.function.FunctionRegistry;
 import org.apache.jena.update.UpdateAction;
 import org.apache.jena.vocabulary.DCTerms;
 import org.apache.jena.vocabulary.RDF;
@@ -47,7 +44,7 @@ import org.slf4j.LoggerFactory;
  *
  * @author erich
  */
-public class HilbertProcess implements AbstractProcess {
+public class SegmentationProcess implements AbstractProcess {
     private final ConcurrentHashMap<Resource,Polygon> buffer;
     private final int width;
     private final int height;
@@ -58,15 +55,15 @@ public class HilbertProcess implements AbstractProcess {
     private final String uuid = "urn:uuid"+UUID.randomUUID().toString();
     private final String annotations = "urn:uuid"+UUID.randomUUID().toString();
     private final ArrayList<Scale> scales = new ArrayList<>();
-    private static final Logger logger = LoggerFactory.getLogger(HilbertProcess.class);
+    private static final Logger logger = LoggerFactory.getLogger(SegmentationProcess.class);
     
-    public HilbertProcess(int width, int height, int tileSizeX, int tileSizeY) {
+    public SegmentationProcess(int width, int height, int tileSizeX, int tileSizeY) {
         scaleset = new HashSet<>();
-        FunctionRegistry.get().put(HAL.NS+"eStarts", eStarts.class);
-        FunctionRegistry.get().put(HAL.NS+"Intersects", Intersects.class);
-        FunctionRegistry.get().put(HAL.NS+"scale", scale.class);
-        FunctionRegistry.get().put(HAL.NS+"area", Area.class);
-        FunctionRegistry.get().put(HAL.NS+"perimeter", Perimeter.class);
+//        FunctionRegistry.get().put(HAL.NS+"Intersects", Intersects.class);
+//        FunctionRegistry.get().put(HAL.NS+"scale", scale.class);
+//        FunctionRegistry.get().put(HAL.NS+"area", Area.class);
+//        FunctionRegistry.get().put(HAL.NS+"perimeter", Perimeter.class);
+        Spatial.init();
         this.width = width;
         this.height = height;
         this.tileSizeX = tileSizeX;
@@ -107,25 +104,6 @@ public class HilbertProcess implements AbstractProcess {
         pssx.setNsPrefix("geo", GEO.NS);
         pssx.setIri("annotations", annotations);
         UpdateAction.parseExecute(pssx.toString(), ds);
-    }
-    
-    public void AddFeatureCollectionType(Model m) {
-        ParameterizedSparqlString pssx = new ParameterizedSparqlString(
-            """
-            insert {
-                ?featureCollection a hal:Segmentation
-            }
-            where {                
-                ?featureCollection a geo:FeatureCollection
-            }
-            """
-        );
-        pssx.setNsPrefix("hal", HAL.NS);
-        pssx.setNsPrefix("rdf", RDF.uri);
-        pssx.setNsPrefix("hal", HAL.NS);
-        pssx.setNsPrefix("geo", GEO.NS);
-        pssx.setIri("annotations", annotations);
-        UpdateAction.parseExecute(pssx.toString(), m);
     }
     
     public void SeparateAnnotations(Dataset ds) {
@@ -315,7 +293,6 @@ public class HilbertProcess implements AbstractProcess {
     @Override
     public void Process(BeakWriter bw, Dataset ds) {
         Model xxx = ds.getDefaultModel();
-        AddFeatureCollectionType(xxx);
         logger.debug("Calculate Areas...");
         FeatureGeneration.AddAreas(xxx);
         logger.debug("Calculate Perimeters...");
@@ -326,6 +303,16 @@ public class HilbertProcess implements AbstractProcess {
         Literal ty = xxx.createTypedLiteral(String.valueOf(512), XSDDatatype.XSDint);
         Literal fw = xxx.createTypedLiteral(String.valueOf(width), XSDDatatype.XSDint);
         Literal fh = xxx.createTypedLiteral(String.valueOf(height), XSDDatatype.XSDint);
+        ResIterator res = xxx.listResourcesWithProperty(RDF.type, GEO.FeatureCollection);
+        if (res.hasNext()) {
+            Resource fc = res.next();
+            fc
+                .addProperty(RDF.type, HAL.Segmentation)
+                .addProperty(EXIF.width, fw)
+                .addProperty(EXIF.height, fh)
+                .addProperty(HAL.tileSizeX, tx)
+                .addProperty(HAL.tileSizeY, ty);
+        }
         Resource spatialGrid = xxx.createResource()
                 .addProperty(RDF.type, HAL.Grid)
                 .addProperty(EXIF.width, fw)

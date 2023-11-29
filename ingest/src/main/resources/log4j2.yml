@@ -1,6 +1,6 @@
 Configuration:
   name: Ingest
-  status: DEBUG
+  status: TRACE
 
   Appenders:
     Console:

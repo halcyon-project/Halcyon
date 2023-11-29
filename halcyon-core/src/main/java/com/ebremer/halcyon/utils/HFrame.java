@@ -17,14 +17,15 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.StringReader;
 import java.util.Collections;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author erich
  */
 public class HFrame {
+    private static final Logger logger = LoggerFactory.getLogger(HFrame.class);
     
     public static final String VIEWERCONTEXT =
         """
@@ -33,7 +34,7 @@ public class HFrame {
                 {
                     "so": "https://schema.org/",
                     "csvw": "https://www.w3.org/ns/csvw/",
-                    "hal": "https://www.ebremer.com/halcyon/ns/",
+                    "hal": "https://halcyon.is/ns/",
                     "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
                     "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
                     "label": {"@id": "rdfs:label"},
@@ -46,12 +47,12 @@ public class HFrame {
                     "name": "so:name",
                     "layerNum": "hal:layerNum",
                     "colors": {
-                        "@id": "https://www.ebremer.com/halcyon/ns/colors",
+                        "@id": "https://halcyon.is/ns/colors",
                         "@container": "@set"
                     },
                     "high": "hal:high",
                     "haslayer": {
-                        "@id": "https://www.ebremer.com/halcyon/ns/haslayer",
+                        "@id": "https://halcyon.is/ns/haslayer",
                         "@container": "@set"
                     },
                     "low": "hal:low",
@@ -76,7 +77,7 @@ public class HFrame {
                     .options(options)
                     .get();
         } catch (JsonLdError ex) {
-            Logger.getLogger(HFrame.class.getName()).log(Level.SEVERE, null, ex);
+            logger.error(ex.toString());
         }
         return jo;
     }
@@ -85,7 +86,7 @@ public class HFrame {
         try {
             return JsonDocument.of(new ByteArrayInputStream(HFrame.VIEWERCONTEXT.getBytes()));
         } catch (JsonLdError ex) {
-            Logger.getLogger(HFrame.class.getName()).log(Level.SEVERE, null, ex);
+            logger.error(ex.toString());
         }
         return null;
     }

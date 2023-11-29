@@ -6,7 +6,7 @@
     <parent>
         <groupId>com.ebremer.HalcyonProject</groupId>
         <artifactId>HalcyonProject</artifactId>
-        <version>0.8.0</version>
+        <version>1.0.0</version>
     </parent>
     <properties>
         <exec.mainClass>com.ebremer.ingest.Ingest</exec.mainClass>
@@ -15,12 +15,10 @@
         <dependency>
             <groupId>com.beust</groupId>
             <artifactId>jcommander</artifactId>
-            <version>1.82</version>
         </dependency>
         <dependency>
             <groupId>com.ebremer</groupId>
             <artifactId>BeakGraph</artifactId>
-            <version>${beakgraph.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>com.apicatalog</groupId>

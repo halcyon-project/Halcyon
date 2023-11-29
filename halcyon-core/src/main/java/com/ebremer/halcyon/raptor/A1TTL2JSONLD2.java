@@ -60,7 +60,7 @@ public class A1TTL2JSONLD2 {
     public static void main(String[] args) throws IOException, JsonLdError {
 
         //File x = new File("D:\\tcga\\cvpr-data\\rdf\\coad\\TCGA-CM-5348-01Z-00-DX1.2ad0b8f6-684a-41a7-b568-26e97675cce9.ttl.gz");
-        File xx = new File("/AAA/smallx.ttl");
+        File xx = new File("/AAA/TCGA-CM-5348-01Z-00-DX1.2ad0b8f6-684a-41a7-b568-26e97675cce9.ttl");
         Dataset dsx = DatasetFactory.create();
         try (
             FileInputStream fis = new FileInputStream(xx);
@@ -106,6 +106,7 @@ public class A1TTL2JSONLD2 {
        // dsx.getPrefixMapping().setNsPrefix("dateTime", "xsd:dateTime");
         dsx.getPrefixMapping().setNsPrefix("hasProbability", "hal:hasProbability");
         dsx.getPrefixMapping().setNsPrefix("classification", "hal:classification");
+        dsx.getPrefixMapping().setNsPrefix("measurement", "hal:measurement");
         DatasetGraph dsg = dsx.asDatasetGraph();
         RdfDataset ds = JenaTitanium.convert(dsg);
         Document doc = RdfDocument.of(ds);
@@ -131,6 +132,7 @@ public class A1TTL2JSONLD2 {
         //neocontext.add("creator", Json.createObjectBuilder().add(Keywords.ID, "so:creator").add(Keywords.TYPE, Keywords.ID));
         //neocontext.add("datePublished", Json.createObjectBuilder().add(Keywords.ID, "so:datePublished").add(Keywords.TYPE, XSD.dateTime.getURI()));
         neocontext.add("wasAssociatedWith", Json.createObjectBuilder().add(Keywords.ID, "prov:wasAssociatedWith").add(Keywords.TYPE, Keywords.ID));
+        neocontext.add("classification", Json.createObjectBuilder().add(Keywords.ID, "hal:classification").add(Keywords.TYPE, Keywords.ID));
         
         neocontext.add("publisher", Json.createObjectBuilder().add(Keywords.ID, "dc:publisher").add(Keywords.TYPE, Keywords.ID));
         neocontext.add("date", Json.createObjectBuilder().add(Keywords.ID, "dc:date").add(Keywords.TYPE, XSD.dateTime.getURI()));

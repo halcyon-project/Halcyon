@@ -14,27 +14,23 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import org.apache.jena.query.ParameterizedSparqlString;
 import org.apache.jena.query.QueryExecution;
 import org.apache.jena.query.QueryExecutionFactory;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.Statement;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author erich
  */
 public class HilbertSpecial implements SpecialProcess {
-    //private final int width;
-    //private final int height;
+    private static final Logger logger = LoggerFactory.getLogger(HilbertSpecial.class);
     
-    public HilbertSpecial() {
-      //  this.width = width;
-        //this.height = height;
-    }
+    public HilbertSpecial() {}
     
     private void GenerateHilbertData(BeakWriter bw, Model m) {
         ParameterizedSparqlString pss = new ParameterizedSparqlString(
@@ -51,6 +47,7 @@ public class HilbertSpecial implements SpecialProcess {
         try (ExecutorService engine = Executors.newVirtualThreadPerTaskExecutor()) {
             qe.execSelect().materialise().forEachRemaining(qs->{
                 Resource r = qs.getResource("geometry");
+                logger.trace("WKT : "+qs.get("wkt").asLiteral().getString());
                 Callable<List<Statement>> worker = new PolygonProcessor(r, qs.get("wkt").asLiteral().getString());
                 Future<List<Statement>> future = engine.submit(worker);
                 list.add(future);
@@ -59,16 +56,16 @@ public class HilbertSpecial implements SpecialProcess {
         list.forEach(L1->{
             try {
                 L1.get().forEach(L2->{
+                    logger.trace("Process : "+L2.asTriple().toString());
                     bw.ProcessTriple(L2);
                 });
                 L1.get().clear();
             } catch (InterruptedException ex) {
-                Logger.getLogger(HilbertSpecial.class.getName()).log(Level.SEVERE, null, ex);
+                logger.error(ex.toString());
             } catch (ExecutionException ex) {
-                Logger.getLogger(HilbertSpecial.class.getName()).log(Level.SEVERE, null, ex);
+                logger.error(ex.toString());
             }
         });
-        list.clear();
     }
         
     private class PolygonProcessor implements Callable<List<Statement>> {
@@ -83,12 +80,15 @@ public class HilbertSpecial implements SpecialProcess {
         @Override
         public List<Statement> call() throws Exception {
             HilbertSpace hs = new HilbertSpace();
+            Model m = geometry.getModel();
+            Resource hilbertGeometry = m.createResource();
             List<Statement> list = new ArrayList<>();
+            list.add(m.createStatement(geometry, HAL.asHilbert, hilbertGeometry));
             hs.Polygon2HilbertV2(GeometryTools.WKT2Polygon(wkt)).forEach(k->{
-                Resource bnode = geometry.getModel().createResource();
-                list.add(geometry.getModel().createLiteralStatement(bnode, HAL.low, k.low()));
-                list.add(geometry.getModel().createLiteralStatement(bnode, HAL.high, k.high()));
-                list.add(geometry.getModel().createStatement(geometry, HAL.hasRange, bnode));
+                Resource bnode = m.createResource();
+                list.add(m.createLiteralStatement(bnode, HAL.low, k.low()));
+                list.add(m.createLiteralStatement(bnode, HAL.high, k.high()));
+                list.add(m.createStatement(hilbertGeometry, HAL.hasRange, bnode));                
             });
             return list;
         }  
@@ -96,6 +96,7 @@ public class HilbertSpecial implements SpecialProcess {
 
     @Override
     public void Execute(BeakWriter bw, Resource ng, Model m) {
+        logger.debug("Execute : "+ng+"  "+m.size());
         if (ng.getURI().startsWith("https://www.ebremer.com/halcyon/ns/grid/0/")) {
             GenerateHilbertData(bw, m);
         }

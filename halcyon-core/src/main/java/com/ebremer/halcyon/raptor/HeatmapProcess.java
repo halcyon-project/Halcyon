@@ -1,11 +1,9 @@
 package com.ebremer.halcyon.raptor;
 
-import com.ebremer.halcyon.raptor.spatial.scale;
 import com.ebremer.beakgraph.ng.AbstractProcess;
 import com.ebremer.beakgraph.ng.BeakWriter;
 import com.ebremer.halcyon.raptor.Objects.Scale;
-import com.ebremer.halcyon.raptor.spatial.Area;
-import com.ebremer.halcyon.raptor.spatial.Perimeter;
+import com.ebremer.halcyon.lib.spatial.Spatial;
 import com.ebremer.ns.GEO;
 import com.ebremer.ns.HAL;
 import com.ebremer.ns.PROVO;
@@ -21,7 +19,6 @@ import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.ResourceFactory;
-import org.apache.jena.sparql.function.FunctionRegistry;
 import org.apache.jena.update.UpdateAction;
 import org.apache.jena.vocabulary.DCTerms;
 import org.apache.jena.vocabulary.RDF;
@@ -39,40 +36,40 @@ public class HeatmapProcess implements AbstractProcess {
     private final ConcurrentHashMap<Resource,Polygon> buffer;
     private final int width;
     private final int height;
-    private final int tileSizeX;
-    private final int tileSizeY;
+    //private final int tileSizeX;
+    //private final int tileSizeY;
     private final HashSet<Integer> scaleset;
-    private final int numscales;
+    //private final int numscales;
     private final String uuid = "urn:uuid"+UUID.randomUUID().toString();
     private final String annotations = "urn:uuid"+UUID.randomUUID().toString();
     private final ArrayList<Scale> scales = new ArrayList<>();
     private static final Logger logger = LoggerFactory.getLogger(HeatmapProcess.class);
     
-    public HeatmapProcess(int width, int height, int tileSizeX, int tileSizeY) {
+    public HeatmapProcess(int width, int height) {
         scaleset = new HashSet<>();
-        FunctionRegistry.get().put(HAL.NS+"eStarts", eStarts.class);
-        FunctionRegistry.get().put(HAL.NS+"Intersects", Intersects.class);
-        FunctionRegistry.get().put(HAL.NS+"scale", scale.class);
-        FunctionRegistry.get().put(HAL.NS+"area", Area.class);
-        FunctionRegistry.get().put(HAL.NS+"perimeter", Perimeter.class);
+        //FunctionRegistry.get().put(HAL.NS+"Intersects", Intersects.class);
+        //FunctionRegistry.get().put(HAL.NS+"scale", scale.class);
+        //FunctionRegistry.get().put(HAL.NS+"area", Area.class);
+        //FunctionRegistry.get().put(HAL.NS+"perimeter", Perimeter.class);
+        Spatial.init();
         this.width = width;
         this.height = height;
-        this.tileSizeX = tileSizeX;
-        this.tileSizeY = tileSizeY;
+        //this.tileSizeX = tileSizeX;
+        //this.tileSizeY = tileSizeY;
         buffer = new ConcurrentHashMap<>();
-        int max = Math.max(width, height);
-        max = ((int) Math.ceil(Math.log(max)/Math.log(2))) - ((int) Math.ceil(Math.log(tileSizeX)/Math.log(2)))+1;
-        logger.info("# of levels --> "+max);
-        int w = this.width;
-        int h = this.height;
-        for (int i=0; i<max; i++) {
-            int numTilesX = (int) Math.ceil(((double)w)/((double)tileSizeX));
-            int numTilesY = (int) Math.ceil(((double)h)/((double)tileSizeY));
-            scales.add(new Scale(i, w, h, numTilesX, numTilesY));
-            w = (int) Math.round(((double)w)/2d);
-            h = (int) Math.round(((double)h)/2d);
-        }
-        numscales = max;
+        //int max = Math.max(width, height);
+        //max = ((int) Math.ceil(Math.log(max)/Math.log(2))) - ((int) Math.ceil(Math.log(tileSizeX)/Math.log(2)))+1;
+        //logger.info("# of levels --> "+max);
+       // int w = this.width;
+        //int h = this.height;
+        //for (int i=0; i<max; i++) {
+          //  int numTilesX = (int) Math.ceil(((double)w)/((double)tileSizeX));
+            //int numTilesY = (int) Math.ceil(((double)h)/((double)tileSizeY));
+            //scales.add(new Scale(i, w, h, numTilesX, numTilesY));
+            //w = (int) Math.round(((double)w)/2d);
+            //h = (int) Math.round(((double)h)/2d);
+        //}
+        //numscales = max;
     }
     
     public void FindClassifications(Dataset ds) {

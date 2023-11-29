@@ -23,6 +23,9 @@ public class IngestParameters {
     
     @Parameter(names = {"-heatmap"}, converter = BooleanConverter.class)
     public boolean optimize = false;
+
+    @Parameter(names = {"-validate"}, converter = BooleanConverter.class)
+    public boolean validate = false;
     
     @Parameter(names = {"-version","-v"}, converter = BooleanConverter.class)
     public boolean version = false;

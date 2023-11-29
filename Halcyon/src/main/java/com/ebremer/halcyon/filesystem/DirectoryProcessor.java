@@ -5,8 +5,8 @@ import com.ebremer.halcyon.filereaders.FileReader;
 import com.ebremer.halcyon.filereaders.FileReaderFactory;
 import com.ebremer.halcyon.filereaders.FileReaderFactoryProvider;
 import com.ebremer.halcyon.filereaders.ImageReader;
-import com.ebremer.halcyon.filereaders.TiffImageReaderFactory;
 import com.ebremer.halcyon.lib.URITools;
+import com.ebremer.halcyon.raptor.HilbertSpecial;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import com.ebremer.halcyon.utils.HashTools;
 import com.ebremer.ns.HAL;
@@ -23,8 +23,6 @@ import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import static java.util.stream.Collectors.toList;
 import java.util.stream.Stream;
 import org.apache.jena.query.Dataset;
@@ -40,6 +38,7 @@ import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.vocabulary.OWL;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.SchemaDO;
+import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -50,6 +49,7 @@ public class DirectoryProcessor {
     private final Dataset buffer;
     private final CopyOnWriteArrayList<Resource> list;
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final org.slf4j.Logger logger = LoggerFactory.getLogger(HilbertSpecial.class);
     
     public DirectoryProcessor(Dataset buffer) {
         this.buffer = buffer;
@@ -118,24 +118,23 @@ public class DirectoryProcessor {
                             buffer.end();
                             System.out.println("Processed : "+r);
                         } catch (URISyntaxException ex) {
-                            System.out.println("1 - Problem Reading File : "+r);
+                            logger.error("1 - Problem Reading File : "+r);
                         } catch (IOException ex) {
-                            System.out.println("2 - Problem Reading File : "+r);
+                            logger.error("2 - Problem Reading File : "+r);
                         } catch (Exception ex) {
-                            System.out.println("3 - Problem Reading File : "+r+"\n"+ex.toString());
-                            Logger.getLogger(DirectoryProcessor.class.getName()).log(Level.SEVERE, null, ex);
+                            logger.error("3 - Problem Reading File : "+r+"\n"+ex.toString());
                         }
                     })
                 ).get();
             } catch (InterruptedException | ExecutionException ex) {
-                Logger.getLogger(DirectoryProcessor.class.getName()).log(Level.WARNING, null, ex);
+                logger.error(ex.toString());
             } finally {
                 if (fjp != null) {
                     fjp.shutdown();
                 }
             }
         } catch (IOException ex) {
-            Logger.getLogger(DirectoryProcessor.class.getName()).log(Level.SEVERE, null, ex);
+            logger.error(ex.toString());
         }
     }
     

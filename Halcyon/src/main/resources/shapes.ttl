@@ -4,7 +4,7 @@
 @prefix so: <https://schema.org/> .
 @prefix sh: <http://www.w3.org/ns/shacl#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
-@prefix hal: <https://www.ebremer.com/halcyon/ns/> .
+@prefix hal: <https://halcyon.is/ns/> .
 
 hal:AnnotationClassListShape a sh:NodeShape ;
     sh:targetClass hal:AnnotationClassList ;
