@@ -78,8 +78,8 @@ public class FLHeatmap implements FL {
     private final URI uri;
     //private String title = null;
     private static String info = null;
-    private final int numTilesX;
-    private final int numTilesY;
+    //private final int numTilesX;
+    //private final int numTilesY;
     private BufferedImage bi;
     private final int w;
     private final int h;
@@ -137,8 +137,8 @@ public class FLHeatmap implements FL {
             height = qs.get("height").asLiteral().getInt();
         }   
         BeakGraphPool.getPool().returnObject(uri, bg);
-        numTilesX = (int) Math.ceil((double) width / (double) tileSizeX);
-        numTilesY = (int) Math.ceil((double) height / (double) tileSizeY);
+        //numTilesX = (int) Math.ceil((double) width / (double) tileSizeX);
+        //numTilesY = (int) Math.ceil((double) height / (double) tileSizeY);
         w = (int) Math.ceil((double) width/ (double) tileSizeX);
         h = (int) Math.ceil((double) height/ (double) tileSizeY);
         width = w;
@@ -200,8 +200,8 @@ public class FLHeatmap implements FL {
         rs.forEachRemaining(qs->{
             Polygon jtsPolygon = GeometryTools.WKT2Polygon(qs.get("wkt").asLiteral().getString());
             Envelope e = jtsPolygon.getEnvelopeInternal();
-            int x = (int) (e.getMinX()/tileSizeX);
-            int y = (int) (e.getMinY()/tileSizeY);
+            int x = (int) Math.round(e.getMinX()/tileSizeX);
+            int y = (int) Math.round(e.getMinY()/tileSizeY);
             float pc = qs.get("probability").asLiteral().getFloat();
             int classid = classes.get(qs.get("type").asResource().getURI());
             int prob = Math.round(pc*255);
@@ -225,7 +225,7 @@ public class FLHeatmap implements FL {
 
     @Override
     public Model readTileMeta(ImageRegion r, int series) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     private Model LoadManifest() {
