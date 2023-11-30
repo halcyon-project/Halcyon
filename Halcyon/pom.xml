@@ -63,9 +63,9 @@
                 <configuration>
                     <name>Halcyon</name>
                     <appVersion>${project.version}</appVersion>
-                    <vendor>Wing-n-Beak</vendor>
+                    <vendor>Stony Brook University - Biomedical Informatics</vendor>
                     <copyright>Copyright 2021-2023 Erich Bremer - Stony Brook University</copyright>
-                    <licenseFile>LICENSE</licenseFile>
+                    <licenseFile>..\LICENSE</licenseFile>
                     <input>target</input>
                     <mainJar>Halcyon-${project.version}.jar</mainJar>
                     <verbose>true</verbose>
@@ -85,8 +85,8 @@
                             <winShortcutPrompt>true</winShortcutPrompt>
                             <winDirChooser>true</winDirChooser>
                             <winConsole>true</winConsole>
-                            <winHelpUrl>https://github.com/ebremer/Halcyon</winHelpUrl>
-                            <winUpdateUrl>https://github.com/ebremer/Halcyon</winUpdateUrl>
+                            <winHelpUrl>https://github.com/halcyon-project/Halcyon</winHelpUrl>
+                            <winUpdateUrl>https://github.com/halcyon-project/Halcyon</winUpdateUrl>
                             <type>MSI</type>
                         </configuration>
                     </execution>
