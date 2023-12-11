@@ -4,6 +4,7 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.ParameterException;
 import com.ebremer.beakgraph.ng.BG;
 import com.ebremer.beakgraph.ng.SpecialProcess;
+import com.ebremer.halcyon.lib.shacl.GeoSPARQL;
 import com.ebremer.halcyon.raptor.HeatmapProcess;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import com.ebremer.halcyon.raptor.SegmentationProcess;
@@ -63,32 +64,41 @@ public class Ingest {
         specials.add(new HilbertSpecial());
     }
            
-    public void OneFile(File source, File dest, boolean optimize) {
+    public void OneFile(File source, File dest, IngestParameters params) {
         Dataset dsi = DatasetFactory.create();
         try (
             FileInputStream fis = new FileInputStream(source);
             GZIPInputStream gis = new GZIPInputStream(fis);
         ) {
             RDFDataMgr.read(dsi.getDefaultModel(), gis, Lang.TURTLE);
-            Pair pair = getImageSize(dsi.getDefaultModel());
-            if (!optimize) {
-                logger.debug("Segmentation Type");
-                BG.getBuilder()
-                    .dataset(dsi)
-                    .handle(list)
-                    .setProcess(new SegmentationProcess(pair.width(),pair.height(),512,512))
-                    .Extra(specials)
-                    .file(dest)
-                    .build();
+            boolean valid = true;
+            if (params.validate) {
+                GeoSPARQL geo = new GeoSPARQL();
+                valid = geo.validate(dsi.getDefaultModel());
+            }
+            if (valid) {
+                Pair pair = getImageSize(dsi.getDefaultModel());
+                if (!params.optimize) {
+                    logger.debug("Segmentation Type");
+                    BG.getBuilder()
+                        .dataset(dsi)
+                        .handle(list)
+                        .setProcess(new SegmentationProcess(pair.width(),pair.height(),512,512))
+                        .Extra(specials)
+                        .file(dest)
+                        .build();
+                } else {
+                    logger.debug("Heatmap Type");
+                    BG.getBuilder()
+                        .dataset(dsi)
+                        .handle(list)
+                        .setProcess(new HeatmapProcess(pair.width(),pair.height()))
+                    // .Extra(specials)
+                        .file(dest)
+                        .build();
+                }
             } else {
-                logger.debug("Heatmap Type");
-                BG.getBuilder()
-                    .dataset(dsi)
-                    .handle(list)
-                    .setProcess(new HeatmapProcess(pair.width(),pair.height()))
-                // .Extra(specials)
-                    .file(dest)
-                    .build();
+                logger.info("GeoSPARQL format not valid --> "+source.toString());
             }
         } catch (FileNotFoundException ex) {
             logger.error(ex.toString());
@@ -124,7 +134,7 @@ public class Ingest {
         throw new Error("ImageObject not found in source file");
     }
     
-    public void Process(int cores, File src, boolean optimize, File dest) throws FileNotFoundException, IOException { 
+    public void Process(int cores, File src, File dest, IngestParameters params) throws FileNotFoundException, IOException { 
         ThreadPoolExecutor engine = new ThreadPoolExecutor(cores,cores,0L,TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
         engine.prestartAllCoreThreads();
         if (!dest.exists()) {
@@ -146,7 +156,7 @@ public class Ingest {
                     nnd = Path.of(dest.toString(),src.toPath().relativize(nnd).toString());
                     File nndf = nnd.toFile();
                     if (!nndf.exists()) {
-                        Callable<Model> worker = new FileProcessor(p.toFile(), nnd.toFile(), optimize);
+                        Callable<Model> worker = new FileProcessor(p.toFile(), nnd.toFile(), params);
                         engine.submit(worker);
                     } else {
                         System.out.println("Already exists : "+nndf.toString());
@@ -167,7 +177,7 @@ public class Ingest {
             }  
             System.out.println("Engine shutdown.");
         } else if (src.toString().endsWith(".ttl.gz")) {
-            OneFile(src, dest, optimize);
+            OneFile(src, dest, params);
         }
     }
    
@@ -186,7 +196,7 @@ public class Ingest {
                 System.exit(0);
             } else {
                 if (params.src.exists()) {
-                    new Ingest().Process(params.threads, params.src, params.optimize, params.dest);
+                    new Ingest().Process(params.threads, params.src, params.dest, params);
                 } else {
                     System.out.println("Source does not exist! "+params.src);
                 }
@@ -203,17 +213,17 @@ public class Ingest {
     class FileProcessor implements Callable<Model> {
         private final File source;
         private final File dest;
-        private final boolean optimize;
+        private final IngestParameters params;
 
-        public FileProcessor(File source, File dest, boolean optimize) {
+        public FileProcessor(File source, File dest, IngestParameters params) {
+            this.params = params;
             this.source = source;
             this.dest = dest;
-            this.optimize = optimize;
         }
         
         @Override
         public Model call() throws Exception {
-            OneFile(source, dest, optimize);
+            OneFile(source, dest, params);
             return null;
         }
     }

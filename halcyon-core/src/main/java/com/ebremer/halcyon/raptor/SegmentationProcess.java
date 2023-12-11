@@ -1,6 +1,10 @@
 package com.ebremer.halcyon.raptor;
 
 import com.ebremer.halcyon.lib.GeometryTools;
+import com.ebremer.beakgraph.ng.AbstractProcess;
+import com.ebremer.beakgraph.ng.BeakWriter;
+import com.ebremer.halcyon.raptor.Objects.Scale;
+import com.ebremer.halcyon.lib.spatial.Spatial;
 import com.ebremer.halcyon.raptor.spatial.scale;
 import com.ebremer.beakgraph.ng.AbstractProcess;
 import com.ebremer.beakgraph.ng.BG;
@@ -28,6 +32,9 @@ import org.apache.jena.rdf.model.Literal;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.RDFNode;
+import org.apache.jena.rdf.model.ResIterator;
+import org.apache.jena.rdf.model.Resource;
+import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.sparql.function.FunctionRegistry;
@@ -62,11 +69,7 @@ public class SegmentationProcess implements AbstractProcess {
     
     public SegmentationProcess(int width, int height, int tileSizeX, int tileSizeY) {
         scaleset = new HashSet<>();
-        FunctionRegistry.get().put(HAL.NS+"eStarts", eStarts.class);
-        FunctionRegistry.get().put(HAL.NS+"Intersects", Intersects.class);
-        FunctionRegistry.get().put(HAL.NS+"scale", scale.class);
-        FunctionRegistry.get().put(HAL.NS+"area", Area.class);
-        FunctionRegistry.get().put(HAL.NS+"perimeter", Perimeter.class);
+        Spatial.init();
         this.width = width;
         this.height = height;
         this.tileSizeX = tileSizeX;
@@ -107,25 +110,6 @@ public class SegmentationProcess implements AbstractProcess {
         pssx.setNsPrefix("geo", GEO.NS);
         pssx.setIri("annotations", annotations);
         UpdateAction.parseExecute(pssx.toString(), ds);
-    }
-    
-    public void AddFeatureCollectionType(Model m) {
-        ParameterizedSparqlString pssx = new ParameterizedSparqlString(
-            """
-            insert {
-                ?featureCollection a hal:Segmentation
-            }
-            where {                
-                ?featureCollection a geo:FeatureCollection
-            }
-            """
-        );
-        pssx.setNsPrefix("hal", HAL.NS);
-        pssx.setNsPrefix("rdf", RDF.uri);
-        pssx.setNsPrefix("hal", HAL.NS);
-        pssx.setNsPrefix("geo", GEO.NS);
-        pssx.setIri("annotations", annotations);
-        UpdateAction.parseExecute(pssx.toString(), m);
     }
     
     public void SeparateAnnotations(Dataset ds) {
@@ -315,7 +299,6 @@ public class SegmentationProcess implements AbstractProcess {
     @Override
     public void Process(BeakWriter bw, Dataset ds) {
         Model xxx = ds.getDefaultModel();
-        AddFeatureCollectionType(xxx);
         logger.debug("Calculate Areas...");
         FeatureGeneration.AddAreas(xxx);
         logger.debug("Calculate Perimeters...");
@@ -326,6 +309,16 @@ public class SegmentationProcess implements AbstractProcess {
         Literal ty = xxx.createTypedLiteral(String.valueOf(512), XSDDatatype.XSDint);
         Literal fw = xxx.createTypedLiteral(String.valueOf(width), XSDDatatype.XSDint);
         Literal fh = xxx.createTypedLiteral(String.valueOf(height), XSDDatatype.XSDint);
+        ResIterator res = xxx.listResourcesWithProperty(RDF.type, GEO.FeatureCollection);
+        if (res.hasNext()) {
+            Resource fc = res.next();
+            fc
+                .addProperty(RDF.type, HAL.Segmentation)
+                .addProperty(EXIF.width, fw)
+                .addProperty(EXIF.height, fh)
+                .addProperty(HAL.tileSizeX, tx)
+                .addProperty(HAL.tileSizeY, ty);
+        }
         Resource spatialGrid = xxx.createResource()
                 .addProperty(RDF.type, HAL.Grid)
                 .addProperty(EXIF.width, fw)

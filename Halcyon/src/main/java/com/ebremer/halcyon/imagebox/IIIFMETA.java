@@ -8,7 +8,6 @@ import com.apicatalog.jsonld.document.Document;
 import com.apicatalog.jsonld.document.JsonDocument;
 import com.apicatalog.jsonld.document.RdfDocument;
 import com.ebremer.halcyon.filereaders.ROCImageReader;
-import com.ebremer.halcyon.filereaders.TiffImageReader;
 import static com.ebremer.halcyon.imagebox.IIIFUtils.IIIFAdjust;
 import com.ebremer.halcyon.lib.ImageMeta;
 import com.ebremer.halcyon.lib.ImageMeta.ImageScale;

@@ -1,4 +1,4 @@
-package com.ebremer.halcyon.raptor.spatial;
+package com.ebremer.halcyon.lib.spatial;
 
 import com.ebremer.halcyon.lib.GeometryTools;
 import java.util.List;

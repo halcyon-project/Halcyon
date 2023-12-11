@@ -1,15 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>com.ebremer.HalcyonProject</groupId>
     <artifactId>Halcyon</artifactId>
-    <version>0.8.0</version>
+    <version>1.0.0</version>
     <packaging>jar</packaging>
     <name>Halcyon</name>
     <parent>
         <groupId>com.ebremer.HalcyonProject</groupId>
         <artifactId>HalcyonProject</artifactId>
-        <version>0.8.0</version>
+        <version>1.0.0</version>
     </parent>      
     <build>
         <plugins>
@@ -93,8 +92,8 @@
                     <execution>
                         <id>mac</id>
                         <configuration>
-                            <installDir>\Halcyon</installDir>
                             <type>DMG</type>
+                            
                         </configuration>
                     </execution>
                     <execution>
@@ -395,7 +394,7 @@
         <dependency>
             <groupId>com.apicatalog</groupId>
             <artifactId>titanium-json-ld</artifactId>
-        </dependency>
+        </dependency>        
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>halcyon-core</artifactId>
@@ -458,6 +457,5 @@
             <artifactId>hibernate-validator</artifactId>
             <version>5.4.3.Final</version>
         </dependency>
-
     </dependencies>
 </project>

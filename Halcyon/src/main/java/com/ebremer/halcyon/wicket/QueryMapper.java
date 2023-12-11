@@ -101,7 +101,7 @@ public class QueryMapper {
     public static void main(String[] args) {
         SPARQLParser k = SPARQLParser.createParser(Syntax.syntaxSPARQL_11);
         Query haha = new Query();
-        k.parse(haha, "prefix : <https://www.ebremer.com/ns/> select ?g ?s ?p ?o ?pp ?oo where {?s ?p ?o . graph ?g {?s ?p ?o . ?o ?pp ?oo; ?boo 'Bremer'; :alpha/:beta/:gamma ?wow}}");
+        k.parse(haha, "prefix : <https://halcyon.is/ns/> select ?g ?s ?p ?o ?pp ?oo where {?s ?p ?o . graph ?g {?s ?p ?o . ?o ?pp ?oo; ?boo 'Bremer'; :alpha/:beta/:gamma ?wow}}");
         QueryMapper qm = new QueryMapper(haha);
         Iterator<Var> i = haha.getProjectVars().iterator();
         while (i.hasNext()) {

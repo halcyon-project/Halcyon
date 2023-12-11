@@ -195,8 +195,8 @@ public class NS2GS {
                     .addProperty(DCTerms.title, "cnn-nuclear-segmentations-2019")
                     .addProperty(DCTerms.description, "Nuclear segmentation of TCGA cancer types")
                     .addProperty(DCTerms.date, dateTimeLiteral)
-                    .addProperty(DCTerms.references, "https://doi.org/10.1038/s41597-020-0528-1")
-                    .addProperty(DCTerms.creator, "https://orcid.org/0000-0001-7323-5300")
+                    .addProperty(DCTerms.references, m.createResource("https://doi.org/10.1038/s41597-020-0528-1"))
+                    .addProperty(DCTerms.creator, m.createResource("https://orcid.org/0000-0001-7323-5300"))
                     .addProperty(PROVO.wasGeneratedBy, Activity)
                     .addProperty(DCTerms.publisher, m.createResource("https://ror.org/05qghxh33"))
                     .addProperty(DCTerms.publisher, m.createResource("https://ror.org/01882y777"));

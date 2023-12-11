@@ -10,12 +10,12 @@ public class HAL {
 /**
  *  Halcyon
  *  <p>
- *	See <a href="https://www.ebremer.com/halcyon">Halcyon</a>.
+ *	See <a href="https://halcyon.is">Halcyon</a>.
  *  <p>
- *  <a href="https://www.ebremer.com/halcyon/ns/">Base URI and namepace</a>.
+ *  <a href="https://halcyon.is/ns/">Base URI and namepace</a>.
  */
     private static final Model m = ModelFactory.createDefaultModel();
-    public static final String NS = "https://www.ebremer.com/halcyon/ns/";
+    public static final String NS = "https://halcyon.is/ns/";
     
     public static final Resource Grid = m.createResource( NS + "Grid" );
     public static final Resource Heatmap  = m.createResource( NS + "Heatmap" );
