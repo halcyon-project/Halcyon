@@ -128,7 +128,7 @@ public class FLSegmentation implements FL {
             pss = new ParameterizedSparqlString(
                 """
                 select distinct ?gridType ?index ?width ?height where {
-                    ?grid  a ?gridType; hal:scale ?scale . 
+                    ?grid a ?gridType; hal:scale ?scale . 
                     ?scale exif:width ?width; exif:height ?height; hal:scaleIndex ?index                
                 } order by ?index
                 """
@@ -192,6 +192,19 @@ public class FLSegmentation implements FL {
                         """
                     );
                     pss.setNsPrefix("geo", GEO.NS);
+                    pss.setNsPrefix("exif", EXIF.NS);
+                    pss.setNsPrefix("dct", DCTerms.NS);
+                    ff = QueryExecutionFactory.create(pss.toString(), ds.getDefaultModel()).execConstruct();
+                    hh.add(ff);
+                    pss = new ParameterizedSparqlString(
+                        """
+                        construct { ?grid a ?gridType; exif:height ?height; exif:width ?width; hal:tileSizeX ?tileSizeX; hal:tileSizeY ?tileSizeY }
+                        where { ?grid a ?gridType; exif:height ?height; exif:width ?width; hal:tileSizeX ?tileSizeX; hal:tileSizeY ?tileSizeY }
+                        limit 1
+                        """
+                    );
+                    pss.setNsPrefix("geo", GEO.NS);
+                    pss.setNsPrefix("hal", HAL.NS);
                     pss.setNsPrefix("exif", EXIF.NS);
                     pss.setNsPrefix("dct", DCTerms.NS);
                     ff = QueryExecutionFactory.create(pss.toString(), ds.getDefaultModel()).execConstruct();

@@ -5,7 +5,7 @@
     <groupId>com.ebremer.HalcyonProject</groupId>
     <artifactId>HalcyonProject</artifactId>
     <packaging>pom</packaging>
-    <version>0.8.0</version>
+    <version>1.0.0</version>
     <description>A whole slide image annotation, management, and visualization system</description>
     
     <modules>
@@ -85,7 +85,7 @@
         <jakarta.json.version>2.0.1</jakarta.json.version> 
         <titanium-json-ld.ver>1.3.3</titanium-json-ld.ver>
         <dcm4che.ver>5.29.2</dcm4che.ver>
-        <beakgraph.version>0.7.0</beakgraph.version>
+        <beakgraph.version>0.8.0</beakgraph.version>
         <keycloak.version>21.1.1</keycloak.version>
 	<infinispan.version>14.0.8.Final</infinispan.version>
 	<resteasy.version>4.7.7.Final</resteasy.version>

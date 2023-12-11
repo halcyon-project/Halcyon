@@ -10,6 +10,7 @@ import com.apicatalog.jsonld.serialization.RdfToJsonld;
 import com.apicatalog.rdf.RdfDataset;
 import com.ebremer.halcyon.data.DataCore;
 import com.ebremer.halcyon.wicket.BasePage;
+import com.ebremer.ns.HAL;
 import jakarta.json.Json;
 import jakarta.json.JsonArray;
 import jakarta.json.JsonObject;
@@ -144,7 +145,7 @@ public class Graph3D extends BasePage {
                     } where {
                         ?s so:name ?sname; a ?type; ?p ?o .
                         ?o so:name ?oname .
-                        optional{?o <http://www.ebremer.com/ns/group> ?group}
+                        optional{?o hal:group ?group}
                         values (?p) {?typelist}
                         bind(str(?sname) as ?sString)
                         bind(substr(str(?p),20) as ?pString)
@@ -155,6 +156,7 @@ public class Graph3D extends BasePage {
             pss.setNsPrefix("", "http://www.ebremer.com/ns/");
             pss.setNsPrefix("rdf", RDF.uri);
             pss.setNsPrefix("xsd", XSD.NS);
+            pss.setNsPrefix("hal", HAL.NS);
             pss.setNsPrefix("so", SchemaDO.NS);
             pss.setNsPrefix("res", "http://www.ebremer/com/resource/");
             pss.setValues("typelist", list);

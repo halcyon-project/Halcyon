@@ -12,7 +12,7 @@
             <properties>
                 <exec.vmArgs>--enable-preview -Xmx59G -Xms59G -Xss1G --add-opens=java.base/java.nio=ALL-UNNAMED</exec.vmArgs>
                 <exec.args>${exec.vmArgs} -classpath %classpath ${exec.mainClass} ${exec.appArgs}</exec.args>
-                <exec.appArgs>-src D:\tcga\cvpr-data\rdf\brca -dest D:\tcga\cvpr-data\zip\brca -threads 16</exec.appArgs>
+                <exec.appArgs>-validate -src D:\tcga\cvpr-data\rdf\coad -dest D:\tcga\cvpr-data\zip\coad -threads 16</exec.appArgs>
                 <exec.mainClass>com.ebremer.halcyon.converters.Ingest</exec.mainClass>
                 <exec.executable>java</exec.executable>
             </properties>
@@ -29,7 +29,7 @@
             <properties>
                 <exec.vmArgs>--enable-preview -Xmx59G -Xms59G -Xss1G --add-opens=java.base/java.nio=ALL-UNNAMED -agentlib:jdwp=transport=dt_socket,server=n,address=${jpda.address}</exec.vmArgs>
                 <exec.args>${exec.vmArgs} -classpath %classpath ${exec.mainClass} ${exec.appArgs}</exec.args>
-                <exec.appArgs>-src D:\tcga\cvpr-data\rdf\brca -dest D:\tcga\cvpr-data\zip\brca -threads 16</exec.appArgs>
+                <exec.appArgs>-validate -src D:\tcga\cvpr-data\rdf\coad -dest D:\tcga\cvpr-data\zip\coad -threads 16</exec.appArgs>
                 <exec.mainClass>com.ebremer.halcyon.converters.Ingest</exec.mainClass>
                 <exec.executable>java</exec.executable>
                 <jpda.listen>true</jpda.listen>
@@ -49,7 +49,7 @@
                 <exec.args>${exec.vmArgs} -classpath %classpath ${exec.mainClass} ${exec.appArgs}</exec.args>
                 <exec.mainClass>com.ebremer.halcyon.converters.Ingest</exec.mainClass>
                 <exec.executable>java</exec.executable>
-                <exec.appArgs>-src D:\tcga\cvpr-data\rdf\brca -dest D:\tcga\cvpr-data\zip\brca -threads 16</exec.appArgs>
+                <exec.appArgs>-validate -src D:\tcga\cvpr-data\rdf\coad -dest D:\tcga\cvpr-data\zip\coad -threads 16</exec.appArgs>
             </properties>
         </action>
     </actions>

@@ -1,0 +1,98 @@
+@prefix dash: <http://datashapes.org/dash#> .
+@prefix dc:   <http://purl.org/dc/terms/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix so: <https://schema.org/> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix hal: <https://halcyon.is/ns/> .
+@prefix geo: <http://www.opengis.net/ont/geosparql#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix exif: <http://www.w3.org/2003/12/exif/ns#> .
+                                     
+<urn:hal:GeoSPARQLFeatureCollectionShape>
+    a sh:NodeShape;
+    sh:targetClass geo:FeatureCollection;
+    sh:property [
+        sh:path rdfs:member;
+        sh:node <urn:hal:FeatureShape>;
+        sh:minCount 1;
+    ];
+    sh:property [
+        sh:path prov:wasGeneratedBy;
+        sh:node <urn:hal:ProvActivityShape>;
+        sh:minCount 1;
+        sh:maxCount 1
+    ];
+    sh:property [
+        sh:path rdfs:member;
+        sh:node <urn:hal:FeatureShape>
+    ];
+    sh:property [
+        sh:path dc:title;
+        sh:datatype xsd:string;
+        sh:minCount 1;
+        sh:maxCount 1
+    ];
+    sh:property [
+        sh:path dc:description;
+        sh:datatype xsd:string;
+        sh:minCount 1;
+        sh:maxCount 1
+    ];
+    sh:property [
+        sh:path dc:creator;
+        sh:nodeKind sh:IRI;
+        sh:message "Must be a URI, we suggest a ORCID URI";
+        sh:minCount 1;
+        sh:maxCount 1
+    ];
+    sh:property [
+        sh:path dc:references;
+        sh:nodeKind sh:IRI;
+        sh:message "Must be a URI";
+        sh:minCount 1
+    ];
+    sh:property [
+        sh:path dc:date;
+        sh:datatype xsd:dateTime;
+        sh:minCount 1;
+        sh:maxCount 1
+    ] .
+
+<urn:hal:FeatureShape>
+    a sh:NodeShape;
+    sh:targetClass geo:Feature .
+
+<urn:hal:ProvActivityShape>
+    a sh:NodeShape;
+    sh:targetClass prov:Activity;
+    sh:property [
+        sh:path prov:used;
+        sh:node <urn:hal:SDOImageObjectShape>;
+        sh:minCount 1;
+        sh:maxCount 1
+    ];
+    sh:property [
+        sh:path prov:wasAssociatedWith;
+        sh:minCount 1;
+        sh:maxCount 1
+    ] .
+
+<urn:hal:SDOImageObjectShape>
+    a sh:NodeShape;
+    sh:targetClass so:ImageObject;
+    sh:property [
+        sh:path exif:height;
+        sh:datatype xsd:int;
+        sh:minCount 1;
+        sh:maxCount 1;
+        sh:minInclusive 1
+    ];
+    sh:property [
+        sh:path exif:width;
+        sh:datatype xsd:int;
+        sh:minCount 1;
+        sh:maxCount 1;
+        sh:minInclusive 1
+    ] .

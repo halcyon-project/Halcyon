@@ -1,6 +1,5 @@
 package com.ebremer.halcyon.imagebox;
 
-import com.ebremer.halcyon.lib.ReverseScales;
 import com.ebremer.halcyon.lib.SortSizes;
 import com.ebremer.ns.IIIF;
 import jakarta.json.Json;

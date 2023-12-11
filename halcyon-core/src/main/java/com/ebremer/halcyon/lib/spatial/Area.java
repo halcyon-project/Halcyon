@@ -1,4 +1,4 @@
-package com.ebremer.halcyon.raptor.spatial;
+package com.ebremer.halcyon.lib.spatial;
 
 import com.ebremer.halcyon.lib.GeometryTools;
 import java.util.List;
@@ -7,11 +7,11 @@ import org.apache.jena.sparql.expr.NodeValue;
 import org.apache.jena.sparql.function.FunctionBase;
 import org.locationtech.jts.geom.Polygon;
 
-public class Perimeter extends FunctionBase {
+public class Area extends FunctionBase {
     
     public static final String POLYGONEMPTY = "POLYGON EMPTY";
     
-    public Perimeter() {
+    public Area() {
         super();
     }
 
@@ -19,7 +19,7 @@ public class Perimeter extends FunctionBase {
     public NodeValue exec(List<NodeValue> args) {
         NodeValue nwkt = args.get(0);
         if (!nwkt.isString()) {
-            throw new IllegalArgumentException("Perimeter expects a WKT String argument");
+            throw new IllegalArgumentException("Area expects a WKT String argument");
         }
         String ppp = nwkt.getString();
         if (POLYGONEMPTY.equals(ppp)) return NodeValue.makeDouble(0d);
@@ -27,13 +27,13 @@ public class Perimeter extends FunctionBase {
         if (polygon == null) {
             return NodeValue.makeDouble(0d);
         }
-        return NodeValue.makeDouble(polygon.getLength());
+        return NodeValue.makeDouble(polygon.getArea());
     }
 
     @Override
     public void checkBuild(String uri, ExprList args) {
         if (args.size() != 1) {
-            throw new IllegalArgumentException("Perimeter expects one argument [wkt]");
+            throw new IllegalArgumentException("Area expects one argument [wkt]");
         }
     }
 }

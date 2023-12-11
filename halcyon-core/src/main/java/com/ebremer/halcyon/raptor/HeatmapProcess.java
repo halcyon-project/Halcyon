@@ -1,11 +1,9 @@
 package com.ebremer.halcyon.raptor;
 
-import com.ebremer.halcyon.raptor.spatial.scale;
 import com.ebremer.beakgraph.ng.AbstractProcess;
 import com.ebremer.beakgraph.ng.BeakWriter;
 import com.ebremer.halcyon.raptor.Objects.Scale;
-import com.ebremer.halcyon.raptor.spatial.Area;
-import com.ebremer.halcyon.raptor.spatial.Perimeter;
+import com.ebremer.halcyon.lib.spatial.Spatial;
 import com.ebremer.ns.GEO;
 import com.ebremer.ns.HAL;
 import com.ebremer.ns.PROVO;
@@ -21,7 +19,6 @@ import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.ResourceFactory;
-import org.apache.jena.sparql.function.FunctionRegistry;
 import org.apache.jena.update.UpdateAction;
 import org.apache.jena.vocabulary.DCTerms;
 import org.apache.jena.vocabulary.RDF;
@@ -50,11 +47,11 @@ public class HeatmapProcess implements AbstractProcess {
     
     public HeatmapProcess(int width, int height) {
         scaleset = new HashSet<>();
-        FunctionRegistry.get().put(HAL.NS+"eStarts", eStarts.class);
-        FunctionRegistry.get().put(HAL.NS+"Intersects", Intersects.class);
-        FunctionRegistry.get().put(HAL.NS+"scale", scale.class);
-        FunctionRegistry.get().put(HAL.NS+"area", Area.class);
-        FunctionRegistry.get().put(HAL.NS+"perimeter", Perimeter.class);
+        //FunctionRegistry.get().put(HAL.NS+"Intersects", Intersects.class);
+        //FunctionRegistry.get().put(HAL.NS+"scale", scale.class);
+        //FunctionRegistry.get().put(HAL.NS+"area", Area.class);
+        //FunctionRegistry.get().put(HAL.NS+"perimeter", Perimeter.class);
+        Spatial.init();
         this.width = width;
         this.height = height;
         //this.tileSizeX = tileSizeX;

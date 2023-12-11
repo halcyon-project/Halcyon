@@ -194,7 +194,6 @@ public class FeatureManager {
                     .addProperty(RDF.type, HAL.FeatureLayer)
                     .addLiteral(HAL.layerNum, c)
                     .addProperty(HAL.location, host+"/iiif/?iiif="+host+PathFinder.Path2URL(rockey.getURI())+"/info.json")
-                    //.addProperty(HAL.location, host+"/halcyon/?iiif="+rockey.getURI()+"/info.json")
                     .addLiteral(SchemaDO.name, "Name Unknown")
                     .addLiteral(HAL.opacity, 0.5);
                 COLORSCHEME
