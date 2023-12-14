@@ -50,7 +50,6 @@ import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.RDFS;
 import org.apache.jena.vocabulary.SchemaDO;
 import org.apache.jena.vocabulary.XSD;
-import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -264,31 +263,3 @@ public class NS2GS {
         }
     }
 }
-
-/*
-            Resource root = m.createResource()
-                    .addProperty(SchemaDO.creator, m.createResource("http://orcid.org/0000-0003-0223-1059"))
-                    .addProperty(RDF.type, SchemaDO.Dataset)
-                    .addLiteral(SchemaDO.keywords, "Whole Slide Imaging")
-                    .addLiteral(SchemaDO.keywords, "pathology")
-                    .addProperty(SchemaDO.datePublished, dateTimeLiteral)
-                    .addLiteral(SchemaDO.keywords, "nuclear segmentation")
-                    .addLiteral(SchemaDO.description, "Nuclear segmentation of TCGA cancer types")
-                    .addLiteral(SchemaDO.name, "cnn-nuclear-segmentations-2019")
-                    .addProperty(SchemaDO.instrument, m.createResource("https://github.com/SBU-BMI/quip_cnn_segmentation/releases/tag/v1.1"))
-                    .addProperty(SchemaDO.publisher, m.createResource("https://ror.org/05qghxh33"))
-                    .addProperty(SchemaDO.publisher, m.createResource("https://ror.org/01882y777"));          
-
-
-            root.addProperty(SchemaDO.hasPart, CA);
-*/
-
-/*
-            
-            Resource CA = m.createResource()
-                    .addProperty(RDF.type, SchemaDO.CreateAction)
-                    .addLiteral(SchemaDO.name, "cnn-nuclear-segmentations-2019")
-                    .addLiteral(SchemaDO.description, "cnn-nuclear-segmentations-2019")
-                    .addProperty(SchemaDO.object, image)
-                    .addProperty(SchemaDO.result, SpatialObjectCollection);
-*/

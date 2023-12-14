@@ -218,9 +218,6 @@ public class HeatmapProcess implements AbstractProcess {
         Resource FC = last.listResourcesWithProperty(RDF.type, GEO.FeatureCollection).next();        
         FC.addProperty(RDFS.member, bw.getTarget());        
         bw.getROC().getManifest().getManifestModel().add(last);
-        //Model man = bw.getROC().getManifest().getManifestModel();
-        //man.setNsPrefix("bg", BG.NS);
-        //man.setNsPrefix("prov", PROVO.NS);
         logger.debug("Heatmap process finished...");
     }
 }
