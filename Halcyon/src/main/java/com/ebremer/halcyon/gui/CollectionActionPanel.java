@@ -73,8 +73,7 @@ public class CollectionActionPanel extends Panel {
                     DataCore.getInstance().ReloadSECM();
                     AccessCachePool.getPool().getKeys().forEach(k->{
                         System.out.println("Clear key pool --> "+k);
-                        AccessCachePool.getPool().clear(k);
-                        
+                        AccessCachePool.getPool().clear(k);                        
                     });
                 }
             };

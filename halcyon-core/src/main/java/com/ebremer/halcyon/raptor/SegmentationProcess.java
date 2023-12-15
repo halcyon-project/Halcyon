@@ -87,8 +87,7 @@ public class SegmentationProcess implements AbstractProcess {
                 ?featureCollection hal:hasClassification ?class
             }
             where {                
-                ?featureCollection
-                    a geo:FeatureCollection;
+                ?featureCollection a geo:FeatureCollection;
                     rdfs:member ?feature .
                 ?feature hal:classification ?class            
             }
@@ -420,9 +419,6 @@ public class SegmentationProcess implements AbstractProcess {
             }
             """
         );
-        //                ?featureCollection a geo:FeatureCollection; prov:wasGeneratedBy ?activity; hal:hasClassification ?classification .
-                 //?activity a prov:Activity; prov:used ?used; prov:wasAssociatedWith ?wasAssociatedWith .
-                 //?used ?up ?uo
         pssx.setNsPrefix("so", SchemaDO.NS);
         pssx.setNsPrefix("geo", GEO.NS);
         pssx.setNsPrefix("dcterms", DCTerms.NS);
@@ -463,13 +459,8 @@ public class SegmentationProcess implements AbstractProcess {
         pssx.setNsPrefix("dcterms", DCTerms.NS);
         qe = QueryExecutionFactory.create(pssx.toString(), ds.getDefaultModel());
         last.add(qe.execConstruct());
-        //Resource activity = last.listResourcesWithProperty(RDF.type, PROVO.Activity).next();
         Resource FC = last.listResourcesWithProperty(RDF.type, GEO.FeatureCollection).next();        
-        //activity.addProperty(SchemaDO.result, bw.getTarget());
         FC.addProperty(RDFS.member, bw.getTarget());        
         bw.getROC().getManifest().getManifestModel().add(last);
-        //Model man = bw.getROC().getManifest().getManifestModel();
-        //man.setNsPrefix("bg", BG.NS);
-        //man.setNsPrefix("prov", PROVO.NS);
     }
 }
