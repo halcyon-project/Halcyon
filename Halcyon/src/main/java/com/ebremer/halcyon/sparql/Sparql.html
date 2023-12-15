@@ -21,7 +21,7 @@
             var tab = yasgui.getTab();
             //tab.setQuery("select *\nwhere {graph ?g {?s ?p ?o}}\nlimit 20");
             tab.yasqe.addPrefixes({ so: "https://schema.org/" });
-            tab.yasqe.addPrefixes({hal: "https://www.ebremer.com/halcyon/ns/" });
+            tab.yasqe.addPrefixes({hal: "https://halcyon.is/ns/" });
             tab.yasqe.addPrefixes({rdfs: "http://www.w3.org/2000/01/rdf-schema#" });
             tab.yasqe.addPrefixes({rdf: "http://www.w3.org/1999/02/22-rdf-syntax-ns#" });
             tab.yasqe.addPrefixes({exif: "http://www.w3.org/2003/12/exif/ns#" });
@@ -29,6 +29,7 @@
             tab.yasqe.addPrefixes({loc: "http://id.loc.gov/vocabulary/preservation/cryptographicHashFunctions/" });
             tab.yasqe.addPrefixes({geo: "http://www.opengis.net/ont/geosparql#" });
             tab.yasqe.addPrefixes({dct: "http://purl.org/dc/terms/" });
+            tab.yasqe.addPrefixes({prov: "http://www.w3.org/ns/prov#" });            
             tab.yasqe.collapsePrefixes(true);
         </script>
         </wicket:extend>

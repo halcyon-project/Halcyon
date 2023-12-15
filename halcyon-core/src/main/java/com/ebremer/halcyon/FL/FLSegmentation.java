@@ -22,7 +22,6 @@ import com.ebremer.halcyon.raptor.Objects.Scale;
 import com.ebremer.halcyon.lib.GeometryTools;
 import com.ebremer.halcyon.utils.ImageTools;
 import com.ebremer.ns.GEO;
-import com.ebremer.ns.PROVO;
 import jakarta.json.Json;
 import jakarta.json.JsonArray;
 import jakarta.json.JsonObject;
@@ -60,7 +59,6 @@ import org.apache.jena.riot.system.JenaTitanium;
 import org.apache.jena.sparql.vocabulary.DOAP;
 import org.apache.jena.vocabulary.DCTerms;
 import org.apache.jena.vocabulary.RDF;
-import org.apache.jena.vocabulary.RDFS;
 import org.apache.jena.vocabulary.SchemaDO;
 import org.locationtech.jts.geom.Polygon;
 import org.slf4j.Logger;
@@ -236,10 +234,13 @@ public class FLSegmentation implements FL {
     public Model LoadExtendedManifest() {
         logger.info("Loading ROCrate Manifest");
         Model hh = ModelFactory.createDefaultModel();
-        BeakGraph bg = BeakGraphPool.getPool().borrowObject(uri);
-        Dataset ds = DatasetFactory.wrap(new BGDatasetGraph(bg));
-        hh.add(ds.getDefaultModel());
-        BeakGraphPool.getPool().returnObject(uri, bg);        
+        BeakGraph bg = BeakGraphPool.getPool().borrowObject(uri);        
+        //Dataset ds = DatasetFactory.wrap(new BGDatasetGraph(bg));
+        //hh.add(ds.getDefaultModel());
+        hh.add(bg.getReader().getManifest());
+        BeakGraphPool.getPool().returnObject(uri, bg);
+        return hh;
+        /*
         ParameterizedSparqlString pss = new ParameterizedSparqlString(
             """
             construct {
@@ -247,7 +248,7 @@ public class FLSegmentation implements FL {
                     dct:title ?title;
                     prov:wasGeneratedBy  [ a prov:Activity; prov:used ?used; prov:wasAssociatedWith ?wasAssociatedWith ] .
                 ?fc dct:creator ?creator .
-                ?fc dct:publisherr ?publisher .
+                ?fc dct:publisher ?publisher .
                 ?fc dct:references ?references .
                 ?fc hal:hasClassification ?hasClassification .
                 ?fc dct:contributor ?contributor .
@@ -258,7 +259,7 @@ public class FLSegmentation implements FL {
                     dct:title ?title;
                     prov:wasGeneratedBy  [ a prov:Activity; prov:used ?used; prov:wasAssociatedWith ?wasAssociatedWith ] .
                 optional { ?fc dct:creator ?creator }
-                optional { ?fc dct:publisherr ?publisherr }
+                optional { ?fc dct:publisher ?publisher }
                 optional { ?fc dct:references ?references }
                 optional { ?fc hal:hasClassification ?hasClassification }
                 optional { ?fc dct:contributor ?contributor }
@@ -273,6 +274,7 @@ public class FLSegmentation implements FL {
         pss.setNsPrefix("rdfs", RDFS.uri);
         pss.setNsPrefix("prov", PROVO.NS);      
         return QueryExecutionFactory.create(pss.toString(), hh).execConstruct();
+        */
     }
         
     @Override

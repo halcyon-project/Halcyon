@@ -27,8 +27,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.DatasetFactory;
 import org.apache.jena.query.ParameterizedSparqlString;
@@ -46,6 +44,7 @@ import org.apache.jena.vocabulary.OWL;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.RDFS;
 import org.apache.jena.vocabulary.SchemaDO;
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
@@ -54,7 +53,7 @@ import org.slf4j.LoggerFactory;
  */
 public class FeatureManager {
 
-    private static final org.slf4j.Logger logger = LoggerFactory.getLogger(FeatureManager.class);
+    private static final Logger logger = LoggerFactory.getLogger(FeatureManager.class);
     
     public static String getFeatures(HashSet<String> features, String urn) {
         Dataset ds = DataCore.getInstance().getDataset();
@@ -89,6 +88,7 @@ public class FeatureManager {
         pss.setIri("image", urn);
         pss.setValues("selected", createactions);
         ds.begin(ReadWrite.READ);
+        logger.debug(pss.toString());
         ResultSet results = QueryExecutionFactory.create(pss.toString(), ds).execSelect().materialise();
         ds.end();
         ArrayList<RDFNode> roc = new ArrayList<>();
@@ -111,6 +111,7 @@ public class FeatureManager {
         pss.setNsPrefix("rdf", RDF.uri);        
         pss.setValues("selected", roc);
         ds.begin(ReadWrite.READ);
+        logger.debug(pss.toString());
         ResultSet rs = QueryExecutionFactory.create(pss.toString(), ds).execSelect().materialise();
         ds.end();
         record ColorCode(String color, int code, String name) {}
@@ -258,7 +259,7 @@ public class FeatureManager {
             out.writeObject(jo);
             hold = new String(baos.toByteArray());
         } catch (JsonLdError ex) {
-            Logger.getLogger(FeatureManager.class.getName()).log(Level.SEVERE, null, ex);
+            logger.error(ex.toString());
         }
       return HFrame.wow(hold);
     }

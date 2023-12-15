@@ -186,7 +186,7 @@ public class Main {
 	registration.addUrlPatterns("/*");
         registration.setOrder(Ordered.HIGHEST_PRECEDENCE);
         registration.addInitParameter(KeycloakOIDCFilter.CONFIG_FILE_PARAM, "keycloak.json");        
-        registration.addInitParameter(KeycloakOIDCFilter.SKIP_PATTERN_PARAM, "(^/skunkworks/.*|^/puffin.*|^/threejs/.*|^/halcyon.*|^/zephyr/.*|^/rdf.*|^/talon/.*|/;jsessionid=.*|/gui/images/halcyon.png|^/wicket/resource/.*|^/multi-viewer.*|^/iiif.*|^/|^/about|^/ListImages.*|^/wicket/resource/com.*\\.css||^/auth/.*|^/favicon.ico)");
+        registration.addInitParameter(KeycloakOIDCFilter.SKIP_PATTERN_PARAM, "(^/h2.*|^/skunkworks/.*|^/puffin.*|^/threejs/.*|^/halcyon.*|^/zephyr/.*|^/rdf.*|^/talon/.*|/;jsessionid=.*|/gui/images/halcyon.png|^/wicket/resource/.*|^/multi-viewer.*|^/iiif.*|^/|^/about|^/ListImages.*|^/wicket/resource/com.*\\.css||^/auth/.*|^/favicon.ico)");
         registration.setEnabled(true);
         return registration;
     }

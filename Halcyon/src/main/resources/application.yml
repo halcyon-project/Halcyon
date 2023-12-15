@@ -48,7 +48,7 @@ logging:
     max-history: 10
   level:
     root: ERROR
-    com.ebremer.halcyon: ERROR
+    com.ebremer.halcyon: DEBUG
     com.ebremer.beakgraph: ERROR
     #org.apache.wicket.Application: ERROR
     #org.keycloak.adapters: TRACE
