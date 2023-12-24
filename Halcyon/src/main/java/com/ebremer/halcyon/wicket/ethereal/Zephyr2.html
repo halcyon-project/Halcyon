@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<wicket:head>
+    <style> body { margin: 0; } </style>
+</wicket:head>
+
+<body>
+<wicket:extend>
+   <script type="importmap">
+        {
+            "imports": {
+                "three": "/threejs/build/three.module.js",
+                "three/addons/": "/threejs/examples/jsm/",
+                "zephyr": "/zephyr/rapture.js"
+            }
+        }
+    </script>
+    <script type="module">
+        import * as THREE from 'three';
+	import Stats from 'three/addons/libs/stats.module.js';
+	import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+	import { TrackballControls } from 'three/addons/controls/TrackballControls.js';
+        import * as ZEPHYR from 'zephyr';
+          
+                        
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            renderer.setSize( window.innerWidth, window.innerHeight );
+            camera.updateProjectionMatrix();
+	}
+
+        THREE.Cache.enabled = true;
+	const scene = new THREE.Scene();
+	const camera = new THREE.PerspectiveCamera( 90, window.innerWidth / window.innerHeight, -10, 100 );
+        camera.position.set(0, 0, 150000);
+        //camera.position.set(0, 0, 1250);
+	const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setPixelRatio( window.devicePixelRatio );
+	renderer.setSize( window.innerWidth, window.innerHeight );
+	document.body.appendChild( renderer.domElement );
+        window.addEventListener( 'resize', onWindowResize );
+        let controls = new TrackballControls( camera, renderer.domElement );
+        //ZEPHYR.CreateImageViewer(scene, "http://localhost:8888/HalcyonStorage/tcga/coad/TCGA-CM-5348-01Z-00-DX1.2ad0b8f6-684a-41a7-b568-26e97675cce9.svs",0);
+        console.log("HERE THIS ===> "+options.target);
+        ZEPHYR.CreateImageViewer(scene, options.target,0);
+
+        function animate() {
+            controls.update();
+            renderer.render( scene, camera );
+            requestAnimationFrame( animate );
+	}
+        animate();
+    </script>
+    </wicket:extend>
+</body>
+</html>

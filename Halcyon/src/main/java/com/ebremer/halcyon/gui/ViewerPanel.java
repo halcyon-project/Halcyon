@@ -21,6 +21,6 @@ public class ViewerPanel extends Panel {
     public void renderHead(IHeaderResponse response) {
 	super.renderHead(response);
         response.render(JavaScriptHeaderItem.forScript(HalcyonSession.get().getMV(), "images"));
-        response.render(JavaScriptHeaderItem.forScript(options, "options"));        
+        response.render(JavaScriptHeaderItem.forScript(options, "options"));
     }   
 }

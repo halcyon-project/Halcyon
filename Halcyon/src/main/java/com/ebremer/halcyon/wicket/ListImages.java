@@ -8,13 +8,15 @@ import com.ebremer.ethereal.Solution;
 import com.ebremer.halcyon.datum.Patterns;
 import com.ebremer.ns.HAL;
 import com.ebremer.ethereal.NodeColumn;
-import com.ebremer.halcyon.beakstuff.BeakGraphPoolFactory;
 import com.ebremer.halcyon.data.DataCore;
 import static com.ebremer.halcyon.data.DataCore.Level.OPEN;
 import com.ebremer.halcyon.datum.HalcyonPrincipal;
 import com.ebremer.halcyon.gui.HalcyonSession;
 import com.ebremer.halcyon.pools.AccessCache;
 import com.ebremer.halcyon.pools.AccessCachePool;
+import com.ebremer.halcyon.server.utils.HalcyonSettings;
+import com.ebremer.halcyon.server.utils.PathFinder;
+import com.ebremer.halcyon.wicket.ethereal.Zephyr2;
 import com.ebremer.multiviewer.MultiViewer;
 import com.ebremer.ns.EXIF;
 import com.ebremer.ns.PROVO;
@@ -52,6 +54,7 @@ import org.apache.wicket.model.IModel;
 import org.apache.wicket.model.LoadableDetachableModel;
 import org.apache.wicket.model.Model;
 import org.apache.wicket.request.resource.CssResourceReference;
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ListImages extends BasePage implements IPanelChangeListener {
@@ -60,7 +63,7 @@ public class ListImages extends BasePage implements IPanelChangeListener {
     private final SelectDataProvider rdfsdf;
     private final AjaxFallbackDefaultDataTable table;
     private String selected;
-    private static final org.slf4j.Logger logger = LoggerFactory.getLogger(ListImages.class);
+    private static final Logger logger = LoggerFactory.getLogger(ListImages.class);
     
     public ListImages() {
         List<IColumn<Solution, String>> columns = new LinkedList<>();
@@ -212,6 +215,17 @@ public class ListImages extends BasePage implements IPanelChangeListener {
                     setResponsePage(new MultiViewer(2,2,640,480));
                 }
             });
+            Link zephyr = new Link<Void>("zephyr") {               
+                @Override
+                public void onClick() {
+                    Solution s = model.getObject();
+                    String g = s.getMap().get("s").getURI();
+                    System.out.println("RAH ---> "+PathFinder.LocalPath2IIIFURL(g));
+                    setResponsePage(new Zephyr2(PathFinder.LocalPath2IIIFURL(g)));
+                }
+            };
+            add(zephyr);
+            zephyr.setVisible(HalcyonSettings.getSettings().isDevMode());
         }
     }
 }

@@ -1,6 +1,9 @@
 package com.ebremer.halcyon.server;
 
+import com.ebremer.halcyon.raptor.HilbertSpecial;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
@@ -13,6 +16,8 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @Configuration
 @Lazy(value = true)
 public class HalcyonResourceConfiguration implements WebMvcConfigurer {
+    private static final Logger logger = LoggerFactory.getLogger(HalcyonResourceConfiguration.class);
+    
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         String mv = HalcyonSettings.getSettings().getMultiewerLocation();
@@ -38,7 +43,7 @@ public class HalcyonResourceConfiguration implements WebMvcConfigurer {
             if (zephyr.startsWith("file:///")) {
                 zephyr = zephyr.replace("file:///", "file:/");
             }
-            System.out.println("Using Local Zephyr....");
+            logger.info("Using Local Zephyr <"+zephyr+">");
             registry.addResourceHandler("/zephyr/**").addResourceLocations(zephyr);
         } else {
             registry.addResourceHandler("/zephyr/**").addResourceLocations("classpath:/META-INF/public-web-resources/zephyr/");

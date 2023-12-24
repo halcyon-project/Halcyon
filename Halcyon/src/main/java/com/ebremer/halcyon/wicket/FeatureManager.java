@@ -64,7 +64,6 @@ public class FeatureManager {
             RDFNode node = wow.createResource(ii.next());
             createactions.add(node);
         }
-        String host = HalcyonSettings.getSettings().getProxyHostName();
         ParameterizedSparqlString pss = new ParameterizedSparqlString("""
             select distinct ?roc
             where {
@@ -137,7 +136,7 @@ public class FeatureManager {
         Resource layer = m.createResource()
                     .addProperty(RDF.type, HAL.FeatureLayer)
                     .addLiteral(HAL.layerNum, c)
-                    .addProperty(HAL.location, host+"/iiif/?iiif="+host+PathFinder.Path2URL(urn)+"/info.json")
+                    .addProperty(HAL.location, PathFinder.LocalPath2IIIFInfoURL(urn))
                     .addLiteral(HAL.opacity, 1)
                     .addProperty(HAL.colorscheme, m.createResource()
                         .addProperty(SchemaDO.name, "Default Color Scheme")
@@ -189,56 +188,55 @@ public class FeatureManager {
             c++;
             Resource rockey = rocx.next();
             Iterator<Resource> typex = types.keySet().iterator();
-        while (typex.hasNext()) {
-            Resource typekey = typex.next();                          
-                layer = m.createResource()
-                    .addProperty(RDF.type, HAL.FeatureLayer)
-                    .addLiteral(HAL.layerNum, c)
-                    .addProperty(HAL.location, host+"/iiif/?iiif="+host+PathFinder.Path2URL(rockey.getURI())+"/info.json")
-                    .addLiteral(SchemaDO.name, "Name Unknown")
-                    .addLiteral(HAL.opacity, 0.5);
-                COLORSCHEME
-                        .addProperty(SchemaDO.name, "Default Color Scheme")
-                        .addProperty(RDF.type, HAL.ColorScheme)
-                        .addProperty(HAL.colorspectrum, 
-                            m.createResource()
-                                .addLiteral(HAL.color, "rgba(254, 251, 191, 255)")
-                                .addLiteral(HAL.high, 150)
-                                .addLiteral(HAL.low, 101)
-                        )
-                        .addProperty(HAL.colorspectrum, 
-                            m.createResource()
-                                .addLiteral(HAL.color, "rgba(44, 131, 186, 255)")
-                                .addLiteral(HAL.high, 50)
-                                .addLiteral(HAL.low, 0)
-                        )
-                        .addProperty(HAL.colorspectrum, 
-                            m.createResource()
-                                .addLiteral(HAL.color, "rgba(246, 173, 96, 255)")
-                                .addLiteral(HAL.high, 200)
-                                .addLiteral(HAL.low, 151)
-                        )
-                        .addProperty(HAL.colorspectrum, 
-                            m.createResource()
-                                .addLiteral(HAL.color, "rgba(171, 221, 164, 255)")
-                                .addLiteral(HAL.high, 100)
-                                .addLiteral(HAL.low, 51)
-                        )
-                        .addProperty(HAL.colorspectrum, 
-                            m.createResource()
-                                .addLiteral(HAL.color, "rgba(216, 63, 42, 255)")
-                                .addLiteral(HAL.high, 255)
-                                .addLiteral(HAL.low, 201)
-                        );
-                layer.addProperty(HAL.colorscheme,COLORSCHEME);
-                LayerSet.addProperty(HAL.haslayer, layer);
-            
-            COLORSCHEME.addProperty(HAL.colors, m.createResource()
-                    .addLiteral(SchemaDO.name, types.get(typekey).name())
-                    .addLiteral(HAL.classid, types.get(typekey).code())
-                    .addLiteral(HAL.color, types.get(typekey).color())
-            );
-        }
+            while (typex.hasNext()) {
+                Resource typekey = typex.next();                          
+                    layer = m.createResource()
+                        .addProperty(RDF.type, HAL.FeatureLayer)
+                        .addLiteral(HAL.layerNum, c)
+                        .addProperty(HAL.location, PathFinder.LocalPath2IIIFInfoURL(rockey.getURI()))
+                        .addLiteral(SchemaDO.name, "Name Unknown")
+                        .addLiteral(HAL.opacity, 0.5);
+                    COLORSCHEME
+                            .addProperty(SchemaDO.name, "Default Color Scheme")
+                            .addProperty(RDF.type, HAL.ColorScheme)
+                            .addProperty(HAL.colorspectrum, 
+                                m.createResource()
+                                    .addLiteral(HAL.color, "rgba(254, 251, 191, 255)")
+                                    .addLiteral(HAL.high, 150)
+                                    .addLiteral(HAL.low, 101)
+                            )
+                            .addProperty(HAL.colorspectrum, 
+                                m.createResource()
+                                    .addLiteral(HAL.color, "rgba(44, 131, 186, 255)")
+                                    .addLiteral(HAL.high, 50)
+                                    .addLiteral(HAL.low, 0)
+                            )
+                            .addProperty(HAL.colorspectrum, 
+                                m.createResource()
+                                    .addLiteral(HAL.color, "rgba(246, 173, 96, 255)")
+                                    .addLiteral(HAL.high, 200)
+                                    .addLiteral(HAL.low, 151)
+                            )
+                            .addProperty(HAL.colorspectrum, 
+                                m.createResource()
+                                    .addLiteral(HAL.color, "rgba(171, 221, 164, 255)")
+                                    .addLiteral(HAL.high, 100)
+                                    .addLiteral(HAL.low, 51)
+                            )
+                            .addProperty(HAL.colorspectrum, 
+                                m.createResource()
+                                    .addLiteral(HAL.color, "rgba(216, 63, 42, 255)")
+                                    .addLiteral(HAL.high, 255)
+                                    .addLiteral(HAL.low, 201)
+                            );
+                    layer.addProperty(HAL.colorscheme,COLORSCHEME);
+                    LayerSet.addProperty(HAL.haslayer, layer);
+                COLORSCHEME.addProperty(HAL.colors, m.createResource()
+                        .addLiteral(SchemaDO.name, types.get(typekey).name())
+                        .addLiteral(HAL.classid, types.get(typekey).code())
+                        .addLiteral(HAL.color, types.get(typekey).color())
+                );
+            }
         }
         Dataset dss = DatasetFactory.createGeneral();
         dss.getDefaultModel().add(m);

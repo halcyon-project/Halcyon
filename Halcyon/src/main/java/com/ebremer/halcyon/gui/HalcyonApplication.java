@@ -12,6 +12,7 @@ import com.ebremer.halcyon.wicket.AccountPage;
 import com.ebremer.halcyon.wicket.AdminPage;
 import com.ebremer.halcyon.wicket.ethereal.Graph3D;
 import com.ebremer.halcyon.wicket.ethereal.Zephyr;
+import com.ebremer.halcyon.wicket.ethereal.Zephyr2;
 import com.ebremer.multiviewer.MultiViewer;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.wicket.ConverterLocator;
@@ -22,25 +23,18 @@ import org.apache.wicket.markup.html.WebPage;
 import org.apache.wicket.protocol.http.WebApplication;
 import org.apache.wicket.request.Request;
 import org.apache.wicket.request.Response;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class HalcyonApplication extends WebApplication {
-    private static final HalcyonSettings settings = HalcyonSettings.getSettings();
     private final DataCore datacore;
     private final SPARQLEndPoint sep;
+    private static final Logger logger = LoggerFactory.getLogger(HalcyonApplication.class);
     
     public HalcyonApplication() {
         System.out.println("Starting Halcyon UI...");
-    //    try {
-      //      Thread.sleep(20000);
-        //} catch (InterruptedException ex) {
-          //  Logger.getLogger(HalcyonApplication.class.getName()).log(Level.SEVERE, null, ex);
-       // }
         datacore = DataCore.getInstance();
         sep = SPARQLEndPoint.getSPARQLEndPoint();
-    }
-    
-    public HalcyonSettings getSettings() {
-        return settings;
     }
 
     public DataCore getDataCore() {
@@ -86,10 +80,12 @@ public class HalcyonApplication extends WebApplication {
         mountPage("/about", About.class);
         mountPage("/threed", Graph3D.class);
         mountPage("/revisionhistory", RevisionHistory.class);
-        mountPage("/zephyrx", Zephyr.class);
         mountPage("/viewall", ViewAll.class); 
         mountPage("/testviewall", TestViewAll.class); 
         mountPage("/puffin", Puffin.class); 
+
+        mountPage("/zephyrx", Zephyr.class);
+        mountPage("/zephyrx2", Zephyr2.class);
         
         //mountPage("/login", LogHal.class);
         //mountPage("/gui/dicom", DICOM.class);
@@ -98,27 +94,9 @@ public class HalcyonApplication extends WebApplication {
         
     @Override
     public RuntimeConfigurationType getConfigurationType() {
-        return RuntimeConfigurationType.DEVELOPMENT;
-        //return RuntimeConfigurationType.DEPLOYMENT;
+        if (HalcyonSettings.getSettings().isDevMode()) {
+            return RuntimeConfigurationType.DEVELOPMENT;
+        }
+        return RuntimeConfigurationType.DEPLOYMENT;
     }
 }
-
-/*
-        mountPage("/", HomePage.class);
-        mountPage("/gui/adminme", AdminPage.class);
-        mountPage("/gui/accountpage", AccountPage.class);
-        mountPage("/gui/login", Login.class);
-        mountPage("/gui/yay", BasePage.class);
-        mountPage("/gui/ListImages", ListImages.class);
-       // mountPage("/gui/ListFeatures", ListFeatures.class);
-        mountPage("/gui/viewer", MultiViewer.class); 
-        mountPage("/gui/collections", Collections.class);
-        mountPage("/gui/sparql", Sparql.class);
-        mountPage("/gui/about", About.class);
-        mountPage("/gui/threed", Graph3D.class);
-        mountPage("/gui/revisionhistory", RevisionHistory.class);
-        mountPage("/gui/zephyr", Zephyr.class);
-        mountPage("/gui/login", LogHal.class);
-        //mountPage("/gui/dicom", DICOM.class);
-        //mountPage("/gui/dicom2", DCM.class);
-*/

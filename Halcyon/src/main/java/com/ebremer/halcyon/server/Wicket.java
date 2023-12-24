@@ -32,7 +32,7 @@ public class Wicket {
         registration.setOrder(5000);
         registration.addInitParameter(ContextParamWebApplicationFactory.APP_CLASS_PARAM, HalcyonApplication.class.getName());
         registration.addInitParameter(WicketFilter.FILTER_MAPPING_PARAM, "/*");
-        registration.addInitParameter(IGNORE_PATHS_PARAM, "/h2,/skunkworks,/login,/auth,/three.js/,/multi-viewer/,/iiif/,/halcyon/,/images/,/favicon.ico,/rdf,/talon/,/threejs/,/zephyr/,/rdf/");
+        registration.addInitParameter(IGNORE_PATHS_PARAM, "/h2,/skunkworks,/login,/auth,/three.js/,/multi-viewer/,/iiif/,/halcyon/,/images/,/favicon.ico,/rdf,/talon/,/threejs/,/rdf/,/zephyr/");
         return registration;
     }
 }

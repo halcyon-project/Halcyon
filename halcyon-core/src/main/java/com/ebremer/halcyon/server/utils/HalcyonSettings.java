@@ -53,7 +53,7 @@ public final class HalcyonSettings {
     public static final int DEFAULTSPARQLPORT = 8887;
     public static final String DEFAULTHOSTNAME = "http://localhost";
     public static final String DEFAULTHOSTIP = "0.0.0.0";
-    public static final String VERSION = "0.8.0";
+    public static final String VERSION = "1.0.0";
     public static Resource HALCYONAGENT = ResourceFactory.createResource(HAL.NS+"VERSION/"+VERSION);
     
     private HalcyonSettings() {
@@ -108,6 +108,12 @@ public final class HalcyonSettings {
             return sol.get("ProxyHostName").asLiteral().getString();
         }
         return DEFAULTHOSTNAME+":"+DEFAULTHTTPPORT;
+    }
+    
+    public boolean isDevMode() {
+        ParameterizedSparqlString pss = new ParameterizedSparqlString("ask where {?s :devmode true; a :HalcyonSettingsFile}");
+        pss.setNsPrefix("", HAL.NS);
+        return QueryExecutionFactory.create(pss.toString(),m).execAsk();
     }
 
     public long getMaxAgeReaderPool() {

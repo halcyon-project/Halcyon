@@ -12,8 +12,6 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.ParameterizedSparqlString;
 import org.apache.jena.query.QueryExecution;
@@ -23,6 +21,8 @@ import org.apache.jena.query.ResultSet;
 import org.apache.jena.update.UpdateAction;
 import org.apache.jena.update.UpdateFactory;
 import org.apache.jena.update.UpdateRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -32,9 +32,10 @@ public final class FileManager implements Service {
     private static HalcyonSettings hs = null;
     private Timer timer;
     private TimerTask task;
+    private static final Logger logger = LoggerFactory.getLogger(FileManager.class);
     
     public FileManager() {
-        System.out.println("Starting FileManager...");
+        logger.info("Starting FileManager...");
         hs = HalcyonSettings.getSettings();
         resume();
     }
@@ -97,7 +98,7 @@ public final class FileManager implements Service {
                     }
                 } catch (URISyntaxException ex) {
                     System.out.println("NG --> "+r);
-                    Logger.getLogger(FileManager.class.getName()).log(Level.SEVERE, null, ex);
+                    logger.error(ex.getMessage());
                 }
             }
         });                
