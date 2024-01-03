@@ -148,7 +148,7 @@ async function fetchData(url) {
 }
 
 function getFeatureName(currentLayer, data) {
-  if (data.name !== "Unknown") {
+  if (data.name && data.name !== "Unknown") {
     return data.name;
   } else {
     let url = currentLayer.location;
