@@ -11,7 +11,7 @@ import {
 } from 'three';
 
 function srcurl(src,x,y,w,h,tilex,tiley) {
-    const ha = src+"/"+x+","+y+","+w+","+h+"/"+tilex+",/0/default.jpg";
+    const ha = src+"/"+x+","+y+","+w+","+h+"/"+tilex+",/0/default.png";
     console.log(ha);
     return new TextureLoader().load(ha);
 }

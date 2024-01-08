@@ -1,10 +1,27 @@
+keycloak:
+  server:
+    contextPath: /auth
+    username: admin
+    password: admin
+server:
+  port: 8888
+  http2:
+    enabled: true
+  ssl:
+    bundle: server
+    enabled-protocols: TLSv1.3
+  servlet:
+    session:
+      timeout: 900
+  jetty:
+    connection-idle-timeout: 900000
 spring:
   main:
     lazy-initialization: false
     allow-circular-references: true
   h2:
     console:
-      enabled: true
+      enabled: false
       path: /h2
   datasource:
     username: sa
@@ -12,21 +29,26 @@ spring:
     url: jdbc:h2:file:./data/keycloak;DB_CLOSE_ON_EXIT=FALSE
     driver-class-name: org.h2.Driver
   jpa:
-    database-platform: org.hibernate.dialect.H2Dialect
-    hibernate:
-      ddl-auto: update
-server:
-  undertow:
-    max-parameters: 8888
-        
-keycloak:
-  server:
-    context-path: /auth
-    username: admin
-    password: admin
-    context-redirect: true
-    address: 0.0.0.0
-
+    defer-datasource-initialization: true
+    properties:
+      hibernate:
+        transaction:
+          jta:
+            platform: org.hibernate.engine.transaction.jta.platform.internal.NoJtaPlatform
+  ssl:
+    bundle:
+      jks:
+        server:
+          key:
+            alias: "halcyon"
+          keystore:
+            location: "halcyonkeystore.jks"
+            password: "password"
+            type: "JKS"
+          truststore:
+            location: "halcyontruststore.jks"
+            password: "password"
+            type: "JKS"
 logging:
   file:
     name: logs/halcyon.log
@@ -36,12 +58,3 @@ logging:
     root: ERROR
     com.ebremer.halcyon: INFO
     com.ebremer.beakgraph: ERROR
-    #org.apache.wicket.Application: ERROR
-    #org.keycloak.adapters: TRACE
-    #org.jgroups: TRACE
-    #org.infinispan: INFO
-    #org.keycloak: DEBUG
-    #org.keycloak.services.managers.DefaultBruteForceProtector: WARN
-    #org.keycloak.services.scheduled.ClusterAwareScheduledTaskRunner: ERROR
-    #org.keycloak.services.managers.UserSessionManager: ERROR
-    #org.keycloak.timer.basic: ERROR

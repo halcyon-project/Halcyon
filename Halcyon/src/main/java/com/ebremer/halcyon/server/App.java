@@ -1,5 +1,6 @@
-package com.ebremer.halcyon.server.keycloak;
+package com.ebremer.halcyon.server;
 
+import com.ebremer.halcyon.server.keycloak.HalcyonApplianceBootstrap;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import java.util.NoSuchElementException;
 import org.keycloak.Config;
@@ -11,20 +12,20 @@ import org.keycloak.services.util.JsonConfigProviderFactory;
 import com.ebremer.halcyon.server.keycloak.providers.JsonProviderFactory;
 import java.io.File;
 import java.io.IOException;
-import javax.ws.rs.ApplicationPath;
-import javax.ws.rs.Path;
-import lombok.extern.slf4j.Slf4j;
+import jakarta.ws.rs.ApplicationPath;
+import jakarta.ws.rs.Path;
 import org.keycloak.exportimport.ExportImportConfig;
 import static org.keycloak.services.resources.KeycloakApplication.getSessionFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 
-@Slf4j
 @Path("/")
 @ApplicationPath("/")
 public class App extends KeycloakApplication {
-    static ServerProperties properties;
-        
+    private static final Logger logger = LoggerFactory.getLogger(App.class);
+     
     @Override
     protected void startup() {
         super.startup();
@@ -51,10 +52,11 @@ public class App extends KeycloakApplication {
             ApplianceBootstrap applianceBootstrap = new ApplianceBootstrap(session);
             try {
                 session.getTransactionManager().begin();
-                applianceBootstrap.createMasterRealmUser(properties.username(), properties.password());
+                //applianceBootstrap.createMasterRealmUser(KeycloakProperties.getInstance().getusername(), KeycloakProperties.getInstance().getpassword());
+                applianceBootstrap.createMasterRealmUser(KeycloakProperties.getInstance().getusername(), KeycloakProperties.getInstance().getpassword());
                 session.getTransactionManager().commit();
             } catch (Exception ex) {
-                log.warn("Couldn't create keycloak master admin user: {}", ex.getMessage());
+                logger.warn("Couldn't create keycloak master admin user: {}", ex.getMessage());
                 session.getTransactionManager().rollback();
             }
 	}    }
@@ -68,7 +70,7 @@ public class App extends KeycloakApplication {
                 session.getTransactionManager().commit();
             } catch (Exception ex) {
                 System.out.println(ex.getMessage());
-                log.warn("Couldn't create keycloak "+HalcyonSettings.realm+" "+username+" user: {}", ex.getMessage());
+                logger.warn("Couldn't create keycloak "+HalcyonSettings.realm+" "+username+" user: {}", ex.getMessage());
                 session.getTransactionManager().rollback();
             }
 	}
@@ -77,17 +79,17 @@ public class App extends KeycloakApplication {
     private void tryImportRealm() {
         Resource importLocation = new FileSystemResource("keycloak-realm-config.json");
         if (!importLocation.exists()) {
-            log.info("Could not find keycloak import file {}", importLocation);
+            logger.info("Could not find keycloak import file {}", importLocation);
             return;
         }
         File file;
         try {
             file = importLocation.getFile();
         } catch (IOException e) {
-            log.error("Could not read keycloak import file {}", importLocation, e);
+            logger.error("Could not read keycloak import file {}", importLocation, e);
             return;
         }
-        log.info("Starting Keycloak realm configuration import from location: {}", importLocation);
+        logger.info("Starting Keycloak realm configuration import from location: {}", importLocation);
         try (KeycloakSession session = getSessionFactory().create()) {
             ExportImportConfig.setAction("import");
             ExportImportConfig.setProvider("singleFile");
@@ -95,6 +97,6 @@ public class App extends KeycloakApplication {
             ExportImportManager manager = new ExportImportManager(session);
             manager.runImport();
         }
-        log.info("Keycloak realm configuration import finished.");
+        logger.info("Keycloak realm configuration import finished.");
     }
 }

@@ -47,8 +47,8 @@ public class HalcyonApplication extends WebApplication {
     }
     
     @Override
-    public Session newSession(Request request, Response response) {
-        return new HalcyonSession(request);
+    public Session newSession(Request request, Response response) {     
+        return new HalcyonSession(request,response);
     }
     
     @Override

@@ -9,6 +9,8 @@ import java.io.InputStream;
 import java.io.StringReader;
 import java.math.BigInteger;
 import java.net.HttpURLConnection;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyFactory;
@@ -44,13 +46,15 @@ public class KeycloakPublicKeyFetcher {
                 Logger.getLogger(KeycloakPublicKeyFetcher.class.getName()).log(Level.SEVERE, null, ex);
             } catch (InvalidKeySpecException ex) {
                 Logger.getLogger(KeycloakPublicKeyFetcher.class.getName()).log(Level.SEVERE, null, ex);
+            } catch (URISyntaxException ex) {
+                Logger.getLogger(KeycloakPublicKeyFetcher.class.getName()).log(Level.SEVERE, null, ex);
             }
         }
         return kpkf;
     }
 
-    private PublicKey fetchPublicKey() throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
-        URL url = new URL(oidcConfigurationUrl);
+    private PublicKey fetchPublicKey() throws IOException, NoSuchAlgorithmException, InvalidKeySpecException, URISyntaxException {
+        URL url = (new URI(oidcConfigurationUrl)).toURL();
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setRequestMethod("GET");
         connection.setRequestProperty("Accept", "application/json");

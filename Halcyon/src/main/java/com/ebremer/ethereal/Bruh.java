@@ -50,8 +50,8 @@ public class Bruh {
         pss.setIri("car", HAL.CollectionsAndResources.getURI());
         Query q = QueryFactory.create(pss.toString());
         WhereHandler wh = new WhereHandler(q);
-        TriplePath tp = new TriplePath(new Triple(NodeFactory.createVariable("ca"), SchemaDO.object.asNode(), NodeFactory.createVariable("md5")));
-        wh.addGraph(NodeFactory.createVariable("roc"), tp);
+    //    TriplePath tp = new TriplePath(new Triple(NodeFactory.createVariable("ca"), SchemaDO.object.asNode(), NodeFactory.createVariable("md5")));
+      //  wh.addGraph(NodeFactory.createVariable("roc"), tp);
         ValuesHandler vh = new ValuesHandler(q);
         ArrayList<Node> features = new ArrayList<>();
         features.add(NodeFactory.createURI("http://www.ebremer.com/wow"));

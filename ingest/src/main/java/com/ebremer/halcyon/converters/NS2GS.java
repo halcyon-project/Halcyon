@@ -223,8 +223,9 @@ public class NS2GS {
             rah = rah+".ttl.gz";
             File f = Path.of(destination,rah).toFile();
             try (GZIPOutputStream gos = new GZIPOutputStream(new FileOutputStream(f))) {
-                RDFWriterBuilder rwb = RDFWriter.create(m);
+                RDFWriterBuilder rwb = RDFWriter.create();
                 rwb
+                .source(m)
                 .base("")
                 .set(RIOT.symTurtleOmitBase, true)
                 .lang(Lang.TURTLE);

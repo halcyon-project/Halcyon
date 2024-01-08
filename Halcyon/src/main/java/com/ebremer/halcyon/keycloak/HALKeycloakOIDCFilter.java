@@ -1,15 +1,16 @@
 package com.ebremer.halcyon.keycloak;
 
+/*
 import java.io.IOException;
 import java.util.List;
-import javax.servlet.FilterChain;
-import javax.servlet.FilterConfig;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletRequestWrapper;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.FilterConfig;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequestWrapper;
+import jakarta.servlet.http.HttpServletResponse;
 import org.keycloak.adapters.AuthenticatedActionsHandler;
 import org.keycloak.adapters.KeycloakDeployment;
 import org.keycloak.adapters.PreAuthActionsHandler;
@@ -21,12 +22,12 @@ import org.keycloak.adapters.spi.AuthChallenge;
 import org.keycloak.adapters.spi.AuthOutcome;
 import org.keycloak.adapters.spi.SessionIdMapper;
 import org.keycloak.adapters.spi.UserSessionManagement;
-
+*/
 /**
  *
  * @author erich
  */
-public class HALKeycloakOIDCFilter extends KeycloakOIDCFilter {
+public class HALKeycloakOIDCFilter { /*extends KeycloakOIDCFilter {
 
     private boolean shouldSkip(HttpServletRequest request) {
         if (skipPattern == null) {
@@ -104,4 +105,5 @@ public class HALKeycloakOIDCFilter extends KeycloakOIDCFilter {
         }
         response.sendError(403);
     }
+*/
 }

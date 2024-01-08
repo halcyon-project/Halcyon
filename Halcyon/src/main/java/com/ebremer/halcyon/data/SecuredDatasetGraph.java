@@ -302,9 +302,4 @@ public class SecuredDatasetGraph implements DatasetGraph {
             throw new AccessDeniedException("User is not allowed to add triples to graph " + g);
         }
     }
-
-    @Override
-    public void setDefaultGraph(Graph g) {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
 }

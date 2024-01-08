@@ -49,13 +49,11 @@ public final class WACSecurityEvaluator implements SecurityEvaluator {
         }
         if (ac.getCache().containsKey(graphIRI)) {
             if (ac.getCache().get(graphIRI).containsKey(action)) {
-                //System.out.println("HIT "+graphIRI);
                 boolean ha = ac.getCache().get(graphIRI).get(action);
                 AccessCachePool.getPool().returnObject(hp.getURNUUID(), ac);
                 return ha;
             }
         }
-        //System.out.println("MISS "+graphIRI);
         HashMap<Action,Boolean> set = new HashMap<>();
         ac.getCache().put(graphIRI, set);
         ParameterizedSparqlString pss = new ParameterizedSparqlString("""

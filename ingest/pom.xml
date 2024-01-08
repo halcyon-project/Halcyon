@@ -6,7 +6,7 @@
     <parent>
         <groupId>com.ebremer.HalcyonProject</groupId>
         <artifactId>HalcyonProject</artifactId>
-        <version>1.0.0</version>
+        <version>1.1.0</version>
     </parent>
     <properties>
         <exec.mainClass>com.ebremer.ingest.Ingest</exec.mainClass>
@@ -190,4 +190,5 @@
             </build>
         </profile>     
     </profiles>
+    <version>1.1.0</version>
 </project>

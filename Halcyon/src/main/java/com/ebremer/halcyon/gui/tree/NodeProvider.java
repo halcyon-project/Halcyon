@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package com.ebremer.halcyon.gui.tree;
 
 import com.ebremer.ethereal.RDFDetachableModel;
@@ -57,7 +53,8 @@ public class NodeProvider implements ITreeProvider<xNode> {
     public void SetSelected(String collection) {
         this.collection = collection;
         UpdateRequest update = UpdateFactory.create();
-        ParameterizedSparqlString pss = new ParameterizedSparqlString("""
+        ParameterizedSparqlString pss = new ParameterizedSparqlString(
+        """
             delete {?s :isSelected ?o}
             where {
                 ?s :isSelected ?o

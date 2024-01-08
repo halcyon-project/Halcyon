@@ -50,7 +50,7 @@ public abstract class AbstractSolutionModel<T> extends ChainingModel<T> {
             Triple triple = tripleExpression();
             Statement before = m.asStatement(triple);
             Node oo = NodeFactory.createLiteral((String) object);
-            Statement after = m.asStatement(new Triple(triple.getSubject(),triple.getPredicate(),oo));
+            Statement after = m.asStatement(Triple.create(triple.getSubject(),triple.getPredicate(),oo));
             m.remove(before);
             m.add(after);
             RDFDataMgr.write(System.out, m, RDFFormat.TURTLE_PRETTY);
