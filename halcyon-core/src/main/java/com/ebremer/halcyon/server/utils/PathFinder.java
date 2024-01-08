@@ -20,15 +20,22 @@ public class PathFinder {
         }
         HalcyonSettings s = HalcyonSettings.getSettings();
         for (StorageLocation sl : s.getStorageLocations()) {
-            //System.out.println("SL : "+sl.path.toUri().toString());
             Path src = Path.of(uri);
             if (src.startsWith(sl.path)) {
-                //System.out.println("MATCH : "+path);
                 return sl.urlpath+src.toUri().toString().substring(sl.path.toUri().toString().length());
             } else { 
                 System.out.println("NO MATCH : "+path);
             }
         }
         return null;
+    }
+    
+    public static String LocalPath2IIIFURL(String path) {
+        String host = HalcyonSettings.getSettings().getProxyHostName();
+        return String.format("%s/iiif/?iiif=%s%s", host, host, PathFinder.Path2URL(path));
+    }
+    
+    public static String LocalPath2IIIFInfoURL(String path) {
+        return String.format("%s/info.json", PathFinder.LocalPath2IIIFURL(path));
     }
 }

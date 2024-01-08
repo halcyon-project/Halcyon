@@ -8,6 +8,7 @@ import com.ebremer.halcyon.lib.Rectangle;
 import com.ebremer.halcyon.lib.Tile;
 import com.ebremer.halcyon.lib.TileRequest;
 import com.ebremer.halcyon.lib.TileRequestEngine;
+import com.ebremer.halcyon.wicket.ListImages;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -15,19 +16,20 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.apache.jena.riot.RDFFormat;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author erich
  */
 public class ImageServer extends HttpServlet {
+    private static final Logger logger = LoggerFactory.getLogger(ListImages.class);
     
     public ImageServer() {
         System.out.println("Starting ImageServer...");
@@ -52,7 +54,7 @@ public class ImageServer extends HttpServlet {
                     meta = ir.getImageMeta();
                     ImageReaderPool.getPool().returnObject(i.uri, ir);
                 } catch (Exception ex) {
-                    Logger.getLogger(ImageServer.class.getName()).log(Level.SEVERE, null, ex);
+                    logger.error(ex.getMessage());
                 }
                 if (i.fullrequest) {
                     i.x = 0;
@@ -73,7 +75,7 @@ public class ImageServer extends HttpServlet {
                     Future<Tile> ftile = tre.getFutureTile(tr);
                     tile = ftile.get(60, TimeUnit.SECONDS);
                 } catch (Exception ex) {
-                    Logger.getLogger(ImageServer.class.getName()).log(Level.SEVERE, null, ex);
+                    logger.error(ex.getMessage());
                 }
                 if (tile==null) {
                     BufferedImage bi = new BufferedImage(tr.getPreferredSize().width(),tr.getPreferredSize().height(),BufferedImage.TYPE_INT_ARGB);
@@ -122,7 +124,7 @@ public class ImageServer extends HttpServlet {
                     meta = ir.getImageMeta();
                     ImageReaderPool.getPool().returnObject(i.uri, ir);
                 } catch (Exception ex) {
-                    Logger.getLogger(ImageServer.class.getName()).log(Level.SEVERE, null, ex);
+                    logger.error(ex.getMessage());
                 }
                 response.setContentType("application/json");
                 response.setHeader("Access-Control-Allow-Origin", "*");
@@ -139,7 +141,7 @@ public class ImageServer extends HttpServlet {
                 } catch (IOException ex) {
                     ReportError(response, "issue writing info.json file");
                 } catch (URISyntaxException ex) {
-                    Logger.getLogger(ImageServer.class.getName()).log(Level.SEVERE, null, ex);
+                    logger.error(ex.getMessage());
                 }
             } else {
                 System.out.println("unknown IIIF request");
