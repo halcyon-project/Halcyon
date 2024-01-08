@@ -17,21 +17,7 @@ spring:
       ddl-auto: update
 server:
   undertow:
-    max-parameters: 8888      
-#security:
-#    oauth2:
-#      client:
-#        registration:
-#          keycloak:
-#            client-id: account
-#            client-name: Keycloak
-#            authorization-grant-type: authorization_code
-#            redirect-uri: "http://localhost:8888/login/oauth2/code/{registrationId}"
-#            scope: openid, profile, email
-#            client-authentication-method: none  # Indicates a public client
-#        provider:
-#          keycloak:
-#            issuer-uri: http://localhost:8888/auth/realms/Halcyon
+    max-parameters: 8888
         
 keycloak:
   server:
@@ -48,7 +34,7 @@ logging:
     max-history: 10
   level:
     root: ERROR
-    com.ebremer.halcyon: DEBUG
+    com.ebremer.halcyon: INFO
     com.ebremer.beakgraph: ERROR
     #org.apache.wicket.Application: ERROR
     #org.keycloak.adapters: TRACE

@@ -56,6 +56,7 @@ public class HAL {
     public static final Resource ColorByClassID = m.createResource(NS+"ColorByClassID");
     public static final Resource ColorScheme = m.createResource(NS+"ColorScheme");
     
+    public static final Property devmode = m.createProperty(NS+"devmode");
     public static final Property min = m.createProperty(NS+"min");
     public static final Property max = m.createProperty(NS+"max");
     public static final Property asHilbert = m.createProperty(NS+"asHilbert");
