@@ -21,7 +21,7 @@
 	import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 	import { TrackballControls } from 'three/addons/controls/TrackballControls.js';
         import * as ZEPHYR from 'zephyr';
-          
+        import { enableDrawing } from '/zephyr/drawingModule.js';
                         
         function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
@@ -31,9 +31,15 @@
 
         THREE.Cache.enabled = true;
 	const scene = new THREE.Scene();
-	const camera = new THREE.PerspectiveCamera( 90, window.innerWidth / window.innerHeight, -10, 100 );
-        camera.position.set(0, 0, 150000);
-        //camera.position.set(0, 0, 1250);
+	// const camera = new THREE.PerspectiveCamera( 90, window.innerWidth / window.innerHeight, -10, 100 );
+        // camera.position.set(0, 0, 150000);
+        // camera.position.set(0, 0, 1250);
+
+        const camera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 0.1, 12000);
+        camera.position.set(0, 0, 11000);
+        camera.lookAt(new THREE.Vector3(0, 0, 0));
+        scene.add(camera);
+
 	const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setPixelRatio( window.devicePixelRatio );
 	renderer.setSize( window.innerWidth, window.innerHeight );
@@ -43,6 +49,9 @@
         //ZEPHYR.CreateImageViewer(scene, "http://localhost:8888/HalcyonStorage/tcga/coad/TCGA-CM-5348-01Z-00-DX1.2ad0b8f6-684a-41a7-b568-26e97675cce9.svs",0);
         console.log("HERE THIS ===> "+options.target);
         ZEPHYR.CreateImageViewer(scene, options.target,0);
+
+        // Enable drawing on the scene
+        enableDrawing(scene, camera, renderer, controls);
 
         function animate() {
             controls.update();
