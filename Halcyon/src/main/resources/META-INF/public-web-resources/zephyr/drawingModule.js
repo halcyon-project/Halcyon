@@ -3,6 +3,7 @@
  * Raycasting target meshes are the squares that rapture.js creates.
  */
 import * as THREE from 'three';
+import { convertToImageCoordinates } from "./conversions.js"
 
 export function enableDrawing(scene, camera, renderer, controls) {
   let btnDraw = document.createElement("button");
@@ -124,7 +125,26 @@ export function enableDrawing(scene, camera, renderer, controls) {
       line.geometry.computeBoundingSphere();
 
       polygonPositions.push(currentPolygonPositions); // Store the current polygon's positions in the polygonPositions array
+
+      toImageCoords(currentPolygonPositions);
+
       currentPolygonPositions = []; // Clear the current polygon's array
     }
+  }
+
+  function toImageCoords(currentPolygonPositions) {
+    console.log("line geometry positions:\n", currentPolygonPositions);
+
+    // Convert to image coordinates
+    let imageWidth, imageHeight;
+    scene.children.forEach(child => {
+      if (child instanceof THREE.LOD) {
+        imageWidth = child.imageWidth;
+        imageHeight = child.imageHeight;
+      }
+    });
+    console.log("image w,h:", imageWidth, imageHeight);
+    const imgCoords = convertToImageCoordinates(currentPolygonPositions, imageWidth, imageHeight);
+    console.log("Image coordinates:", imgCoords);
   }
 }
