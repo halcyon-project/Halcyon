@@ -143,8 +143,11 @@ export function enableDrawing(scene, camera, renderer, controls) {
         imageHeight = child.imageHeight;
       }
     });
-    console.log("image w,h:", imageWidth, imageHeight);
-    const imgCoords = convertToImageCoordinates(currentPolygonPositions, imageWidth, imageHeight);
-    console.log("Image coordinates:", imgCoords);
+
+    if (imageWidth && imageHeight) {
+      console.log("image w,h:", imageWidth, imageHeight);
+      const imgCoords = convertToImageCoordinates(currentPolygonPositions, imageWidth, imageHeight);
+      console.log("Image coordinates:", imgCoords);
+    }
   }
 }
