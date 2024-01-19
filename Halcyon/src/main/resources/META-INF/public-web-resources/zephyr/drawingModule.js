@@ -4,13 +4,14 @@
  */
 import * as THREE from 'three';
 import { convertToImageCoordinates } from "./conversions.js"
+import { createButton } from "./button.js"
 
 export function enableDrawing(scene, camera, renderer, controls) {
-  let btnDraw = document.createElement("button");
-  btnDraw.id = "toggleButton";
-  btnDraw.innerHTML = "drawing toggle";
-  let canvas = document.querySelector('canvas');
-  document.body.insertBefore(btnDraw, canvas);
+  let btnDraw = createButton({
+    id: "toggleButton",
+    innerHtml: "<i class=\"fas fa-pencil-alt\"></i>",
+    title: "draw"
+  });
 
   let isDrawing = false;
   let mouseIsPressed = false;
@@ -39,7 +40,7 @@ export function enableDrawing(scene, camera, renderer, controls) {
   let raycaster = new THREE.Raycaster();
   let mouse = new THREE.Vector2();
 
-  let lineMaterial = new THREE.LineBasicMaterial({color});
+  let lineMaterial = new THREE.LineBasicMaterial({ color, linewidth: 10 });
 
   // Dashed Line Issue Solution
   lineMaterial.polygonOffset = true; // Prevent z-fighting (which causes flicker)
@@ -90,7 +91,9 @@ export function enableDrawing(scene, camera, renderer, controls) {
       let intersects = raycaster.intersectObjects(objects, true);
 
       if (intersects.length > 0) {
-        let point = intersects[0].point;
+        const intersect = intersects[0];
+        let point = intersect.point;
+        // console.log("intersect object scale:", intersect.object.scale);
 
         // Check if it's the first vertex of the current polygon
         const isFirstVertex = currentPolygonPositions.length === 0;
