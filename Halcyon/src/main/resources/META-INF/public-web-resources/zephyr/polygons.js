@@ -14,19 +14,19 @@ export function polygons(scene, camera, renderer, controls) {
   let points = []; // polygon
 
   // Button event listeners
-  let rectangle = createButton({
+  let rectangleButton = createButton({
     id: "rectangle",
     innerHtml: "<i class=\"fa-regular fa-square\"></i>",
     title: "rectangle"
   });
 
-  let _ellipse = createButton({
+  let ellipseButton = createButton({
     id: "ellipse",
     innerHtml: "<i class=\"fa-regular fa-circle\"></i>",
     title: "ellipse"
   });
 
-  let polygon = createButton({
+  let polygonButton = createButton({
     id: "polygon",
     innerHtml: "<i class=\"fa-solid fa-draw-polygon\"></i>",
     title: "polygon"
@@ -54,23 +54,21 @@ export function polygons(scene, camera, renderer, controls) {
     initGeometry(); // Initialize geometry when button is clicked
   }
 
-  rectangle.addEventListener("click", function () {
+  rectangleButton.addEventListener("click", function () {
     handler("rectangle");
   });
 
-  _ellipse.addEventListener("click", function () {
+  ellipseButton.addEventListener("click", function () {
     handler("ellipse");
   });
 
-  polygon.addEventListener("click", function () {
+  polygonButton.addEventListener("click", function () {
     handler("polygon");
     points = [];
   });
 
   // Create a mesh
   let material = new THREE.LineBasicMaterial({ color: 0x0000ff, linewidth: 10 });
-  material.depthTest = false;
-  material.depthWrite = false;
   let geometry = new THREE.BufferGeometry(); // our 3D object
   let positions = [];
 
@@ -91,8 +89,8 @@ export function polygons(scene, camera, renderer, controls) {
         updateMesh = updatePolygon;
         break;
       default:
-        console.log("Invalid polygon type");
-        return; // Return if typeOfShape is invalid
+        console.log("Invalid shape type");
+        return;
     }
 
     geometry.setAttribute("position", new THREE.BufferAttribute(vertices, 3)); // each vertex is composed of 3 values
