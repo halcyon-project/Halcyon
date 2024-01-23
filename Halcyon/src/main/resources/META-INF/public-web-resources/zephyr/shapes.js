@@ -215,9 +215,10 @@ export function shapes(scene, camera, renderer, controls) {
     }
   }
 
-  let material = new THREE.LineBasicMaterial({color: 0x00ff00});
+  let material = new THREE.LineBasicMaterial({ color: 0x0000ff });
   let geometry = new THREE.BufferGeometry();
   let mesh = new THREE.LineLoop(geometry, material);
+  mesh.renderOrder = 999;
   scene.add(mesh);
 
   let factory = new ShapeFactory(mesh, controls);
