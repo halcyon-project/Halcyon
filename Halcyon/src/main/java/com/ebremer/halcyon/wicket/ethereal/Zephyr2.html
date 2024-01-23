@@ -24,7 +24,7 @@
 	import { TrackballControls } from 'three/addons/controls/TrackballControls.js';
         import * as ZEPHYR from 'zephyr';
         import { enableDrawing } from '/zephyr/drawingModule.js';
-        import { polygons } from '/zephyr/polygons.js';
+        import { shapes } from '/zephyr/shapes.js';
         // import { ruler } from '/zephyr/ruler.js';
 
         function onWindowResize() {
@@ -56,7 +56,7 @@
 
         // Enable drawing on the scene
         enableDrawing(scene, camera, renderer, controls);
-        polygons(scene, camera, renderer, controls);
+        shapes(scene, camera, renderer, controls);
         // ruler(scene, camera, renderer, controls);
 
         function animate() {
