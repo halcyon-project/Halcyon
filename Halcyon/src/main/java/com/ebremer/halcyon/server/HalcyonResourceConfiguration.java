@@ -1,6 +1,5 @@
 package com.ebremer.halcyon.server;
 
-import com.ebremer.halcyon.raptor.HilbertSpecial;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,7 +13,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  * @author erich
  */
 @Configuration
-@Lazy(value = true)
+@Lazy(value = false)
 public class HalcyonResourceConfiguration implements WebMvcConfigurer {
     private static final Logger logger = LoggerFactory.getLogger(HalcyonResourceConfiguration.class);
     
@@ -50,5 +49,6 @@ public class HalcyonResourceConfiguration implements WebMvcConfigurer {
         }
         registry.addResourceHandler("/threejs/**").addResourceLocations("classpath:/META-INF/public-web-resources/threejs/");
         registry.addResourceHandler("/images/**").addResourceLocations("classpath:/META-INF/public-web-resources/images/");
+        registry.addResourceHandler("/favicon.ico").addResourceLocations("classpath:/META-INF/public-web-resources/favicon.ico");
     }
 }

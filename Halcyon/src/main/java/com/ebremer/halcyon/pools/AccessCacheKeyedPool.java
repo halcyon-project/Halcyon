@@ -1,7 +1,10 @@
 package com.ebremer.halcyon.pools;
 
+import com.ebremer.halcyon.gui.HalcyonSession;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import org.apache.commons.pool2.BaseKeyedPooledObjectFactory;
 import org.apache.commons.pool2.impl.GenericKeyedObjectPool;
@@ -20,8 +23,15 @@ public class AccessCacheKeyedPool<String, AccessCache> extends GenericKeyedObjec
         keys = Collections.synchronizedSet(new HashSet<>());
     }
     
-    public Set<String> getKeys() {
+    public Set<String> getKeys2() {
         return keys;
+    }
+    
+    @Override
+    public List<String> getKeys() {
+        HalcyonSession ha;
+        System.out.println("SOMETHING IS CALLING THIS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+        return new ArrayList<>();
     }
     
     public void invalidateAndEmptyPoolForKey(String key) {
@@ -34,14 +44,12 @@ public class AccessCacheKeyedPool<String, AccessCache> extends GenericKeyedObjec
     
     @Override
     public AccessCache borrowObject(final String key) throws Exception {
-        //System.out.println(this.getBorrowedCount()+" == "+this.getNumActive()+" borrowObject --> "+key);
         keys.add(key);
         return (AccessCache) super.borrowObject(key);
     }
     
     @Override
     public void returnObject(final String key, final AccessCache reader) {
-        //System.out.println(this.getNumActive(key)+" == "+this.getNumActive()+" returnObject --> "+key);
         super.returnObject(key, reader);
     }
 }

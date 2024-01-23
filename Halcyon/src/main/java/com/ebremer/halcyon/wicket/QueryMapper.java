@@ -106,7 +106,7 @@ public class QueryMapper {
         Iterator<Var> i = haha.getProjectVars().iterator();
         while (i.hasNext()) {
             Var ha = i.next();
-            System.out.println(ha.getName()+" "+ha.getVarName()+" "+ha.asNode().isVariable());
+//            System.out.println(ha.getName()+" "+ha.getVarName()+" "+ha.asNode().isVariable());
         }
     }
 }

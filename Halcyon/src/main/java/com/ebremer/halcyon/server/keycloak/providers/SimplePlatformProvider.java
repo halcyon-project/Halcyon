@@ -9,11 +9,14 @@ import org.keycloak.common.profile.PropertiesFileProfileConfigResolver;
 import org.keycloak.common.profile.PropertiesProfileConfigResolver;
 import org.keycloak.platform.PlatformProvider;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Slf4j
 public class SimplePlatformProvider implements PlatformProvider {
 
     private File tmpDir;
+    private static final Logger logger = LoggerFactory.getLogger(SimplePlatformProvider.class);
 
     public SimplePlatformProvider() {
         Profile.configure(new PropertiesProfileConfigResolver(System.getProperties()), new PropertiesFileProfileConfigResolver());
@@ -56,7 +59,7 @@ public class SimplePlatformProvider implements PlatformProvider {
 			}
 			if (tmpDir.isDirectory()) {
 				this.tmpDir = tmpDir;
-				log.info("Using server tmp directory: {}", tmpDir.getAbsolutePath());
+				logger.info("Using server tmp directory: {}", tmpDir.getAbsolutePath());
 			} else {
 				throw new RuntimeException("Directory " + tmpDir + " was not created and does not exists");
 			}

@@ -3,10 +3,11 @@
   <parent>
     <artifactId>HalcyonProject</artifactId>
     <groupId>com.ebremer.HalcyonProject</groupId>
-    <version>1.0.0</version>
+    <version>1.1.0</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
   <artifactId>ingest</artifactId>
+  <version>1.1.0</version>
   <profiles>
     <profile>
       <id>ingest</id>

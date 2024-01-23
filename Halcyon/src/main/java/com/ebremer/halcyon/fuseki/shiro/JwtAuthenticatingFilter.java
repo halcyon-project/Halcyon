@@ -1,15 +1,20 @@
 package com.ebremer.halcyon.fuseki.shiro;
 
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.ws.rs.core.HttpHeaders;
+import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.shiro.authc.AuthenticationToken;
 import org.apache.shiro.web.filter.authc.AuthenticatingFilter;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.ws.rs.core.HttpHeaders;
 import org.apache.shiro.web.util.WebUtils;
+import org.pac4j.core.profile.ProfileManager;
+import org.pac4j.core.profile.UserProfile;
+import org.pac4j.jee.context.JEEContext;
+import org.pac4j.jee.context.session.JEESessionStore;
 
 public class JwtAuthenticatingFilter extends AuthenticatingFilter {
 
@@ -30,6 +35,11 @@ public class JwtAuthenticatingFilter extends AuthenticatingFilter {
     protected boolean onAccessDenied(ServletRequest request, ServletResponse response) {
         boolean loggedIn = false;
         try {
+            
+            JEEContext context = new JEEContext((HttpServletRequest) request, (HttpServletResponse) response);
+            ProfileManager profileManager = new ProfileManager(context, new JEESessionStore());
+            Optional<UserProfile> profile = profileManager.getProfile();
+            boolean hahahha = profile.isPresent();
             loggedIn = executeLogin(request, response);
         } catch (IllegalStateException ex) {
             System.out.println(ex.getMessage());

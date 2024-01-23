@@ -1,25 +1,16 @@
 package com.ebremer.halcyon.fuseki;
 
-import com.ebremer.halcyon.datum.AddParamsToHeader;
-import java.io.IOException;
-import org.apache.shiro.SecurityUtils;
-import org.apache.shiro.subject.Subject;
-import org.eclipse.jetty.security.RoleInfo;
-import org.eclipse.jetty.security.SecurityHandler;
-import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.server.Response;
-import org.eclipse.jetty.server.UserIdentity;
 
 /**
  *
  * @author erich
  */
-public class HalcyonSecurityHandler extends SecurityHandler {
+public class HalcyonSecurityHandler {//extends SecurityHandler {
     
     public HalcyonSecurityHandler() {
         
     }
-
+/*
     @Override
     protected RoleInfo prepareConstraintInfo(String string, Request rqst) {
         System.out.println("prepareConstraintInfo");
@@ -46,4 +37,10 @@ public class HalcyonSecurityHandler extends SecurityHandler {
         System.out.println("checkWebResourcePermissions");
         return true;
     }
+
+    @Override
+    protected Constraint getConstraint(String string, Request rqst) {
+        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    }
+*/
 }
