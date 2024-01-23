@@ -1,16 +1,12 @@
 import * as THREE from "three";
-// TODO:
-// import { FontLoader } from "three/addons/loaders/FontLoader.js";
-// import { TextGeometry } from "three/addons/geometries/TextGeometry.js";
-import { FontLoader } from "./loaders/FontLoader.js";
-import { TextGeometry } from "./geometries/TextGeometry.js";
+import { FontLoader } from "three/addons/loaders/FontLoader.js";
+import { TextGeometry } from "three/addons/geometries/TextGeometry.js";
 import { createButton } from "./button.js"
 
 export function ruler(scene, camera, renderer, controls) {
   let isDrawing = false;
   let mouseIsPressed = false;
-  // TODO:
-  let myFont = "./fonts/helvetiker_regular.typeface.json";
+  let myFont = "/threejs/examples/fonts/helvetiker_regular.typeface.json";
 
   let button = createButton({
     id: "ruler",
@@ -30,7 +26,7 @@ export function ruler(scene, camera, renderer, controls) {
   });
 
   let fontLoader = new FontLoader();
-  fontLoader.load("", function (font) {
+  fontLoader.load(myFont, function (font) {
     let line, textMesh;
     let startPoint, endPoint;
     let startVector, endVector;
