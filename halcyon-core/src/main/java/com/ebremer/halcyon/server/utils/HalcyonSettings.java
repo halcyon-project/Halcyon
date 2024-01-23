@@ -53,7 +53,7 @@ public final class HalcyonSettings {
     public static final int DEFAULTSPARQLPORT = 8887;
     public static final String DEFAULTHOSTNAME = "http://localhost";
     public static final String DEFAULTHOSTIP = "0.0.0.0";
-    public static final String VERSION = "1.0.0";
+    public static final String VERSION = "1.1.0";
     public static Resource HALCYONAGENT = ResourceFactory.createResource(HAL.NS+"VERSION/"+VERSION);
     
     private HalcyonSettings() {
@@ -106,6 +106,18 @@ public final class HalcyonSettings {
         if (results.hasNext()) {
             QuerySolution sol = results.nextSolution();
             return sol.get("ProxyHostName").asLiteral().getString();
+        }
+        return DEFAULTHOSTNAME+":"+DEFAULTHTTPPORT;
+    }
+    
+    public String getAuthServer() {
+        String qs = "prefix : <"+HAL.NS+"> select ?AuthServer where {?s :AuthServer ?AuthServer}";
+        Query query = QueryFactory.create(qs);
+        QueryExecution qe = QueryExecutionFactory.create(query,m);
+        ResultSet results = qe.execSelect();
+        if (results.hasNext()) {
+            QuerySolution sol = results.nextSolution();
+            return sol.get("AuthServer").asLiteral().getString();
         }
         return DEFAULTHOSTNAME+":"+DEFAULTHTTPPORT;
     }
@@ -199,12 +211,18 @@ public final class HalcyonSettings {
         return DEFAULTHTTPPORT;
     }
     
-    public boolean isHTTPSenabled() {
-        ParameterizedSparqlString pss = new ParameterizedSparqlString("ask where {?s hal:HTTPSenabled true}");
+    public boolean isHTTPS2enabled() {
+        ParameterizedSparqlString pss = new ParameterizedSparqlString("ask where {?s hal:HTTPS2enabled true}");
         pss.setNsPrefix("hal", HAL.NS);
         return QueryExecutionFactory.create(pss.toString(),m).execAsk();
     }      
 
+    public boolean isHTTPS3enabled() {
+        ParameterizedSparqlString pss = new ParameterizedSparqlString("ask where {?s hal:HTTPS3enabled true}");
+        pss.setNsPrefix("hal", HAL.NS);
+        return QueryExecutionFactory.create(pss.toString(),m).execAsk();
+    } 
+    
     public int GetHTTPSPort() {
         ParameterizedSparqlString pss = new ParameterizedSparqlString("select ?port where {?s hal:HTTPSPort ?port}");
         pss.setNsPrefix("hal", HAL.NS);

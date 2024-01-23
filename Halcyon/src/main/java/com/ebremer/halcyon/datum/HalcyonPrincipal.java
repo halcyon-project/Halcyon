@@ -9,12 +9,14 @@ import java.io.Serializable;
 import java.security.Principal;
 import java.security.PublicKey;
 import java.util.ArrayList;
+import org.pac4j.oidc.profile.keycloak.KeycloakOidcProfile;
 
 /**
  *
  * @author erich
  */
 public class HalcyonPrincipal implements Principal, Serializable {
+    private final String URNuuid;
     private final String uuid;
     private String webid;
     private final boolean anonymous;
@@ -23,8 +25,13 @@ public class HalcyonPrincipal implements Principal, Serializable {
     private String lastname;
     private String firstname;
     private ArrayList<String> groups;
- 
+
+    public HalcyonPrincipal(KeycloakOidcProfile profile) {
+        this(profile.getIdTokenString(),false);
+    }
+    
     public HalcyonPrincipal(String uuid, boolean anonymous) {
+        this.URNuuid = "urn:uuid:"+uuid;
         this.uuid = uuid;
         this.anonymous = anonymous;
         groups = new ArrayList<>();
@@ -34,14 +41,13 @@ public class HalcyonPrincipal implements Principal, Serializable {
     public HalcyonPrincipal(JwtToken jwttoken, boolean anonymous) {
         this.token = (String) jwttoken.getCredentials();
         Claims claims = getClaims(token);
-        uuid = "urn:uuid:"+claims.get("sub");
-        //System.out.println("AUUID --> "+uuid);
+        URNuuid = "urn:uuid:"+claims.get("sub");
+        if (claims.containsKey("sub")) {
+            this.uuid = (String) claims.get("sub");
+        } else {
+            this.uuid = "UNKNOWN";
+        }
         this.anonymous = anonymous;
-        /*
-        claims.keySet().forEach(f->{
-            System.out.println("CLAIM : "+f+" ===> "+claims.get(f));
-        });
-*/
         if (claims.keySet().contains("family_name")) {
             lastname = (String) claims.get("family_name");
         } else {
@@ -74,7 +80,7 @@ public class HalcyonPrincipal implements Principal, Serializable {
     }
 
     public String getURNUUID() {
-        return uuid;
+        return URNuuid;
     }
     
     public String getToken() {

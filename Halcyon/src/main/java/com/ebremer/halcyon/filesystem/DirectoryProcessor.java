@@ -105,7 +105,7 @@ public class DirectoryProcessor {
                                 m.add(r,OWL.sameAs,m.createResource("urn:md5:"+hash));
                             }                            
                             ZonedDateTime dateTime = ZonedDateTime.now();
-                            m.addLiteral(r, SchemaDO.datePublished, dateTime.format(formatter));
+                            //  FIX THIS LINE WE NEED IT m.addLiteral(r, SchemaDO.datePublished, dateTime.format(formatter));
                             m.add(r, SchemaDO.name, r.getLocalName());
                             m.addLiteral(r,SchemaDO.contentSize,file.length());
                             m.add(r,SchemaDO.instrument, HalcyonSettings.HALCYONAGENT);                            

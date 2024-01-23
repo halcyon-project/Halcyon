@@ -1,6 +1,5 @@
 package com.ebremer.halcyon.fuseki.shiro;
 
-
 import com.ebremer.halcyon.datum.HalcyonPrincipal;
 import io.jsonwebtoken.Claims;
 import java.security.PublicKey;
@@ -19,21 +18,10 @@ public class JwtToken implements AuthenticationToken {
         this.claims = new JwtVerifier(publicKey).verify(token);
     }
 
-    /*
-    @Override
-    public Object getPrincipal() {
-        return token; //getClaims().getSubject();
-    }*/
-
     @Override
     public HalcyonPrincipal getPrincipal() {
         return principal;
     }
-    
-    /*
-    public HalcyonPrincipal getHalcyonPrincipal() {
-        return principal;
-    }*/
     
     public String getJwt() {
         return token;
