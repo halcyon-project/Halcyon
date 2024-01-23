@@ -47,6 +47,9 @@ function CreateImageViewer(scene, url, offset) {
             const tilex = data.tiles[0].width;
             const tiley = data.tiles[0].height;
             const lod = new ImageViewer(url,x,y,w,h,tilex,tiley,offset,data);
+            lod.name = "ImageViewer";
+            lod.imageWidth = w;
+            lod.imageHeight = h;
             scene.add(lod);
         }).catch(error => console.error('Error fetching data:', error));
 }
@@ -57,7 +60,9 @@ class ImageViewer extends LOD {
         this.isImageViewer = true;
         this.type = 'ImageViewer';
         this.booted = false;    
-        const low = Square(x,y,w,h,srcurl(url,x,y,w,h,tilex,tiley),offset);   
+        const low = Square(x,y,w,h,srcurl(url,x,y,w,h,tilex,tiley),offset);
+        low.name = "Square";
+
         this.addLevel(low,w);    
         low.onBeforeRender = () => {
             if (w>1024) {
