@@ -1,9 +1,11 @@
 import * as THREE from 'three';
-import { createButton } from "./button.js"
+import { createButton } from "../helpers/button.js"
 
 export function shapes(scene, camera, renderer, controls) {
 
-  // Button event listeners
+  let isDrawing = false;
+  let mouseIsPressed = false;
+
   let rectangleButton = createButton({
     id: "rectangle",
     innerHtml: "<i class=\"fa-regular fa-square\"></i>",
@@ -23,61 +25,46 @@ export function shapes(scene, camera, renderer, controls) {
   });
 
   class Shape {
-    constructor(mesh, controls) {
+    constructor(mesh) {
       this.mesh = mesh;
-      this.controls = controls;
-      this.isDrawing = false;
       this.startPoint = new THREE.Vector2(0, 0);
       this.endPoint = new THREE.Vector2(0, 0);
       this.points = [];
     }
 
-    onMouseDown(event) {
-      this.isDrawing = true;
-      this.controls.enabled = false;
-    }
-
-    onMouseMove(event) {
-    }
-
-    onMouseUp(event) {
-      this.isDrawing = false;
-      this.controls.enabled = true;
-    }
-
-    onDoubleClick(event) {
-    }
-
-    update() {
-    }
+    onMouseDown(event) {}
+    onMouseMove(event) {}
+    onMouseUp(event) {}
+    onDoubleClick(event) {}
+    update() {}
   }
 
   class Rectangle extends Shape {
-    constructor(mesh, controls) {
+    constructor(mesh) {
       super(mesh);
-      this.controls = controls;
       // Initialize the geometry with four vertices
       this.mesh.geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(4 * 3), 3));
-      // Initialize with an arbitrary number of vertices, you can dynamically resize this later
-      // this.mesh.geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(10 * 3), 3));
     }
 
     onMouseDown(event) {
-      this.isDrawing = true;
-      this.controls.enabled = false;
-      this.startPoint = getMousePosition(event.clientX, event.clientY);
+      if (isDrawing) {
+        mouseIsPressed = true;
+        this.startPoint = getMousePosition(event.clientX, event.clientY);
+      }
     }
 
     onMouseMove(event) {
-      if (!this.isDrawing) return;
-      this.endPoint = getMousePosition(event.clientX, event.clientY);
-      this.update();
+      if (isDrawing && mouseIsPressed) {
+        this.endPoint = getMousePosition(event.clientX, event.clientY);
+        this.update();
+      }
     }
 
     onMouseUp(event) {
-      this.isDrawing = false;
-      this.controls.enabled = true;
-      this.update();
+      if (isDrawing) {
+        mouseIsPressed = false;
+        this.update();
+      }
     }
 
     update() {
@@ -99,30 +86,32 @@ export function shapes(scene, camera, renderer, controls) {
   }
 
   class Ellipse extends Shape {
-    constructor(mesh, controls, segments = 64) {
+    constructor(mesh, segments = 64) {
       super(mesh);
-      this.controls = controls;
       this.segments = segments;
       // Initialize the geometry with segments + 1 vertices
       this.mesh.geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array((segments + 1) * 3), 3));
     }
 
     onMouseDown(event) {
-      this.isDrawing = true;
-      this.controls.enabled = false;
-      this.startPoint = getMousePosition(event.clientX, event.clientY);
+      if (isDrawing) {
+        mouseIsPressed = true;
+        this.startPoint = getMousePosition(event.clientX, event.clientY);
+      }
     }
 
     onMouseMove(event) {
-      if (!this.isDrawing) return;
-      this.endPoint = getMousePosition(event.clientX, event.clientY);
-      this.update();
+      if (isDrawing && mouseIsPressed) {
+        this.endPoint = getMousePosition(event.clientX, event.clientY);
+        this.update();
+      }
     }
 
     onMouseUp(event) {
-      this.isDrawing = false;
-      this.controls.enabled = true;
-      this.update();
+      if (isDrawing) {
+        mouseIsPressed = false;
+        this.update();
+      }
     }
 
     update() {
@@ -145,16 +134,15 @@ export function shapes(scene, camera, renderer, controls) {
   }
 
   class Polygon extends Shape {
-    constructor(mesh, controls) {
+    constructor(mesh) {
       super(mesh);
-      this.controls = controls;
       this.points = [];
     }
 
     onMouseDown(event) {
-      if (!this.isDrawing) {
-        this.isDrawing = true;
-        this.controls.enabled = false;
+      if (isDrawing) {
+        mouseIsPressed = true;
+      } else {
         this.points = [];
       }
       this.points.push(getMousePosition(event.clientX, event.clientY));
@@ -162,9 +150,10 @@ export function shapes(scene, camera, renderer, controls) {
     }
 
     onMouseMove(event) {
-      if (!this.isDrawing || this.points.length === 0) return;
-      this.endPoint = getMousePosition(event.clientX, event.clientY);
-      this.update();
+      if (isDrawing && mouseIsPressed) {
+        this.endPoint = getMousePosition(event.clientX, event.clientY);
+        this.update();
+      }
     }
 
     onMouseUp(event) {
@@ -172,9 +161,8 @@ export function shapes(scene, camera, renderer, controls) {
     }
 
     onDoubleClick(event) {
-      if (this.isDrawing && this.points.length > 2) {
-        this.isDrawing = false;
-        this.controls.enabled = true;
+      if (isDrawing) {
+        mouseIsPressed = false;
         this.update();
       }
     }
@@ -196,45 +184,61 @@ export function shapes(scene, camera, renderer, controls) {
   }
 
   class ShapeFactory {
-    constructor(mesh, controls) {
+    constructor(mesh) {
       this.mesh = mesh;
-      this.controls = controls;
     }
 
     createShape(type) {
       switch (type) {
         case "rectangle":
-          return new Rectangle(this.mesh, this.controls);
+          return new Rectangle(this.mesh);
         case "ellipse":
-          return new Ellipse(this.mesh, this.controls);
+          return new Ellipse(this.mesh);
         case "polygon":
-          return new Polygon(this.mesh, this.controls);
+          return new Polygon(this.mesh);
         default:
           throw new Error("Invalid shape type");
       }
     }
   }
 
-  let material = new THREE.LineBasicMaterial({color: 0x00ff00});
+  let material = new THREE.LineBasicMaterial({ color: 0x0000ff });
   let geometry = new THREE.BufferGeometry();
   let mesh = new THREE.LineLoop(geometry, material);
+  mesh.renderOrder = 999;
   scene.add(mesh);
 
   let factory = new ShapeFactory(mesh, controls);
   let currentShape = null;
 
+  function handler() {
+    if (isDrawing) {
+      isDrawing = false;
+      controls.enabled = true;
+    } else {
+      isDrawing = true;
+      controls.enabled = false;
+    }
+    console.log("isDrawing:", isDrawing);
+  }
+
+  // Button event listeners
   rectangleButton.addEventListener("click", function () {
     currentShape = factory.createShape("rectangle");
+    handler();
   });
 
   ellipseButton.addEventListener("click", function () {
     currentShape = factory.createShape("ellipse");
+    handler();
   });
 
   polygonButton.addEventListener("click", function () {
     currentShape = factory.createShape("polygon");
+    handler();
   });
 
+  // Canvas event listeners
   renderer.domElement.addEventListener("mousedown", function (event) {
     if (currentShape) currentShape.onMouseDown(event);
   }, false);
@@ -264,5 +268,4 @@ export function shapes(scene, camera, renderer, controls) {
     let pos = camera.position.clone().add(dir.multiplyScalar(distance));
     return pos;
   }
-
 }
