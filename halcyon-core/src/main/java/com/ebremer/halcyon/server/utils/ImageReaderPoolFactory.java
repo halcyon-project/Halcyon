@@ -40,7 +40,7 @@ public class ImageReaderPoolFactory extends BaseKeyedPooledObjectFactory<URI, Im
         if (x !=null) {
             getthis = x.toString().replace("%20", " ");
         } else if ((f.startsWith("https://")||f.startsWith("http://"))) {
-            throw new Error("remote http access being added back in.  Not available at the moment");
+            throw new Error("remote http access being added back in.  Not available at the moment : "+f);
         } else {
             getthis = f;
         }

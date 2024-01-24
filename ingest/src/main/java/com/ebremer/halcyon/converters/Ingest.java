@@ -51,7 +51,7 @@ public class Ingest {
     private final ArrayList<BG.PropertyAndDataType> list;
     private final ArrayList<SpecialProcess> specials;
     private static final Logger logger = LoggerFactory.getLogger(Ingest.class);
-    
+
     public Ingest() {
         list = new ArrayList<>();
         list.add(new BG.PropertyAndDataType(HAL.low.getURI(), XSD.xlong));
@@ -182,9 +182,10 @@ public class Ingest {
     }
    
     public static void main(String[] args) throws FileNotFoundException, IOException {
-        Configurator.setRootLevel(Level.ERROR);
-        Configurator.setLevel("com.ebremer.halcyon.raptor", Level.ERROR);
-        Configurator.setLevel("com.ebremer.beakgraph", Level.ERROR);        
+        //Configurator.setRootLevel(Level.ERROR);
+        //Configurator.setLevel("com.ebremer.halcyon.raptor", Level.ERROR);
+        //Configurator.setLevel("com.ebremer.beakgraph", Level.ERROR);      
+        // monitor https://issues.apache.org/jira/browse/LOG4J2-2649
         logger.info("ingest "+Arrays.toString(args));
         IngestParameters params = new IngestParameters();   
         JCommander jc = JCommander.newBuilder().addObject(params).build();
