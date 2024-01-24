@@ -23,9 +23,7 @@
 	import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 	import { TrackballControls } from 'three/addons/controls/TrackballControls.js';
         import * as ZEPHYR from 'zephyr';
-        import { enableDrawing } from '/zephyr/drawingModule.js';
-        import { shapes } from '/zephyr/shapes.js';
-        // import { ruler } from '/zephyr/ruler.js';
+        import { annotationTools } from '/zephyr/annotations/annotationTools.js';
 
         function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
@@ -54,10 +52,8 @@
         console.log("HERE THIS ===> "+options.target);
         ZEPHYR.CreateImageViewer(scene, options.target,0);
 
-        // Enable drawing on the scene
-        enableDrawing(scene, camera, renderer, controls);
-        shapes(scene, camera, renderer, controls);
-        // ruler(scene, camera, renderer, controls);
+        // Annotation tools
+        annotationTools(scene, camera, renderer, controls);
 
         function animate() {
             controls.update();
