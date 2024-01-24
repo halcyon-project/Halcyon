@@ -32,3 +32,8 @@ export function pixelsToMicrons(length_in_px) {
 
   return length_in_px / pix_per_micron; // Convert pixels to microns
 }
+
+function pixelsToMicrometers(pixels, micronsPerPixel) {
+  // Convert pixels to micrometers by multiplying by microns per pixel
+  return pixels * micronsPerPixel;
+}

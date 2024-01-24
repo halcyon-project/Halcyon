@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { FontLoader } from "three/addons/loaders/FontLoader.js";
 import { TextGeometry } from "three/addons/geometries/TextGeometry.js";
-import { createButton } from "./button.js"
+import { createButton } from "../helpers/button.js"
 
 export function ruler(scene, camera, renderer, controls) {
   let isDrawing = false;
@@ -73,11 +73,11 @@ export function ruler(scene, camera, renderer, controls) {
 
         let textGeometry = new TextGeometry(message, {
           font: font,
-          size: 0.2,
-          height: 0.1
+          size: 100,
+          height: 50
         });
 
-        let textMaterial = new THREE.MeshBasicMaterial({color: 0xffffff});
+        let textMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff });
         textMesh = new THREE.Mesh(textGeometry, textMaterial);
         textMesh.position.copy(endVector);
         textMesh.renderOrder = 999;
@@ -88,7 +88,6 @@ export function ruler(scene, camera, renderer, controls) {
     }
 
     function onMouseUp() {
-      isDrawing = false;
       mouseIsPressed = false;
       console.log(`%c${message}`, "color: #ccff00;");
     }
@@ -119,7 +118,7 @@ export function ruler(scene, camera, renderer, controls) {
     }
   };
 
-// Determine scaleFactor based on scene setup
+  // Determine scaleFactor based on scene setup
   function calculateScaleFactor(camera, renderer) {
     // Calculate the visible height at the depth of the plane
     const distance = camera.position.z;

@@ -3,8 +3,8 @@
  * Raycasting target meshes are the squares that rapture.js creates.
  */
 import * as THREE from 'three';
-import { convertToImageCoordinates } from "./conversions.js"
-import { createButton } from "./button.js"
+import { convertToImageCoordinates } from "../helpers/conversions.js"
+import { createButton } from "../helpers/button.js"
 
 export function enableDrawing(scene, camera, renderer, controls) {
   let btnDraw = createButton({
