@@ -23,21 +23,6 @@
                 <version>3.6.1</version>
             </plugin>
             <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-                <configuration>
-                    <mainClass>com.ebremer.halcyon.server.Main</mainClass>
-                </configuration>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>repackage</goal>
-                        </goals>
-                    </execution>
-                </executions>
-                <version>${springboot.version}</version>
-            </plugin>
-            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-enforcer-plugin</artifactId>
                 <version>3.4.1</version>
@@ -56,66 +41,9 @@
                 </executions>
             </plugin>
             <plugin>
-                <groupId>org.panteleyev</groupId>
-                <artifactId>jpackage-maven-plugin</artifactId>
-                <version>1.6.0</version>
-                <configuration>
-                    <name>Halcyon</name>
-                    <appVersion>${project.version}</appVersion>
-                    <vendor>Stony Brook University - Biomedical Informatics</vendor>
-                    <copyright>Copyright 2021-2023 Erich Bremer - Stony Brook University</copyright>
-                    <licenseFile>..\LICENSE</licenseFile>
-                    <input>target</input>
-                    <mainJar>Halcyon-${project.version}.jar</mainJar>
-                    <verbose>true</verbose>
-                    <description>Whole Slide Imaging and Feature Management</description>
-                    <icon>src\main\resources\META-INF\halcyon.ico</icon>
-                    <destination>dist</destination>
-                    <javaOptions>
-                        <option>-Dfile.encoding=UTF-8</option>
-                    </javaOptions>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>win</id>
-                        <configuration>
-                            <installDir>\Halcyon</installDir>
-                            <winMenu>true</winMenu>
-                            <winShortcutPrompt>true</winShortcutPrompt>
-                            <winDirChooser>true</winDirChooser>
-                            <winConsole>true</winConsole>
-                            <winHelpUrl>https://github.com/halcyon-project/Halcyon</winHelpUrl>
-                            <winUpdateUrl>https://github.com/halcyon-project/Halcyon</winUpdateUrl>
-                            <type>MSI</type>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>mac</id>
-                        <configuration>
-                            <type>DMG</type>
-                            
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>ubuntu</id>
-                        <configuration>
-                            <installDir>/usr/local</installDir>
-                            <type>DEB</type>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>rhel</id>
-                        <configuration>
-                            <installDir>/usr/local</installDir>
-                            <type>RPM</type>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.11.0</version>
+                <version>3.12.1</version>
                 <configuration>
                     <compilerArgs>
                         <arg>--enable-preview</arg>
@@ -140,6 +68,211 @@
             </resource>
         </resources>
     </build>
+    <profiles>
+        <profile>
+            <id>halcyonjar</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <build>
+                <finalName>Halcyon-${project.version}</finalName>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-enforcer-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>enforce</id>
+                                <goals>
+                                    <goal>enforce</goal>
+                                </goals>
+                                <configuration>
+                                    <rules>
+                                        <banDuplicatePomDependencyVersions/>
+                                    </rules>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>                    
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-shade-plugin</artifactId>
+                        <version>3.5.2</version>
+                        <configuration>
+                            <shadedArtifactAttached>false</shadedArtifactAttached>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>com.ebremer.halcyon.server.Main</mainClass>
+                                    <manifestEntries>
+                                        <Multi-Release>true</Multi-Release>
+                                    </manifestEntries>
+                                </transformer>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                            </transformers>
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                        </configuration>
+                        <executions>
+                            <execution>
+                            <phase>package</phase>
+                            <goals>
+                                <goal>shade</goal>
+                            </goals>
+                           </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.springframework.boot</groupId>
+                        <artifactId>spring-boot-maven-plugin</artifactId>
+                        <configuration>
+                            <mainClass>com.ebremer.halcyon.server.Main</mainClass>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <goals>
+                                    <goal>repackage</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                        <version>${springboot.version}</version>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>native</id>
+            <build>
+                <plugins>                   
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-shade-plugin</artifactId>
+                        <configuration>
+                            <shadedArtifactAttached>false</shadedArtifactAttached>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>com.ebremer.halcyon.server.Main</mainClass>
+                                    <manifestEntries>
+                                        <Multi-Release>true</Multi-Release>
+                                    </manifestEntries>
+                                </transformer>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                            </transformers>
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                        </configuration>
+                        <executions>
+                            <execution>
+                            <phase>package</phase>
+                            <goals>
+                                <goal>shade</goal>
+                            </goals>
+                           </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.springframework.boot</groupId>
+                        <artifactId>spring-boot-maven-plugin</artifactId>
+                        <configuration>
+                            <image>
+                                <builder>paketobuildpacks/builder:tiny</builder>
+                                <env>
+                                    <BP_NATIVE_IMAGE>true</BP_NATIVE_IMAGE>
+                                </env>
+                            </image>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>process-aot</id>
+                                <goals>
+                                    <goal>process-aot</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.graalvm.buildtools</groupId>
+                        <artifactId>native-maven-plugin</artifactId>
+                        <extensions>true</extensions>
+                        <executions>
+                            <execution>
+                                <id>add-reachability-metadata</id>
+                                <goals>
+                                    <goal>add-reachability-metadata</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                        <configuration>
+                            <skip>false</skip>
+                            <imageName>hatch</imageName>
+                            <fallback>false</fallback>
+                            <mainClass>com.ebremer.halcyon.server.Main</mainClass>
+                            <buildArgs>
+                                <buildArg>--no-fallback</buildArg>
+                            </buildArgs>
+                            <classesDirectory>${project.build.outputDirectory}</classesDirectory>
+                                <metadataRepository>
+                                <enabled>true</enabled>
+                            </metadataRepository>
+                            <requiredVersion>22.3</requiredVersion>
+                            <classpath>
+                                <param>${project.build.directory}/${project.artifactId}-${project.version}-shaded.jar</param>
+                            </classpath>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>halcyon</id>
+                <build>
+                    <plugins>
+                        <plugin>
+                            <groupId>org.springframework.boot</groupId>
+                            <artifactId>spring-boot-maven-plugin</artifactId>
+                            <extensions>true</extensions>
+                            <executions>
+                                <execution>
+                                    <id>build-native</id>
+                                    <goals>
+                                        <goal>compile-no-fork</goal>
+                                    </goals>
+                                    <phase>package</phase>
+                                </execution>
+                            </executions>
+                            <configuration>
+                                <imageName>halcyon</imageName>
+                                <mainClass>com.ebremer.halcyon.server.Main</mainClass>
+                                <debug>true</debug>
+                                <skipNativeTests>true</skipNativeTests>
+                                <verbose>true</verbose>
+                                <buildArgs>
+                                    <buildArg>--no-fallback</buildArg>
+                                    <buildArg>-H:ConfigurationFileDirectories=config</buildArg>
+                                    <buildArg>--enable-url-protocols=https</buildArg>
+                                    <buildArg>-H:+AddAllCharsets</buildArg>
+                                </buildArgs>
+                            </configuration>
+                        </plugin>
+                    </plugins>
+                </build>
+            </profile>
+        </profiles>
     <dependencies>       
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -255,7 +388,7 @@
         <dependency>
             <groupId>org.eclipse.parsson</groupId>
             <artifactId>parsson</artifactId>
-            <version>1.1.2</version>
+            <version>${parrson.json.version}</version>
         </dependency>
         <dependency>
             <groupId>org.eclipse.jetty</groupId>
@@ -316,20 +449,6 @@
             <groupId>org.apache.jena</groupId>
             <artifactId>apache-jena-libs</artifactId>
             <type>pom</type>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.jena</groupId>
-            <artifactId>jena-querybuilder</artifactId>
-            <type>jar</type>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.jena</groupId>
-            <artifactId>jena-permissions</artifactId>
-            <type>jar</type>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.jena</groupId>
-            <artifactId>jena-fuseki-main</artifactId>
         </dependency>
         <!--  OTHER DEPENDENCIES -->
         <dependency>

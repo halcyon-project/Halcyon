@@ -46,6 +46,7 @@ public final class HalcyonSettings {
     private static final String MasterSettingsLocation = "settings.ttl";
     private Resource Master;
     private final HashMap<String,String> mappings;
+    private final HashMap<String,String> file2httpMappings;
     private final String Realm = "master";
     public static final String realm = "Halcyon";
     public static final int DEFAULTHTTPPORT = 8888;
@@ -55,10 +56,12 @@ public final class HalcyonSettings {
     public static final String DEFAULTHOSTIP = "0.0.0.0";
     public static final String VERSION = "1.1.0";
     public static Resource HALCYONAGENT = ResourceFactory.createResource(HAL.NS+"VERSION/"+VERSION);
+    public static String HALCYONSOFTWARE = "Halcyon Version "+VERSION;
     
     private HalcyonSettings() {
         File f = new File(MasterSettingsLocation);
         mappings = new HashMap<>();
+        file2httpMappings = new HashMap<>();
         if (!f.exists()) {
             System.out.println("no config file found!");
             GenerateDefaultSettings();
@@ -273,6 +276,10 @@ public final class HalcyonSettings {
     public HashMap<String,String> getmappings() {
         return mappings;
     }
+
+    public HashMap<String,String> getfile2httpMappings() {
+        return file2httpMappings;
+    }
     
     public ArrayList<StorageLocation> getStorageLocations() {
         ArrayList<StorageLocation> list = new ArrayList<>();
@@ -287,6 +294,7 @@ public final class HalcyonSettings {
                 }
                 list.add(new StorageLocation(p,upath));
                 mappings.put(upath, p.toString());
+                file2httpMappings.put(r.getURI(), upath);
             } catch (URISyntaxException ex) {
                 Logger.getLogger(HalcyonSettings.class.getName()).log(Level.SEVERE, null, ex);
             }

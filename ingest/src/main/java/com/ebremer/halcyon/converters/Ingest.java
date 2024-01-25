@@ -38,8 +38,6 @@ import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.SchemaDO;
 import org.apache.jena.vocabulary.XSD;
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.core.config.Configurator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

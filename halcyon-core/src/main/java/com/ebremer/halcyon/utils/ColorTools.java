@@ -1,6 +1,12 @@
 package com.ebremer.halcyon.utils;
 
 import java.awt.Color;
+import org.apache.jena.rdf.model.Model;
+import org.apache.jena.rdf.model.ModelFactory;
+import org.apache.jena.riot.Lang;
+import org.apache.jena.riot.RDFDataMgr;
+import org.apache.jena.sparql.vocabulary.FOAF;
+import org.apache.jena.vocabulary.RDF;
 
 /**
  *
@@ -30,7 +36,10 @@ public class ColorTools {
     }
     
     public static void main(String[] args) {
-        System.out.println(Color2RGBA(Color.MAGENTA));
-        System.out.println(Hex2RGBA("#ffee22"));
+        //System.out.println(Color2RGBA(Color.MAGENTA));
+        //System.out.println(Hex2RGBA("#ffee22"));
+        Model m = ModelFactory.createDefaultModel();
+        m.createResource("urn:sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855").addProperty(RDF.type, FOAF.Agent);
+        RDFDataMgr.write(System.out, m, Lang.TURTLE);
     }
 }

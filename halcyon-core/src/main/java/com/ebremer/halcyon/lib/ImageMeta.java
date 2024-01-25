@@ -1,6 +1,5 @@
 package com.ebremer.halcyon.lib;
 
-import com.ebremer.halcyon.FL.FLSegmentation;
 import java.util.ArrayList;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
@@ -18,6 +17,7 @@ public class ImageMeta {
     private final int height;
     private final int tileSizeX;
     private final int tileSizeY;
+    private final Double magnification;
     private final float aspectratio;
     private final Model meta;
     private static final Logger logger = LoggerFactory.getLogger(ImageMeta.class);
@@ -28,6 +28,7 @@ public class ImageMeta {
         this.height = builder.height;
         this.tileSizeX = builder.tileSizeX;
         this.tileSizeY = builder.tileSizeY;
+        this.magnification = builder.magnification;
         this.scales = builder.scales;
         this.aspectratio = builder.aspectratio;
         this.meta = builder.meta;
@@ -49,6 +50,10 @@ public class ImageMeta {
             scale = scales.get(c);
         } while ((c>0)&&(ratio<=scale.scale));
         return scale;
+    }
+
+    public Double getMagnification() {
+        return magnification;
     }
     
     public int getWidth() {
@@ -106,6 +111,7 @@ public class ImageMeta {
         private int height;
         private int tileSizeX;
         private int tileSizeY;
+        private Double magnification;
         private final boolean useWidth;
         private final float aspectratio;
         private boolean filter = true;
@@ -143,6 +149,11 @@ public class ImageMeta {
 
         public Builder setTileSizeY(int tileSizeY) {
             this.tileSizeY = tileSizeY;
+            return this;
+        }
+        
+        public Builder setMagnification(Double magnification) {
+            this.magnification = magnification;
             return this;
         }
         

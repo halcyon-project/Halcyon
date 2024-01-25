@@ -6,7 +6,7 @@ import com.ebremer.halcyon.lib.FileUtils;
 import java.io.File;
 import java.net.URI;
 import java.nio.file.Path;
-import java.util.HashMap;
+import java.util.Optional;
 import org.apache.commons.pool2.BaseKeyedPooledObjectFactory;
 import org.apache.commons.pool2.DestroyMode;
 import org.apache.commons.pool2.PooledObject;
@@ -22,27 +22,14 @@ public class ImageReaderPoolFactory extends BaseKeyedPooledObjectFactory<URI, Im
     
     @Override
     public ImageReader create(URI uri) throws Exception {
-        String f = uri.toString();
         String getthis;
-        HalcyonSettings settings = HalcyonSettings.getSettings();
-        String mainpath = settings.getHostName();
-        Path x = null;
-        if (f.startsWith(mainpath)) {
-            String cut = f.substring(mainpath.length());
-            HashMap<String, String> mappings = settings.getmappings();
-            for (String key : mappings.keySet()) {
-                if (cut.startsWith(key)) {
-                    String chunk = cut.substring(key.length());
-                    x = Path.of(mappings.get(key), chunk);
-                }
-            }
-        }
-        if (x !=null) {
-            getthis = x.toString().replace("%20", " ");
-        } else if ((f.startsWith("https://")||f.startsWith("http://"))) {
-            throw new Error("remote http access being added back in.  Not available at the moment : "+f);
+        Optional<Path> x = PathMap.http2file(uri);
+        if (x.isPresent()) {
+            getthis = x.get().toString().replace("%20", " ");
+        } else if ((uri.getScheme().equals("https")||uri.getScheme().equals("http"))) {
+            throw new Error("remote http access being added back in.  Not available at the moment : "+uri.toString());
         } else {
-            getthis = f;
+            getthis = uri.toString();
         }
         URI xuri = (new File(getthis)).toURI();
         switch (xuri.getScheme()) {

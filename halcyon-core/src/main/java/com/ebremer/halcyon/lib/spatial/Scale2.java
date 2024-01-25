@@ -8,7 +8,7 @@ import org.apache.jena.sparql.function.FunctionBase;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.io.WKTWriter;
 
-public class scale extends FunctionBase {
+public class Scale2 extends FunctionBase {
     
     public static final String POLYGONEMPTY = "POLYGON EMPTY";
 
