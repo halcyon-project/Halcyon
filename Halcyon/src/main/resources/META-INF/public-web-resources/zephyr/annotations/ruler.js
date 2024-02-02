@@ -1,27 +1,32 @@
 import * as THREE from "three";
 import { FontLoader } from "three/addons/loaders/FontLoader.js";
 import { TextGeometry } from "three/addons/geometries/TextGeometry.js";
-import { createButton } from "../helpers/button.js"
+import { createButton } from "../helpers/elements.js";
+import { getMousePosition } from "../helpers/mouse.js";
+import { pixelsToMicrons } from "../helpers/conversions.js";
 
 export function ruler(scene, camera, renderer, controls) {
   let isDrawing = false;
   let mouseIsPressed = false;
   let myFont = "/threejs/examples/fonts/helvetiker_regular.typeface.json";
+  const canvas = renderer.domElement;
 
-  let button = createButton({
+  let rulerButton = createButton({
     id: "ruler",
     innerHtml: "<i class=\"fas fa-ruler\"></i>",
     title: "ruler"
   });
 
-  button.addEventListener("click", function () {
+  rulerButton.addEventListener("click", function () {
     if (isDrawing) {
       isDrawing = false;
       controls.enabled = true;
+      this.classList.replace('btnOn', 'annotationBtn');
     } else {
       // Drawing on
       isDrawing = true;
       controls.enabled = false;
+      this.classList.replace('annotationBtn', 'btnOn');
     }
   });
 
@@ -35,14 +40,14 @@ export function ruler(scene, camera, renderer, controls) {
     let lineGeometry = new THREE.BufferGeometry();
     let lineMaterial = new THREE.LineBasicMaterial({ color: 0x00ff00, linewidth: 10 });
 
-    renderer.domElement.addEventListener('mousedown', onMouseDown, false);
-    renderer.domElement.addEventListener('mousemove', onMouseMove, false);
-    renderer.domElement.addEventListener('mouseup', onMouseUp, false);
+    canvas.addEventListener('mousedown', onMouseDown, false);
+    canvas.addEventListener('mousemove', onMouseMove, false);
+    canvas.addEventListener('mouseup', onMouseUp, false);
 
     function onMouseDown(event) {
       if (isDrawing) {
         mouseIsPressed = true;
-        startPoint = getMouseCoordinates(event);
+        startPoint = getMousePosition(event.clientX, event.clientY, canvas, camera);
         startVector = new THREE.Vector3(startPoint.x, startPoint.y, 0);
 
         lineGeometry.setFromPoints([startVector, startVector]);
@@ -54,7 +59,7 @@ export function ruler(scene, camera, renderer, controls) {
 
     function onMouseMove(event) {
       if (isDrawing && mouseIsPressed) {
-        endPoint = getMouseCoordinates(event);
+        endPoint = getMousePosition(event.clientX, event.clientY, canvas, camera);
         endVector = new THREE.Vector3(endPoint.x, endPoint.y, 0);
 
         line.geometry.setFromPoints([startVector, endVector]);
@@ -69,12 +74,12 @@ export function ruler(scene, camera, renderer, controls) {
           calculateScaleFactor(camera, renderer)
         ).toFixed(2);
 
-        message = `Length ${length} px`;
+        message = `Length ${length} \u00B5m`;
 
         let textGeometry = new TextGeometry(message, {
           font: font,
-          size: 100,
-          height: 50
+          size: 25,
+          height: 5
         });
 
         let textMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff });
@@ -91,30 +96,13 @@ export function ruler(scene, camera, renderer, controls) {
       mouseIsPressed = false;
       console.log(`%c${message}`, "color: #ccff00;");
     }
-
-    function getMouseCoordinates(event) {
-      let mouse = new THREE.Vector2();
-      mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-      mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-
-      let raycaster = new THREE.Raycaster();
-      raycaster.setFromCamera(mouse, camera);
-
-      let intersects = raycaster.intersectObjects(scene.children);
-      if (intersects.length > 0) {
-        let point = intersects[0].point;
-        return {x: point.x, y: point.y};
-      }
-
-      return { x: 0, y: 0 };
-    }
-
   });
 
   const Calculate = {
     lineLength(x1, y1, x2, y2, scaleFactor) {
       const threeJsUnitsLength = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
-      return threeJsUnitsLength * scaleFactor; // Convert to pixels
+      const pixLength = threeJsUnitsLength * scaleFactor;
+      return pixelsToMicrons(pixLength); // Convert to microns
     }
   };
 

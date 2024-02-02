@@ -3,8 +3,8 @@
  * Raycasting target meshes are the squares that rapture.js creates.
  */
 import * as THREE from 'three';
-import { convertToImageCoordinates } from "../helpers/conversions.js"
-import { createButton } from "../helpers/button.js"
+import { convertToImageCoordinates } from "../helpers/conversions.js";
+import { createButton, textInputPopup } from "../helpers/elements.js";
 
 export function enableDrawing(scene, camera, renderer, controls) {
   let btnDraw = createButton({
@@ -21,6 +21,7 @@ export function enableDrawing(scene, camera, renderer, controls) {
     if (isDrawing) {
       isDrawing = false;
       controls.enabled = true;
+      this.classList.replace('btnOn', 'annotationBtn');
 
       // Remove the mouse event listeners
       renderer.domElement.removeEventListener("mousemove", onMouseMove);
@@ -29,6 +30,7 @@ export function enableDrawing(scene, camera, renderer, controls) {
       // Drawing on
       isDrawing = true;
       controls.enabled = false;
+      this.classList.replace('annotationBtn', 'btnOn');
 
       // Set up the mouse event listeners
       renderer.domElement.addEventListener("mousemove", onMouseMove);
@@ -70,6 +72,7 @@ export function enableDrawing(scene, camera, renderer, controls) {
 
       // Create a new BufferAttribute for each line
       line = new THREE.Line(new THREE.BufferGeometry(), lineMaterial);
+      line.name = "annotation";
       scene.add(line);
 
       currentPolygonPositions = []; // Start a new array for the current polygon's positions
@@ -119,7 +122,7 @@ export function enableDrawing(scene, camera, renderer, controls) {
     }
   }
 
-  function onMouseUp() {
+  function onMouseUp(event) {
     if (isDrawing) {
       mouseIsPressed = false;
 
@@ -130,6 +133,10 @@ export function enableDrawing(scene, camera, renderer, controls) {
       polygonPositions.push(currentPolygonPositions); // Store the current polygon's positions in the polygonPositions array
 
       toImageCoords(currentPolygonPositions);
+
+      textInputPopup(event, line);
+
+      // console.log("line:", line);
 
       currentPolygonPositions = []; // Clear the current polygon's array
     }
