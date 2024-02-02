@@ -76,7 +76,7 @@ export function polygon(scene, camera, renderer, controls) {
     let geometry = new THREE.BufferGeometry();
     let polygon = new THREE.LineLoop(geometry, material);
     polygon.renderOrder = 999;
-    polygon.name = "annotation";
+    polygon.name = "polygon annotation";
     scene.add(polygon);
     return polygon;
   }
