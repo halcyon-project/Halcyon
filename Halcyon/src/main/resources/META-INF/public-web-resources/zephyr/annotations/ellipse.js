@@ -71,7 +71,7 @@ export function ellipse(scene, camera, renderer, controls) {
     geometry.setAttribute("position", new THREE.BufferAttribute(vertices, 3));
     let ellipse = new THREE.LineLoop(geometry, material);
     ellipse.renderOrder = 999;
-    ellipse.name = "annotation";
+    ellipse.name = "ellipse annotation";
     scene.add(ellipse);
     return ellipse;
   }

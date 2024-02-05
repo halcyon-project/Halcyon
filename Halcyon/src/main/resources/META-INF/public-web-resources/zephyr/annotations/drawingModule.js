@@ -72,7 +72,7 @@ export function enableDrawing(scene, camera, renderer, controls) {
 
       // Create a new BufferAttribute for each line
       line = new THREE.Line(new THREE.BufferGeometry(), lineMaterial);
-      line.name = "annotation";
+      line.name = "free-draw annotation";
       scene.add(line);
 
       currentPolygonPositions = []; // Start a new array for the current polygon's positions

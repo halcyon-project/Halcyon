@@ -114,7 +114,7 @@ export function hollowBrush(scene, camera, renderer, controls) {
     const lineMaterial = new THREE.LineBasicMaterial({color: 0x0000ff});
 
     const line = new THREE.LineLoop(lineGeometry, lineMaterial); // Use LineLoop to close the shape
-    line.name = "annotation";
+    line.name = "hollow annotation";
     scene.add(line);
 
     textInputPopup(event, line);

@@ -38,7 +38,7 @@ export function rectangle(scene, camera, renderer, controls) {
   // LineLoop: A continuous line that connects back to the start.
   let rect = new THREE.LineLoop(geometry, material);
   rect.renderOrder = 999;
-  rect.name = "annotation";
+  rect.name = "rectangle annotation";
   scene.add(rect);
 
   // Handle mouse events
@@ -82,7 +82,7 @@ export function rectangle(scene, camera, renderer, controls) {
     newGeometry.setAttribute("position", new THREE.BufferAttribute(vertices, 3));
     let newRect = new THREE.LineLoop(newGeometry, material);
     newRect.renderOrder = 999;
-    newRect.name = "annotation";
+    newRect.name = "rectangle annotation";
     scene.add(newRect);
 
     textInputPopup(event, newRect);

@@ -17,19 +17,6 @@ export function ruler(scene, camera, renderer, controls) {
     title: "ruler"
   });
 
-  rulerButton.addEventListener("click", function () {
-    if (isDrawing) {
-      isDrawing = false;
-      controls.enabled = true;
-      this.classList.replace('btnOn', 'annotationBtn');
-    } else {
-      // Drawing on
-      isDrawing = true;
-      controls.enabled = false;
-      this.classList.replace('annotationBtn', 'btnOn');
-    }
-  });
-
   let fontLoader = new FontLoader();
   fontLoader.load(myFont, function (font) {
     let line, textMesh;
@@ -40,9 +27,24 @@ export function ruler(scene, camera, renderer, controls) {
     let lineGeometry = new THREE.BufferGeometry();
     let lineMaterial = new THREE.LineBasicMaterial({ color: 0x00ff00, linewidth: 10 });
 
-    canvas.addEventListener('mousedown', onMouseDown, false);
-    canvas.addEventListener('mousemove', onMouseMove, false);
-    canvas.addEventListener('mouseup', onMouseUp, false);
+    rulerButton.addEventListener("click", function () {
+      if (isDrawing) {
+        isDrawing = false;
+        controls.enabled = true;
+        this.classList.replace('btnOn', 'annotationBtn');
+        canvas.removeEventListener('mousedown', onMouseDown, false);
+        canvas.removeEventListener('mousemove', onMouseMove, false);
+        canvas.removeEventListener('mouseup', onMouseUp, false);
+      } else {
+        // Drawing on
+        isDrawing = true;
+        controls.enabled = false;
+        this.classList.replace('annotationBtn', 'btnOn');
+        canvas.addEventListener('mousedown', onMouseDown, false);
+        canvas.addEventListener('mousemove', onMouseMove, false);
+        canvas.addEventListener('mouseup', onMouseUp, false);
+      }
+    });
 
     function onMouseDown(event) {
       if (isDrawing) {

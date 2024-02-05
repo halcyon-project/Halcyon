@@ -37,7 +37,7 @@ export function save(scene) {
 
   let serializedData;
   function serializeScene() {
-    serializedData = scene.children.filter(obj => obj.name === "annotation").map(obj => {
+    serializedData = scene.children.filter(obj => obj.name.includes("annotation")).map(obj => {
       // Accessing vertex data from BufferGeometry
       const vertices = [];
       if (obj.geometry.attributes.position) {
@@ -71,7 +71,7 @@ export function save(scene) {
 
 export function deserializeScene(scene, serializedData) {
   serializedData.forEach(data => {
-    if(data.name === "annotation") {
+    if(data.name.includes("annotation")) {
       const geometry = new THREE[data.geometryType]();
 
       // Flatten the vertex data for BufferGeometry
