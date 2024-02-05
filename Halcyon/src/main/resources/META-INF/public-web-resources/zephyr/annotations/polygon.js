@@ -36,16 +36,6 @@ export function polygon(scene, camera, renderer, controls) {
   let points = [];
   let currentPolygon = null;
 
-  function onMouseDown(event) {
-    if (isDrawing) {
-      mouseIsPressed = true;
-      points = []; // Reset points
-      let point = getMousePosition(event.clientX, event.clientY, canvas, camera);
-      points.push(point);
-      currentPolygon = createPolygon();
-    }
-  }
-
   function onMouseMove(event) {
     if (isDrawing && mouseIsPressed) {
       let point = getMousePosition(event.clientX, event.clientY, canvas, camera);
@@ -62,18 +52,37 @@ export function polygon(scene, camera, renderer, controls) {
     }
   }
 
+  function onMouseDown(event) {
+    if (isDrawing && !mouseIsPressed) { // Ensure we start a new polygon
+      mouseIsPressed = true;
+      points = []; // Reset points for a new polygon
+      let point = getMousePosition(event.clientX, event.clientY, canvas, camera);
+      points.push(point);
+      if (!currentPolygon) { // Create a new LineLoop if there isn't an active one
+        currentPolygon = createPolygon();
+      }
+    }
+  }
+
   function onDoubleClick(event) {
-    if (isDrawing) {
+    if (isDrawing && points.length > 2) { // Ensure a valid polygon
       mouseIsPressed = false;
       points.pop(); // Remove the duplicated point from double-click
-      updatePolygon();
+      finalizeCurrentPolygon(); // Finalize and prepare for a new polygon
       textInputPopup(event, currentPolygon);
-      // console.log("currentPolygon:", currentPolygon);
+      currentPolygon = null; // Reset currentPolygon for the next one
     }
+  }
+
+  function finalizeCurrentPolygon() {
+    // This function replaces the temporary line drawing with a finalized LineLoop
+    updatePolygon(); // Ensure the final point is included
+    // No need to create a new object here, as updatePolygon already updates the LineLoop
   }
 
   function createPolygon() {
     let geometry = new THREE.BufferGeometry();
+    // Ensure material and geometry are correctly set up for a LineLoop
     let polygon = new THREE.LineLoop(geometry, material);
     polygon.renderOrder = 999;
     polygon.name = "polygon annotation";
@@ -82,6 +91,7 @@ export function polygon(scene, camera, renderer, controls) {
   }
 
   function updatePolygon() {
+    // This function remains largely the same, ensuring the LineLoop's geometry is updated
     if (currentPolygon && points.length > 0) {
       let positions = new Float32Array(points.length * 3);
       for (let i = 0; i < points.length; i++) {
@@ -89,8 +99,10 @@ export function polygon(scene, camera, renderer, controls) {
         positions[i * 3 + 1] = points[i].y;
         positions[i * 3 + 2] = points[i].z;
       }
-      currentPolygon.geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+      currentPolygon.geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
       currentPolygon.geometry.attributes.position.needsUpdate = true;
+      currentPolygon.geometry.setDrawRange(0, points.length);
     }
   }
+
 }
