@@ -36,8 +36,7 @@ export function textInputPopup(event, object) {
   // Handle text input and saving
   button.addEventListener('click', () => {
     if (input.value) {
-      const text = input.value;
-      object.userData.text = text; // Store text in the object's userData
+      object.userData.text = input.value; // Store text in the object's userData
       // You can now access the text using object.userData.text
     }
     popup.remove(); // Remove the popup
