@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { createButton, textInputPopup } from "../helpers/elements.js";
+import { createButton, textInputPopup, deleteIcon } from "../helpers/elements.js";
 import { getMousePosition } from "../helpers/mouse.js";
 
 export function rectangle(scene, camera, renderer, controls) {
@@ -28,7 +28,7 @@ export function rectangle(scene, camera, renderer, controls) {
   });
 
   const canvas = renderer.domElement;
-  let material = new THREE.LineBasicMaterial({ color: 0x0000ff });
+  let material = new THREE.LineBasicMaterial({ color: 0x0000ff, linewidth: 5 });
 
   let isDrawing = false;
   let mouseIsPressed = false;
@@ -56,6 +56,7 @@ export function rectangle(scene, camera, renderer, controls) {
       mouseIsPressed = false;
       endPoint = getMousePosition(event.clientX, event.clientY, canvas, camera);
       updateRectangle();
+      // deleteIcon(event, currentRectangle, scene);
       textInputPopup(event, currentRectangle);
       // console.log("currentRectangle:", currentRectangle);
     }
@@ -73,7 +74,6 @@ export function rectangle(scene, camera, renderer, controls) {
     scene.add(rect);
 
     return rect;
-
   }
 
   function updateRectangle() {

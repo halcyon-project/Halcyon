@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { createButton, textInputPopup } from "../helpers/elements.js";
+import { createButton, textInputPopup, deleteIcon } from "../helpers/elements.js";
 import { getMousePosition } from "../helpers/mouse.js";
 
 export function ellipse(scene, camera, renderer, controls) {
@@ -28,7 +28,7 @@ export function ellipse(scene, camera, renderer, controls) {
   });
 
   const canvas = renderer.domElement;
-  let material = new THREE.LineBasicMaterial({ color: 0x0000ff });
+  let material = new THREE.LineBasicMaterial({ color: 0x0000ff, linewidth: 5 });
   let segments = 64; // 64 line segments is a common choice
 
   let isDrawing = false;
@@ -59,7 +59,8 @@ export function ellipse(scene, camera, renderer, controls) {
       mouseIsPressed = false;
       endPoint = getMousePosition(event.clientX, event.clientY, canvas, camera);
       updateEllipse();
-      textInputPopup(event, currentEllipse);
+      // deleteIcon(event, currentEllipse, scene);
+      textInputPopup(event, currentEllipse, scene);
       // console.log("currentEllipse:", currentEllipse);
     }
   }

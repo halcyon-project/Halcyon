@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import {createButton, textInputPopup} from "../helpers/elements.js";
+import { createButton, textInputPopup, deleteIcon } from "../helpers/elements.js";
 import { getMousePosition } from "../helpers/mouse.js";
 
 export function hollowBrush(scene, camera, renderer, controls) {
@@ -111,12 +111,13 @@ export function hollowBrush(scene, camera, renderer, controls) {
     const coordinates = unionGeometry.getCoordinates();
     const points = coordinates.map(coord => new THREE.Vector3(coord.x, coord.y, 0));
     const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
-    const lineMaterial = new THREE.LineBasicMaterial({color: 0x0000ff});
+    const lineMaterial = new THREE.LineBasicMaterial({ color: 0x0000ff, linewidth: 5 });
 
     const line = new THREE.LineLoop(lineGeometry, lineMaterial); // Use LineLoop to close the shape
     line.name = "hollow annotation";
     scene.add(line);
 
+    // deleteIcon(event, line, scene);
     textInputPopup(event, line);
   }
 }

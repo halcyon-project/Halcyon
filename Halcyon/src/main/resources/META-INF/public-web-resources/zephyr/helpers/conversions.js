@@ -1,24 +1,39 @@
+/**
+ * Convert three.js coordinates to image coordinates
+ */
 export function convertToImageCoordinates(positionArray, imageWidth, imageHeight) {
   const imageCoordinates = [];
 
   for (let i = 0; i < positionArray.length; i += 3) {
-    // Extract the x and y coordinates
-    let point = {};
-    point.x = positionArray[i];
-    point.y = positionArray[i + 1];
+    // Extract the x and y coordinates from Three.js NDC space
+    let threeX = positionArray[i];     // X coordinate in NDC
+    let threeY = positionArray[i + 1]; // Y coordinate in NDC
 
-    // Normalize coordinates to [-1, 1]
-    const normalizedX = point.x / (imageWidth / 2);
-    const normalizedY = point.y / (imageHeight / 2);
-
-    // Convert normalized coordinates to image coordinates
-    const imageX = (normalizedX + 1) * (imageWidth / 2);
-    const imageY = (1 - normalizedY) * (imageHeight / 2);
+    // Convert from NDC space [-1, 1] to image coordinates
+    const imageX = (threeX + 1) / 2 * imageWidth;
+    const imageY = (1 - threeY) / 2 * imageHeight;
 
     imageCoordinates.push({ x: imageX, y: imageY });
   }
 
   return imageCoordinates;
+}
+
+/**
+ * Convert image coordinates to Three.js coordinates
+ */
+export function imageToThreeCoords(array, imageWidth, imageHeight) {
+  return array.map(({x, y}) => {
+    // Normalize coordinates (0 to 1)
+    const normalizedX = x / imageWidth;
+    const normalizedY = y / imageHeight;
+
+    // Map to Three.js coordinates (-1 to 1)
+    const threeX = normalizedX * 2 - 1; // Shift and scale x
+    const threeY = (1 - normalizedY) * 2 - 1; // Invert, shift, and scale y (y is inverted in WebGL/Three.js)
+
+    return { x: threeX, y: threeY };
+  });
 }
 
 /**
@@ -33,7 +48,9 @@ export function pixelsToMicrons(length_in_px) {
   return length_in_px / pix_per_micron; // Convert pixels to microns
 }
 
-function pixelsToMicrometers(pixels, micronsPerPixel) {
-  // Convert pixels to micrometers by multiplying by microns per pixel
+/**
+ * Convert pixels to micrometers by multiplying by microns per pixel
+ */
+export function pixelsToMicrometers(pixels, micronsPerPixel) {
   return pixels * micronsPerPixel;
 }
