@@ -43,7 +43,7 @@ public class MultiViewerFoundation {
     public MultiViewerFoundation() {
         AddCSSResource(CSS.main,"css/main.min.css");
         AddCSSResource(CSS.colorpicker,"vendor/color-picker/index.min.css");
-        AddCSSResource(CSS.fontawesome,"vendor/fontawesome-free-5.15.3-web/css/all.min.css");
+        AddCSSResource(CSS.fontawesome,"vendor/fontawesome-free-6.5.1-web/css/all.min.css");
 
         AddJSResource(JS.openseadragon,"vendor/openseadragon/openseadragon.min.js");
         AddJSResource(JS.openseadragonfabricjsoverlay,"vendor/OpenseadragonFabricjsOverlay/osd-fabricjs-overlay.min.js");
