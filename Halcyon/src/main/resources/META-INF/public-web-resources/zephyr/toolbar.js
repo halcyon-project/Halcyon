@@ -8,6 +8,7 @@ import { hollowBrush } from "./annotations/hollow-brush.js";
 import { crosshairs } from "./helpers/crosshairs.js";
 import { save } from "./annotations/save.js";
 import { zoomControl } from "./helpers/zoomControl.js";
+import { screenCapture } from "./helpers/elements.js";
 
 export function toolbar(scene, camera, renderer, controls) {
   // Enable drawing on the scene
@@ -18,6 +19,7 @@ export function toolbar(scene, camera, renderer, controls) {
   hollowBrush(scene, camera, renderer, controls);
   grid(scene, camera, renderer);
   ruler(scene, camera, renderer, controls);
+  screenCapture(renderer);
   crosshairs(scene, camera);
   save(scene);
   zoomControl(camera, controls);

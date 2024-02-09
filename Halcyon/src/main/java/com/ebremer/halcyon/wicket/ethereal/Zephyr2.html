@@ -43,7 +43,10 @@
         camera.lookAt(new THREE.Vector3(0, 0, 0));
         scene.add(camera);
 
-	const renderer = new THREE.WebGLRenderer({ antialias: true });
+        const renderer = new THREE.WebGLRenderer({
+          antialias: true,
+          preserveDrawingBuffer: true // Preserve the drawing buffer to capture the image later
+        });
         renderer.setPixelRatio( window.devicePixelRatio );
 	renderer.setSize( window.innerWidth, window.innerHeight );
 	document.body.appendChild( renderer.domElement );
