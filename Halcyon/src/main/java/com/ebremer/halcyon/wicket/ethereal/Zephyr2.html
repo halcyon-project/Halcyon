@@ -2,8 +2,8 @@
 <html lang="en">
 <wicket:head>
     <style> body { margin: 0; } </style>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="/multi-viewer/css/main.min.css">
+    <link href="/multi-viewer/vendor/fontawesome-free-6.5.1-web/css/all.min.css" rel="stylesheet">
     <script src="/zephyr/js/jsts.min.js"></script>
 </wicket:head>
 
@@ -24,7 +24,7 @@
 	import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 	import { TrackballControls } from 'three/addons/controls/TrackballControls.js';
         import * as ZEPHYR from 'zephyr';
-        import { annotationTools } from '/zephyr/annotations/annotationTools.js';
+        import { toolbar } from '/zephyr/toolbar.js';
 
         function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
@@ -38,23 +38,28 @@
         // camera.position.set(0, 0, 150000);
         // camera.position.set(0, 0, 1250);
 
-        const camera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 0.1, 12000);
+        const camera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 1, 20000);
         camera.position.set(0, 0, 11000);
         camera.lookAt(new THREE.Vector3(0, 0, 0));
         scene.add(camera);
 
-	const renderer = new THREE.WebGLRenderer({ antialias: true });
+        const renderer = new THREE.WebGLRenderer({
+          antialias: true,
+          preserveDrawingBuffer: true // Preserve the drawing buffer to capture the image later
+        });
         renderer.setPixelRatio( window.devicePixelRatio );
 	renderer.setSize( window.innerWidth, window.innerHeight );
 	document.body.appendChild( renderer.domElement );
         window.addEventListener( 'resize', onWindowResize );
         let controls = new TrackballControls( camera, renderer.domElement );
+        controls.dynamicDampingFactor = 0.2; // To offer a smooth yet responsive control feel
+
         //ZEPHYR.CreateImageViewer(scene, "http://localhost:8888/HalcyonStorage/tcga/coad/TCGA-CM-5348-01Z-00-DX1.2ad0b8f6-684a-41a7-b568-26e97675cce9.svs",0);
         console.log("HERE THIS ===> "+options.target);
         ZEPHYR.CreateImageViewer(scene, options.target,0);
 
         // Annotation tools
-        annotationTools(scene, camera, renderer, controls);
+        toolbar(scene, camera, renderer, controls);
 
         function animate() {
             controls.update();

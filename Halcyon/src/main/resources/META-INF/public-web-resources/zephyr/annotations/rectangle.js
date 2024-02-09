@@ -30,27 +30,17 @@ export function rectangle(scene, camera, renderer, controls) {
   const canvas = renderer.domElement;
   let material = new THREE.LineBasicMaterial({ color: 0x0000ff });
 
-  // Set up geometry
-  let geometry = new THREE.BufferGeometry(); // our 3D object
-  let vertices = new Float32Array(12); // 4 vertices
-  geometry.setAttribute("position", new THREE.BufferAttribute(vertices, 3)); // each vertex is composed of 3 values
-
-  // LineLoop: A continuous line that connects back to the start.
-  let rect = new THREE.LineLoop(geometry, material);
-  rect.renderOrder = 999;
-  rect.name = "rectangle annotation";
-  scene.add(rect);
-
-  // Handle mouse events
   let isDrawing = false;
   let mouseIsPressed = false;
   let startPoint;
   let endPoint;
+  let currentRectangle;
 
   function onMouseDown(event) {
     if (isDrawing) {
       mouseIsPressed = true;
       startPoint = getMousePosition(event.clientX, event.clientY, canvas, camera);
+      currentRectangle = createRectangle();
     }
   }
 
@@ -61,36 +51,34 @@ export function rectangle(scene, camera, renderer, controls) {
     }
   }
 
-  // Function to add a new rectangle
-  function addRectangle(startPoint, endPoint, event) {
-    let newGeometry = new THREE.BufferGeometry();
+  function onMouseUp(event) {
+    if (isDrawing) {
+      mouseIsPressed = false;
+      endPoint = getMousePosition(event.clientX, event.clientY, canvas, camera);
+      updateRectangle();
+      textInputPopup(event, currentRectangle);
+      // console.log("currentRectangle:", currentRectangle);
+    }
+  }
+
+  function createRectangle() {
+    let geometry = new THREE.BufferGeometry(); // our 3D object
     let vertices = new Float32Array(12); // 4 vertices
+    geometry.setAttribute("position", new THREE.BufferAttribute(vertices, 3)); // each vertex is composed of 3 values
 
-    vertices[0] = startPoint.x;
-    vertices[1] = startPoint.y;
-    vertices[2] = startPoint.z;
-    vertices[3] = endPoint.x;
-    vertices[4] = startPoint.y;
-    vertices[5] = startPoint.z;
-    vertices[6] = endPoint.x;
-    vertices[7] = endPoint.y;
-    vertices[8] = startPoint.z;
-    vertices[9] = startPoint.x;
-    vertices[10] = endPoint.y;
-    vertices[11] = startPoint.z;
+    // LineLoop: A continuous line that connects back to the start.
+    let rect = new THREE.LineLoop(geometry, material);
+    rect.renderOrder = 999;
+    rect.name = "rectangle annotation";
+    scene.add(rect);
 
-    newGeometry.setAttribute("position", new THREE.BufferAttribute(vertices, 3));
-    let newRect = new THREE.LineLoop(newGeometry, material);
-    newRect.renderOrder = 999;
-    newRect.name = "rectangle annotation";
-    scene.add(newRect);
+    return rect;
 
-    textInputPopup(event, newRect);
-    // console.log("newRect:", newRect);
   }
 
   function updateRectangle() {
-    let positions = rect.geometry.attributes.position.array;
+    if (!currentRectangle) return
+    let positions = currentRectangle.geometry.attributes.position.array;
     positions[0] = startPoint.x;
     positions[1] = startPoint.y;
     positions[2] = startPoint.z;
@@ -103,14 +91,6 @@ export function rectangle(scene, camera, renderer, controls) {
     positions[9] = startPoint.x;
     positions[10] = endPoint.y;
     positions[11] = startPoint.z;
-    rect.geometry.attributes.position.needsUpdate = true;
-  }
-
-  function onMouseUp(event) {
-    if (isDrawing) {
-      mouseIsPressed = false;
-      endPoint = getMousePosition(event.clientX, event.clientY, canvas, camera);
-      addRectangle(startPoint, endPoint, event);
-    }
+    currentRectangle.geometry.attributes.position.needsUpdate = true;
   }
 }
