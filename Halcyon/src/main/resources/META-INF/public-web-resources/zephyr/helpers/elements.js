@@ -46,6 +46,17 @@ export function textInputPopup(event, object) {
   });
 }
 
+function timeStamp() {
+  const dateString = new Date().toISOString();
+  const a = dateString.slice(0, 10);
+  let b = dateString.slice(10);
+  b = b
+    .replaceAll(':', '-')
+    .replace('T', '')
+    .slice(0, 8);
+  return `${a}_${b}`;
+}
+
 /**
  * Capture the scene's rendered state and save it as an image
  */
@@ -63,9 +74,44 @@ export function screenCapture(renderer) {
     // Create and trigger a download link
     const downloadLink = document.createElement('a');
     downloadLink.href = dataURL;
-    downloadLink.download = `img_${new Date().toISOString()}.png`;
+    // downloadLink.download = `img_${new Date().toISOString()}.png`;
+    downloadLink.download = `img_${timeStamp()}.png`;
     document.body.appendChild(downloadLink); // Append to body temporarily to ensure it works in all browsers
     downloadLink.click();
     document.body.removeChild(downloadLink); // Clean up
+  });
+}
+
+export function deleteIcon(event, mesh, scene) {
+  // Calculate the position to place the div icon near the cursor
+  const divPosX = event.clientX;
+  const divPosY = event.clientY;
+
+  // Create the div and set its position
+  const iconDiv = document.createElement('div');
+  iconDiv.innerHTML = '<i class="fa fa-trash"></i>';
+  iconDiv.style.position = 'absolute';
+  iconDiv.style.left = `${divPosX}px`;
+  iconDiv.style.top = `${divPosY}px`;
+  document.body.appendChild(iconDiv);
+
+  // Add click event listener to the icon for deletion
+  iconDiv.addEventListener('click', function() {
+    // Dispose of the rectangle's geometry and material before removing it
+    if (mesh.geometry) mesh.geometry.dispose();
+    if (mesh.material) {
+      // If the material is an array (multi-materials), dispose each one
+      if (Array.isArray(mesh.material)) {
+        mesh.material.forEach(material => material.dispose());
+      } else {
+        mesh.material.dispose();
+      }
+    }
+
+    // Remove the rectangle from the Three.js scene
+    scene.remove(mesh);
+
+    // Remove the div from the DOM
+    document.body.removeChild(iconDiv);
   });
 }

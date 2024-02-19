@@ -25,7 +25,7 @@ export function ruler(scene, camera, renderer, controls) {
     let message = "";
 
     let lineGeometry = new THREE.BufferGeometry();
-    let lineMaterial = new THREE.LineBasicMaterial({ color: 0x00ff00, linewidth: 10 });
+    let lineMaterial = new THREE.LineBasicMaterial({ color: 0x00ff00, linewidth: 5 });
 
     rulerButton.addEventListener("click", function () {
       if (isDrawing) {

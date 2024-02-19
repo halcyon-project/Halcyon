@@ -3,14 +3,15 @@
  * Raycasting target meshes are the squares that rapture.js creates.
  */
 import * as THREE from 'three';
+import { createButton, textInputPopup, deleteIcon } from "../helpers/elements.js";
 import { convertToImageCoordinates } from "../helpers/conversions.js";
-import { createButton, textInputPopup } from "../helpers/elements.js";
+
 
 export function enableDrawing(scene, camera, renderer, controls) {
   let btnDraw = createButton({
     id: "toggleButton",
     innerHtml: "<i class=\"fas fa-pencil-alt\"></i>",
-    title: "draw"
+    title: "free-draw"
   });
 
   let isDrawing = false;
@@ -42,7 +43,7 @@ export function enableDrawing(scene, camera, renderer, controls) {
   let raycaster = new THREE.Raycaster();
   let mouse = new THREE.Vector2();
 
-  let lineMaterial = new THREE.LineBasicMaterial({ color, linewidth: 10 });
+  let lineMaterial = new THREE.LineBasicMaterial({ color, linewidth: 5 });
 
   // Dashed Line Issue Solution
   lineMaterial.polygonOffset = true; // Prevent z-fighting (which causes flicker)
@@ -133,6 +134,7 @@ export function enableDrawing(scene, camera, renderer, controls) {
       polygonPositions.push(currentPolygonPositions); // Store the current polygon's positions in the polygonPositions array
 
       toImageCoords(currentPolygonPositions);
+      // deleteIcon(event, line, scene);
 
       textInputPopup(event, line);
 

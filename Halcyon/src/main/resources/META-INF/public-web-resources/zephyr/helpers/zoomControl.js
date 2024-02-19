@@ -1,3 +1,5 @@
+import { createButton } from "./elements.js";
+
 export function zoomControl(camera, controls) {
   // Create the select element (dropdown)
   const dropdown = document.createElement('select');
@@ -51,4 +53,29 @@ export function zoomControl(camera, controls) {
     // Update the controls to apply the changes
     controls.update();
   });
+}
+
+export function lockRotate(controls) {
+  let lockButton = createButton({
+    id: "rotation",
+    innerHtml: "<i class=\"fa-solid fa-rotate\"></i>",
+    title: "toggle rotation"
+  });
+
+  let locked = false;
+
+  lockButton.addEventListener("click", function () {
+    if (locked) {
+      // Enable rotation
+      controls.noRotate = false;
+      this.classList.replace('btnOn', 'annotationBtn');
+    } else {
+      // Disable rotation
+      controls.noRotate = true;
+      this.classList.replace('annotationBtn', 'btnOn');
+    }
+    locked = !locked; // Toggle the state
+  });
+  // controls.noPan
+  // controls.noZoom
 }

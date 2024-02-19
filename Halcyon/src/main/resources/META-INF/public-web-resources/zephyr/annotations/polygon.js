@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { createButton, textInputPopup } from "../helpers/elements.js";
+import { createButton, textInputPopup, deleteIcon } from "../helpers/elements.js";
 import { getMousePosition } from "../helpers/mouse.js";
 
 export function polygon(scene, camera, renderer, controls) {
@@ -30,7 +30,7 @@ export function polygon(scene, camera, renderer, controls) {
   });
 
   const canvas = renderer.domElement;
-  let material = new THREE.LineBasicMaterial({ color: 0x0000ff });
+  let material = new THREE.LineBasicMaterial({ color: 0x0000ff, linewidth: 5 });
   let isDrawing = false;
   let mouseIsPressed = false;
   let points = [];
@@ -69,6 +69,7 @@ export function polygon(scene, camera, renderer, controls) {
       mouseIsPressed = false;
       points.pop(); // Remove the duplicated point from double-click
       finalizeCurrentPolygon(); // Finalize and prepare for a new polygon
+      // deleteIcon(event, currentPolygon, scene);
       textInputPopup(event, currentPolygon);
       currentPolygon = null; // Reset currentPolygon for the next one
     }
