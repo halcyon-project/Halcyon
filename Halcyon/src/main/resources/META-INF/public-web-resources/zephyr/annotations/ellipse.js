@@ -29,6 +29,8 @@ export function ellipse(scene, camera, renderer, controls) {
 
   const canvas = renderer.domElement;
   let material = new THREE.LineBasicMaterial({ color: 0x0000ff, linewidth: 5 });
+  material.depthTest = false;
+  material.depthWrite = false;
   let segments = 64; // 64 line segments is a common choice
 
   let isDrawing = false;
@@ -36,8 +38,6 @@ export function ellipse(scene, camera, renderer, controls) {
   let startPoint;
   let endPoint;
   let currentEllipse; // This will hold the ellipse currently being drawn
-
-
 
   function onMouseDown(event) {
     if (isDrawing) {

@@ -79,3 +79,16 @@ export function lockRotate(controls) {
   // controls.noPan
   // controls.noZoom
 }
+
+export function resetCamera(controls) {
+  // Reset the camera position
+  let button = createButton({
+    id: "resetButton",
+    innerHtml: "<i class=\"fa-solid fa-compass\"></i>",
+    title: "reset view"
+  });
+
+  button.addEventListener("click", function () {
+    controls.reset();
+  });
+}

@@ -2,8 +2,12 @@ import * as THREE from "three";
 import { createButton } from "../helpers/elements.js";
 import { DragControls } from "three/addons/controls/DragControls.js";
 
+/**
+ * Handles the process of selecting objects in a scene for editing, including adding edit handles and a deletion button.
+ */
 export function edit(scene, camera, renderer, controls) {
   let clicked = false;
+  let intersectableObjects = [];
   let editButton = createButton({
     id: "edit",
     innerHtml: "<i class=\"fas fa-edit\"></i>",
@@ -26,32 +30,6 @@ export function edit(scene, camera, renderer, controls) {
       getAnnotationsForEdit();
     }
   });
-
-  const raycaster = new THREE.Raycaster();
-  // raycaster.params.Line.threshold = 1750;
-
-  // function calculateThreshold(distance) {
-  //   // Adjust the base value and scaling factor as needed
-  //   const baseValue = 10000; // Base threshold value
-  //   const scalingFactor = 0.001;
-  //   return baseValue + (distance * scalingFactor);
-  // }
-
-  const minThreshold = 8000; // 10000;
-  const maxThreshold = 250; // 1500;
-  const minDistance = 322;
-  const maxDistance = 11000;
-
-  function calculateThreshold(currentDistance) {
-    // Clamp currentDistance within the range
-    currentDistance = Math.max(minDistance, Math.min(maxDistance, currentDistance));
-    const val = minThreshold + (maxThreshold - minThreshold) * (maxDistance - currentDistance) / (maxDistance - minDistance);
-    // console.log(val);
-    return val;
-  }
-
-  const mouse = new THREE.Vector2();
-  let intersectableObjects = [];
 
   function removal(mesh) {
     if (mesh.geometry) mesh.geometry.dispose();
@@ -116,6 +94,18 @@ export function edit(scene, camera, renderer, controls) {
     });
   }
 
+  const minDistance = 322;
+  const maxDistance = 11000;
+
+  function calculateThreshold(currentDistance, minThreshold, maxThreshold) {
+    // Clamp currentDistance within the range
+    currentDistance = Math.max(minDistance, Math.min(maxDistance, currentDistance));
+    return maxThreshold + (minThreshold - maxThreshold) * (maxDistance - currentDistance) / (maxDistance - minDistance);
+  }
+
+  const raycaster = new THREE.Raycaster();
+  const mouse = new THREE.Vector2();
+
   function onMouseClick(event) {
     event.preventDefault();
 
@@ -123,13 +113,11 @@ export function edit(scene, camera, renderer, controls) {
     const distance = camera.position.distanceTo(scene.position);
 
     // Adjust the threshold based on the distance
-    raycaster.params.Line.threshold = calculateThreshold(distance);
+    raycaster.params.Line.threshold = calculateThreshold(distance, 250, 8000);
+    let size = calculateThreshold(distance, 3, 100);
 
     // Get the canvas element and its bounding rectangle
-    const canvas = document.querySelector('canvas');
-    const rect = canvas.getBoundingClientRect();
-
-    // Adjust mouse position for canvas offset
+    const rect = renderer.domElement.getBoundingClientRect();
     mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
@@ -140,11 +128,11 @@ export function edit(scene, camera, renderer, controls) {
       const selectedMesh = intersects[0].object;
 
       // Setup deletion button & edit handles
-      setupDeletionButton(selectedMesh, addEditHandles(selectedMesh));
+      setupDeletionButton(selectedMesh, addEditHandles(selectedMesh, size));
     }
   }
 
-  function addEditHandles(mesh) {
+  function addEditHandles(mesh, size) {
     // Ensure the mesh's world matrix is up to date
     mesh.updateMatrixWorld(true);
 
@@ -153,13 +141,12 @@ export function edit(scene, camera, renderer, controls) {
     // Create handles for each vertex
     const handles = [];
     for (let i = 0; i < vertices.length; i += 3) {
-      const handleGeometry = new THREE.SphereGeometry(30);
+      const handleGeometry = new THREE.SphereGeometry(size);
       const handleMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff });
       const handleMesh = new THREE.Mesh(handleGeometry, handleMaterial);
       handleMesh.name = "handle";
       handleMesh.position.fromArray(vertices.slice(i, i + 3));
       handles.push(handleMesh);
-      // console.log(i, i + 3, vertices.slice(i, i + 3));
     }
 
     // Add handles to the scene

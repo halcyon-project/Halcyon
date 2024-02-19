@@ -5,7 +5,8 @@ import { getMousePosition } from "../helpers/mouse.js";
 export function hollowBrush(scene, camera, renderer, controls) {
   let brushButton = createButton({
     id: "brushButton",
-    innerHtml: "<i class=\"fa-solid fa-brush\"></i>",
+    // innerHtml: "<i class=\"fa-solid fa-brush\"></i>",
+    innerHtml: "<i class=\"fa-solid fa-broom\"></i>",
     title: "brush outline"
   });
 
