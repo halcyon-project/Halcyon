@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import { createButton } from "../helpers/elements.js";
 
+/**
+ * Save annotations
+ */
 export function save(scene) {
   const demo = false;
 

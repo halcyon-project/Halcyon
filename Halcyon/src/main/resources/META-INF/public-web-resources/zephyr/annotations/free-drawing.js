@@ -6,7 +6,6 @@ import * as THREE from 'three';
 import { createButton, textInputPopup, deleteIcon } from "../helpers/elements.js";
 import { convertToImageCoordinates } from "../helpers/conversions.js";
 
-
 export function enableDrawing(scene, camera, renderer, controls) {
   let btnDraw = createButton({
     id: "toggleButton",
@@ -27,6 +26,7 @@ export function enableDrawing(scene, camera, renderer, controls) {
       // Remove the mouse event listeners
       renderer.domElement.removeEventListener("mousemove", onMouseMove);
       renderer.domElement.removeEventListener("mouseup", onMouseUp);
+      renderer.domElement.removeEventListener("pointerdown", onPointerDown);
     } else {
       // Drawing on
       isDrawing = true;
@@ -36,6 +36,7 @@ export function enableDrawing(scene, camera, renderer, controls) {
       // Set up the mouse event listeners
       renderer.domElement.addEventListener("mousemove", onMouseMove);
       renderer.domElement.addEventListener("mouseup", onMouseUp);
+      renderer.domElement.addEventListener("pointerdown", onPointerDown);
     }
   });
 
@@ -59,7 +60,7 @@ export function enableDrawing(scene, camera, renderer, controls) {
   const distanceThreshold = 0.1;
   let objects = [];
 
-  renderer.domElement.addEventListener('pointerdown', event => {
+  function onPointerDown(event) {
     if (isDrawing) {
       mouseIsPressed = true;
 
@@ -78,7 +79,7 @@ export function enableDrawing(scene, camera, renderer, controls) {
 
       currentPolygonPositions = []; // Start a new array for the current polygon's positions
     }
-  });
+  }
 
   function onMouseMove(event) {
     if (isDrawing && mouseIsPressed) {
@@ -124,23 +125,33 @@ export function enableDrawing(scene, camera, renderer, controls) {
   }
 
   function onMouseUp(event) {
-    if (isDrawing) {
+    if (isDrawing && mouseIsPressed) {
       mouseIsPressed = false;
 
-      // Draw the final line
-      line.geometry.setDrawRange(0, currentPolygonPositions.length / 3);
-      line.geometry.computeBoundingSphere();
+      // Ensure there are at least 3 points to form a closed polygon
+      if (currentPolygonPositions.length >= 9) { // 3 points * 3 coordinates (x, y, z)
+        // Close the polygon by adding the first point to the end
+        const firstPoint = currentPolygonPositions.slice(0, 3);
+        currentPolygonPositions.push(...firstPoint);
 
-      polygonPositions.push(currentPolygonPositions); // Store the current polygon's positions in the polygonPositions array
+        // Create a new geometry with the closed polygon positions
+        const closedPolygonGeometry = new THREE.BufferGeometry();
+        closedPolygonGeometry.setAttribute('position', new THREE.Float32BufferAttribute(currentPolygonPositions, 3));
+        line.geometry = closedPolygonGeometry;
+        line.geometry.setDrawRange(0, currentPolygonPositions.length / 3);
+        line.geometry.computeBoundingSphere();
+      }
 
-      toImageCoords(currentPolygonPositions);
+      polygonPositions.push(currentPolygonPositions); // Store the current polygon's positions
+
+      // toImageCoords(currentPolygonPositions);
       // deleteIcon(event, line, scene);
 
       textInputPopup(event, line);
 
       // console.log("line:", line);
 
-      currentPolygonPositions = []; // Clear the current polygon's array
+      currentPolygonPositions = []; // Clear the current polygon's array for the next drawing
     }
   }
 

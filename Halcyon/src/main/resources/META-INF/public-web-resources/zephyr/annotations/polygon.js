@@ -31,6 +31,9 @@ export function polygon(scene, camera, renderer, controls) {
 
   const canvas = renderer.domElement;
   let material = new THREE.LineBasicMaterial({ color: 0x0000ff, linewidth: 5 });
+  material.depthTest = false;
+  material.depthWrite = false;
+
   let isDrawing = false;
   let mouseIsPressed = false;
   let points = [];
@@ -105,5 +108,4 @@ export function polygon(scene, camera, renderer, controls) {
       currentPolygon.geometry.setDrawRange(0, points.length);
     }
   }
-
 }

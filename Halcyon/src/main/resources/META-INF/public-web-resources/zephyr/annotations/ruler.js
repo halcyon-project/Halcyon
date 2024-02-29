@@ -26,17 +26,34 @@ export function ruler(scene, camera, renderer, controls) {
 
     let lineGeometry = new THREE.BufferGeometry();
     let lineMaterial = new THREE.LineBasicMaterial({ color: 0x00ff00, linewidth: 5 });
+    lineMaterial.depthTest = false;
+    lineMaterial.depthWrite = false;
 
     rulerButton.addEventListener("click", function () {
       if (isDrawing) {
+        // Turn off drawing mode
         isDrawing = false;
         controls.enabled = true;
         this.classList.replace('btnOn', 'annotationBtn');
         canvas.removeEventListener('mousedown', onMouseDown, false);
         canvas.removeEventListener('mousemove', onMouseMove, false);
         canvas.removeEventListener('mouseup', onMouseUp, false);
+
+        // Clear the previously drawn line and text from the scene, ensuring a clean slate for the next drawing action.
+        if (line) {
+          scene.remove(line);
+          line.geometry.dispose();
+          line.material.dispose();
+          line = null; // Clear reference
+        }
+        if (textMesh) {
+          scene.remove(textMesh);
+          textMesh.geometry.dispose();
+          textMesh.material.dispose();
+          textMesh = null; // Clear reference
+        }
       } else {
-        // Drawing on
+        // Turn on drawing mode
         isDrawing = true;
         controls.enabled = false;
         this.classList.replace('annotationBtn', 'btnOn');
@@ -85,6 +102,7 @@ export function ruler(scene, camera, renderer, controls) {
         });
 
         let textMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff });
+        textMaterial.depthTest = false;
         textMesh = new THREE.Mesh(textGeometry, textMaterial);
         textMesh.position.copy(endVector);
         textMesh.renderOrder = 999;
@@ -100,6 +118,9 @@ export function ruler(scene, camera, renderer, controls) {
     }
   });
 
+  /**
+   * Calculate line length, then convert to microns.
+   */
   const Calculate = {
     lineLength(x1, y1, x2, y2, scaleFactor) {
       const threeJsUnitsLength = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
@@ -108,7 +129,10 @@ export function ruler(scene, camera, renderer, controls) {
     }
   };
 
-  // Determine scaleFactor based on scene setup
+  /**
+   * The scale factor is used to convert distances measured in Three.js units to screen pixels
+   * by accounting for the current perspective of the camera and the dimensions of the renderer's canvas.
+   */
   function calculateScaleFactor(camera, renderer) {
     // Calculate the visible height at the depth of the plane
     const distance = camera.position.z;
