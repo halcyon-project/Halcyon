@@ -5,19 +5,42 @@ export function convertToImageCoordinates(positionArray, imageWidth, imageHeight
   const imageCoordinates = [];
 
   for (let i = 0; i < positionArray.length; i += 3) {
-    // Extract the x and y coordinates from Three.js NDC space
-    let threeX = positionArray[i];     // X coordinate in NDC
-    let threeY = positionArray[i + 1]; // Y coordinate in NDC
+    // Extract the x and y coordinates
+    let point = {};
+    point.x = positionArray[i];
+    point.y = positionArray[i + 1];
 
-    // Convert from NDC space [-1, 1] to image coordinates
-    const imageX = (threeX + 1) / 2 * imageWidth;
-    const imageY = (1 - threeY) / 2 * imageHeight;
+    // Normalize coordinates to [-1, 1]
+    const normalizedX = point.x / (imageWidth / 2);
+    const normalizedY = point.y / (imageHeight / 2);
+
+    // Convert normalized coordinates to image coordinates
+    const imageX = (normalizedX + 1) * (imageWidth / 2);
+    const imageY = (1 - normalizedY) * (imageHeight / 2);
 
     imageCoordinates.push({ x: imageX, y: imageY });
   }
 
   return imageCoordinates;
 }
+
+// export function convertToImageCoordinates(positionArray, imageWidth, imageHeight) {
+//   const imageCoordinates = [];
+//
+//   for (let i = 0; i < positionArray.length; i += 3) {
+//     // Extract the x and y coordinates from Three.js NDC space
+//     let threeX = positionArray[i];     // X coordinate in NDC
+//     let threeY = positionArray[i + 1]; // Y coordinate in NDC
+//
+//     // Convert from NDC space [-1, 1] to image coordinates
+//     const imageX = (threeX + 1) / 2 * imageWidth;
+//     const imageY = (1 - threeY) / 2 * imageHeight;
+//
+//     imageCoordinates.push({ x: imageX, y: imageY });
+//   }
+//
+//   return imageCoordinates;
+// }
 
 /**
  * Convert image coordinates to Three.js coordinates
