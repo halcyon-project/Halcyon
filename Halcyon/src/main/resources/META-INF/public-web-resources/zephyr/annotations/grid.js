@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { createButton } from "../helpers/elements.js";
+import { createButton, removeObject } from "../helpers/elements.js";
 
 export function grid(scene, camera, renderer) {
   const canvas = renderer.domElement;
@@ -65,23 +65,6 @@ export function grid(scene, camera, renderer) {
     // Set grid position to match the calculated center point
     grid.position.copy(vector);
     grid.position.z = 0; // keep flush
-  }
-
-  function removeObject(obj) {
-    if (obj.parent) {
-      obj.parent.remove(obj); // Ensure the object is removed from its parent
-    } else {
-      scene.remove(obj); // Fallback in case the object is directly a child of the scene
-    }
-    if (obj.geometry) obj.geometry.dispose();
-    if (obj.material) {
-      // In case of an array of materials
-      if (Array.isArray(obj.material)) {
-        obj.material.forEach(material => material.dispose());
-      } else {
-        obj.material.dispose();
-      }
-    }
   }
 
   function removeGrid() {

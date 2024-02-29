@@ -1,12 +1,13 @@
 import * as THREE from 'three';
-import { createButton, textInputPopup, deleteIcon } from "../helpers/elements.js";
+import { createButton, textInputPopup, removeObject, deleteIcon } from "../helpers/elements.js";
 import { getMousePosition } from "../helpers/mouse.js";
+import { worldToImageCoordinates } from "../helpers/conversions.js";
 
-export function rectangle(scene, camera, renderer, controls) {
+export function rectangle(scene, camera, renderer, controls, options) {
   let rectangleButton = createButton({
-    id: "rectangle",
-    innerHtml: "<i class=\"fa-regular fa-square\"></i>",
-    title: "rectangle"
+    id: options.select ? "selection" : "rectangle",
+    innerHtml: options.button,
+    title: options.select ? "select for algorithm" : "rectangle"
   });
 
   rectangleButton.addEventListener("click", function () {
@@ -28,7 +29,7 @@ export function rectangle(scene, camera, renderer, controls) {
   });
 
   const canvas = renderer.domElement;
-  let material = new THREE.LineBasicMaterial({ color: 0x0000ff, linewidth: 5 });
+  let material = new THREE.LineBasicMaterial({ color: options.color, linewidth: 5 });
   material.depthTest = false;
   material.depthWrite = false;
 
@@ -58,16 +59,22 @@ export function rectangle(scene, camera, renderer, controls) {
       mouseIsPressed = false;
       endPoint = getMousePosition(event.clientX, event.clientY, canvas, camera);
       updateRectangle();
-      // deleteIcon(event, currentRectangle, scene);
-      textInputPopup(event, currentRectangle);
+
+      if (options.select) {
+        getIIIF();
+        removeObject(currentRectangle);
+      } else {
+        // deleteIcon(event, currentRectangle, scene);
+        textInputPopup(event, currentRectangle);
+      }
       // console.log("currentRectangle:", currentRectangle);
     }
   }
 
   function createRectangle() {
-    let geometry = new THREE.BufferGeometry(); // our 3D object
-    let vertices = new Float32Array(12); // 4 vertices
-    geometry.setAttribute("position", new THREE.BufferAttribute(vertices, 3)); // each vertex is composed of 3 values
+    let geometry = new THREE.BufferGeometry();
+    let vertices = new Float32Array(12);
+    geometry.setAttribute("position", new THREE.BufferAttribute(vertices, 3));
 
     // LineLoop: A continuous line that connects back to the start.
     let rect = new THREE.LineLoop(geometry, material);
@@ -94,5 +101,29 @@ export function rectangle(scene, camera, renderer, controls) {
     positions[10] = endPoint.y;
     positions[11] = startPoint.z;
     currentRectangle.geometry.attributes.position.needsUpdate = true;
+  }
+
+  function getIIIF() {
+    const vertices = currentRectangle.geometry.attributes.position.array;
+    const imgCoords = worldToImageCoordinates(vertices, scene);
+    // console.log("imgCoords:", imgCoords);
+
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+
+    imgCoords.forEach(vertex => {
+      if (vertex.x < minX) minX = vertex.x;
+      if (vertex.x > maxX) maxX = vertex.x;
+      if (vertex.y < minY) minY = vertex.y;
+      if (vertex.y > maxY) maxY = vertex.y;
+    });
+
+    const width = maxX - minX;
+    const height = maxY - minY;
+
+    // const upperLeftCorner = { x: minX, y: minY };
+    // console.log('Upper Left Corner:', upperLeftCorner, 'Width:', width, 'Height:', height);
+
+    // TODO: need slide/dir info
+    window.open(`${window.location.origin}/iiif/?iiif=${window.location.origin}/Storage/images/tcga_data/brca/TCGA-E2-A15K-06A-01-TS1.svs/${Math.round(minX)},${Math.round(minY)},${Math.round(width)},${Math.round(height)}/512,/0/default.png`, "_blank");
   }
 }
