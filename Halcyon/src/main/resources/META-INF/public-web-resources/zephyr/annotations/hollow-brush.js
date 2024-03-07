@@ -106,12 +106,30 @@ export function hollowBrush(scene, camera, renderer, controls) {
     return unionGeometry;
   }
 
+  function decimate(vertices) {
+    let point1 = vertices[0];
+    let point2 = vertices[vertices.length - 1];
+
+    // "vertices" has our groups of 3; now, reduce it.
+    let newArray = vertices.reduce((acc, current, index) => {
+      if ((index + 1) % 3 === 0) {
+        acc.push(current);
+      }
+      return acc;
+    }, []);
+
+    newArray.unshift(point1); // Add element to beginning of array
+    newArray.push(point2);
+
+    return newArray;
+  }
+
   // Visualize the Union with a Blue Line
   function drawUnion(unionGeometry, event) {
     // Convert JSTS union geometry to Three.js line
     const coordinates = unionGeometry.getCoordinates();
     const points = coordinates.map(coord => new THREE.Vector3(coord.x, coord.y, 0));
-    const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
+    const lineGeometry = new THREE.BufferGeometry().setFromPoints(decimate(points));
     const lineMaterial = new THREE.LineBasicMaterial({ color: 0x0000ff, linewidth: 5 });
 
     const line = new THREE.LineLoop(lineGeometry, lineMaterial); // Use LineLoop to close the shape

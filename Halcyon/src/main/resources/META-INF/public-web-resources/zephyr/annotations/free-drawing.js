@@ -4,7 +4,7 @@
  */
 import * as THREE from 'three';
 import { createButton, textInputPopup, deleteIcon } from "../helpers/elements.js";
-import { convertToImageCoordinates } from "../helpers/conversions.js";
+import { worldToImageCoordinates } from "../helpers/conversions.js";
 
 export function enableDrawing(scene, camera, renderer, controls) {
   let btnDraw = createButton({
@@ -144,7 +144,7 @@ export function enableDrawing(scene, camera, renderer, controls) {
 
       polygonPositions.push(currentPolygonPositions); // Store the current polygon's positions
 
-      // toImageCoords(currentPolygonPositions);
+      // toImageCoords(currentPolygonPositions, scene);
       // deleteIcon(event, line, scene);
 
       textInputPopup(event, line);
@@ -157,20 +157,7 @@ export function enableDrawing(scene, camera, renderer, controls) {
 
   function toImageCoords(currentPolygonPositions) {
     console.log("line geometry positions:\n", currentPolygonPositions);
-
-    // Convert to image coordinates
-    let imageWidth, imageHeight;
-    scene.children.forEach(child => {
-      if (child instanceof THREE.LOD) {
-        imageWidth = child.imageWidth;
-        imageHeight = child.imageHeight;
-      }
-    });
-
-    if (imageWidth && imageHeight) {
-      console.log("image w,h:", imageWidth, imageHeight);
-      const imgCoords = convertToImageCoordinates(currentPolygonPositions, imageWidth, imageHeight);
-      console.log("Image coordinates:", imgCoords);
-    }
+    const imgCoords = worldToImageCoordinates(currentPolygonPositions, scene);
+    console.log("Image coordinates:", imgCoords);
   }
 }

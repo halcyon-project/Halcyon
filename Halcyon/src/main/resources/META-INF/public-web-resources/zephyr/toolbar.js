@@ -10,13 +10,16 @@ import { crosshairs } from "./helpers/crosshairs.js";
 import { save } from "./annotations/save.js";
 import { zoomControl, lockRotate, resetCamera } from "./helpers/zoomControl.js";
 import { screenCapture } from "./helpers/elements.js";
-import { shading } from "./annotations/shading.js";
-import { selection } from "./helpers/selection.js";
+import { shading } from "./helpers/shading.js";
 
 export function toolbar(scene, camera, renderer, controls) {
   // Enable drawing on the scene
   enableDrawing(scene, camera, renderer, controls);
-  rectangle(scene, camera, renderer, controls);
+  rectangle(scene, camera, renderer, controls, {
+    button: "<i class=\"fa-regular fa-square\"></i>",
+    color: 0x0000ff,
+    select: false
+  });
   ellipse(scene, camera, renderer, controls);
   polygon(scene, camera, renderer, controls);
   hollowBrush(scene, camera, renderer, controls);
@@ -26,7 +29,11 @@ export function toolbar(scene, camera, renderer, controls) {
   ruler(scene, camera, renderer, controls);
   screenCapture(renderer);
   crosshairs(scene, camera);
-  selection(renderer, controls);
+  rectangle(scene, camera, renderer, controls, {
+    button: "<i class=\"fa fa-bar-chart\"></i>",
+    color: 0xff7900,
+    select: true
+  });
   save(scene);
   lockRotate(controls);
   resetCamera(controls);

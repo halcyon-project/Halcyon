@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { createButton } from "../helpers/elements.js";
+import { createButton, textInputPopup } from "../helpers/elements.js";
 import { DragControls } from "three/addons/controls/DragControls.js";
 
 /**
@@ -129,11 +129,14 @@ export function edit(scene, camera, renderer, controls) {
 
       // Setup deletion button & edit handles
       setupDeletionButton(selectedMesh, addEditHandles(selectedMesh, size));
+      // textInputPopup(event, selectedMesh);
+      // We've got it; shut this off, so we don't keep adding these elements
+      // renderer.domElement.removeEventListener('click', onMouseClick, false);
     }
   }
 
   function addEditHandles(mesh, size) {
-    // Ensure the mesh's world matrix is up to date
+    // Ensure the mesh's world matrix is up-to-date
     mesh.updateMatrixWorld(true);
 
     let vertices = mesh.geometry.attributes.position.array;
@@ -188,6 +191,12 @@ export function edit(scene, camera, renderer, controls) {
 
     // Remove edit handles
     removeHandles();
+
+    // Remove elements with class 'popup'
+    // const popups = document.querySelectorAll('.popup');
+    // popups.forEach(popup => {
+    //   popup.remove();
+    // });
   }
 
   function getAnnotationsForEdit() {
