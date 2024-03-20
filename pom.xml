@@ -80,8 +80,8 @@
         <maven.compiler.target>21</maven.compiler.target>
         <springboot.version>3.2.2</springboot.version>
         <exec.longClasspath>true</exec.longClasspath>
-        <jena.version>5.0.0-rc1</jena.version>
-        <wicket.ver>10.0.0-M2</wicket.ver>
+        <jena.version>5.0.0</jena.version>
+        <wicket.ver>10.0.0</wicket.ver>
         <beakgraph.version>0.9.0</beakgraph.version>
         <keycloak.version>23.0.4</keycloak.version>
         <hilbert.ver>0.2.3</hilbert.ver>

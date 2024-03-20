@@ -42,7 +42,8 @@ public class JettyConfiguration implements WebServerFactoryCustomizer<JettyServl
         if (!HalcyonSettings.getSettings().isHTTPS2enabled()) {
             factory.setSsl(null);
         }
-        JettyServerCustomizer jettyServerCustomizer = (JettyServerCustomizer) (Server server) -> {            
+        JettyServerCustomizer jettyServerCustomizer = (JettyServerCustomizer) (Server server) -> {   
+            //server.getMimeTypes().addMimeMapping("js", "application/javascript");
             for (Connector connector : server.getConnectors()) {
                 if (connector instanceof ServerConnector serverConnector) {
                     serverConnector.setHost(HalcyonSettings.getSettings().GetHostIP());

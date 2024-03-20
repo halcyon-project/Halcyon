@@ -167,10 +167,13 @@ public class ImageMeta {
             float ratio = ((float)width)/((float)height);
             float d = Math.abs(ratio-aspectratio);
             d = d/aspectratio;
-            if (!filter||(d<0.00153)) {
+            //System.out.println(d);
+            if (!filter||(d<0.04)) {                
                 logger.trace("Adding Scale "+series+"  "+d+"  "+ratio+"  "+scales.size()+" "+width+" x "+height);
+               // System.out.println("Adding Scale "+series+"  "+d+"  "+ratio+"  "+scales.size()+" "+width+" x "+height);
                 scales.add(new ImageScale(series,scale,width,height,ratio));
             } else {
+               // System.out.println("Aspect Ratio different "+series+"  "+d+"  "+ratio+"  "+scales.size()+" "+width+" x "+height);
                 logger.trace("Aspect Ratio different "+series+"  "+d+"  "+ratio+"  "+scales.size()+" "+width+" x "+height);
             }
             return this;
