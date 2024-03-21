@@ -1,5 +1,5 @@
 import {
-  sRGBEncoding,
+  SRGBColorSpace,
   Object3D,
   LOD,
   Group,
@@ -30,7 +30,7 @@ function Square(x, y, w, h, src, offset) {
   geometry.center();
   const material = new MeshBasicMaterial({map: texture, depthWrite: false, side: DoubleSide});
   // const material = new MeshBasicMaterial({map: texture, side: DoubleSide});
-  texture.encoding = sRGBEncoding;
+  texture.colorSpace = SRGBColorSpace;
   const X = new Mesh(geometry, material);
   X.scale.x = w;
   X.scale.y = h;

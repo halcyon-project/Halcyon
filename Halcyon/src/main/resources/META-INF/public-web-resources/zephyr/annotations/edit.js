@@ -32,6 +32,16 @@ export function edit(scene, camera, renderer, controls) {
   });
 
   function removal(mesh) {
+    if (mesh.name.includes("annotation")) {
+      // Find the index of the mesh in the array
+      const index = intersectableObjects.findIndex(object => object === mesh);
+
+      // If the mesh is found, remove it from the array
+      if (index > -1) {
+        intersectableObjects.splice(index, 1);
+      }
+    }
+
     if (mesh.geometry) mesh.geometry.dispose();
     if (mesh.material) {
       // If the material is an array (multi-materials), dispose each one
@@ -44,14 +54,6 @@ export function edit(scene, camera, renderer, controls) {
 
     // Remove the mesh from the scene
     scene.remove(mesh);
-
-    // Find the index of the mesh in the array
-    const index = intersectableObjects.findIndex(object => object === mesh);
-
-    // If the mesh is found, remove it from the array
-    if (index > -1) {
-      intersectableObjects.splice(index, 1);
-    }
   }
 
   // Enhanced function to handle mesh deletion
@@ -113,7 +115,7 @@ export function edit(scene, camera, renderer, controls) {
     const distance = camera.position.distanceTo(scene.position);
 
     // Adjust the threshold based on the distance
-    raycaster.params.Line.threshold = calculateThreshold(distance, 250, 8000);
+    raycaster.params.Line.threshold = calculateThreshold(distance, 200, 5500); // 250/8000
     let size = calculateThreshold(distance, 3, 100);
 
     // Get the canvas element and its bounding rectangle
@@ -126,6 +128,7 @@ export function edit(scene, camera, renderer, controls) {
 
     if (intersects.length > 0) {
       const selectedMesh = intersects[0].object;
+      // console.log("selectedMesh", selectedMesh);
 
       // Setup deletion button & edit handles
       setupDeletionButton(selectedMesh, addEditHandles(selectedMesh, size));
@@ -206,6 +209,7 @@ export function edit(scene, camera, renderer, controls) {
         intersectableObjects.push(object);
       }
     });
+    // console.log("intersectableObjects", intersectableObjects);
   }
 
   function removeHandles(handles) {
