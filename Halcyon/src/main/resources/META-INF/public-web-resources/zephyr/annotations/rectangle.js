@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { createButton, textInputPopup, removeObject, deleteIcon } from "../helpers/elements.js";
 import { getMousePosition } from "../helpers/mouse.js";
-import { worldToImageCoordinates } from "../helpers/conversions.js";
+import { worldToImageCoordinates, getUrl } from "../helpers/conversions.js";
 
 export function rectangle(scene, camera, renderer, controls, options) {
   let rectangleButton = createButton({
@@ -120,10 +120,12 @@ export function rectangle(scene, camera, renderer, controls, options) {
     const width = maxX - minX;
     const height = maxY - minY;
 
-    // const upperLeftCorner = { x: minX, y: minY };
-    // console.log('Upper Left Corner:', upperLeftCorner, 'Width:', width, 'Height:', height);
-
-    // TODO: need slide/dir info
-    window.open(`${window.location.origin}/iiif/?iiif=${window.location.origin}/Storage/images/tcga_data/brca/TCGA-E2-A15K-06A-01-TS1.svs/${Math.round(minX)},${Math.round(minY)},${Math.round(width)},${Math.round(height)}/512,/0/default.png`, "_blank");
+    let url = getUrl(scene);
+    if (url) {
+      const newUrl = `${url}/${Math.round(minX)},${Math.round(minY)},${Math.round(width)},${Math.round(height)}/512,/0/default.png`;
+      window.open(newUrl, "_blank");
+    } else {
+      console.warn("Unable to get URL");
+    }
   }
 }

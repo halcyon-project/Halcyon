@@ -62,6 +62,7 @@ function CreateImageViewer(scene, url, offset) {
       lod.name = "ImageViewer";
       lod.imageWidth = w;
       lod.imageHeight = h;
+      lod.url = url;
       scene.add(lod);
       // console.log(`%c${dumpObject(scene).join('\n')}`, "color: #00ff00;");
     }).catch(error => console.error('Error fetching data:', error));

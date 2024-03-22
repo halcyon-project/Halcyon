@@ -35,13 +35,29 @@ export function worldToImageCoordinates(positionArray, scene) {
 
 function getDims(scene) {
   let imageWidth, imageHeight;
-  scene.children.forEach(child => {
+  let children = scene.children;
+  for (let i = 0; i < children.length; i++) {
+    const child = children[i];
     if (child instanceof THREE.LOD) {
       imageWidth = child.imageWidth;
       imageHeight = child.imageHeight;
+      break;
     }
-  });
+  }
   return { imageWidth, imageHeight }
+}
+
+export function getUrl(scene) {
+  let url;
+  let children = scene.children;
+  for (let i = 0; i < children.length; i++) {
+    const child = children[i];
+    if (child instanceof THREE.LOD) {
+      url = child.url;
+      break;
+    }
+  }
+  return url;
 }
 
 /**
