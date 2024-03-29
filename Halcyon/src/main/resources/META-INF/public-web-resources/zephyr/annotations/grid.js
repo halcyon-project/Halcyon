@@ -49,6 +49,7 @@ export function grid(scene, camera, renderer) {
 
     updateGridPosition(); // Calculate and set the initial position of the grid
 
+    grid.name = "grid";
     scene.add(grid);
     // console.log("grid position:", grid.position);
   }
