@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { createButton } from "../helpers/elements.js";
 
 export function save(scene) {
-  const demo = true;
+  const demo = false;
 
   const saveButton = createButton({
     id: "save",
@@ -93,7 +93,6 @@ export function save(scene) {
       }
 
       if (obj.name.includes("grid")) {
-        // serializedData.push(obj.toJSON());
         serializedData.push(serializeGroup(obj));
       }
     }
