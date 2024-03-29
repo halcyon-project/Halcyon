@@ -3,8 +3,9 @@
  * Raycasting target meshes are the squares that rapture.js creates.
  */
 import * as THREE from 'three';
-import { createButton, textInputPopup, deleteIcon } from "../helpers/elements.js";
-import { worldToImageCoordinates } from "../helpers/conversions.js";
+import {createButton, textInputPopup, deleteIcon} from "../helpers/elements.js";
+import {getMousePosition} from "../helpers/mouse.js";
+import {worldToImageCoordinates} from "../helpers/conversions.js";
 
 export function enableDrawing(scene, camera, renderer, controls) {
   let btnDraw = createButton({
@@ -40,11 +41,7 @@ export function enableDrawing(scene, camera, renderer, controls) {
     }
   });
 
-  // Set up the raycaster and mouse vector
-  let raycaster = new THREE.Raycaster();
-  let mouse = new THREE.Vector2();
-
-  let lineMaterial = new THREE.LineBasicMaterial({ color, linewidth: 5 });
+  let lineMaterial = new THREE.LineBasicMaterial({color, linewidth: 5});
 
   // Dashed Line Issue Solution
   lineMaterial.polygonOffset = true; // Prevent z-fighting (which causes flicker)
@@ -58,23 +55,15 @@ export function enableDrawing(scene, camera, renderer, controls) {
   let currentPolygonPositions = []; // Store positions for current polygon
   let polygonPositions = []; // Store positions for each polygon
   const distanceThreshold = 0.1;
-  let objects = [];
 
   function onPointerDown(event) {
     if (isDrawing) {
       mouseIsPressed = true;
 
-      // Build the objects array
-      objects = [];
-      scene.traverse(function (object) {
-        if (object instanceof THREE.Mesh && object.visible) {
-          objects.push(object);
-        }
-      });
-
       // Create a new BufferAttribute for each line
       line = new THREE.Line(new THREE.BufferGeometry(), lineMaterial);
       line.name = "free-draw annotation";
+      line.renderOrder = 999;
       scene.add(line);
 
       currentPolygonPositions = []; // Start a new array for the current polygon's positions
@@ -83,38 +72,22 @@ export function enableDrawing(scene, camera, renderer, controls) {
 
   function onMouseMove(event) {
     if (isDrawing && mouseIsPressed) {
-      // Get the bounding rectangle of the renderer's DOM element
-      const rect = renderer.domElement.getBoundingClientRect();
+      let point = getMousePosition(event.clientX, event.clientY, renderer.domElement, camera);
 
-      // Adjust the mouse coordinates
-      mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      // Check if it's the first vertex of the current polygon
+      const isFirstVertex = currentPolygonPositions.length === 0;
 
-      raycaster.setFromCamera(mouse, camera);
+      if (isFirstVertex) {
+        currentPolygonPositions.push(point.x, point.y, point.z);
+      } else {
+        // DISTANCE CHECK
+        const lastVertex = new THREE.Vector3().fromArray(currentPolygonPositions.slice(-3));
+        const currentVertex = new THREE.Vector3(point.x, point.y, point.z);
+        const distance = lastVertex.distanceTo(currentVertex);
 
-      // These are all the squares
-      let intersects = raycaster.intersectObjects(objects, true);
-
-      if (intersects.length > 0) {
-        const intersect = intersects[0];
-        let point = intersect.point;
-        // console.log("intersect object scale:", intersect.object.scale);
-
-        // Check if it's the first vertex of the current polygon
-        const isFirstVertex = currentPolygonPositions.length === 0;
-
-        if (isFirstVertex) {
-          currentPolygonPositions.push(point.x, point.y, point.z);
-        } else {
-          // DISTANCE CHECK
-          const lastVertex = new THREE.Vector3().fromArray(currentPolygonPositions.slice(-3));
-          const currentVertex = new THREE.Vector3(point.x, point.y, point.z);
-          const distance = lastVertex.distanceTo(currentVertex);
-
-          if (distance > distanceThreshold) {
-            currentPolygonPositions.push(point.x, point.y, point.z); // Store the position in the current polygon's array
-            line.geometry.setAttribute("position", new THREE.Float32BufferAttribute(currentPolygonPositions, 3)); // Use the current polygon's array for the line's position attribute
-          }
+        if (distance > distanceThreshold) {
+          currentPolygonPositions.push(point.x, point.y, point.z); // Store the position in the current polygon's array
+          line.geometry.setAttribute("position", new THREE.Float32BufferAttribute(currentPolygonPositions, 3)); // Use the current polygon's array for the line's position attribute
         }
 
         if (line.geometry.attributes.position) {

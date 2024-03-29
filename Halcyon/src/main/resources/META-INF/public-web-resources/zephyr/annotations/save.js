@@ -1,55 +1,110 @@
+// Squares are put in the right spot
 import * as THREE from 'three';
 import { createButton } from "../helpers/elements.js";
 
-/**
- * Save annotations
- */
 export function save(scene) {
-  const demo = false;
+  const demo = true;
 
-  createButton({
+  const saveButton = createButton({
     id: "save",
     innerHtml: "<i class=\"fas fa-save\"></i>",
     title: "save"
-  }).addEventListener("click", function () {
+  });
+
+  saveButton.addEventListener("click", function () {
     serializeScene(scene);
   });
 
-  let serializedObjects = [];
+  let serializedData = [];
 
-  function serializeScene(scene) {
-    serializedObjects = [];
-    let processedObjects = new Set(); // To track processed objects
-
-    function serializeObjectWithChildren(obj) {
-      let serializedObj = obj.toJSON();
-      // Mark all children as processed to avoid double serialization
-      obj.traverse((child) => {
-        if (child.name.includes("annotation")) {
-          processedObjects.add(child.id); // Use unique object ID for tracking
-        }
-      });
-      return serializedObj;
+  function serializeObject(obj) {
+    // Accessing vertex data from BufferGeometry
+    const vertices = [];
+    if (obj.geometry && obj.geometry.attributes.position) {
+      const positions = obj.geometry.attributes.position;
+      for (let i = 0; i < positions.count; i++) {
+        vertices.push({
+          x: positions.getX(i),
+          y: positions.getY(i),
+          z: positions.getZ(i)
+        });
+      }
     }
 
-    scene.traverse((obj) => {
-      // Skip if this object has already been processed
-      if (processedObjects.has(obj.id)) return;
+    return {
+      type: obj.type,
+      geometryType: obj.geometry ? obj.geometry.type : undefined,
+      materialType: obj.material ? obj.material.type : undefined,
+      opacity: obj.material ? obj.material.opacity : 1,
+      color: obj.material ? obj.material.color : new THREE.Color( 0, 0, 1 ),
+      vertices: vertices,
+      position: obj.position,
+      rotation: obj.rotation,
+      scale: obj.scale,
+      name: obj.name,
+      userData: obj.userData
+    };
+  }
 
-      if (obj.type === 'Group') {
-        let hasRelevantChildren = obj.children.some(child => child.name.includes("annotation"));
-        if (hasRelevantChildren) {
-          // Serialize the group and mark its relevant children as processed
-          serializedObjects.push(serializeObjectWithChildren(obj));
-        }
-      } else if (obj.name.includes("annotation")) {
-        // Serialize individual objects not yet processed
-        serializedObjects.push(serializeObjectWithChildren(obj));
-      }
+  function serializeGroup(group) {
+    let serializedData = {
+      type: group.type,
+      name: group.name,
+      matrix: group.matrix.toArray(),
+      children: []
+    };
+
+    group.children.forEach((child) => {
+      serializedData.children.push({
+        type: child.type,
+        matrix: child.matrix.toArray(),
+        geometry: {
+          type: child.geometry.type,
+          parameters: child.geometry.parameters
+        },
+        material: {
+          type: child.material.type,
+          color: child.material.color,
+          opacity: child.material.opacity,
+          transparent: child.material.transparent
+        },
+        name: child.name,
+        userData: child.userData
+      });
     });
 
-    // TODO: save serializedObjects to database
-    console.log('Serialized Objects:', serializedObjects);
+    return serializedData;
+  }
+
+  function serializeScene(scene) {
+    serializedData = []; // Reset serialized data
+
+    // Check if scene and scene.children are defined
+    if (!scene || !scene.children) {
+      console.error('Scene or scene.children is undefined.');
+      alert('Failed to serialize the scene. Check console for details.');
+      return; // Exit the function if scene or scene.children is not defined
+    }
+
+    function traverseAndSerialize(obj) {
+      // Check if object's name includes "annotation"
+      if (obj.name.includes("annotation")) {
+        serializedData.push(serializeObject(obj));
+      }
+
+      if (obj.name.includes("grid")) {
+        // serializedData.push(obj.toJSON());
+        serializedData.push(serializeGroup(obj));
+      }
+    }
+
+    scene.children.forEach(child => {
+      traverseAndSerialize(child);
+    });
+
+    // TODO: Save to the database
+    console.log(serializedData);
+    // console.log(JSON.stringify(serializedData));
     alert('Scene serialized successfully. Check console for details.');
   }
 
@@ -64,19 +119,16 @@ export function save(scene) {
       let objectsToRemove = [];
 
       function findAnnotations(obj) {
-        if (obj.name.includes("annotation")) {
+        if (obj.name.includes("annotation") || obj.name.includes("grid")) {
           // Add the object to the removal list
           objectsToRemove.push(obj);
-        } else if (obj.children && obj.children.length) {
-          // If the object has children, check them too
-          obj.children.forEach(findAnnotations);
         }
       }
 
       // Start the search with the top-level children of the scene
       scene.children.forEach(findAnnotations);
 
-      // Now remove the collected objects and dispose of their resources
+      // Remove the collected objects and dispose of their resources
       objectsToRemove.forEach(obj => {
         if (obj.parent) {
           obj.parent.remove(obj); // Ensure the object is removed from its parent
@@ -100,22 +152,92 @@ export function save(scene) {
       innerHtml: "<i class=\"fa-solid fa-image\"></i>",
       title: "deserialize"
     }).addEventListener("click", function () {
-      deserializeScene(scene, serializedObjects);
+      deserializeScene(scene, serializedData);
     });
   }
 }
 
-export function deserializeScene(scene, serializedObjects) {
-  const loader = new THREE.ObjectLoader();
+function deserializeGroup(serializedData) {
+  const data = serializedData;
+  const group = new THREE.Group();
+  Object.assign(group.matrix, new THREE.Matrix4().fromArray(data.matrix));
+  group.matrix.decompose(group.position, group.quaternion, group.scale); // Apply matrix
+  group.name = data.name;
 
-  serializedObjects.forEach(serializedData => {
-    // Assuming serializedData is the JSON object for each object
-    // If serializedData is a string, parse it first: const json = JSON.parse(serializedData);
-    const object = loader.parse(serializedData);
+  data.children.forEach((childData) => {
+    let child, geometry, material;
 
-    // Add the deserialized object to the scene
-    scene.add(object);
+    // Recreate geometry
+    if (childData.geometry) {
+      const geomParams = childData.geometry.parameters;
+      geometry = new THREE[childData.geometry.type](...Object.values(geomParams));
+    }
+
+    // Recreate material
+    if (childData.material) {
+      const matParams = {};
+      // Assume MeshBasicMaterial
+      if (childData.material.type === "MeshBasicMaterial") {
+        matParams.color = childData.material.color;
+        matParams.opacity = childData.material.opacity;
+        matParams.transparent = childData.material.transparent;
+      }
+      material = new THREE[childData.material.type](matParams);
+    }
+
+    // Create child based on type
+    if (childData.type === "Mesh" && geometry && material) {
+      child = new THREE.Mesh(geometry, material);
+    }
+
+    if (child) {
+      Object.assign(child.matrix, new THREE.Matrix4().fromArray(childData.matrix));
+      child.matrix.decompose(child.position, child.quaternion, child.scale); // Apply matrix
+      child.userData = childData.userData;
+      child.name = childData.name;
+      group.add(child);
+    }
   });
 
-  console.log('Objects deserialized and added to the scene.');
+  return group;
+}
+
+export function deserializeScene(scene, serializedData) {
+  serializedData.forEach(data => {
+    // console.log("data", data);
+    if (data.name === "grid") {
+      scene.add(deserializeGroup(data));
+    } else {
+      const geometry = new THREE[data.geometryType]();
+
+      // Flatten the vertex data for BufferGeometry
+      const vertices = [];
+      data.vertices.forEach(v => {
+        vertices.push(v.x, v.y, v.z);
+      });
+
+      // Add vertices to the geometry
+      const verticesFloat32Array = new Float32Array(vertices);
+      geometry.setAttribute('position', new THREE.BufferAttribute(verticesFloat32Array, 3));
+
+      let material;
+      if (data.opacity === 1) {
+        material = new THREE[data.materialType]({ color: data.color });
+      } else {
+        material = new THREE[data.materialType]({ color: data.color, transparent: true, opacity: data.opacity});
+      }
+
+      const mesh = new THREE[data.type](geometry, material);
+
+      // Set position, rotation, scale, and userData
+      mesh.position.copy(data.position);
+      mesh.rotation.copy(data.rotation);
+      mesh.scale.copy(data.scale);
+      mesh.name = data.name;
+      mesh.userData = data.userData;
+
+      // Add the newly created object to the scene
+      scene.add(mesh);
+    }
+  });
 }

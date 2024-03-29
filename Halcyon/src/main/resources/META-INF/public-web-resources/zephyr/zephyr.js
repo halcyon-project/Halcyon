@@ -1,5 +1,5 @@
 import {
-  sRGBEncoding,
+  SRGBColorSpace,
   Object3D,
   LOD,
   Group,
@@ -30,7 +30,7 @@ function Square(x, y, w, h, src, offset) {
   geometry.center();
   const material = new MeshBasicMaterial({map: texture, depthWrite: false, side: DoubleSide});
   // const material = new MeshBasicMaterial({map: texture, side: DoubleSide});
-  texture.encoding = sRGBEncoding;
+  texture.colorSpace = SRGBColorSpace;
   const X = new Mesh(geometry, material);
   X.scale.x = w;
   X.scale.y = h;
@@ -62,6 +62,7 @@ function CreateImageViewer(scene, url, offset) {
       lod.name = "ImageViewer";
       lod.imageWidth = w;
       lod.imageHeight = h;
+      lod.url = url;
       scene.add(lod);
       // console.log(`%c${dumpObject(scene).join('\n')}`, "color: #00ff00;");
     }).catch(error => console.error('Error fetching data:', error));
