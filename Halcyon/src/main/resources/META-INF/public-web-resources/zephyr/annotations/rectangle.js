@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { createButton, textInputPopup, removeObject, deleteIcon } from "../helpers/elements.js";
+import {createButton, textInputPopup, removeObject, deleteIcon, turnOtherButtonsOff} from "../helpers/elements.js";
 import { getMousePosition } from "../helpers/mouse.js";
 import { worldToImageCoordinates, getUrl } from "../helpers/conversions.js";
 
@@ -20,6 +20,7 @@ export function rectangle(scene, camera, renderer, controls, options) {
       canvas.removeEventListener("mouseup", onMouseUp, false);
     } else {
       isDrawing = true;
+      turnOtherButtonsOff(rectangleButton);
       controls.enabled = false;
       this.classList.replace('annotationBtn', 'btnOn');
       canvas.addEventListener("mousedown", onMouseDown, false);

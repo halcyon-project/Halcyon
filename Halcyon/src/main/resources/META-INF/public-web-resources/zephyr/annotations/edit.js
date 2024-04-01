@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { createButton, textInputPopup } from "../helpers/elements.js";
+import {createButton, textInputPopup, turnOtherButtonsOff} from "../helpers/elements.js";
 import { DragControls } from "three/addons/controls/DragControls.js";
 
 /**
@@ -24,6 +24,7 @@ export function edit(scene, camera, renderer, controls) {
       turnOffEdit();
     } else {
       clicked = true;
+      turnOtherButtonsOff(editButton);
       controls.enabled = false;
       this.classList.replace('annotationBtn', 'btnOn');
       renderer.domElement.addEventListener('click', onMouseClick, false);

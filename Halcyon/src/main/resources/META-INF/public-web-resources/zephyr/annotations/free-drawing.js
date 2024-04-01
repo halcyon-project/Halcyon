@@ -3,7 +3,7 @@
  * Raycasting target meshes are the squares that rapture.js creates.
  */
 import * as THREE from 'three';
-import {createButton, textInputPopup, deleteIcon} from "../helpers/elements.js";
+import {createButton, textInputPopup, turnOtherButtonsOff} from "../helpers/elements.js";
 import {getMousePosition} from "../helpers/mouse.js";
 import {worldToImageCoordinates} from "../helpers/conversions.js";
 
@@ -31,6 +31,7 @@ export function enableDrawing(scene, camera, renderer, controls) {
     } else {
       // Drawing on
       isDrawing = true;
+      turnOtherButtonsOff(btnDraw);
       controls.enabled = false;
       this.classList.replace('annotationBtn', 'btnOn');
 

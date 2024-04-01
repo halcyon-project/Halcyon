@@ -175,3 +175,15 @@ export function removeObject(obj) {
     }
   }
 }
+
+export function turnOtherButtonsOff(activeButton) {
+  // Ensure only one button is "active" at any given moment.
+  const buttons = document.querySelectorAll('button');
+  buttons.forEach(button => {
+    if (button.id !== activeButton.id) {
+      if (button.classList.contains('btnOn')) {
+        button.click(); // shut it off
+      }
+    }
+  });
+}

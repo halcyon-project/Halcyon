@@ -41,6 +41,7 @@ export function ruler(scene, camera, renderer, controls) {
 
         // Clear the previously drawn line and text from the scene, ensuring a clean slate for the next drawing action.
         if (line) {
+          console.log("here");
           scene.remove(line);
           line.geometry.dispose();
           line.material.dispose();
@@ -52,6 +53,7 @@ export function ruler(scene, camera, renderer, controls) {
           textMesh.material.dispose();
           textMesh = null; // Clear reference
         }
+        renderer.render(scene, camera);
       } else {
         // Turn on drawing mode
         isDrawing = true;
