@@ -8,10 +8,10 @@ export function worldToImageCoordinates(positionArray, scene) {
   let dims = getDims(scene);
   let imageWidth = dims.imageWidth;
   let imageHeight = dims.imageHeight;
+  // console.log(imageWidth, imageHeight);
 
   const imageCoordinates = [];
   if (imageWidth && imageHeight) {
-    // console.log("image w,h:", imageWidth, imageHeight);
     for (let i = 0; i < positionArray.length; i += 3) {
       // Extract the x and y coordinates
       let point = {};
@@ -26,7 +26,8 @@ export function worldToImageCoordinates(positionArray, scene) {
       const imageX = (normalizedX + 1) * (imageWidth / 2);
       const imageY = (1 - normalizedY) * (imageHeight / 2);
 
-      imageCoordinates.push({ x: imageX, y: imageY });
+      // imageCoordinates.push({ x: imageX, y: imageY });
+      imageCoordinates.push(imageX, imageY);
     }
   }
 
@@ -77,13 +78,16 @@ export function imageToWorldCoordinates(positionArray, scene, camera, depth = 0)
       let imageY = positionArray[i + 1];
 
       // Convert image coordinates to normalized device coordinates (NDC)
+      // Mapping the 0 to imageWidth range to -1 to 1 for NDC
       const ndcX = (imageX / imageWidth) * 2 - 1;
-      const ndcY = -((imageY / imageHeight) * 2 - 1); // Inverting Y axis
+      const ndcY = -((imageY / imageHeight) * 2 - 1); // Inverting Y axis because Y is up in the image space and down in NDC
 
-      // Convert NDC to world coordinates
+      // Set the vector to these NDC values, with the Z value being between -1 and 1
       let vector = new THREE.Vector3(ndcX, ndcY, depth);
-      vector.unproject(camera);
+      // Unproject from NDC space to world space
+      // vector.unproject(camera);
 
+      // Push the world coordinates (x, y, z) to the array
       worldCoordinates.push(vector.x, vector.y, vector.z);
     }
   }
@@ -105,7 +109,7 @@ export function imageToWorldCoordinates(positionArray, scene, camera, depth = 0)
 //     const threeX = normalizedX * 2 - 1; // Shift and scale x
 //     const threeY = (1 - normalizedY) * 2 - 1; // Invert, shift, and scale y (y is inverted in WebGL/Three.js)
 //
-//     return { x: threeX, y: threeY };
+//     return { x: threeX, y: threeY, z: 0 };
 //   });
 // }
 

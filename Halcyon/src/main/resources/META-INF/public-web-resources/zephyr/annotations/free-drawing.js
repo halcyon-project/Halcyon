@@ -1,6 +1,5 @@
 /**
  * Allows user to draw on an image.
- * Raycasting target meshes are the squares that rapture.js creates.
  */
 import * as THREE from 'three';
 import {createButton, textInputPopup, turnOtherButtonsOff} from "../helpers/elements.js";
