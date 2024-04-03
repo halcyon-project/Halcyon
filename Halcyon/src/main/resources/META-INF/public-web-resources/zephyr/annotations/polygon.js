@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { createButton, textInputPopup, deleteIcon } from "../helpers/elements.js";
+import {createButton, textInputPopup, deleteIcon, turnOtherButtonsOff} from "../helpers/elements.js";
 import { getMousePosition } from "../helpers/mouse.js";
 
 export function polygon(scene, camera, renderer, controls) {
@@ -20,6 +20,7 @@ export function polygon(scene, camera, renderer, controls) {
       canvas.removeEventListener("dblclick", onDoubleClick, false);
     } else {
       isDrawing = true;
+      turnOtherButtonsOff(polygonButton);
       controls.enabled = false;
       this.classList.replace('annotationBtn', 'btnOn');
       canvas.addEventListener("mousedown", onMouseDown, false);

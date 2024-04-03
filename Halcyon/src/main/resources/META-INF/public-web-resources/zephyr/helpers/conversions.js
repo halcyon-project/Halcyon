@@ -8,10 +8,10 @@ export function worldToImageCoordinates(positionArray, scene) {
   let dims = getDims(scene);
   let imageWidth = dims.imageWidth;
   let imageHeight = dims.imageHeight;
+  // console.log(imageWidth, imageHeight);
 
   const imageCoordinates = [];
   if (imageWidth && imageHeight) {
-    // console.log("image w,h:", imageWidth, imageHeight);
     for (let i = 0; i < positionArray.length; i += 3) {
       // Extract the x and y coordinates
       let point = {};
@@ -26,7 +26,7 @@ export function worldToImageCoordinates(positionArray, scene) {
       const imageX = (normalizedX + 1) * (imageWidth / 2);
       const imageY = (1 - normalizedY) * (imageHeight / 2);
 
-      imageCoordinates.push({ x: imageX, y: imageY });
+      imageCoordinates.push(imageX, imageY);
     }
   }
 
@@ -64,50 +64,30 @@ export function getUrl(scene) {
  * Convert from image to world coordinates
  * positionArray - A flat array of x,y coordinates.
  */
-export function imageToWorldCoordinates(positionArray, scene, camera, depth = 0) {
+export function imageToWorldCoordinates(imageCoordinates, scene) {
   let dims = getDims(scene);
   let imageWidth = dims.imageWidth;
   let imageHeight = dims.imageHeight;
+  // console.log(imageWidth, imageHeight);
 
-  const worldCoordinates = [];
-  if (imageWidth && imageHeight && camera) {
-    for (let i = 0; i < positionArray.length; i += 2) {
-      // Extract the x and y image coordinates
-      let imageX = positionArray[i];
-      let imageY = positionArray[i + 1];
+  const threeJSCoordinates = [];
+  if (imageWidth && imageHeight) {
+    for (let i = 0; i < imageCoordinates.length; i += 2) {
+      // Convert image coordinates back to normalized [-1, 1] range
+      let normalizedX = (imageCoordinates[i] / (imageWidth / 2)) - 1;
+      let normalizedY = 1 - (imageCoordinates[i + 1] / (imageHeight / 2));
 
-      // Convert image coordinates to normalized device coordinates (NDC)
-      const ndcX = (imageX / imageWidth) * 2 - 1;
-      const ndcY = -((imageY / imageHeight) * 2 - 1); // Inverting Y axis
+      // Scale normalized coordinates back to Three.js space
+      let threeJSX = normalizedX * (imageWidth / 2);
+      let threeJSY = normalizedY * (imageHeight / 2);
+      let threeJSZ = 0; // Z is 0 in 2D
 
-      // Convert NDC to world coordinates
-      let vector = new THREE.Vector3(ndcX, ndcY, depth);
-      vector.unproject(camera);
-
-      worldCoordinates.push(vector.x, vector.y, vector.z);
+      threeJSCoordinates.push(threeJSX, threeJSY, threeJSZ);
     }
   }
 
-  return worldCoordinates;
+  return threeJSCoordinates;
 }
-
-/**
- * Convert image coordinates to Three.js coordinates
- * array - An array of objects, where each object has x and y properties
- */
-// export function imageToThreeCoords(array, imageWidth, imageHeight) {
-//   return array.map(({x, y}) => {
-//     // Normalize coordinates (0 to 1)
-//     const normalizedX = x / imageWidth;
-//     const normalizedY = y / imageHeight;
-//
-//     // Map to Three.js coordinates (-1 to 1)
-//     const threeX = normalizedX * 2 - 1; // Shift and scale x
-//     const threeY = (1 - normalizedY) * 2 - 1; // Invert, shift, and scale y (y is inverted in WebGL/Three.js)
-//
-//     return { x: threeX, y: threeY };
-//   });
-// }
 
 /**
  * Convert pixels to microns

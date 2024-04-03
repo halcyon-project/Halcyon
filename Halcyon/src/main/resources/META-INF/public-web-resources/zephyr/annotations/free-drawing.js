@@ -1,11 +1,10 @@
 /**
  * Allows user to draw on an image.
- * Raycasting target meshes are the squares that rapture.js creates.
  */
 import * as THREE from 'three';
-import {createButton, textInputPopup, deleteIcon} from "../helpers/elements.js";
+import {createButton, textInputPopup, turnOtherButtonsOff} from "../helpers/elements.js";
 import {getMousePosition} from "../helpers/mouse.js";
-import {worldToImageCoordinates} from "../helpers/conversions.js";
+import {worldToImageCoordinates, imageToWorldCoordinates} from "../helpers/conversions.js";
 
 export function enableDrawing(scene, camera, renderer, controls) {
   let btnDraw = createButton({
@@ -31,6 +30,7 @@ export function enableDrawing(scene, camera, renderer, controls) {
     } else {
       // Drawing on
       isDrawing = true;
+      turnOtherButtonsOff(btnDraw);
       controls.enabled = false;
       this.classList.replace('annotationBtn', 'btnOn');
 
@@ -131,6 +131,8 @@ export function enableDrawing(scene, camera, renderer, controls) {
   function toImageCoords(currentPolygonPositions) {
     console.log("line geometry positions:\n", currentPolygonPositions);
     const imgCoords = worldToImageCoordinates(currentPolygonPositions, scene);
+    let threeCoords = imageToWorldCoordinates(imgCoords, scene);
     console.log("Image coordinates:", imgCoords);
+    console.log("threeCoords:", threeCoords);
   }
 }

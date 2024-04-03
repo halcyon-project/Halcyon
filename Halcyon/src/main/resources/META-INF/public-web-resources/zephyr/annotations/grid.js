@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { createButton, removeObject } from "../helpers/elements.js";
+import {createButton, removeObject, turnOtherButtonsOff} from "../helpers/elements.js";
 
 export function grid(scene, camera, renderer) {
   const canvas = renderer.domElement;
@@ -19,6 +19,7 @@ export function grid(scene, camera, renderer) {
       this.classList.replace('btnOn', 'annotationBtn');
       window.removeEventListener('click', onMouseClick);
     } else {
+      turnOtherButtonsOff(gridButton);
       addGrid();
       this.classList.replace('annotationBtn', 'btnOn');
       window.addEventListener('click', onMouseClick);

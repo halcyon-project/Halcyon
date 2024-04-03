@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { createButton, textInputPopup, deleteIcon } from "../helpers/elements.js";
+import { createButton, textInputPopup, turnOtherButtonsOff } from "../helpers/elements.js";
 import { getMousePosition } from "../helpers/mouse.js";
 
 export function ellipse(scene, camera, renderer, controls) {
@@ -19,8 +19,10 @@ export function ellipse(scene, camera, renderer, controls) {
       canvas.removeEventListener("mouseup", onMouseUp, false);
     } else {
       isDrawing = true;
+      turnOtherButtonsOff(ellipseButton);
       controls.enabled = false;
       this.classList.replace('annotationBtn', 'btnOn');
+
       canvas.addEventListener("mousedown", onMouseDown, false);
       canvas.addEventListener("mousemove", onMouseMove, false);
       canvas.addEventListener("mouseup", onMouseUp, false);

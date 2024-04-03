@@ -26,7 +26,7 @@ export function ruler(scene, camera, renderer, controls) {
 
     let lineGeometry = new THREE.BufferGeometry();
     let lineMaterial = new THREE.LineBasicMaterial({ color: 0x00ff00, linewidth: 5 });
-    lineMaterial.depthTest = false;
+    lineMaterial.depthTest = false; // ensuring the line renders on top of other geometries
     lineMaterial.depthWrite = false;
 
     rulerButton.addEventListener("click", function () {
@@ -41,9 +41,19 @@ export function ruler(scene, camera, renderer, controls) {
 
         // Clear the previously drawn line and text from the scene, ensuring a clean slate for the next drawing action.
         if (line) {
-          scene.remove(line);
-          line.geometry.dispose();
-          line.material.dispose();
+          // scene.remove(line);
+          // line.geometry.dispose();
+          // line.material.dispose();
+          for (let i = scene.children.length - 1; i >= 0; i--) {
+            if (scene.children[i].name === "ruler") {
+              // Dispose of geometry and material if necessary
+              if (scene.children[i].geometry) scene.children[i].geometry.dispose();
+              if (scene.children[i].material) scene.children[i].material.dispose();
+
+              // Remove the object
+              scene.remove(scene.children[i]);
+            }
+          }
           line = null; // Clear reference
         }
         if (textMesh) {
@@ -52,6 +62,7 @@ export function ruler(scene, camera, renderer, controls) {
           textMesh.material.dispose();
           textMesh = null; // Clear reference
         }
+
       } else {
         // Turn on drawing mode
         isDrawing = true;
@@ -71,6 +82,7 @@ export function ruler(scene, camera, renderer, controls) {
 
         lineGeometry.setFromPoints([startVector, startVector]);
         line = new THREE.Line(lineGeometry, lineMaterial);
+        line.name = "ruler";
         line.renderOrder = 999;
         scene.add(line);
       }
@@ -105,7 +117,7 @@ export function ruler(scene, camera, renderer, controls) {
         textMaterial.depthTest = false;
         textMesh = new THREE.Mesh(textGeometry, textMaterial);
         textMesh.position.copy(endVector);
-        textMesh.renderOrder = 999;
+        textMesh.renderOrder = 998;
         scene.add(textMesh);
 
         renderer.render(scene, camera);
@@ -142,6 +154,7 @@ export function ruler(scene, camera, renderer, controls) {
     // Calculate the scale factor
     const screenHeight = renderer.domElement.clientHeight;
     const scaleFactor = screenHeight / planeHeightAtDistance;
+    // console.log("scaleFactor", scaleFactor);
 
     return scaleFactor;
   }

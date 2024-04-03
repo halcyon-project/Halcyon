@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { createButton, textInputPopup, deleteIcon } from "../helpers/elements.js";
+import {createButton, textInputPopup, deleteIcon, turnOtherButtonsOff} from "../helpers/elements.js";
 import { getMousePosition } from "../helpers/mouse.js";
 
 export function hollowBrush(scene, camera, renderer, controls) {
@@ -23,6 +23,7 @@ export function hollowBrush(scene, camera, renderer, controls) {
       window.removeEventListener('mouseup', onMouseUp);
     } else {
       isDrawing = true;
+      turnOtherButtonsOff(brushButton);
       controls.enabled = false;
       this.classList.replace('annotationBtn', 'btnOn');
       renderer.domElement.addEventListener('mousedown', onMouseDown);
