@@ -92,8 +92,8 @@
                     <execution>
                         <id>mac</id>
                         <configuration>
+                            <installDir>/usr/local</installDir>
                             <type>DMG</type>
-                            
                         </configuration>
                     </execution>
                     <execution>
