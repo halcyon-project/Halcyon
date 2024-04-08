@@ -1,5 +1,6 @@
 package com.ebremer.halcyon.filereaders;
 
+import com.ebremer.beakgraph.ng.BG;
 import com.ebremer.halcyon.FL.FL;
 import com.ebremer.halcyon.FL.FLPool;
 import com.ebremer.halcyon.lib.ImageMeta;
@@ -9,6 +10,7 @@ import com.ebremer.halcyon.lib.URITools;
 import com.ebremer.halcyon.raptor.Objects.Scale;
 import com.ebremer.halcyon.utils.ImageTools;
 import com.ebremer.ns.EXIF;
+import com.ebremer.ns.HAL;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.URI;
@@ -24,6 +26,7 @@ import org.apache.jena.vocabulary.SchemaDO;
 public class ROCImageReader extends AbstractImageReader {
     private final ImageMeta meta;
     private final URI uri;
+    private static final Integer METAVERSION = 0;
 
     public ROCImageReader(URI uri) throws IOException, Exception {
         this.uri = uri;
@@ -39,6 +42,11 @@ public class ROCImageReader extends AbstractImageReader {
         builder.setMeta(fl.getManifest());
         FLPool.getPool().returnObject(uri,fl);
         meta = builder.build();
+    }
+    
+    @Override
+    public int getMetaVersion() {
+        return METAVERSION;
     }
 
     @Override
@@ -107,9 +115,11 @@ public class ROCImageReader extends AbstractImageReader {
             Logger.getLogger(ROCImageReader.class.getName()).log(Level.SEVERE, null, ex);
         }
         m.createResource(URITools.fix(uri))
+            .addLiteral(HAL.filemetaversion, METAVERSION)
             .addLiteral(EXIF.width, meta.getWidth())
             .addLiteral(EXIF.height, meta.getHeight())
             .addProperty(RDF.type, SchemaDO.ImageObject)
+            .addProperty(RDF.type, BG.BeakGraph)
             .addProperty(RDF.type, SchemaDO.Dataset);        
         return m;
     }

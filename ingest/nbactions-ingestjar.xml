@@ -10,7 +10,7 @@
                 <goal>org.codehaus.mojo:exec-maven-plugin:3.1.0:exec</goal>
             </goals>
             <properties>
-                <exec.vmArgs>--enable-preview -Xmx59G -Xms59G -Xss1G --add-opens=java.base/java.nio=ALL-UNNAMED</exec.vmArgs>
+                <exec.vmArgs>-XX:+UseZGC -XX:+ZGenerational --enable-preview -Xmx59G -Xms59G -Xss1G --add-opens=java.base/java.nio=ALL-UNNAMED</exec.vmArgs>
                 <exec.args>${exec.vmArgs} -classpath %classpath ${exec.mainClass} ${exec.appArgs}</exec.args>
                 <exec.appArgs>-validate -src D:\tcga\cvpr-data\rdf\coad -dest D:\tcga\cvpr-data\zip\coad -threads 16</exec.appArgs>
                 <exec.mainClass>com.ebremer.halcyon.converters.Ingest</exec.mainClass>
@@ -27,7 +27,7 @@
                 <goal>org.codehaus.mojo:exec-maven-plugin:3.1.0:exec</goal>
             </goals>
             <properties>
-                <exec.vmArgs>--enable-preview -Xmx59G -Xms59G -Xss1G --add-opens=java.base/java.nio=ALL-UNNAMED -agentlib:jdwp=transport=dt_socket,server=n,address=${jpda.address}</exec.vmArgs>
+                <exec.vmArgs>-XX:+UseZGC -XX:+ZGenerational --enable-preview -Xmx59G -Xms59G -Xss1G --add-opens=java.base/java.nio=ALL-UNNAMED -agentlib:jdwp=transport=dt_socket,server=n,address=${jpda.address}</exec.vmArgs>
                 <exec.args>${exec.vmArgs} -classpath %classpath ${exec.mainClass} ${exec.appArgs}</exec.args>
                 <exec.appArgs>-validate -src D:\tcga\cvpr-data\rdf\coad -dest D:\tcga\cvpr-data\zip\coad -threads 16</exec.appArgs>
                 <exec.mainClass>com.ebremer.halcyon.converters.Ingest</exec.mainClass>
@@ -45,7 +45,7 @@
                 <goal>org.codehaus.mojo:exec-maven-plugin:3.1.0:exec</goal>
             </goals>
             <properties>
-                <exec.vmArgs>--enable-preview -Xmx59G -Xms59G -Xss1G --add-opens=java.base/java.nio=ALL-UNNAMED</exec.vmArgs>
+                <exec.vmArgs>-XX:+UseZGC -XX:+ZGenerational --enable-preview -Xmx59G -Xms59G -Xss1G --add-opens=java.base/java.nio=ALL-UNNAMED</exec.vmArgs>
                 <exec.args>${exec.vmArgs} -classpath %classpath ${exec.mainClass} ${exec.appArgs}</exec.args>
                 <exec.mainClass>com.ebremer.halcyon.converters.Ingest</exec.mainClass>
                 <exec.executable>java</exec.executable>

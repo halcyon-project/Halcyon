@@ -14,4 +14,5 @@ public interface ImageReader extends FileReader {
     public BufferedImage readTile(ImageRegion region, Rectangle preferredsize);
     public Model readTileMeta(ImageRegion region, Rectangle preferredsize);
     public ImageMeta getImageMeta();
+    public int getMetaVersion();    
 }

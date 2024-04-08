@@ -68,7 +68,7 @@ public class ListImages extends BasePage implements IPanelChangeListener {
     public ListImages() {
         List<IColumn<Solution, String>> columns = new LinkedList<>();
         columns.add(new NodeColumn<>(Model.of("File URI"),"s","s"));
-        columns.add(new NodeColumn<>(Model.of("MD5"),"md5","md5"));
+        //columns.add(new NodeColumn<>(Model.of("MD5"),"md5","md5"));
         columns.add(new NodeColumn<>(Model.of("width"),"width","width"));
         columns.add(new NodeColumn<>(Model.of("height"),"height","height"));
         //columns.add(new NodeColumn<>(Model.of("Collection"),"collection","collection"));
@@ -80,7 +80,7 @@ public class ListImages extends BasePage implements IPanelChangeListener {
         });
         ParameterizedSparqlString pss = new ParameterizedSparqlString(
             """
-            select distinct ?s ?width ?height ?md5
+            select distinct ?s ?width ?height #?md5
             where {
                 graph ?car {?s so:isPartOf ?collection}
                 graph ?s {?s a so:ImageObject;

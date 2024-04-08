@@ -2,12 +2,7 @@
 <html lang="en">
 <wicket:head>
   <style> body { margin: 0; } </style>
-  <!--
-  <script src="http://unpkg.com/three"></script>
-  <script src="http://unpkg.com/three/examples/js/renderers/CSS2DRenderer.js"></script>
-  <script src="http://unpkg.com/3d-force-graph"></script>
-  <script src="http://unpkg.com/three-spritetext"></script>
-  -->
+  <script src="//unpkg.com/3d-force-graph"></script>
   <style>
     .node-label {
       font-size: 12px;
@@ -45,29 +40,30 @@
         </div>
     </div> 
 
-  <script>
-    const Graph = ForceGraph3D({
-      extraRenderers: [new THREE.CSS2DRenderer()]
-    })
+  <script type="importmap">{ "imports": { "three": "//unpkg.com/three/build/three.module.js" }}</script>
+  <script type="module">
+    import SpriteText from "//unpkg.com/three-spritetext/dist/three-spritetext.mjs";   
+    const Graph = ForceGraph3D();
+    window.Graph = Graph
     (document.getElementById('3d-graph'))
-      .nodeAutoColorBy('group')
-       .onNodeDragEnd(node => {
-          node.fx = node.x;
-          node.fy = node.y;
-          node.fz = node.z;
-       })
-      .nodeThreeObject(node => {
-        const nodeEl = document.createElement('div');
-        nodeEl.textContent = node.id;
-        nodeEl.style.color = node.color;
-        nodeEl.className = 'node-label';
-        return new THREE.CSS2DObject(nodeEl);
-      })
+        .nodeLabel('id')
+        .nodeAutoColorBy('group')
+        .onNodeDragEnd(node => {
+            node.fx = node.x;
+            node.fy = node.y;
+            node.fz = node.z;
+        })
+      //.nodeThreeObject(node => {
+        //const nodeEl = document.createElement('div');
+        //nodeEl.textContent = node.id;
+        //nodeEl.style.color = node.color;
+        //nodeEl.className = 'node-label';
+        //return new THREE.CSS2DObject(nodeEl);
+      //})
       .linkThreeObject(link => {
-          //const sprite = new SpriteText(`${link.predicate}`);
-          const sprite = new SpriteText("");
+          const sprite = new SpriteText(`${link.predicate}`);
           sprite.color = 'lightgrey';
-          sprite.textHeight = 2.0;
+          sprite.textHeight = 1.5;
           return sprite;
        })
         .linkPositionUpdate((sprite, { start, end }) => {
@@ -78,7 +74,8 @@
         })
        .linkThreeObjectExtend(true)
       .nodeThreeObjectExtend(true);
-    Graph.d3Force('charge').strength(-70);
+    Graph.d3Force('charge').strength(-120);
+        
   </script>
   </wicket:extend>
 </body>

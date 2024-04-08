@@ -54,9 +54,13 @@ public class HAL {
     public static final Resource HilbertPolygon = m.createResource(NS+"HilbertPolygon");
     public static final Resource ColorByCertainty = m.createResource(NS+"ColorByCertainty");
     public static final Resource ColorByClassID = m.createResource(NS+"ColorByClassID");
-    public static final Resource ColorScheme = m.createResource(NS+"ColorScheme");
+    public static final Resource ColorScheme = m.createResource(NS+"ColorScheme");    
     
+    public static final Property fileLastModified = m.createProperty(NS+"fileLastModified");
+    public static final Property validFile = m.createProperty(NS+"validFile");
+    public static final Property halcyonVersion = m.createProperty(NS+"halcyonVersion");
     public static final Property devmode = m.createProperty(NS+"devmode");
+    public static final Property filemetaversion = m.createProperty(NS+"filemetaversion");
     public static final Property min = m.createProperty(NS+"min");
     public static final Property max = m.createProperty(NS+"max");
     public static final Property asHilbert = m.createProperty(NS+"asHilbert");
@@ -116,4 +120,6 @@ public class HAL {
     public static final Property HTTPSenabled = m.createProperty(NS+"HTTPSenabled");
     public static final Property SPARQLport = m.createProperty(NS+"SPARQLport");
     public static final Property urlpathprefix = m.createProperty(NS+"urlpathprefix");
+    public static final Property mppx = m.createProperty(NS+"mppx");
+    public static final Property mppy = m.createProperty(NS+"mppy");
 }

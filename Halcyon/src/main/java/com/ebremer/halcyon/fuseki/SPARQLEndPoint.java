@@ -35,9 +35,8 @@ public class SPARQLEndPoint {
             .add("/rdf", DataCore.getInstance().getDataset())
 
            // .loopback(true)
-          //  .securityHandler(new HalcyonSecurityHandler())
-            
-            .enableCors(true)
+          //  .securityHandler(new HalcyonSecurityHandler())            
+            .enableCors(true, null)
             .port(HalcyonSettings.getSettings().GetSPARQLPort())
            // .addFilter("/*", filter)
             .build();

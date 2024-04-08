@@ -4,25 +4,19 @@ import com.ebremer.ethereal.NodeColumn;
 import com.ebremer.ethereal.SelectDataProvider;
 import com.ebremer.ethereal.Solution;
 import com.ebremer.halcyon.wicket.DatabaseLocator;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import org.apache.jena.query.Dataset;
-import org.apache.jena.query.DatasetFactory;
 import org.apache.jena.query.ParameterizedSparqlString;
 import org.apache.jena.query.QueryExecution;
 import org.apache.jena.query.QueryExecutionFactory;
+import org.apache.jena.query.ReadWrite;
 import org.apache.jena.query.ResultSetFormatter;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.rdf.model.ResourceFactory;
-import org.apache.jena.riot.Lang;
-import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.vocabulary.SchemaDO;
 import org.apache.wicket.MarkupContainer;
 import org.apache.wicket.ajax.AjaxRequestTarget;
@@ -62,30 +56,18 @@ public class ListClasses extends Panel {
         ParameterizedSparqlString pss = new ParameterizedSparqlString(
             """
             select distinct ?p
-            where {?s ?p ?o}   #where {graph ?g {?s ?p ?o}}
+            where {graph ?g {?s ?p ?o}}
             order by ?p
-        """);
+            """);
         pss.setNsPrefix("so", SchemaDO.NS);
         //Dataset ds = DatabaseLocator.getDatabase().getSecuredDataset();
-        
-        Dataset ds = DatasetFactory.create();
-        org.apache.jena.rdf.model.Model b = ModelFactory.createDefaultModel();
-        try {
-            RDFDataMgr.read(b, new FileInputStream("morph.ttl"), Lang.TURTLE);
-        } catch (FileNotFoundException ex) {
-            Logger.getLogger(Graph3D.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        System.out.println("DATASET LOADED 2 : "+b.size());
-        ds.getDefaultModel().add(b);
-            
+        Dataset ds = DatabaseLocator.getDatabase().getDataset();
+        ds.begin(ReadWrite.READ);
         QueryExecution qe = QueryExecutionFactory.create(pss.toString(),ds);
         ResultSetFormatter.out(System.out,qe.execSelect());
-        
-        
-        //Dataset ds = DatabaseLocator.getDatabase().getDataset();
+        ds.end();
         rdfsdf = new SelectDataProvider(ds,pss.toString());
-        rdfsdf.SetSPARQL(pss.toString());
-        
+        rdfsdf.SetSPARQL(pss.toString());        
         AjaxFallbackDefaultDataTable table = new AjaxFallbackDefaultDataTable<>("table", columns, rdfsdf, 35);
         add(table);
     }
