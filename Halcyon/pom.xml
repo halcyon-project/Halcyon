@@ -77,7 +77,7 @@
                     <execution>
                         <id>mac</id>
                         <configuration>
-                            <installDir>/usr/local</installDir>
+                            <installDir>/Applications</installDir>
                             <type>DMG</type>
                         </configuration>
                     </execution>
