@@ -97,7 +97,7 @@ public class HilbertSpecial implements SpecialProcess {
     @Override
     public void Execute(BeakWriter bw, Resource ng, Model m) {
         logger.debug("Execute : "+ng+"  "+m.size());
-        if (ng.getURI().startsWith("https://www.ebremer.com/halcyon/ns/grid/0/")) {
+        if (ng.getURI().startsWith(HAL.NS+"grid/0/")) {
             GenerateHilbertData(bw, m);
         }
     }

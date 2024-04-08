@@ -33,6 +33,7 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.core.annotation.Order;
 import com.ebremer.halcyon.fuseki.HalcyonProxyServlet;
 import com.ebremer.halcyon.fuseki.SPARQLEndPoint;
+import com.ebremer.halcyon.lib.spatial.Spatial;
 import org.mitre.dsmiley.httpproxy.ProxyServlet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -126,9 +127,20 @@ public class Main {
     ServletRegistrationBean ImageServerRegistration () {
         ServletRegistrationBean srb = new ServletRegistrationBean();
         srb.setLoadOnStartup(3);
-        srb.setOrder(Ordered.HIGHEST_PRECEDENCE + 2);
+        srb.setOrder(Ordered.HIGHEST_PRECEDENCE + 3);
         srb.setServlet(new ImageServer());
         srb.setUrlMappings(Arrays.asList("/iiif/*"));
+        return srb;
+    }
+    
+    @Lazy(true)
+    @Bean
+    ServletRegistrationBean RaptorServerRegistration () {
+        ServletRegistrationBean srb = new ServletRegistrationBean();
+        srb.setLoadOnStartup(3);
+        srb.setOrder(Ordered.HIGHEST_PRECEDENCE + 4);
+        srb.setServlet(new Raptor());
+        srb.setUrlMappings(Arrays.asList("/raptor/*"));
         return srb;
     }
 
@@ -141,6 +153,15 @@ public class Main {
         bean.addInitParameter(ProxyServlet.P_HANDLEREDIRECTS, "true");
         bean.setOrder(5);
         return bean;
+    }
+    
+    @Bean
+    public FilterRegistrationBean<CustomFilter> KeycloakOIDCFilterFilterRegistration(){
+        FilterRegistrationBean<CustomFilter> registration = new FilterRegistrationBean<>();
+	registration.setFilter(new CustomFilter());
+	registration.addUrlPatterns("/HalcyonStorage/*");
+        registration.setOrder(Ordered.HIGHEST_PRECEDENCE + 2);
+        return registration;
     }
 
     public static void main(String[] args) throws NoSuchAlgorithmException {
@@ -158,9 +179,9 @@ public class Main {
         ClassLoader loader = Main.class.getClassLoader();
         FileReaderFactoryProvider frf = new FileReaderFactoryProvider(loader);
         INIT i = new INIT();
-        i.init();        
-        SpringApplication app = new SpringApplication(Main.class);
-        
+        i.init();
+        Spatial.init();
+        SpringApplication app = new SpringApplication(Main.class);        
         app.setAdditionalProfiles("production");
         app.setBannerMode(Mode.CONSOLE);
         ApplicationContext yay = app.run(args);

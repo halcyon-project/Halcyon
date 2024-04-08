@@ -3,8 +3,14 @@ package com.ebremer.halcyon.filereaders;
 import com.ebremer.halcyon.lib.ImageMeta;
 import com.ebremer.halcyon.lib.ImageRegion;
 import com.ebremer.halcyon.lib.URITools;
+import com.ebremer.halcyon.lib.XMP;
 import com.ebremer.halcyon.utils.ImageTools;
 import com.ebremer.ns.EXIF;
+import com.ebremer.ns.HAL;
+import com.twelvemonkeys.imageio.metadata.tiff.Rational;
+import com.twelvemonkeys.imageio.metadata.tiff.TIFF;
+import com.twelvemonkeys.imageio.plugins.tiff.TIFFImageMetadata;
+import com.twelvemonkeys.imageio.plugins.tiff.TIFFImageReader;
 import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -20,13 +26,18 @@ import javax.imageio.ImageReadParam;
 import javax.imageio.stream.ImageInputStream;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
+import org.apache.jena.rdf.model.Resource;
+import org.apache.jena.riot.Lang;
+import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.SchemaDO;
+import org.apache.jena.vocabulary.XSD;
 
 public class TiffImageReader extends AbstractImageReader {
     private javax.imageio.ImageReader reader;
     private final ImageMeta meta;
     private final URI uri;
+    private static final int METAVERSION = 0;
 
     public TiffImageReader(URI uri) throws IOException {
         this.uri = uri;
@@ -48,14 +59,19 @@ public class TiffImageReader extends AbstractImageReader {
             throw new IllegalArgumentException("No reader for: " + file);
         }
         System.out.println("READER IS ---> "+reader.getClass().getCanonicalName());
-        reader.setInput(input);
+        reader.setInput(input);            
         ImageMeta.Builder builder = ImageMeta.Builder.getBuilder(0, reader.getWidth(0), reader.getHeight(0))
             .setTileSizeX(reader.getTileWidth(0))
             .setTileSizeY(reader.getTileHeight(0));
         for (int s=1; s<reader.getNumImages(true); s++) {
             builder.addScale(s, reader.getWidth(s), reader.getHeight(s));
         }
-        meta = builder.build();
+        meta = builder.build();        
+    }
+
+    @Override
+    public int getMetaVersion() {
+        return METAVERSION;
     }
 
     @Override
@@ -91,12 +107,42 @@ public class TiffImageReader extends AbstractImageReader {
     }
 
     @Override
-    public Model getMeta() {
+    public Model getMeta() {                
         Model m = ModelFactory.createDefaultModel();
-        m.createResource(URITools.fix(uri))
+        m.setNsPrefix("exif", EXIF.NS);
+        m.setNsPrefix("sdo", SchemaDO.NS);
+        m.setNsPrefix("hal", HAL.NS);
+        m.setNsPrefix("xsd", XSD.getURI());
+        Resource root = m.createResource(URITools.fix(uri))                
+            .addLiteral(HAL.filemetaversion, (Integer) METAVERSION)
             .addLiteral(EXIF.width, meta.getWidth())
             .addLiteral(EXIF.height, meta.getHeight())
-            .addProperty(RDF.type, SchemaDO.ImageObject);
+            .addProperty(RDF.type, SchemaDO.ImageObject);        
+        TIFFImageReader rr = (TIFFImageReader) reader;        
+        TIFFImageMetadata td;
+        try {
+            td = (TIFFImageMetadata) rr.getImageMetadata(0);
+            Object xr = td.getTIFFField(TIFF.TAG_X_RESOLUTION).getValue();
+            Object yr = td.getTIFFField(TIFF.TAG_Y_RESOLUTION).getValue();
+            Object id = td.getTIFFField(TIFF.TAG_IMAGE_DESCRIPTION).getValue();
+            Object xmp = td.getTIFFField(TIFF.TAG_XMP).getValue();
+            String xml = new String((byte[]) xmp);
+            m.add(XMP.getXMP(root.getURI(), xml));
+            if (id instanceof String desc) {
+                if (!desc.trim().isEmpty()) {
+                    root.addLiteral(EXIF.imageDescription, desc.trim());
+                }
+            }
+            if (xr instanceof Rational r) {               
+                root.addLiteral(EXIF.xResolution, r.longValue());
+            }
+            if (yr instanceof Rational r) {
+                root.addLiteral(EXIF.yResolution, r.longValue());
+            }
+            root.addLiteral(EXIF.resolutionUnit, Short.valueOf(td.getTIFFField(TIFF.TAG_RESOLUTION_UNIT).getValueAsString()));
+        } catch (IOException ex) {
+            Logger.getLogger(TiffImageReader.class.getName()).log(Level.SEVERE, null, ex);
+        }        
         return m;
     }
 
@@ -111,5 +157,11 @@ public class TiffImageReader extends AbstractImageReader {
     @Override
     public Model readTileMeta(ImageRegion region, com.ebremer.halcyon.lib.Rectangle preferredsize) {
         throw new UnsupportedOperationException("Not supported yet.");
+    }
+    
+    public static void main(String[] args) throws IOException {
+        File file = new File("D:\\HalcyonStorage\\tcga\\brca\\tif\\TCGA-E2-A1B1-01Z-00-DX1.7C8DF153-B09B-44C7-87B8-14591E319354.tif");
+        TiffImageReader reader = new TiffImageReader(file.toURI());
+        RDFDataMgr.write(System.out, reader.getMeta(), Lang.TURTLE);
     }
 }

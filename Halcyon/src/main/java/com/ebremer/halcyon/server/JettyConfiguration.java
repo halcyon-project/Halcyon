@@ -17,9 +17,7 @@ import java.nio.file.Paths;
 import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.server.HttpConnectionFactory;
 import org.eclipse.jetty.server.ServerConnector;
-import org.pac4j.oidc.metadata.OidcOpMetadataResolver;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.ssl.pem.PemSslStoreBundle;
 
 /**
  *
@@ -40,10 +38,12 @@ public class JettyConfiguration implements WebServerFactoryCustomizer<JettyServl
     
     @Override
     public void customize(JettyServletWebServerFactory factory) {
+        System.setProperty("org.eclipse.jetty.server.Request.maxFormKeys", "2000");
         if (!HalcyonSettings.getSettings().isHTTPS2enabled()) {
             factory.setSsl(null);
         }
-        JettyServerCustomizer jettyServerCustomizer = (JettyServerCustomizer) (Server server) -> {            
+        JettyServerCustomizer jettyServerCustomizer = (JettyServerCustomizer) (Server server) -> {   
+            //server.getMimeTypes().addMimeMapping("js", "application/javascript");
             for (Connector connector : server.getConnectors()) {
                 if (connector instanceof ServerConnector serverConnector) {
                     serverConnector.setHost(HalcyonSettings.getSettings().GetHostIP());

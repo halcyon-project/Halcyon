@@ -5,6 +5,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -14,6 +16,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  */
 @Configuration
 @Lazy(value = false)
+@Order(Ordered.HIGHEST_PRECEDENCE + 3)
 public class HalcyonResourceConfiguration implements WebMvcConfigurer {
     private static final Logger logger = LoggerFactory.getLogger(HalcyonResourceConfiguration.class);
     
@@ -50,5 +53,6 @@ public class HalcyonResourceConfiguration implements WebMvcConfigurer {
         registry.addResourceHandler("/threejs/**").addResourceLocations("classpath:/META-INF/public-web-resources/threejs/");
         registry.addResourceHandler("/images/**").addResourceLocations("classpath:/META-INF/public-web-resources/images/");
         registry.addResourceHandler("/favicon.ico").addResourceLocations("classpath:/META-INF/public-web-resources/favicon.ico");
+        registry.addResourceHandler("/HalcyonStorage/**").addResourceLocations("file:/D:/HalcyonStorage/");
     }
 }
