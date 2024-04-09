@@ -87,7 +87,7 @@
         <hilbert.ver>0.2.3</hilbert.ver>
         <commons-pool2.ver>2.12.0</commons-pool2.ver>
         <jakarta.json.version>2.0.1</jakarta.json.version> 
-        <parrson.json.version>1.1.5</parrson.json.version>
+        <parrson.json.version>1.1.6</parrson.json.version>
         <titanium-json-ld.ver>1.4.0</titanium-json-ld.ver>
         <dcm4che.ver>5.31.2</dcm4che.ver>
 	<infinispan.version>14.0.21.Final</infinispan.version>
