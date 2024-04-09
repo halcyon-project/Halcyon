@@ -38,8 +38,9 @@
         // camera.position.set(0, 0, 150000);
         // camera.position.set(0, 0, 1250);
 
-        const camera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 1, 20000);
-        camera.position.set(0, 0, 11000);
+        const camera = window._camera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 1, 30000);
+        camera.position.z = 21000;
+        const originalZ = camera.position.z;
         camera.lookAt(new THREE.Vector3(0, 0, 0));
         scene.add(camera);
 
@@ -59,7 +60,7 @@
         ZEPHYR.CreateImageViewer(scene, options.target,0);
 
         // Annotation tools
-        toolbar(scene, camera, renderer, controls);
+        toolbar(scene, camera, renderer, controls, originalZ);
 
         function animate() {
             controls.update();

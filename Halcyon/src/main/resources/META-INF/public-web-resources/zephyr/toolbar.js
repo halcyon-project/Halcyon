@@ -12,7 +12,7 @@ import { zoomControl, lockRotate, resetCamera } from "./helpers/zoomControl.js";
 import { screenCapture } from "./helpers/elements.js";
 import { shading } from "./helpers/shading.js";
 
-export function toolbar(scene, camera, renderer, controls) {
+export function toolbar(scene, camera, renderer, controls, originalZ) {
   // Enable drawing on the scene
   enableDrawing(scene, camera, renderer, controls);
   rectangle(scene, camera, renderer, controls, {
@@ -23,7 +23,7 @@ export function toolbar(scene, camera, renderer, controls) {
   ellipse(scene, camera, renderer, controls);
   polygon(scene, camera, renderer, controls);
   hollowBrush(scene, camera, renderer, controls);
-  edit(scene, camera, renderer, controls);
+  edit(scene, camera, renderer, controls, originalZ);
   shading(scene);
   grid(scene, camera, renderer);
   ruler(scene, camera, renderer, controls);
@@ -37,5 +37,5 @@ export function toolbar(scene, camera, renderer, controls) {
   save(scene);
   lockRotate(controls);
   resetCamera(controls);
-  zoomControl(camera, controls);
+  zoomControl(camera, controls, originalZ);
 }

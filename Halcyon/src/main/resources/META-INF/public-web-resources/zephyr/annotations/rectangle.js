@@ -111,15 +111,20 @@ export function rectangle(scene, camera, renderer, controls, options) {
 
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
 
-    imgCoords.forEach(vertex => {
-      if (vertex.x < minX) minX = vertex.x;
-      if (vertex.x > maxX) maxX = vertex.x;
-      if (vertex.y < minY) minY = vertex.y;
-      if (vertex.y > maxY) maxY = vertex.y;
-    });
+    for (let i = 0; i < imgCoords.length; i += 2) {
+      const x = imgCoords[i];
+      const y = imgCoords[i + 1];
+
+      minX = Math.min(minX, x);
+      maxX = Math.max(maxX, x);
+      minY = Math.min(minY, y);
+      maxY = Math.max(maxY, y);
+    }
 
     const width = maxX - minX;
     const height = maxY - minY;
+
+    // console.log({minX, maxX, minY, maxY, width, height});
 
     let url = getUrl(scene);
     if (url) {
