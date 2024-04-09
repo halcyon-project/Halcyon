@@ -5,7 +5,7 @@ import { DragControls } from "three/addons/controls/DragControls.js";
 /**
  * Handles the process of selecting objects in a scene for editing, including adding edit handles and a deletion button.
  */
-export function edit(scene, camera, renderer, controls) {
+export function edit(scene, camera, renderer, controls, originalZ) {
   let clicked = false;
   let intersectableObjects = [];
   let editButton = createButton({
@@ -98,7 +98,7 @@ export function edit(scene, camera, renderer, controls) {
   }
 
   const minDistance = 322;
-  const maxDistance = 11000;
+  const maxDistance = originalZ;
 
   function calculateThreshold(currentDistance, minThreshold, maxThreshold) {
     // Clamp currentDistance within the range

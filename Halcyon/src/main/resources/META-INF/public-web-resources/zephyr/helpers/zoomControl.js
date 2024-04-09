@@ -1,6 +1,6 @@
 import { createButton } from "./elements.js";
 
-export function zoomControl(camera, controls) {
+export function zoomControl(camera, controls, originalZ) {
   // Create the select element (dropdown)
   const dropdown = document.createElement('select');
   dropdown.id = 'zoomLevel';
@@ -28,7 +28,7 @@ export function zoomControl(camera, controls) {
 
   // Defined min and max distances for zooming
   const minDistance = 322; // Fully zoomed in (without losing too much clarity)
-  const maxDistance = 11000; // Fully zoomed out (original camera.position.z)
+  const maxDistance = originalZ; // Fully zoomed out (original camera.position.z)
 
   dropdown.addEventListener('change', function() {
     const zoomSelection = parseFloat(this.value);
