@@ -1,11 +1,12 @@
 import * as THREE from 'three';
 import {createButton, removeObject, turnOtherButtonsOff} from "../helpers/elements.js";
 
-export function grid(scene, camera, renderer) {
+export function grid(scene, camera, renderer, controls) {
   const canvas = renderer.domElement;
   const opacity = 0.1;
   let isGridAdded = false;
   let grid;
+  let isDragging = false;
 
   let gridButton = createButton({
     id: "addGrid",
@@ -15,17 +16,40 @@ export function grid(scene, camera, renderer) {
 
   gridButton.addEventListener("click", function () {
     if (isGridAdded) {
+      window.removeEventListener('mousedown', handleMouseDown);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      isDragging = false;
+      controls.enabled = true;
       removeGrid();
       this.classList.replace('btnOn', 'annotationBtn');
-      window.removeEventListener('click', onMouseClick);
     } else {
+      window.addEventListener('mousedown', handleMouseDown);
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+      controls.enabled = false;
       turnOtherButtonsOff(gridButton);
       addGrid();
       this.classList.replace('annotationBtn', 'btnOn');
-      window.addEventListener('click', onMouseClick);
     }
     isGridAdded = !isGridAdded; // Toggle the state
   });
+
+  // Define named functions for event handling
+  function handleMouseDown(event) {
+    isDragging = true;
+    colorSquare(event);
+  }
+
+  function handleMouseMove(event) {
+    if (isDragging) {
+      colorSquare(event);
+    }
+  }
+
+  function handleMouseUp() {
+    isDragging = false;
+  }
 
   function addGrid() {
     // Create a transparent grid overlay.
@@ -36,14 +60,12 @@ export function grid(scene, camera, renderer) {
     for (let i = 0; i < gridSize; i++) {
       for (let j = 0; j < gridSize; j++) {
         const geometry = new THREE.PlaneGeometry(squareSize, squareSize);
-        const material = new THREE.MeshBasicMaterial({ color: 0x0000ff, transparent: true, opacity: opacity });
+        const material = new THREE.MeshBasicMaterial({color: 0x0000ff, transparent: true, opacity: opacity});
         const square = new THREE.Mesh(geometry, material);
 
         // Position each square
         square.position.set(i * squareSize - gridSize * squareSize / 2, j * squareSize - gridSize * squareSize / 2, 0);
-
-        square.userData = { colored: false };
-
+        square.userData = {colored: false};
         grid.add(square);
       }
     }
@@ -77,11 +99,11 @@ export function grid(scene, camera, renderer) {
     squaresToRemove.forEach(square => removeObject(square));
   }
 
-  // Handling Clicks to Color Squares
+  // Handling Dragging to Color Squares
   const raycaster = new THREE.Raycaster();
   const mouse = new THREE.Vector2();
 
-  function onMouseClick(event) {
+  function colorSquare(event) {
     const rect = canvas.getBoundingClientRect();
 
     // Adjust mouse position for canvas offset
@@ -99,12 +121,12 @@ export function grid(scene, camera, renderer) {
 
       if (event.shiftKey && square.userData.colored) {
         // Shift-click on a colored square to un-color it
-        square.material.color.set(0xffffff); // Reset to original color
+        square.material.color.set(0x0000ff); // Reset to original color
         square.material.opacity = opacity; // Reset to original opacity
         square.userData.colored = false;
         square.name = "";
       } else if (!square.userData.colored) {
-        // Regular click to color the square
+        // Regular drag to color the square
         square.material.color.set(0xff0000);
         square.material.opacity = 0.5;
         square.userData.colored = true;

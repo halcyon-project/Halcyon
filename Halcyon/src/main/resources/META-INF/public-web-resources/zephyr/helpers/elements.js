@@ -4,6 +4,7 @@ export function createButton(options) {
   myButton.innerHTML = options.innerHtml;
   myButton.title = options.title;
   myButton.classList.add("annotationBtn");
+  // myButton.style.padding = "10px 20px";
 
   let canvas = document.querySelector('canvas');
   document.body.insertBefore(myButton, canvas);

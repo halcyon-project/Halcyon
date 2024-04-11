@@ -25,7 +25,7 @@ export function toolbar(scene, camera, renderer, controls, originalZ) {
   hollowBrush(scene, camera, renderer, controls);
   edit(scene, camera, renderer, controls, originalZ);
   shading(scene);
-  grid(scene, camera, renderer);
+  grid(scene, camera, renderer, controls);
   ruler(scene, camera, renderer, controls);
   screenCapture(renderer);
   crosshairs(scene, camera);
