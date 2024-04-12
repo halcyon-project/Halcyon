@@ -79,6 +79,7 @@
                         <configuration>
                             <installDir>/Applications</installDir>
                             <type>DMG</type>
+                            <icon>src/main/resources/META-INF/halcyon.icns</icon>
                         </configuration>
                     </execution>
                     <execution>
