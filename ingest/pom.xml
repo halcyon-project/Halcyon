@@ -13,7 +13,7 @@
     </properties>
     <dependencies>
         <dependency>
-            <groupId>com.beust</groupId>
+            <groupId>org.jcommander</groupId>
             <artifactId>jcommander</artifactId>
         </dependency>
         <dependency>
@@ -44,6 +44,7 @@
                     <plugin>
                         <groupId>org.graalvm.buildtools</groupId>
                         <artifactId>native-maven-plugin</artifactId>
+                        <version>0.10.2</version>
                         <extensions>true</extensions>
                         <executions>
                             <execution>
@@ -57,7 +58,6 @@
                         <configuration>
                             <imageName>ingest</imageName>
                             <mainClass>com.ebremer.halcyon.converters.Ingest</mainClass>
-                            <skipNativeBuild>true</skipNativeBuild>
                             <skipNativeTests>true</skipNativeTests>
                             <verbose>true</verbose>
                             <jvmArgs>
@@ -72,6 +72,11 @@
                                 <buildArg>--enable-url-protocols=https</buildArg>
                                 <buildArg>-H:+AddAllCharsets</buildArg>
                                 <buildArg>--static</buildArg>
+                                <buildArg>--strict-image-heap</buildArg>
+                                <buildArg>-march=native</buildArg>
+                                <buildArg>-J-Xmx32G</buildArg>
+                                <buildArg>--no-server</buildArg>
+                                <buildArg>--parallelism=32</buildArg>
                             </buildArgs>
                         </configuration>
                     </plugin>

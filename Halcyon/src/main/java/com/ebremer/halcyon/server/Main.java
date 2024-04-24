@@ -34,6 +34,9 @@ import org.springframework.core.annotation.Order;
 import com.ebremer.halcyon.fuseki.HalcyonProxyServlet;
 import com.ebremer.halcyon.fuseki.SPARQLEndPoint;
 import com.ebremer.halcyon.lib.spatial.Spatial;
+import com.ebremer.halcyon.server.ldp.LDP;
+import jakarta.servlet.Servlet;
+import java.util.UUID;
 import org.mitre.dsmiley.httpproxy.ProxyServlet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,7 +44,10 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.liquibase.LiquibaseAutoConfiguration;
 import org.pac4j.oidc.client.KeycloakOidcClient;
 import org.pac4j.oidc.config.KeycloakOidcConfiguration;
+import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.ssl.DefaultSslBundleRegistry;
+import org.springframework.context.ApplicationContextInitializer;
+import org.springframework.context.ConfigurableApplicationContext;
 
 @SpringBootApplication(exclude = LiquibaseAutoConfiguration.class)
 @Import( {KeycloakServer.class})
@@ -56,7 +62,7 @@ public class Main {
     
     @Autowired
     private KeycloakOidcConfiguration keycloakOidcConfiguration;
-    
+        
     public Main(KeycloakServer properties) {
         this.properties = properties;
         KeycloakProperties.getInstance(properties.getContextPath(), properties.getUsername(), properties.getPassword());
@@ -143,7 +149,7 @@ public class Main {
         srb.setUrlMappings(Arrays.asList("/raptor/*"));
         return srb;
     }
-
+    
     @Bean
     public ServletRegistrationBean proxyServletRegistrationBean() {
         HalcyonSettings settings = HalcyonSettings.getSettings();
@@ -159,7 +165,7 @@ public class Main {
     public FilterRegistrationBean<CustomFilter> KeycloakOIDCFilterFilterRegistration(){
         FilterRegistrationBean<CustomFilter> registration = new FilterRegistrationBean<>();
 	registration.setFilter(new CustomFilter());
-	registration.addUrlPatterns("/HalcyonStorage/*");
+        registration.addUrlPatterns("/ldp/*");
         registration.setOrder(Ordered.HIGHEST_PRECEDENCE + 2);
         return registration;
     }
@@ -181,12 +187,34 @@ public class Main {
         INIT i = new INIT();
         i.init();
         Spatial.init();
-        SpringApplication app = new SpringApplication(Main.class);        
+        SpringApplicationBuilder sab = new SpringApplicationBuilder(Main.class);
+        sab.initializers(new ServletInitializer());
+        SpringApplication app = sab.build();
+        //SpringApplication app = new SpringApplication(Main.class);        
         app.setAdditionalProfiles("production");
         app.setBannerMode(Mode.CONSOLE);
         ApplicationContext yay = app.run(args);
         System.out.println("===================== Welcome to Halcyon!");
     }
+    
+    static class ServletInitializer implements ApplicationContextInitializer<ConfigurableApplicationContext> {
+        @Override
+        public void initialize(ConfigurableApplicationContext applicationContext) {
+            HalcyonSettings.getSettings().GetResourceHandlers().forEach(rh->{
+                ServletRegistrationBean<Servlet> srb = new ServletRegistrationBean();
+                srb.setLoadOnStartup(3);
+                String name = "LDP "+UUID.randomUUID().toString();
+                srb.setBeanName(name);
+                srb.setOrder(Ordered.HIGHEST_PRECEDENCE + 4);
+                srb.addInitParameter("resourceBase", rh.resourceBase().getPath().substring(1));
+                srb.addInitParameter("dirAllowed", "true");
+                System.out.println("Add Path --> "+rh.urlPath()+"  "+rh.resourceBase().getPath().substring(1));
+                srb.setServlet(new LDP());
+                srb.setUrlMappings(Arrays.asList(rh.urlPath()+"*"));
+                applicationContext.getBeanFactory().registerSingleton(name, srb);
+            });
+        }
+    }    
 }
 
     /*

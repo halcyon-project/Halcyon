@@ -68,6 +68,10 @@ public class FileReaderFactoryProvider {
     public static boolean hasReaderFor(Resource iri) {
         return contains(FileUtils.getExtension(iri.getURI()));
     }
+
+    public static boolean hasReaderFor(Path iri) {
+        return contains(FileUtils.getExtension(iri.toString()));
+    }
     
     public static FileReaderFactory getReaderForFormat(Resource iri) {
         //System.out.println(iri.getURI());

@@ -81,7 +81,7 @@
         <springboot.version>3.2.2</springboot.version>
         <exec.longClasspath>true</exec.longClasspath>
         <jena.version>5.0.0</jena.version>
-        <wicket.ver>10.0.0</wicket.ver>
+        <wicket.ver>10.1.0</wicket.ver>
         <beakgraph.version>0.9.0</beakgraph.version>
         <keycloak.version>23.0.4</keycloak.version>
         <hilbert.ver>0.2.3</hilbert.ver>
@@ -101,7 +101,7 @@
         <twelvemonkeys.version>3.10.1</twelvemonkeys.version>
         <!--<log4j.version>2.22.1</log4j.version>-->
         <log4j.version>3.0.0-beta1</log4j.version>
-        <jcommander.version>1.82</jcommander.version>
+        <jcommander.version>1.83</jcommander.version>
         <hibernate-orm.plugin.version>6.2.7.Final</hibernate-orm.plugin.version>
 	<hibernate.c3p0.version>6.2.7.Final</hibernate.c3p0.version>
         <jetty.version>12.0.5</jetty.version>
@@ -289,7 +289,7 @@
                 <version>${jts.version}</version>
             </dependency>
              <dependency>
-                <groupId>com.beust</groupId>
+                <groupId>org.jcommander</groupId>
                 <artifactId>jcommander</artifactId>
                 <version>${jcommander.version}</version>
             </dependency>

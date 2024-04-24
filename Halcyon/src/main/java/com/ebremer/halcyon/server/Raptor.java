@@ -3,6 +3,8 @@ package com.ebremer.halcyon.server;
 import com.ebremer.beakgraph.ng.BGDatasetGraph;
 import com.ebremer.beakgraph.ng.BeakGraph;
 import com.ebremer.halcyon.beakstuff.BeakGraphPool;
+import com.ebremer.halcyon.filesystem.HURI;
+import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
@@ -10,7 +12,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.jena.query.Dataset;
@@ -28,34 +29,33 @@ import org.apache.jena.sparql.core.DatasetGraph;
  * @author erich
  */
 public class Raptor extends HttpServlet {
+    private final String hostname;
     
     public Raptor() {
         System.out.println("Starting Raptor Server...");
+        hostname = HalcyonSettings.getSettings().getHostName();
     }
     
     @Override
     protected void doGet( HttpServletRequest request, HttpServletResponse response ) {
-        try {
-            URI uri = new URI("file:///D:/"+request.getRequestURI().substring("/raptor/".length()));
-            BeakGraph bg = BeakGraphPool.getPool().borrowObject(uri);
-            DatasetGraph dsg = new BGDatasetGraph(bg);
-            Dataset ds = DatasetFactory.wrap(dsg);   
-            Query query = QueryFactory.create(request.getParameter("query"));
-            if (query.isSelectType()) {
-                response.setContentType("application/sparql-results+json");
-                QueryExecution qe = QueryExecutionFactory.create(query,ds);
-                ResultSet rs = qe.execSelect();
-                try (ServletOutputStream sos = response.getOutputStream()) {
-                    ResultSetFormatter.outputAsJSON(sos, rs);
-                } catch (IOException ex) {
-                    Logger.getLogger(Raptor.class.getName()).log(Level.SEVERE, null, ex);
-                }
-                BeakGraphPool.getPool().returnObject(uri, bg);
-            } else {
-                INFO(request,response);
+        String hh = hostname+"/"+request.getRequestURI().substring("/raptor/".length());
+        URI uri = HURI.of(hh);
+        BeakGraph bg = BeakGraphPool.getPool().borrowObject(uri);
+        DatasetGraph dsg = new BGDatasetGraph(bg);
+        Dataset ds = DatasetFactory.wrap(dsg);
+        Query query = QueryFactory.create(request.getParameter("query"));
+        if (query.isSelectType()) {
+            response.setContentType("application/sparql-results+json");
+            QueryExecution qe = QueryExecutionFactory.create(query,ds);
+            ResultSet rs = qe.execSelect();
+            try (ServletOutputStream sos = response.getOutputStream()) {
+                ResultSetFormatter.outputAsJSON(sos, rs);
+            } catch (IOException ex) {
+                Logger.getLogger(Raptor.class.getName()).log(Level.SEVERE, null, ex);
             }
-        } catch (URISyntaxException ex) {
-            Logger.getLogger(Raptor.class.getName()).log(Level.SEVERE, null, ex);
+            BeakGraphPool.getPool().returnObject(uri, bg);
+        } else {
+            INFO(request,response);
         }
         INFO(request,response);
     }

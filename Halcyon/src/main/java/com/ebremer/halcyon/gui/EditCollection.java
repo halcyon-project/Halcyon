@@ -9,6 +9,7 @@ import com.ebremer.ethereal.RDFTextField;
 import com.ebremer.ethereal.SelectDataProvider;
 import com.ebremer.ethereal.Solution;
 import com.ebremer.ns.HAL;
+import com.ebremer.ns.WAC;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.jena.query.Dataset;
@@ -18,8 +19,8 @@ import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.ResourceFactory;
+import org.apache.jena.vocabulary.DCTerms;
 import org.apache.jena.vocabulary.SchemaDO;
-import org.apache.jena.vocabulary.WAC;
 import org.apache.wicket.extensions.ajax.markup.html.repeater.data.table.AjaxFallbackDefaultDataTable;
 import org.apache.wicket.extensions.markup.html.repeater.data.grid.ICellPopulator;
 import org.apache.wicket.extensions.markup.html.repeater.data.table.AbstractColumn;
@@ -36,34 +37,27 @@ import org.apache.wicket.request.mapper.parameter.PageParameters;
  * @author erich
  */
 public class EditCollection extends BasePage {
-    private final String uuid;
     private RDFDetachableModel mod;
     
     public EditCollection(final PageParameters parameters) {
-        uuid = parameters.get("collection").toString();
+        String uuid = parameters.get("container").toString();
+        Resource container = ResourceFactory.createResource(uuid);
         Dataset ds = DatabaseLocator.getDatabase().getDataset();
-        Model m = ModelFactory.createDefaultModel();
+        Model mmm = ModelFactory.createDefaultModel();        
         ds.begin(ReadWrite.READ);
-        m.add(ds.getNamedModel(uuid));
+        mmm.add(ds.getNamedModel(HAL.CollectionsAndResources).getRequiredProperty(container, DCTerms.title, null));
         ds.end();
-        Resource s = ResourceFactory.createResource(uuid);
-        mod = new RDFDetachableModel(m);
+        mod = new RDFDetachableModel(mmm);
         LDModel ldm = new LDModel(mod);
         Form form = new Form("yayaya", ldm);
-        form.add(new RDFTextField<String>("CollectionName", s, SchemaDO.name));
+        form.add(new RDFTextField<String>("ContainerName", container, DCTerms.title));
         form.add(new Button("saveButton2") {
             @Override
             public void onSubmit() {
-                Model after = mod.load();
                 Dataset ds = DatabaseLocator.getDatabase().getDataset();
                 ds.begin(ReadWrite.WRITE);
-                if (ds.containsNamedModel(uuid)) {
-                    System.out.println("REMOVE OLD GRAPH "+uuid);
-                    ds.removeNamedModel(uuid);
-                } else {
-                    System.out.println("DOESNT EXIST OLD GRAPH "+uuid);
-                }
-                ds.addNamedModel(uuid, after);
+                ds.getNamedModel(HAL.CollectionsAndResources).remove(mod.loadOriginal());
+                ds.getNamedModel(HAL.CollectionsAndResources).add(mod.load());
                 ds.commit();
                 ds.end();
                 setResponsePage(Collections.class);

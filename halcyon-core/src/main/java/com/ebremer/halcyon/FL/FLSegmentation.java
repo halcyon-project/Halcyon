@@ -22,6 +22,7 @@ import com.ebremer.halcyon.raptor.Objects.Scale;
 import com.ebremer.halcyon.lib.GeometryTools;
 import com.ebremer.halcyon.utils.ImageTools;
 import com.ebremer.ns.GEO;
+import com.ebremer.ns.SNO;
 import jakarta.json.Json;
 import jakarta.json.JsonArray;
 import jakarta.json.JsonObject;
@@ -60,6 +61,7 @@ import org.apache.jena.sparql.vocabulary.DOAP;
 import org.apache.jena.vocabulary.DCTerms;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.SchemaDO;
+import org.apache.jena.vocabulary.XSD;
 import org.locationtech.jts.geom.Polygon;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -82,15 +84,21 @@ public class FLSegmentation implements FL {
     private String title = null;
     private static String info = null;
     private Future<Model> fmanifest = null;
+    private URI base;
     private static final Logger logger = LoggerFactory.getLogger(FLSegmentation.class);
     
     public FLSegmentation(URI uri) {
+        this(uri, uri);
+    }
+    
+    public FLSegmentation(URI uri, URI base) {
         StopWatch sw = StopWatch.getInstance();
         logger.trace("Create FLSegmentation");
         this.uri = uri;
+        this.base = base;
         this.scales = new ArrayList<>();
         this.classes = new HashMap<>();
-        Model manifest = LoadData();
+        Model manifest = LoadData(base);
         logger.trace(sw.Lapse("Manifest Loaded..."));                
         ParameterizedSparqlString pss = new ParameterizedSparqlString(
             """
@@ -148,7 +156,7 @@ public class FLSegmentation implements FL {
         logger.debug(sw.Lapse("FLSegmentation Loaded..."));
     }
     
-    private synchronized Model LoadData() {
+    private synchronized Model LoadData(URI base) {
         StopWatch sw = StopWatch.getInstance(); 
         if (fmanifest == null) {
             try (ExecutorService engine = Executors.newVirtualThreadPerTaskExecutor()) {
@@ -159,10 +167,10 @@ public class FLSegmentation implements FL {
                         """
                         construct { 
                             ?grid a ?gridType; exif:height ?height; exif:width ?width; hal:tileSizeX ?tileSizeX; hal:tileSizeY ?tileSizeY; hal:scale ?scale . 
-                            ?scale exif:width ?width; exif:height ?height; hal:scaleIndex ?index
+                            ?scale exif:width ?swidth; exif:height ?sheight; hal:scaleIndex ?index
                         } where { 
                             ?grid a ?gridType; exif:height ?height; exif:width ?width; hal:tileSizeX ?tileSizeX; hal:tileSizeY ?tileSizeY; hal:scale ?scale .
-                            ?scale exif:width ?width; exif:height ?height; hal:scaleIndex ?index
+                            ?scale exif:width ?swidth; exif:height ?sheight; hal:scaleIndex ?index
                         }                       
                         """
                     );
@@ -223,11 +231,19 @@ public class FLSegmentation implements FL {
         return null;
     }
     
-    private Model LoadManifest() {      
-        Model src = LoadData();
-        Model copy = ModelFactory.createDefaultModel();
-        copy.add(src);
-        return copy;
+    @Override
+    public Model getManifest(URI xuri) {
+        return LoadManifest(xuri);
+    }
+
+    @Override
+    public Model LoadExtendedManifest(URI xuri) {
+        logger.info("Loading ROCrate Manifest");
+        Model hh = ModelFactory.createDefaultModel();
+        BeakGraph bg = BeakGraphPool.getPool().borrowObject(xuri);        
+        hh.add(bg.getReader().getManifest());
+        BeakGraphPool.getPool().returnObject(xuri, bg);
+        return hh;
     }
     
     @Override
@@ -235,56 +251,26 @@ public class FLSegmentation implements FL {
         logger.info("Loading ROCrate Manifest");
         Model hh = ModelFactory.createDefaultModel();
         BeakGraph bg = BeakGraphPool.getPool().borrowObject(uri);        
-        //Dataset ds = DatasetFactory.wrap(new BGDatasetGraph(bg));
-        //hh.add(ds.getDefaultModel());
         hh.add(bg.getReader().getManifest());
         BeakGraphPool.getPool().returnObject(uri, bg);
         return hh;
-        /*
-        ParameterizedSparqlString pss = new ParameterizedSparqlString(
-            """
-            construct {
-                ?fc a geo:FeatureCollection;
-                    dct:title ?title;
-                    prov:wasGeneratedBy  [ a prov:Activity; prov:used ?used; prov:wasAssociatedWith ?wasAssociatedWith ] .
-                ?fc dct:creator ?creator .
-                ?fc dct:publisher ?publisher .
-                ?fc dct:references ?references .
-                ?fc hal:hasClassification ?hasClassification .
-                ?fc dct:contributor ?contributor .
-                ?fc dct:description ?description
-            }
-            where {
-                ?fc a geo:FeatureCollection;
-                    dct:title ?title;
-                    prov:wasGeneratedBy  [ a prov:Activity; prov:used ?used; prov:wasAssociatedWith ?wasAssociatedWith ] .
-                optional { ?fc dct:creator ?creator }
-                optional { ?fc dct:publisher ?publisher }
-                optional { ?fc dct:references ?references }
-                optional { ?fc hal:hasClassification ?hasClassification }
-                optional { ?fc dct:contributor ?contributor }
-                optional { ?fc dct:description ?description }
-            }
-            """
-        );
-        pss.setNsPrefix("hal", HAL.NS);
-        pss.setNsPrefix("geo", GEO.NS);
-        pss.setNsPrefix("dct", DCTerms.NS);
-        pss.setNsPrefix("exif", EXIF.NS);
-        pss.setNsPrefix("rdfs", RDFS.uri);
-        pss.setNsPrefix("prov", PROVO.NS);      
-        return QueryExecutionFactory.create(pss.toString(), hh).execConstruct();
-        */
+    }
+    
+    @Override
+    public Model getManifest() {
+        return LoadManifest(uri);
+    }
+    
+    private Model LoadManifest(URI xuri) {      
+        Model src = LoadData(xuri);
+        Model copy = ModelFactory.createDefaultModel();
+        copy.add(src);
+        return copy;
     }
         
     @Override
     public List<Scale> getScales() {
         return scales;
-    }
-    
-    @Override
-    public Model getManifest() {
-        return LoadManifest();
     }
     
     @Override
@@ -401,23 +387,48 @@ public class FLSegmentation implements FL {
     @Override
     public Model readTileMeta(ImageRegion r, int series) {
         List<String> list = Search(r.getX(), r.getY(), r.getWidth(), r.getHeight(), series);
-        return generateImageMeta(r.getX(), r.getY(), r.getWidth(), r.getHeight(), series, list);
+        return generateImageMeta(list);
     }
     
-    private Model generateImageMeta(int x, int y, int w, int h, int scale, List<String> list) {
-        Model m = ModelFactory.createDefaultModel();
-        list.parallelStream().forEach(r->{
-            Model mx = ModelFactory.createDefaultModel();
-            mx.setNsPrefix("geo", GEO.NS);
-            mx.setNsPrefix("hal", HAL.NS);
-            BeakGraph bg = BeakGraphPool.getPool().borrowObject(uri);
-            Dataset ds = DatasetFactory.wrap(new BGDatasetGraph(bg));           
+    private Model generateImageMeta(List<String> list) {
+        BeakGraph bg = BeakGraphPool.getPool().borrowObject(uri);
+        Dataset ds = DatasetFactory.wrap(new BGDatasetGraph(bg));
+        final Model mx = ModelFactory.createDefaultModel();
+        mx.setNsPrefix("hal", HAL.NS);
+        mx.setNsPrefix("geo", GEO.NS);
+        mx.setNsPrefix("sno", SNO.NS);
+        mx.setNsPrefix("xsd", XSD.NS);
+        mx.setNsPrefix("asWKT", "geo:asWKT");
+        mx.setNsPrefix("hasGeometry", "geo:hasGeometry");
+        
+        mx.setNsPrefix("hasProbability", "hal:hasProbability");
+        mx.setNsPrefix("classification", "hal:classification");
+        mx.setNsPrefix("measurement", "hal:measurement");
+        list.forEach(r->{
             if (ds.containsNamedModel(r)) {
-                mx.add(ds.getNamedModel(r));
-            }
-            BeakGraphPool.getPool().returnObject(uri, bg);
+                ParameterizedSparqlString pss = new ParameterizedSparqlString(
+                    """
+                    construct {
+                        ?feature geo:hasGeometry ?geo . ?geo geo:asWKT ?wkt .
+                        ?feature hal:classification ?type .
+                        ?feature hal:measurement ?bnode .
+                        ?bnode hal:classification ?type; hal:hasProbability ?probability
+                    } where {
+                        graph ?g { ?feature geo:hasGeometry ?geo . ?geo geo:asWKT ?wkt }
+                        ?feature hal:classification ?type .
+                        ?feature hal:measurement ?bnode .
+                        ?bnode hal:classification ?type; hal:hasProbability ?probability                        
+                    }
+                    """
+                );
+                pss.setNsPrefix("hal", HAL.NS);
+                pss.setNsPrefix("geo", GEO.NS);
+                pss.setIri("g", r);
+                mx.add(QueryExecutionFactory.create(pss.toString(), ds).execConstruct());
+            }            
         });
-        return m;
+        BeakGraphPool.getPool().returnObject(uri, bg);
+        return mx;
     }
     
     private BufferedImage generateImage(int x, int y, int w, int h, int scale, List<String> list) {
@@ -484,7 +495,7 @@ public class FLSegmentation implements FL {
     public String GetIIIFImageInfo(String modbase) {
         logger.info("GetImageInfo : "+modbase);
         if (info==null) {
-            Model mm = LoadManifest();
+            Model mm = LoadManifest(base);
             Resource s = mm.createResource(modbase);
             revise(mm,ResourceFactory.createResource(this.reference),s);
             try {
@@ -623,27 +634,4 @@ public class FLSegmentation implements FL {
     private synchronized void setinfo(String x) {
         info = x;
     }
-
-    /*
-    public static void main(String[] args) throws IOException {
-        LoggerContext loggerContext = (LoggerContext) LoggerFactory.getILoggerFactory();
-        for (ch.qos.logback.classic.Logger logger : loggerContext.getLoggerList()) {
-            System.out.println("Logger: " + logger.getName());
-        }
-        ch.qos.logback.classic.Logger logger = (ch.qos.logback.classic.Logger) LoggerFactory.getLogger("ROOT");        
-        logger.setLevel(ch.qos.logback.classic.Level.OFF);        
-        StopWatch sw = StopWatch.getInstance();
-        File f = new File("/AAA/wow-X7.zip");
-        com.ebremer.beakgraph.ng.BeakGraph g = new com.ebremer.beakgraph.ng.BeakGraph(f.toURI());
-        BGDatasetGraph bg = new BGDatasetGraph(g);      
-        FL fl = new FL(DatasetFactory.wrap(bg));
-        BufferedImage bi = fl.FetchImage(0,0, 112231, 82984, 2000, 2000);
-        try {
-            File outputFile = new File("/AAA/output.png");
-            ImageIO.write(bi, "PNG", outputFile);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        sw.Lapse("DONE");
-    }*/
 }

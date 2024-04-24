@@ -25,7 +25,7 @@ public class SX {
     private final LinkedList<TileRequest> list;
     private int numtiles;
     
-    public SX(URI uri, Rectangle tileSize, Rectangle preferredsize) throws Exception {
+    public SX(URI uri, Rectangle tileSize, Rectangle preferredsize, boolean aspectratio) throws Exception {
         buffer = new LinkedBlockingDeque<>();
         list = new LinkedList<>();
         ImageReader reader = ImageReaderPool.getPool().borrowObject(uri);
@@ -34,7 +34,7 @@ public class SX {
         int numTilesY = (int) Math.round((double) meta.getHeight()/ (double) tileSize.height());
         try {
             final TileRequestEngine tre = new TileRequestEngine(uri);
-            Tile tile = tre.getTile(new ImageRegion(0,0,meta.getWidth(),meta.getHeight()), new Rectangle(meta.getWidth()>>6,0), false);
+            Tile tile = tre.getTile(new ImageRegion(0,0,meta.getWidth(),meta.getHeight()), new Rectangle(meta.getWidth()>>6,0), false, aspectratio);
             boolean[][] background = BackgroundDetector.getBackgroundMask(tile.getBufferedImage(),numTilesX, numTilesY);
             for (int i = 0; i < numTilesX; i++) {
                 for (int j = 0; j < numTilesY; j++) {
@@ -45,7 +45,7 @@ public class SX {
                         int BR = BL+tileSize.height();
                         TR = TR<meta.getWidth()?tileSize.width():TR-meta.getWidth();
                         BR = BR<meta.getHeight()?tileSize.height():BR-meta.getHeight();
-                        list.add(TileRequest.genTileRequest(uri, new ImageRegion(TL,BL,TR,BR), preferredsize, false));
+                        list.add(TileRequest.genTileRequest(uri, new ImageRegion(TL,BL,TR,BR), preferredsize, false, true, false, aspectratio));
                     }
                 }
             }

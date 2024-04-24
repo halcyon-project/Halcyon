@@ -39,9 +39,10 @@ public class TiffImageReader extends AbstractImageReader {
     private final URI uri;
     private static final int METAVERSION = 0;
 
-    public TiffImageReader(URI uri) throws IOException {
+    public TiffImageReader(URI uri, URI base) throws IOException {
         this.uri = uri;
         File file = new File(uri);
+ 
         ImageInputStream input = ImageIO.createImageInputStream(file);
         Iterator<javax.imageio.ImageReader> readers = ImageIO.getImageReadersByFormatName("tif");
         javax.imageio.ImageReader ir = null;
@@ -98,22 +99,22 @@ public class TiffImageReader extends AbstractImageReader {
     @Override
     public BufferedImage readTile(ImageRegion region, com.ebremer.halcyon.lib.Rectangle preferredsize) {
         ImageMeta.ImageScale scale = meta.getBestMatch(Math.max((double) region.getWidth()/(double) preferredsize.width(),(double) region.getHeight()/ (double) preferredsize.height()));
-        return ImageTools.ScaleBufferedImage(readTile(scale.Validate(region.scaleRegion(scale.scale())),scale.series()),preferredsize);
+        return ImageTools.ScaleBufferedImage(readTile(scale.Validate(region.scaleRegion(scale.scale())),scale.series()),preferredsize, true);
     }
 
     @Override
     public ImageMeta getImageMeta() {
         return meta;
     }
-
+    
     @Override
-    public Model getMeta() {                
+    public Model getMeta(URI xuri) {
         Model m = ModelFactory.createDefaultModel();
         m.setNsPrefix("exif", EXIF.NS);
         m.setNsPrefix("sdo", SchemaDO.NS);
         m.setNsPrefix("hal", HAL.NS);
         m.setNsPrefix("xsd", XSD.getURI());
-        Resource root = m.createResource(URITools.fix(uri))                
+        Resource root = m.createResource(URITools.fix(xuri))                
             .addLiteral(HAL.filemetaversion, (Integer) METAVERSION)
             .addLiteral(EXIF.width, meta.getWidth())
             .addLiteral(EXIF.height, meta.getHeight())
@@ -143,7 +144,12 @@ public class TiffImageReader extends AbstractImageReader {
         } catch (IOException ex) {
             Logger.getLogger(TiffImageReader.class.getName()).log(Level.SEVERE, null, ex);
         }        
-        return m;
+        return m;        
+    }
+
+    @Override
+    public Model getMeta() {                
+        return getMeta(uri);
     }
 
     @Override
@@ -161,7 +167,7 @@ public class TiffImageReader extends AbstractImageReader {
     
     public static void main(String[] args) throws IOException {
         File file = new File("D:\\HalcyonStorage\\tcga\\brca\\tif\\TCGA-E2-A1B1-01Z-00-DX1.7C8DF153-B09B-44C7-87B8-14591E319354.tif");
-        TiffImageReader reader = new TiffImageReader(file.toURI());
+        TiffImageReader reader = new TiffImageReader(file.toURI(), file.toURI());
         RDFDataMgr.write(System.out, reader.getMeta(), Lang.TURTLE);
     }
 }

@@ -12,12 +12,12 @@ import java.util.Set;
 public class BeakGraphReaderFactory implements FileReaderFactory {
 
     @Override
-    public BeakGraphFileReader create(URI uri) {
+    public BeakGraphFileReader create(URI uri, URI base) {
         return new BeakGraphFileReader(uri);
     }
 
     @Override
-    public FileReader create(SeekableByteChannel src) {
+    public FileReader create(SeekableByteChannel src, URI base) {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 

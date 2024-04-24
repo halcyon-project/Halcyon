@@ -57,6 +57,7 @@ public class JettyConfiguration implements WebServerFactoryCustomizer<JettyServl
                     }
                 }
             }
+            /*
             if (HalcyonSettings.getSettings().isHTTPS3enabled()) {
                 HttpConfiguration httpConfig = new HttpConfiguration();
                 System.out.println("Setting up HTTP/3...");
@@ -71,7 +72,7 @@ public class JettyConfiguration implements WebServerFactoryCustomizer<JettyServl
                 connector.getQuicConfiguration().setPemWorkDirectory( Paths.get(System.getProperty("java.io.tmpdir")) );
                 connector.setPort(HalcyonSettings.getSettings().GetHTTPSPort());
                 server.addConnector(connector);          
-            }
+            }         */   
         };
         factory.addServerCustomizers(jettyServerCustomizer);
     }

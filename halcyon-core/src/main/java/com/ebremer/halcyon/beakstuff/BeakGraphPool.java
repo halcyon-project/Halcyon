@@ -21,9 +21,9 @@ public class BeakGraphPool {
             config.setMinIdlePerKey(0);
             config.setMaxWait(Duration.ofMillis(20000));
             config.setBlockWhenExhausted(true);
-            config.setMinEvictableIdleTime(Duration.ofMillis(21000));
+            config.setMinEvictableIdleDuration(Duration.ofMillis(21000));
             config.setTimeBetweenEvictionRuns(Duration.ofMillis(21000));
-            pool = new BeakGraphKeyedPool<>(new BeakGraphPoolFactory(config.getBase()),config);
+            pool = new BeakGraphKeyedPool<>(new BeakGraphPoolFactory(),config);
         }
         return pool;
     }

@@ -1,14 +1,11 @@
 package com.ebremer.halcyon.datum;
 
-import com.ebremer.halcyon.data.WACSecurityEvaluator;
 import com.ebremer.halcyon.data.DataCore;
 import com.ebremer.ethereal.MakeList;
-import static com.ebremer.halcyon.data.DataCore.Level.OPEN;
 import com.ebremer.ns.HAL;
+import com.ebremer.ns.LDP;
 import java.util.List;
 import org.apache.jena.graph.Node;
-import org.apache.jena.permissions.model.SecuredModel;
-import org.apache.jena.permissions.model.impl.SecuredModelImpl;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.ParameterizedSparqlString;
 import org.apache.jena.query.QueryExecution;
@@ -16,7 +13,7 @@ import org.apache.jena.query.QueryExecutionFactory;
 import org.apache.jena.query.ReadWrite;
 import org.apache.jena.query.ResultSet;
 import org.apache.jena.rdf.model.Model;
-import org.apache.jena.vocabulary.SchemaDO;
+import org.apache.jena.vocabulary.DCTerms;
 
 /**
  *
@@ -24,38 +21,7 @@ import org.apache.jena.vocabulary.SchemaDO;
  */
 public class Patterns {
     
-    public static List<Node> getCollectionList() {
-        ParameterizedSparqlString pss = new ParameterizedSparqlString( """
-            select ?s ?name
-            where {graph ?s {?s a so:Collection; so:name ?name}}
-        """);
-        pss.setNsPrefix("hal", HAL.NS);
-        pss.setNsPrefix("so", SchemaDO.NS);
-        Dataset ds = DataCore.getInstance().getSecuredDataset();
-        QueryExecution qe = QueryExecutionFactory.create(pss.toString(), ds);
-        ds.begin(ReadWrite.READ);
-        ResultSet rs = qe.execSelect();
-        List<Node> list = MakeList.Of(rs, "s");
-        ds.end();
-        return list;
-    }
-    
-    public static List<Node> getCollectionList(Model m) {
-        ParameterizedSparqlString pss = new ParameterizedSparqlString( """
-            select ?s ?name
-            where {?s a so:Collection; so:name ?name}
-        """);
-        pss.setNsPrefix("hal", HAL.NS);
-        pss.setNsPrefix("so", SchemaDO.NS);
-        //Dataset ds = DataCore.getInstance().getSecuredDataset(OPEN);
-        QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m);
-        //ds.begin(ReadWrite.READ);
-        ResultSet rs = qe.execSelect();
-        List<Node> list = MakeList.Of(rs, "s");
-        //ds.end();
-        return list;
-    }
-    
+    /*
     public static List<Node> getCollectionList(Dataset ds) {
         ParameterizedSparqlString pss = new ParameterizedSparqlString( """
             select ?s ?name
@@ -69,19 +35,20 @@ public class Patterns {
         List<Node> list = MakeList.Of(rs, "s");
         ds.end();
         return list;
-    }
+    }*/
     
     public static Model getCollectionRDF2(Dataset ds) {
         ParameterizedSparqlString pss = new ParameterizedSparqlString( """
-            construct {?s a so:Collection; so:name ?name}
+            construct {?s a ldp:Container; dct:title ?name}
             where {
-                graph ?g {?s a so:Collection}
-                graph ?s {?s a so:Collection; so:name ?name}
+                graph ?g {?s a ldp:Container; dct:title ?name}
             }
         """);
         pss.setNsPrefix("hal", HAL.NS);
-        pss.setNsPrefix("so", SchemaDO.NS);
+        pss.setNsPrefix("ldp", LDP.NS);
+        pss.setNsPrefix("dct", DCTerms.NS);
         pss.setIri("g", HAL.CollectionsAndResources.getURI());
+        System.out.println(pss.toString());
         QueryExecution qe = QueryExecutionFactory.create(pss.toString(), ds);
         Model m;
         try {
@@ -95,11 +62,12 @@ public class Patterns {
     
     public static Model getALLCollectionRDF() {
         ParameterizedSparqlString pss = new ParameterizedSparqlString( """
-            construct {?s a so:Collection; so:name ?name}
-            where {graph ?g {?s a so:Collection; so:name ?name}}
+            construct {?s a ldp:Container; dct:title ?name}
+            where {graph ?g {?s a ldp:Container; dct:title ?name}}
         """);
         pss.setNsPrefix("hal", HAL.NS);
-        pss.setNsPrefix("so", SchemaDO.NS);
+        pss.setNsPrefix("ldp", LDP.NS);
+        pss.setNsPrefix("dct", DCTerms.NS);
         Dataset ds = DataCore.getInstance().getDataset();
         QueryExecution qe = QueryExecutionFactory.create(pss.toString(), ds);
         ds.begin(ReadWrite.READ);
@@ -107,28 +75,19 @@ public class Patterns {
         ds.end();
         return m;
     }
-    
-    public static Model getCollectionRDF() {
-        SecuredModel sec = SecuredModelImpl.getInstance(new WACSecurityEvaluator(OPEN), HAL.CollectionsAndResources.getURI()+"lstm", DataCore.getInstance().getSECM());
-        ParameterizedSparqlString pss = new ParameterizedSparqlString( """
-            construct {?s a so:Collection; so:name ?name}
-            where     {?s a so:Collection; so:name ?name}
-        """);
-        pss.setNsPrefix("hal", HAL.NS);
-        pss.setNsPrefix("so", SchemaDO.NS);
-        return QueryExecutionFactory.create(pss.toString(), sec).execConstruct();
-    }
-    
+        
     public static List<Node> getCollectionList45X(Model m) {
         ParameterizedSparqlString pss = new ParameterizedSparqlString( """
             select ?s
-            where {?s a so:Collection; so:name ?name}
+            where {?s a ldp:Container; dct:title ?name}
             order by ?name
         """);
         pss.setNsPrefix("hal", HAL.NS);
-        pss.setNsPrefix("so", SchemaDO.NS);
+        pss.setNsPrefix("ldp", LDP.NS);
+        pss.setNsPrefix("dct", DCTerms.NS);
         QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m);
         ResultSet rs = qe.execSelect();
-        return MakeList.Of(rs, "s");
+        List<Node> list = MakeList.Of(rs, "s");
+        return list;
     }
 }

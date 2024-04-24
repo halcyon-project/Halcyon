@@ -1,5 +1,6 @@
 package com.ebremer.halcyon.server;
 
+import com.ebremer.halcyon.gui.HalcyonSession;
 import com.ebremer.halcyon.server.keycloak.HalcyonApplianceBootstrap;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import java.util.NoSuchElementException;
@@ -31,7 +32,7 @@ public class App extends KeycloakApplication {
         super.startup();
         System.out.println("Starting Keycloak...");
     }
-
+    
     @Override
     protected void loadConfig() {
 	JsonConfigProviderFactory factory = new JsonProviderFactory();
@@ -52,14 +53,14 @@ public class App extends KeycloakApplication {
             ApplianceBootstrap applianceBootstrap = new ApplianceBootstrap(session);
             try {
                 session.getTransactionManager().begin();
-                //applianceBootstrap.createMasterRealmUser(KeycloakProperties.getInstance().getusername(), KeycloakProperties.getInstance().getpassword());
                 applianceBootstrap.createMasterRealmUser(KeycloakProperties.getInstance().getusername(), KeycloakProperties.getInstance().getpassword());
                 session.getTransactionManager().commit();
             } catch (Exception ex) {
                 logger.warn("Couldn't create keycloak master admin user: {}", ex.getMessage());
                 session.getTransactionManager().rollback();
             }
-	}    }
+	}
+    }
     
     private void createRealmUser(String username, String password) {
 	try (KeycloakSession session = getSessionFactory().create()) {

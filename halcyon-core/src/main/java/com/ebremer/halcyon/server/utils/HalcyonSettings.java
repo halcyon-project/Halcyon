@@ -1,14 +1,16 @@
 package com.ebremer.halcyon.server.utils;
 
 import com.ebremer.ns.HAL;
+import com.ebremer.ns.LDP;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.jena.query.ParameterizedSparqlString;
@@ -21,7 +23,6 @@ import org.apache.jena.query.ResultSet;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.Property;
-import org.apache.jena.rdf.model.ResIterator;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.riot.Lang;
@@ -45,7 +46,7 @@ public final class HalcyonSettings {
     private final Property ZEPHYRLOCATION;
     private static final String MasterSettingsLocation = "settings.ttl";
     private Resource Master;
-    private final HashMap<String,String> mappings;
+    private final HashMap<String,String> http2fileMappings;
     private final HashMap<String,String> file2httpMappings;
     private final String Realm = "master";
     public static final String realm = "Halcyon";
@@ -60,7 +61,7 @@ public final class HalcyonSettings {
     
     private HalcyonSettings() {
         File f = new File(MasterSettingsLocation);
-        mappings = new HashMap<>();
+        http2fileMappings = new HashMap<>();
         file2httpMappings = new HashMap<>();
         if (!f.exists()) {
             System.out.println("no config file found!");
@@ -76,7 +77,7 @@ public final class HalcyonSettings {
         TALONLOCATION = m.createProperty(HAL.NS+"TalonLocation");
         ZEPHYRLOCATION = m.createProperty(HAL.NS+"ZephyrLocation");
     }
-
+    
     public String getwebfiles() {
         return webfiles;
     }
@@ -201,6 +202,64 @@ public final class HalcyonSettings {
         }
         return DEFAULTHOSTIP;
     }
+    
+    public List<ResourceHandler> GetResourceHandlers() {
+        ParameterizedSparqlString pss = new ParameterizedSparqlString(
+                """
+                select distinct ?resourceBase ?urlPath where {
+                    ?s :hasResourceHandler [ a ldp:Container; :resourceBase ?resourceBase ; :urlPath ?urlPath ]
+                }
+                """
+        );
+        pss.setNsPrefix("", HAL.NS);
+        pss.setNsPrefix("ldp", LDP.NS);
+        QueryExecution qe = QueryExecutionFactory.create(pss.toString(),m);
+        ResultSet results = qe.execSelect();
+        ArrayList<ResourceHandler> list = new ArrayList<>();
+        while (results.hasNext()) {        
+            QuerySolution sol = results.next();
+            try {
+                URI srcbase = new URI(sol.get("resourceBase").asResource().getURI());
+                ResourceHandler rh = new ResourceHandler(srcbase, sol.get("urlPath").asLiteral().getString());
+                list.add(rh);
+                if (!http2fileMappings.containsKey(rh.urlPath())) {
+                    http2fileMappings.put(rh.urlPath(), rh.resourceBase().getPath());
+                    file2httpMappings.put(rh.resourceBase().getPath(), rh.urlPath());
+                }
+            } catch (URISyntaxException ex) {
+                Logger.getLogger(HalcyonSettings.class.getName()).log(Level.SEVERE, null, ex);
+            }            
+        }
+        return list;
+    }
+    
+    public List<String> getRootContainers() {
+        ParameterizedSparqlString pss = new ParameterizedSparqlString(
+                """
+                select distinct ?urlPath where {
+                    ?s :hasResourceHandler [ a ldp:Container; :resourceBase ?resourceBase ; :urlPath ?urlPath ]
+                } order by ?urlPath
+                """
+        );
+        pss.setNsPrefix("", HAL.NS);
+        pss.setNsPrefix("ldp", LDP.NS);
+        QueryExecution qe = QueryExecutionFactory.create(pss.toString(),m);
+        ResultSet results = qe.execSelect().materialise();
+        boolean ha = results.hasNext();
+        ArrayList<String> list = new ArrayList<>();
+        results.forEachRemaining(qs->{
+            String key = qs.get("urlPath").asLiteral().getString();
+            Iterator<String> i = list.stream().iterator();
+            boolean add = true;
+            while (i.hasNext()) {
+                add = !key.startsWith(i.next());
+            }
+            if (add) {
+                list.add(key);
+            }
+        });
+        return list;
+    }
         
     public int GetHTTPPort() {
         String qs = "prefix : <"+HAL.NS+"> select ?port where {?s :HTTPPort ?port}";
@@ -273,32 +332,11 @@ public final class HalcyonSettings {
         return null;
     }
     
-    public HashMap<String,String> getmappings() {
-        return mappings;
+    public HashMap<String,String> gethttp2fileMappings() {
+        return http2fileMappings;
     }
 
     public HashMap<String,String> getfile2httpMappings() {
         return file2httpMappings;
-    }
-    
-    public ArrayList<StorageLocation> getStorageLocations() {
-        ArrayList<StorageLocation> list = new ArrayList<>();
-        ResIterator i = m.listResourcesWithProperty(RDF.type,HAL.StorageLocation);
-        while (i.hasNext()) {
-            Resource r = i.next();
-            try {
-                Path p = Path.of(new URI(r.getURI()));
-                String upath= m.getRequiredProperty(r,urlpathprefix).getString();
-                if (!upath.endsWith("/")) {
-                    upath = upath + "/";
-                }
-                list.add(new StorageLocation(p,upath));
-                mappings.put(upath, p.toString());
-                file2httpMappings.put(r.getURI(), upath);
-            } catch (URISyntaxException ex) {
-                Logger.getLogger(HalcyonSettings.class.getName()).log(Level.SEVERE, null, ex);
-            }
-        }
-        return list;
     }
 }

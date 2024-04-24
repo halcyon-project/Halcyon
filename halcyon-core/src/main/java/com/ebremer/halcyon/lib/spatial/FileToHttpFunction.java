@@ -1,6 +1,6 @@
 package com.ebremer.halcyon.lib.spatial;
 
-import com.ebremer.halcyon.server.utils.PathMap;
+import com.ebremer.halcyon.server.utils.PathMapper;
 import org.apache.jena.sparql.expr.NodeValue;
 import org.apache.jena.sparql.function.FunctionBase;
 import java.net.URI;
@@ -15,7 +15,7 @@ public class FileToHttpFunction extends FunctionBase {
     public NodeValue exec(List<NodeValue> args) {
         NodeValue v = args.get(0);
         String uri = v.asNode().getURI();
-        Optional<URI> huri = PathMap.file2http(uri);
+        Optional<URI> huri = PathMapper.getPathMapper().file2http(uri);
         if (huri.isPresent()) {
             return NodeValue.makeNode(NodeFactory.createURI(huri.get().toString()));
         }      

@@ -10,6 +10,7 @@ import com.ebremer.halcyon.puffin.Puffin;
 import com.ebremer.halcyon.puffin.ResourceConverter;
 import com.ebremer.halcyon.wicket.AccountPage;
 import com.ebremer.halcyon.wicket.AdminPage;
+import com.ebremer.halcyon.wicket.Upload;
 import com.ebremer.halcyon.wicket.ethereal.Graph3D;
 import com.ebremer.halcyon.wicket.ethereal.Zephyr;
 import com.ebremer.halcyon.wicket.ethereal.Zephyr2;
@@ -75,7 +76,8 @@ public class HalcyonApplication extends WebApplication {
         mountPage("/login", Login.class);
         mountPage("/ListImages", ListImages.class);
         mountPage("/viewer", MultiViewer.class); 
-        mountPage("/collections", Collections.class);
+        mountPage("/containers", Collections.class);
+        mountPage("/upload", Upload.class);
         mountPage("/sparql", Sparql.class);
         mountPage("/about", About.class);
         mountPage("/threed", Graph3D.class);

@@ -27,8 +27,8 @@ public class TileRequestEngine implements AutoCloseable {
         cache = CacheService.getCache();
     }
     
-    public Future<Tile> getFutureTile(ImageRegion region, Rectangle preferredsize, boolean keep) {
-        return getFutureTile(TileRequest.genTileRequest(uri,region,preferredsize, keep));
+    public Future<Tile> getFutureTile(ImageRegion region, Rectangle preferredsize, boolean keep, boolean aspectratio) {
+        return getFutureTile(TileRequest.genTileRequest(uri,region,preferredsize, keep, true, false, aspectratio));
     }
     
     public Future<Tile> getFutureTile(TileRequest tr) {
@@ -42,8 +42,8 @@ public class TileRequestEngine implements AutoCloseable {
         return future;
     }
     
-    public Tile getTile(ImageRegion region, Rectangle preferredsize, boolean keep) {
-        TileRequest tr = TileRequest.genTileRequest(uri, region, preferredsize, keep);
+    public Tile getTile(ImageRegion region, Rectangle preferredsize, boolean keep, boolean aspectratio) {
+        TileRequest tr = TileRequest.genTileRequest(uri, region, preferredsize, keep, true, false, aspectratio);
         try {
             return getFutureTile(tr).get(1000, TimeUnit.SECONDS);
         } catch (InterruptedException ex) {

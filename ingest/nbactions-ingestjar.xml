@@ -10,9 +10,9 @@
                 <goal>org.codehaus.mojo:exec-maven-plugin:3.1.0:exec</goal>
             </goals>
             <properties>
-                <exec.vmArgs>-XX:+UseZGC -XX:+ZGenerational --enable-preview -Xmx59G -Xms59G -Xss1G --add-opens=java.base/java.nio=ALL-UNNAMED</exec.vmArgs>
+                <exec.vmArgs>-XX:+UseZGC -XX:+ZGenerational --enable-preview -Xmx89G -Xms89G -Xss1G --add-opens=java.base/java.nio=ALL-UNNAMED</exec.vmArgs>
                 <exec.args>${exec.vmArgs} -classpath %classpath ${exec.mainClass} ${exec.appArgs}</exec.args>
-                <exec.appArgs>-validate -src D:\tcga\cvpr-data\rdf\coad -dest D:\tcga\cvpr-data\zip\coad -threads 16</exec.appArgs>
+                <exec.appArgs>-validate -src E:\tcga\cvpr-data\rdf\coad -dest E:\tcga\cvpr-data\zip\coad -threads 16</exec.appArgs>
                 <exec.mainClass>com.ebremer.halcyon.converters.Ingest</exec.mainClass>
                 <exec.executable>java</exec.executable>
             </properties>
@@ -27,9 +27,9 @@
                 <goal>org.codehaus.mojo:exec-maven-plugin:3.1.0:exec</goal>
             </goals>
             <properties>
-                <exec.vmArgs>-XX:+UseZGC -XX:+ZGenerational --enable-preview -Xmx59G -Xms59G -Xss1G --add-opens=java.base/java.nio=ALL-UNNAMED -agentlib:jdwp=transport=dt_socket,server=n,address=${jpda.address}</exec.vmArgs>
+                <exec.vmArgs>-XX:+UseZGC -XX:+ZGenerational --enable-preview -Xmx89G -Xms89G -Xss1G --add-opens=java.base/java.nio=ALL-UNNAMED -agentlib:jdwp=transport=dt_socket,server=n,address=${jpda.address}</exec.vmArgs>
                 <exec.args>${exec.vmArgs} -classpath %classpath ${exec.mainClass} ${exec.appArgs}</exec.args>
-                <exec.appArgs>-validate -src D:\tcga\cvpr-data\rdf\coad -dest D:\tcga\cvpr-data\zip\coad -threads 16</exec.appArgs>
+                <exec.appArgs>-validate -src E:\tcga\cvpr-data\rdf\coad -dest E:\tcga\cvpr-data\zip\coad -threads 16</exec.appArgs>
                 <exec.mainClass>com.ebremer.halcyon.converters.Ingest</exec.mainClass>
                 <exec.executable>java</exec.executable>
                 <jpda.listen>true</jpda.listen>
@@ -45,11 +45,11 @@
                 <goal>org.codehaus.mojo:exec-maven-plugin:3.1.0:exec</goal>
             </goals>
             <properties>
-                <exec.vmArgs>-XX:+UseZGC -XX:+ZGenerational --enable-preview -Xmx59G -Xms59G -Xss1G --add-opens=java.base/java.nio=ALL-UNNAMED</exec.vmArgs>
+                <exec.vmArgs>-XX:+UseZGC -XX:+ZGenerational --enable-preview -Xmx89G -Xms89G -Xss1G --add-opens=java.base/java.nio=ALL-UNNAMED</exec.vmArgs>
                 <exec.args>${exec.vmArgs} -classpath %classpath ${exec.mainClass} ${exec.appArgs}</exec.args>
                 <exec.mainClass>com.ebremer.halcyon.converters.Ingest</exec.mainClass>
                 <exec.executable>java</exec.executable>
-                <exec.appArgs>-validate -src D:\tcga\cvpr-data\rdf\coad -dest D:\tcga\cvpr-data\zip\coad -threads 16</exec.appArgs>
+                <exec.appArgs>-validate -src E:\tcga\cvpr-data\rdf\coad -dest E:\tcga\cvpr-data\zip\coad -threads 16</exec.appArgs>
             </properties>
         </action>
     </actions>
