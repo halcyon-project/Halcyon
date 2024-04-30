@@ -1,0 +1,33 @@
+name: Maven build
+on:
+  release:
+    types: [created]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main branch from GitHub
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'adopt'
+
+      - name: Build Maven Project
+        run: mvn -B package --file pom.xml
+
+      - name: List current directory
+        run: ls -laF
+
+      - name: List target directory
+        run: |
+          ls -laF Halcyon
+          ls -laF Halcyon/target
+
+      - name: '📦 Upload Package'
+        run: gh release upload ${{github.event.release.tag_name}} Halcyon/target/Halcyon*.jar
+        env:
+          GITHUB_TOKEN: ${{ github.TOKEN }}
+        shell: bash
