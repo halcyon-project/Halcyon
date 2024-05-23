@@ -1,0 +1,36 @@
+name: Publish project to Maven repository
+# Trigger workflow manually
+on: workflow_dispatch
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      # Checkout code from the repository
+      - uses: actions/checkout@v4
+
+      # Set up JDK
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      # Set up the Maven settings (credentials)
+      - name: Configure Maven settings
+        uses: s4u/maven-settings-action@v3.0.0
+        with:
+          servers: |
+            [{
+              "id": "halcyon",
+              "username": "${{ secrets.MAVEN_NAME }}",
+              "password": "${{ secrets.MAVEN_SECRET }}"
+            }]
+
+      # Build and package the Maven project
+      - name: Build Maven Project
+        run: mvn -B package --file pom.xml
+
+      # Deploy to the repository
+      - name: Deploy with Maven
+        run: mvn deploy

@@ -1,33 +1,102 @@
-name: Maven build
+name: Build and Package
 on:
   release:
     types: [created]
+
 jobs:
-  build:
+  package-ubuntu:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout main branch from GitHub
         uses: actions/checkout@v4
 
-      - name: Set up JDK
+      - name: Set up JDK for Ubuntu
         uses: actions/setup-java@v4
         with:
           java-version: '21'
-          distribution: 'adopt'
+          distribution: 'temurin'
 
       - name: Build Maven Project
         run: mvn -B package --file pom.xml
 
-      - name: List current directory
-        run: ls -laF
+      - name: Upload JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: halcyon-jar
+          path: Halcyon/target/Halcyon*.jar
 
-      - name: List target directory
+      - name: Build Ubuntu package with jpackage
         run: |
-          ls -laF Halcyon
-          ls -laF Halcyon/target
+          cd Halcyon
+          mvn jpackage:jpackage@ubuntu
 
       - name: '📦 Upload Package'
-        run: gh release upload ${{github.event.release.tag_name}} Halcyon/target/Halcyon*.jar
+        run: |
+          gh release upload ${{github.event.release.tag_name}} Halcyon/target/Halcyon*.jar
+          gh release upload ${{github.event.release.tag_name}} Halcyon/dist/halcyon*.deb
         env:
           GITHUB_TOKEN: ${{ github.TOKEN }}
         shell: bash
+
+  package-mac:
+    needs: package-ubuntu
+    runs-on: macos-latest
+    steps:
+      - name: Checkout main branch from GitHub
+        uses: actions/checkout@v4
+
+      - name: Set up JDK for Mac
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Download JAR
+        uses: actions/download-artifact@v4
+        with:
+          name: halcyon-jar
+          path: Halcyon/target
+
+      - name: Build macOS package with jpackage
+        run: |
+          cd Halcyon
+          mvn jpackage:jpackage@mac
+
+      - name: '📦 Upload macOS Package'
+        run: gh release upload ${{github.event.release.tag_name}} Halcyon/dist/Halcyon*.dmg
+        env:
+          GITHUB_TOKEN: ${{ github.TOKEN }}
+
+  package-windows:
+    needs: package-ubuntu
+    runs-on: windows-latest
+    steps:
+      - name: Checkout main branch from GitHub
+        uses: actions/checkout@v4
+
+      - name: Set up JDK for Windows
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Download JAR
+        uses: actions/download-artifact@v4
+        with:
+          name: halcyon-jar
+          path: Halcyon\target
+
+      - name: Build Windows package with jpackage
+        run: |
+          cd Halcyon
+          mvn jpackage:jpackage@win
+
+      - name: '📦 Upload Windows Package'
+        run: |
+          $files = Get-ChildItem Halcyon\dist\Halcyon*.msi
+          foreach ($file in $files) {
+            gh release upload ${{github.event.release.tag_name}} $file.FullName
+          }
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ github.TOKEN }}
