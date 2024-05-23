@@ -1,4 +1,4 @@
-name: Build and Package
+name: Build, Package, Deploy
 on:
   release:
     types: [created]
@@ -7,17 +7,34 @@ jobs:
   package-ubuntu:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout main branch from GitHub
+      - name: Checkout code from the repository
         uses: actions/checkout@v4
 
-      - name: Set up JDK for Ubuntu
+      # Set up JDK
+      - name: Set up JDK
         uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'temurin'
 
+      # Set up the Maven settings (credentials)
+      - name: Configure Maven settings
+        uses: s4u/maven-settings-action@v3.0.0
+        with:
+          servers: |
+            [{
+              "id": "halcyon",
+              "username": "${{ secrets.MAVEN_NAME }}",
+              "password": "${{ secrets.MAVEN_SECRET }}"
+            }]
+
+      # Build and package the Maven project
       - name: Build Maven Project
         run: mvn -B package --file pom.xml
+
+      # Deploy to Halcyon Public Maven repository
+      - name: Deploy with Maven
+        run: mvn deploy
 
       - name: Upload JAR
         uses: actions/upload-artifact@v4
