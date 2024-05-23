@@ -10,7 +10,9 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Ensure the full history is fetched
 
       - name: Generate release notes
         id: generate_release_notes
@@ -19,11 +21,17 @@ jobs:
           latest_release=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest)
           release_tag=$(echo $latest_release | jq -r .tag_name)
 
+          echo "Latest release tag: $release_tag"
+
           # Generate contributors list
-          contributors=$(git log --pretty="%an" ${release_tag}^..HEAD | sort | uniq | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          contributors=$(git log --pretty="%an" ${release_tag}..HEAD | sort | uniq | jq -R -s -c 'split("\n") | map(select(length > 0))')
+
+          echo "Contributors: $contributors"
 
           # Generate changelog
-          changelog=$(git log --pretty=format:"- %s" ${release_tag}^..HEAD | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          changelog=$(git log --pretty=format:"- %s" ${release_tag}..HEAD | jq -R -s -c 'split("\n") | map(select(length > 0))')
+
+          echo "Changelog: $changelog"
 
           # Create the release notes
           cat <<EOF > release_notes.md
@@ -36,17 +44,12 @@ jobs:
           $changelog
           EOF
 
+          # Display the generated release notes for debugging
+          cat release_notes.md
+
       - name: Update release with notes
-#        id: update_release
-#        uses: oktapodia/update-release@v1
-#        with:
-##          github_token: ${{ secrets.GITHUB_TOKEN }}
-#          github_token: ${{ github.TOKEN }}
-#          release_id: ${{ github.event.release.id }}
-#          body_path: release_notes.md
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7
         with:
-#          github-token: ${{ secrets.GITHUB_TOKEN }}
           github-token: ${{ github.TOKEN }}
           script: |
             const fs = require('fs');
