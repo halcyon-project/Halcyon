@@ -1,18 +1,65 @@
 import * as THREE from 'three';
-import {createButton, textInputPopup, deleteIcon, turnOtherButtonsOff} from "../helpers/elements.js";
+import { createButton, textInputPopup, deleteIcon, turnOtherButtonsOff } from "../helpers/elements.js";
 import { getMousePosition } from "../helpers/mouse.js";
 
 export function hollowBrush(scene, camera, renderer, controls) {
+  let brushSize = 100; // Size of the brush
+  let brushShapeGroup = new THREE.Group(); // Group to hold brush shapes
+  let isDrawing = false; // Flag to check if drawing is active
+  let mouseIsPressed = false;
+  let circles = []; // Array to store circle data for JSTS union
+
   let brushButton = createButton({
     id: "brushButton",
-    // innerHtml: "<i class=\"fa-solid fa-brush\"></i>",
     innerHtml: "<i class=\"fa-solid fa-broom\"></i>",
     title: "Brush Outline"
   });
 
-  let isDrawing = false; // Flag to check if drawing is active
-  let mouseIsPressed = false;
+  // Create the brush size slider
+  const slider = document.createElement('input');
+  slider.type = 'range';
+  slider.id = 'brushSizeSlider';
+  slider.min = '10';
+  slider.max = '200';
+  slider.value = '100';
+  slider.title = "Brush Size";
 
+  document.body.insertBefore(slider, document.querySelector('canvas'));
+
+  slider.addEventListener('input', onSliderInput);
+  slider.addEventListener('change', onSliderChange);
+
+  function onSliderInput(event) {
+    // Slider is moving
+    brushSize = event.target.value;
+    updateTempCircle();
+  }
+
+  function onSliderChange(event) {
+    // Slider has stopped moving (mouseup)
+    brushSize = event.target.value;
+    removeTempCircle();
+  }
+
+  let tempCircle = null;
+  function updateTempCircle() {
+    if (tempCircle) {
+      scene.remove(tempCircle);
+    }
+    let geometry = new THREE.CircleGeometry(brushSize, 32);
+    let material = new THREE.MeshBasicMaterial({ color: 0x00ff00, opacity: 0.5, transparent: true });
+    tempCircle = new THREE.Mesh(geometry, material);
+    scene.add(tempCircle);
+  }
+
+  function removeTempCircle() {
+    if (tempCircle) {
+      scene.remove(tempCircle);
+      tempCircle = null;
+    }
+  }
+
+  // Add event listener to the brush button
   brushButton.addEventListener("click", function () {
     if (isDrawing) {
       isDrawing = false;
@@ -32,9 +79,6 @@ export function hollowBrush(scene, camera, renderer, controls) {
     }
   });
 
-  let brushSize = 100; // Size of the brush
-  let brushShapeGroup = new THREE.Group(); // Group to hold brush shapes
-
   // Function to start drawing
   function onMouseDown() {
     if (isDrawing) {
@@ -43,8 +87,6 @@ export function hollowBrush(scene, camera, renderer, controls) {
       scene.add(brushShapeGroup);
     }
   }
-
-  let circles = []; // Array to store circle data for JSTS
 
   // Function to draw the brush shape
   function onMouseMove(event) {
