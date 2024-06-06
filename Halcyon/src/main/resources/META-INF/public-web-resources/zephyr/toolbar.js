@@ -1,3 +1,7 @@
+// Define global variables
+window.cancerColor = '';
+window.cancerType = '';
+
 import { enableDrawing } from './annotations/free-drawing.js';
 import { rectangle } from './annotations/rectangle.js';
 import { ellipse } from './annotations/ellipse.js';
@@ -11,9 +15,10 @@ import { save } from "./annotations/save.js";
 import { zoomControl, lockRotate, resetCamera } from "./helpers/zoomControl.js";
 import { screenCapture } from "./helpers/elements.js";
 import { shading } from "./helpers/shading.js";
+import { colorPalette } from "./helpers/colorPalette.js";
 
 export function toolbar(scene, camera, renderer, controls, originalZ) {
-  // Enable drawing on the scene
+  colorPalette();
   enableDrawing(scene, camera, renderer, controls);
   rectangle(scene, camera, renderer, controls, {
     button: "<i class=\"fa-regular fa-square\"></i>",
