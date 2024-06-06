@@ -107,7 +107,7 @@ export function screenCapture(renderer) {
   let downloadButton = createButton({
     id: "download",
     innerHtml: "<i class=\"fas fa-camera\"></i>",
-    title: "download"
+    title: "Download"
   });
 
   downloadButton.addEventListener('click', () => {

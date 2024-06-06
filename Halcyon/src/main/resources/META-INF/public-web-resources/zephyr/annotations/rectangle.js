@@ -7,7 +7,7 @@ export function rectangle(scene, camera, renderer, controls, options) {
   let rectangleButton = createButton({
     id: options.select ? "selection" : "rectangle",
     innerHtml: options.button,
-    title: options.select ? "select for algorithm" : "rectangle"
+    title: options.select ? "Select for Algorithm" : "Rectangle"
   });
 
   rectangleButton.addEventListener("click", function () {

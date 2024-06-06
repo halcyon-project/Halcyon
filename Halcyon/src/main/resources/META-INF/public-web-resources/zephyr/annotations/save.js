@@ -8,7 +8,7 @@ export function save(scene) {
   const saveButton = createButton({
     id: "save",
     innerHtml: "<i class=\"fas fa-save\"></i>",
-    title: "save"
+    title: "Save"
   });
 
   saveButton.addEventListener("click", function () {

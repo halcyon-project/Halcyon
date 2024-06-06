@@ -7,7 +7,7 @@ export function hollowBrush(scene, camera, renderer, controls) {
     id: "brushButton",
     // innerHtml: "<i class=\"fa-solid fa-brush\"></i>",
     innerHtml: "<i class=\"fa-solid fa-broom\"></i>",
-    title: "brush outline"
+    title: "Brush Outline"
   });
 
   let isDrawing = false; // Flag to check if drawing is active

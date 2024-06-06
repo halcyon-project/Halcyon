@@ -5,7 +5,7 @@ export function shading(scene) {
   let button = createButton({
     id: "shading",
     innerHtml: "<i class=\"fa-solid fa-brush\"></i>",
-    title: "toggle shading"
+    title: "Toggle Shading"
   });
   let isShaded = false; // Track whether the shader is applied
 

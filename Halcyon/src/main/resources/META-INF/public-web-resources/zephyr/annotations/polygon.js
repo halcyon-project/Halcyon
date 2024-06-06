@@ -6,7 +6,7 @@ export function polygon(scene, camera, renderer, controls) {
   let polygonButton = createButton({
     id: "polygon",
     innerHtml: "<i class=\"fa-solid fa-draw-polygon\"></i>",
-    title: "polygon"
+    title: "Polygon"
   });
 
   polygonButton.addEventListener("click", function () {

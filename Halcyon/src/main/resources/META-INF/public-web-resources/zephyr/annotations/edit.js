@@ -11,7 +11,7 @@ export function edit(scene, camera, renderer, controls, originalZ) {
   let editButton = createButton({
     id: "edit",
     innerHtml: "<i class=\"fas fa-edit\"></i>",
-    title: "edit polygon"
+    title: "Edit"
   });
 
   editButton.addEventListener("click", function () {

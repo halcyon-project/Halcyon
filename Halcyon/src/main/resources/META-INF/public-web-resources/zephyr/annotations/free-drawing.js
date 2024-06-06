@@ -10,7 +10,7 @@ export function enableDrawing(scene, camera, renderer, controls) {
   let btnDraw = createButton({
     id: "toggleButton",
     innerHtml: "<i class=\"fas fa-pencil-alt\"></i>",
-    title: "free-draw"
+    title: "Free Drawing"
   });
 
   let isDrawing = false;
