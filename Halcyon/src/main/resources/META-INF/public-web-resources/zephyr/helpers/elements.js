@@ -132,8 +132,7 @@ export function deleteIcon(event, mesh, scene) {
 
   // Create the div and set its position
   const iconDiv = document.createElement('div');
-  iconDiv.innerHTML = '<i class="fa fa-trash"></i>';
-  iconDiv.style.color = '#0000ff';
+  iconDiv.innerHTML = '<i class="fa fa-trash" style="color: #0000ff;"></i>';
   iconDiv.style.position = 'absolute';
   iconDiv.style.left = `${divPosX}px`;
   iconDiv.style.top = `${divPosY}px`;
