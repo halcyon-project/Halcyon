@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import {createButton, textInputPopup, turnOtherButtonsOff} from "../helpers/elements.js";
+import {createButton, textInputPopup, turnOtherButtonsOff} from "./elements.js";
 import { DragControls } from "three/addons/controls/DragControls.js";
 
 /**
@@ -11,7 +11,7 @@ export function edit(scene, camera, renderer, controls, originalZ) {
   let editButton = createButton({
     id: "edit",
     innerHtml: "<i class=\"fas fa-edit\"></i>",
-    title: "edit polygon"
+    title: "Edit"
   });
 
   editButton.addEventListener("click", function () {
@@ -77,7 +77,7 @@ export function edit(scene, camera, renderer, controls, originalZ) {
 
     // Create and position the button
     const button = document.createElement('div');
-    button.innerHTML = '<i class="fa fa-trash"></i>';
+    button.innerHTML = '<i class="fa fa-trash" style="color: #0000ff;"></i>';
     document.body.appendChild(button);
     button.style.position = 'absolute';
     button.style.left = `${x}px`;
@@ -117,6 +117,8 @@ export function edit(scene, camera, renderer, controls, originalZ) {
 
     // Adjust the threshold based on the distance
     raycaster.params.Line.threshold = calculateThreshold(distance, 200, 5500); // 250/8000
+    // raycaster.params.Line.threshold = 5000;
+
     let size = calculateThreshold(distance, 3, 100);
 
     // Get the canvas element and its bounding rectangle
@@ -188,7 +190,7 @@ export function edit(scene, camera, renderer, controls, originalZ) {
 
   function turnOffEdit() {
     // Remove delete buttons
-    const divs = Array.from(document.querySelectorAll('div')).filter(div => div.innerHTML.trim() === '<i class="fa fa-trash"></i>');
+    const divs = Array.from(document.querySelectorAll('div')).filter(div => div.innerHTML.trim() === '<i class="fa fa-trash" style="color: #0000ff;"></i>');
     divs.forEach(div => {
       document.body.removeChild(div);
     });

@@ -5,7 +5,7 @@ export function crosshairs(scene, camera) {
   let crossButton = createButton({
     id: "crosshairs",
     innerHtml: "<i class=\"fas fa-crosshairs\"></i>",
-    title: "crosshairs"
+    title: "Crosshairs"
   });
 
   let crosshairsVisible = false;

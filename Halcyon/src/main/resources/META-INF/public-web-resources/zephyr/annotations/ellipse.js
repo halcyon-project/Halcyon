@@ -6,7 +6,7 @@ export function ellipse(scene, camera, renderer, controls) {
   let ellipseButton = createButton({
     id: "ellipse",
     innerHtml: "<i class=\"fa-regular fa-circle\"></i>",
-    title: "ellipse"
+    title: "Ellipse"
   });
 
   ellipseButton.addEventListener("click", function () {

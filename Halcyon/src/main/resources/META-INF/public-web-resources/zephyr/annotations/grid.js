@@ -11,7 +11,7 @@ export function grid(scene, camera, renderer, controls) {
   let gridButton = createButton({
     id: "addGrid",
     innerHtml: "<i class=\"fas fa-border-all\"></i>",
-    title: "add grid"
+    title: "Grid"
   });
 
   gridButton.addEventListener("click", function () {

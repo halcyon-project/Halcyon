@@ -10,12 +10,13 @@ export function enableDrawing(scene, camera, renderer, controls) {
   let btnDraw = createButton({
     id: "toggleButton",
     innerHtml: "<i class=\"fas fa-pencil-alt\"></i>",
-    title: "free-draw"
+    title: "Free Drawing"
   });
 
   let isDrawing = false;
   let mouseIsPressed = false;
-  let color = "#0000ff";
+  let color = "#0000ff"; // Default color
+  let type = "";
 
   btnDraw.addEventListener("click", function () {
     if (isDrawing) {
@@ -28,6 +29,26 @@ export function enableDrawing(scene, camera, renderer, controls) {
       renderer.domElement.removeEventListener("mouseup", onMouseUp);
       renderer.domElement.removeEventListener("pointerdown", onPointerDown);
     } else {
+      // Set the color and type before starting to draw
+      if (window.cancerColor && window.cancerColor.length > 0) {
+        color = window.cancerColor;
+        type = window.cancerType;
+        // console.log(color, type);
+      } else {
+        // console.log("here");
+        color = "#0000ff";
+        type = "";
+      }
+
+      // Create a material for the line with the current color
+      lineMaterial = new THREE.LineBasicMaterial({color, linewidth: 5});
+      lineMaterial.polygonOffset = true; // Prevent z-fighting (which causes flicker)
+      lineMaterial.polygonOffsetFactor = -1; // Push the polygon further away from the camera
+      lineMaterial.depthTest = false;  // Render on top
+      lineMaterial.depthWrite = false; // Object won't be occluded
+      lineMaterial.transparent = true; // Material transparent
+      lineMaterial.alphaTest = 0.5;    // Pixels with less than 50% opacity will not be rendered
+
       // Drawing on
       isDrawing = true;
       turnOtherButtonsOff(btnDraw);
@@ -42,14 +63,6 @@ export function enableDrawing(scene, camera, renderer, controls) {
   });
 
   let lineMaterial = new THREE.LineBasicMaterial({color, linewidth: 5});
-
-  // Dashed Line Issue Solution
-  lineMaterial.polygonOffset = true; // Prevent z-fighting (which causes flicker)
-  lineMaterial.polygonOffsetFactor = -1; // Push the polygon further away from the camera
-  lineMaterial.depthTest = false;  // Render on top
-  lineMaterial.depthWrite = false; // Object won't be occluded
-  lineMaterial.transparent = true; // Material transparent
-  lineMaterial.alphaTest = 0.5;    // Pixels with less than 50% opacity will not be rendered
 
   let line;
   let currentPolygonPositions = []; // Store positions for current polygon
@@ -119,10 +132,12 @@ export function enableDrawing(scene, camera, renderer, controls) {
 
       // toImageCoords(currentPolygonPositions, scene);
       // deleteIcon(event, line, scene);
-
-      textInputPopup(event, line);
-
+      // textInputPopup(event, line);
       // console.log("line:", line);
+
+      if (type.length > 0) {
+        line.userData.text = window.cancerType;
+      }
 
       currentPolygonPositions = []; // Clear the current polygon's array for the next drawing
     }

@@ -1,9 +1,9 @@
 import * as THREE from "three";
 import { FontLoader } from "three/addons/loaders/FontLoader.js";
 import { TextGeometry } from "three/addons/geometries/TextGeometry.js";
-import { createButton } from "../helpers/elements.js";
-import { getMousePosition } from "../helpers/mouse.js";
-import { pixelsToMicrons } from "../helpers/conversions.js";
+import { createButton } from "./elements.js";
+import { getMousePosition } from "./mouse.js";
+import { pixelsToMicrons } from "./conversions.js";
 
 export function ruler(scene, camera, renderer, controls) {
   let isDrawing = false;
@@ -14,7 +14,7 @@ export function ruler(scene, camera, renderer, controls) {
   let rulerButton = createButton({
     id: "ruler",
     innerHtml: "<i class=\"fas fa-ruler\"></i>",
-    title: "ruler"
+    title: "Ruler"
   });
 
   let fontLoader = new FontLoader();

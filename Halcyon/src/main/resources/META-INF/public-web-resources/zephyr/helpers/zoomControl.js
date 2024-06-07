@@ -59,7 +59,7 @@ export function lockRotate(controls) {
   let lockButton = createButton({
     id: "rotation",
     innerHtml: "<i class=\"fa-solid fa-rotate\"></i>",
-    title: "toggle rotation"
+    title: "Toggle Rotation"
   });
 
   let locked = false;
@@ -85,7 +85,7 @@ export function resetCamera(controls) {
   let button = createButton({
     id: "resetButton",
     innerHtml: "<i class=\"fa-solid fa-compass\"></i>",
-    title: "reset view"
+    title: "Reset View"
   });
 
   button.addEventListener("click", function () {
