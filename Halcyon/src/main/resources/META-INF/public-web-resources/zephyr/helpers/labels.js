@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { createButton, textInputPopup } from "../helpers/elements.js";
+import { createButton, textInputPopup, turnOtherButtonsOff } from "../helpers/elements.js";
 
 export function label(scene, camera, renderer, controls, originalZ) {
   const labelBtn = createButton({
@@ -17,6 +17,7 @@ export function label(scene, camera, renderer, controls, originalZ) {
     clicked = !clicked;
     if (clicked) {
       // alert("on!");
+      turnOtherButtonsOff(labelBtn);
       controls.enabled = false;
       this.classList.replace('annotationBtn', 'btnOn');
       getAnnotationObjects();
@@ -47,25 +48,30 @@ export function label(scene, camera, renderer, controls, originalZ) {
     const distance = camera.position.distanceTo(scene.position);
 
     // Adjust the threshold based on the distance
-    raycaster.params.Line.threshold = calculateThreshold(distance, 200, 5500); // 250/8000
+    raycaster.params.Line.threshold = calculateThreshold(distance, 100, 1000); // 200/5500
     // raycaster.params.Line.threshold = 2500;
+    // console.log("raycaster line threshold", raycaster.params.Line.threshold);
 
     const rect = renderer.domElement.getBoundingClientRect();
     mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
     raycaster.setFromCamera(mouse, camera);
 
-    const intersects = raycaster.intersectObjects(objects, true);
-    if (intersects.length > 0) {
-      // Sort by distance to the camera
-      // intersects.sort((a, b) => a.distance - b.distance);
-      const selectedMesh = intersects[0].object;
-      console.log("selectedMesh", selectedMesh);
-      textInputPopup(event, selectedMesh);
+    try {
+      const intersects = raycaster.intersectObjects(objects, true);
+      if (intersects.length > 0) {
+        // Sort by distance to the camera
+        // intersects.sort((a, b) => a.distance - b.distance);
+        const selectedMesh = intersects[0].object;
+        // console.log("selectedMesh", selectedMesh);
+        textInputPopup(event, selectedMesh);
+      }
+      // else {
+      //   console.log("nothing");
+      // }
+    } catch (error) {
+      console.error("Intersection error:", error);
     }
-    // else {
-    //   console.log("nothing");
-    // }
   }
 
   // Helper function to calculate the threshold based on the distance
