@@ -15,8 +15,9 @@ import { crosshairs } from "./helpers/crosshairs.js";
 import { save } from "./helpers/save.js";
 import { zoomControl, lockRotate, resetCamera } from "./helpers/zoomControl.js";
 import { screenCapture } from "./helpers/elements.js";
-import { shading } from "./helpers/shading.js";
+// import { shading } from "./helpers/shading.js";
 import { colorPalette } from "./helpers/colorPalette.js";
+import { brightContrast} from "./helpers/brightContrast.js";
 
 export function toolbar(scene, camera, renderer, controls, originalZ) {
   colorPalette();
@@ -31,7 +32,7 @@ export function toolbar(scene, camera, renderer, controls, originalZ) {
   hollowBrush(scene, camera, renderer, controls);
   edit(scene, camera, renderer, controls, originalZ);
   label(scene, camera, renderer, controls, originalZ);
-  shading(scene);
+  // shading(scene);
   grid(scene, camera, renderer, controls);
   ruler(scene, camera, renderer, controls);
   screenCapture(renderer);
@@ -45,4 +46,5 @@ export function toolbar(scene, camera, renderer, controls, originalZ) {
   lockRotate(controls);
   resetCamera(controls);
   zoomControl(camera, controls, originalZ);
+  brightContrast(scene);
 }

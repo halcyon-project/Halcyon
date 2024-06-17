@@ -9,6 +9,11 @@ export function shading(scene) {
   });
   let isShaded = false; // Track whether the shader is applied
 
+  /**
+   * Toggles the shading of all squares in the scene. If the shading is currently applied,
+   * restores the original material of each square. Otherwise, applies shading to each square
+   * by modifying its material.
+   */
   function colorFun() {
     // All squares
     const squares = findObjectsByName(scene, "Square");
@@ -48,6 +53,12 @@ export function shading(scene) {
     return result;
   }
 
+  /**
+   * Applies a custom shader material to a mesh to shade it based on a threshold value.
+   *
+   * @param {THREE.Mesh} mesh - The mesh to apply the shader material to.
+   * @return {void} This function does not return any value.
+   */
   function shadeIt(mesh) {
     if (!mesh.material.map) return;
 
