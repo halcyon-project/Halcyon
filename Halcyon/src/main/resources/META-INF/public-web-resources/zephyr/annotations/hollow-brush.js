@@ -20,7 +20,7 @@ export function hollowBrush(scene, camera, renderer, controls) {
   slider.type = 'range';
   slider.id = 'brushSizeSlider';
   slider.min = '10';
-  slider.max = '200';
+  slider.max = '1000';
   slider.value = '100';
   slider.title = "Brush Size";
 
@@ -55,6 +55,8 @@ export function hollowBrush(scene, camera, renderer, controls) {
   function removeTempCircle() {
     if (tempCircle) {
       scene.remove(tempCircle);
+      tempCircle.geometry.dispose();
+      tempCircle.material.dispose();
       tempCircle = null;
     }
   }

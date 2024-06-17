@@ -94,7 +94,7 @@ export function ruler(scene, camera, renderer, controls) {
         circleGeometry.setFromPoints(points);
         circle = new THREE.LineLoop(circleGeometry, circleMaterial);
         circle.computeLineDistances(); // Needed for dashed lines
-        // circle.visible = false;
+        circle.visible = false;
         circle.renderOrder = 997;
         scene.add(circle);
       }
