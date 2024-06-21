@@ -12,6 +12,35 @@ export function createButton(options) {
   return myButton;
 }
 
+export function createSlider({ id, title, min, max, step, value }) {
+  const sliderContainer = document.createElement('div');
+  const sliderLabel = document.createElement('label');
+  const slider = document.createElement('input');
+
+  sliderContainer.className = 'slider-container';
+  sliderLabel.htmlFor = id;
+  // sliderLabel.textContent = title;
+  sliderLabel.innerHTML = title;
+  slider.type = 'range';
+  slider.id = id;
+  slider.min = min;
+  slider.max = max;
+  slider.step = step;
+  slider.value = value;
+
+  sliderContainer.appendChild(sliderLabel);
+  sliderContainer.appendChild(slider);
+
+  // Apply CSS to make the container inline-block
+  sliderContainer.style.display = 'inline-block';
+  sliderContainer.style.marginRight = '10px'; // add some space between sliders
+
+  let canvas = document.querySelector('canvas');
+  document.body.insertBefore(sliderContainer, canvas);
+
+  return slider;
+}
+
 /**
  * Popup for text descriptions of annotations
  */

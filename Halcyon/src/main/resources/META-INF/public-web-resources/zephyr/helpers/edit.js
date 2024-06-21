@@ -116,7 +116,7 @@ export function edit(scene, camera, renderer, controls, originalZ) {
     const distance = camera.position.distanceTo(scene.position);
 
     // Adjust the threshold based on the distance
-    raycaster.params.Line.threshold = calculateThreshold(distance, 200, 5500); // 250/8000
+    raycaster.params.Line.threshold = calculateThreshold(distance, 100, 1000); // 250/8000
     // raycaster.params.Line.threshold = 5000;
 
     let size = calculateThreshold(distance, 3, 100);
@@ -126,18 +126,22 @@ export function edit(scene, camera, renderer, controls, originalZ) {
     mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
-    raycaster.setFromCamera(mouse, camera);
-    const intersects = raycaster.intersectObjects(intersectableObjects);
+    try {
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects(intersectableObjects);
 
-    if (intersects.length > 0) {
-      const selectedMesh = intersects[0].object;
-      // console.log("selectedMesh", selectedMesh);
+      if (intersects.length > 0) {
+        const selectedMesh = intersects[0].object;
+        // console.log("selectedMesh", selectedMesh);
 
-      // Setup deletion button & edit handles
-      setupDeletionButton(selectedMesh, addEditHandles(selectedMesh, size));
-      // textInputPopup(event, selectedMesh);
-      // We've got it; shut this off, so we don't keep adding these elements
-      // renderer.domElement.removeEventListener('click', onMouseClick, false);
+        // Setup deletion button & edit handles
+        setupDeletionButton(selectedMesh, addEditHandles(selectedMesh, size));
+        // textInputPopup(event, selectedMesh);
+        // We've got it; shut this off, so we don't keep adding these elements
+        // renderer.domElement.removeEventListener('click', onMouseClick, false);
+      }
+    } catch (error) {
+      console.error("Intersection error:", error);
     }
   }
 
