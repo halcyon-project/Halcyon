@@ -20,8 +20,10 @@ public class URITools {
 
     public static String fix(URI furi) {
         String f = furi.toString();
-        if (!f.startsWith("file://")) {
-            f = "file:///"+ f.substring("file:/".length());
+        if (f.startsWith("file:")) {
+            if (!f.startsWith("file://")) {
+                f = "file:///"+ f.substring("file:/".length());
+            }
         }
         return f;
     } 

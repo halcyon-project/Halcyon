@@ -208,7 +208,8 @@
         <profile>
             <id>native</id>
             <build>
-                <plugins>                   
+                <plugins>   
+                    <!--                
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-shade-plugin</artifactId>
@@ -242,17 +243,12 @@
                             </goals>
                            </execution>
                         </executions>
-                    </plugin>
+                    </plugin>-->
                     <plugin>
                         <groupId>org.springframework.boot</groupId>
                         <artifactId>spring-boot-maven-plugin</artifactId>
+                        <version>3.2.2</version>
                         <configuration>
-                            <image>
-                                <builder>paketobuildpacks/builder:tiny</builder>
-                                <env>
-                                    <BP_NATIVE_IMAGE>true</BP_NATIVE_IMAGE>
-                                </env>
-                            </image>
                         </configuration>
                         <executions>
                             <execution>
@@ -262,10 +258,11 @@
                                 </goals>
                             </execution>
                         </executions>
-                    </plugin>
+                    </plugin>                    
                     <plugin>
                         <groupId>org.graalvm.buildtools</groupId>
                         <artifactId>native-maven-plugin</artifactId>
+                        <version>0.10.1</version>
                         <extensions>true</extensions>
                         <executions>
                             <execution>
@@ -281,7 +278,6 @@
                             <fallback>false</fallback>
                             <mainClass>com.ebremer.halcyon.server.Main</mainClass>
                             <buildArgs>
-                                <buildArg>--no-fallback</buildArg>
                             </buildArgs>
                             <classesDirectory>${project.build.outputDirectory}</classesDirectory>
                                 <metadataRepository>

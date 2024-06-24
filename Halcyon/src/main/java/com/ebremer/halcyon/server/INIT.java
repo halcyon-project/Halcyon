@@ -1,13 +1,17 @@
 package com.ebremer.halcyon.server;
 
+import com.ebremer.halcyon.filereaders.ImageReader;
 import com.ebremer.halcyon.lib.OperatingSystemInfo;
 import com.ebremer.halcyon.lib.URITools;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
+import com.ebremer.halcyon.server.utils.ImageReaderPool;
+import com.ebremer.halcyon.server.utils.ImageReaderPoolFactory;
 import com.ebremer.ns.HAL;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;

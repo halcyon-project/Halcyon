@@ -27,5 +27,4 @@ public class SolidOIDCWellKnownProviderFactory extends OIDCWellKnownProviderFact
     public WellKnownProvider create(KeycloakSession session) {
         return new SolidOIDCWellKnownProvider(session);
     }
-
 }

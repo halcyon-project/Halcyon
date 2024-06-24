@@ -4,6 +4,7 @@ import org.apache.jena.graph.Node;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.Statement;
 import org.apache.jena.shared.PropertyNotFoundException;
+import org.apache.jena.vocabulary.DCTerms;
 import org.apache.jena.vocabulary.SchemaDO;
 import org.apache.wicket.markup.html.form.IChoiceRenderer;
 import org.apache.wicket.model.IModel;
@@ -24,14 +25,18 @@ public class RDFRenderer implements IChoiceRenderer {
         Model m = rdg.getObject();
         Node r = (Node) t;
         Statement s;
-        try {
-            s = m.getRequiredProperty(m.createResource(r.toString()), SchemaDO.name);
+        try {           
+            s = m.getRequiredProperty(m.createResource(r.toString()), DCTerms.title);
         } catch (PropertyNotFoundException ex) {
-            return switch (r.toString()) {
-                case "urn:halcyon:nocollections" -> "not specified";
-                case "urn:halcyon:allcollections" -> "All";
-                default -> r.toString();
-            };
+            try {           
+                s = m.getRequiredProperty(m.createResource(r.toString()), SchemaDO.name);
+            } catch (PropertyNotFoundException ex2) {
+                return switch (r.toString()) {
+                    case "urn:halcyon:nocollections" -> "not specified";
+                    case "urn:halcyon:allcollections" -> "All";
+                    default -> r.toString();
+                };
+            }
         }
         return s.getObject().asLiteral().getString();
     }

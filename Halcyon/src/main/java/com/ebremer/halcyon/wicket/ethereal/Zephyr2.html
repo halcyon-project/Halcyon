@@ -37,31 +37,58 @@
 	// const camera = new THREE.PerspectiveCamera( 90, window.innerWidth / window.innerHeight, -10, 100 );
         // camera.position.set(0, 0, 150000);
         // camera.position.set(0, 0, 1250);
-
-        const camera = window._camera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 1, 30000);
-        camera.position.z = 21000;
+        //const camera = window._camera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 1, 150000);
+        const camera = window._camera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 1, 500000);
+        camera.position.z = 300000;
         const originalZ = camera.position.z;
         camera.lookAt(new THREE.Vector3(0, 0, 0));
         scene.add(camera);
-
         const renderer = new THREE.WebGLRenderer({
           antialias: true,
           preserveDrawingBuffer: true // Preserve the drawing buffer to capture the image later
-        });
+        });  //335.74
         renderer.setPixelRatio( window.devicePixelRatio );
 	renderer.setSize( window.innerWidth, window.innerHeight );
 	document.body.appendChild( renderer.domElement );
         window.addEventListener( 'resize', onWindowResize );
         let controls = new TrackballControls( camera, renderer.domElement );
         controls.dynamicDampingFactor = 0.2; // To offer a smooth yet responsive control feel
+        ZEPHYR.DrawAxis(scene);
+        ZEPHYR.CreateImageViewer(renderer, scene, options.target,0);
+        ZEPHYR.CreateFeatureViewer(renderer, scene, "https://localhost:8888/iiif/?iiif=https://localhost:8888/ldp/nuclearsegmentation2019/coad/TCGA-CM-5348-01Z-00-DX1.2ad0b8f6-684a-41a7-b568-26e97675cce9.zip",0);
 
-        //ZEPHYR.CreateImageViewer(scene, "http://localhost:8888/HalcyonStorage/tcga/coad/TCGA-CM-5348-01Z-00-DX1.2ad0b8f6-684a-41a7-b568-26e97675cce9.svs",0);
-        console.log("HERE THIS ===> "+options.target);
-        ZEPHYR.CreateImageViewer(scene, options.target,0);
-
-        // Annotation tools
+    // Annotation tools
         toolbar(scene, camera, renderer, controls, originalZ);
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
 
+    function onMouseClick2(event) {
+            console.log("CLICK!!!");
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(scene.children);
+            if (intersects.length > 0) {
+                console.log('Intersection:', intersects[0]);
+                intersects[0].object.material.color.set(0xff0000);
+            }
+        }
+        
+        function onMouseClick(event) {
+            // Calculate mouse position in normalized device coordinates (-1 to +1)
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            // Unproject the mouse coordinates to get the world position
+            const mouseVector = new THREE.Vector3(mouse.x, mouse.y, 0.5).unproject(camera);
+            // Set the raycaster origin and direction
+            raycaster.set(camera.position, mouseVector.sub(camera.position).normalize());
+            const intersects = raycaster.intersectObjects(scene.children);
+            if (intersects.length > 0) {
+                console.log('Intersection:', intersects[0]);
+                intersects[0].object.material.color.set(0xff0000);  // Example: Change the color of the intersected object
+            }
+        }
+        window.addEventListener('click', onMouseClick, false);
         function animate() {
             controls.update();
             renderer.render( scene, camera );

@@ -21,7 +21,7 @@ public class ColorClasses extends BasePage {
     
     public ColorClasses() {
         Model m = ModelFactory.createDefaultModel();
-        Resource r = m.createProperty(HAL.NS+HalcyonSession.get().getUUID()+"/colorclasses");
+        Resource r = m.createProperty(HAL.NS+HalcyonSession.get().getUserURI()+"/colorclasses");
         Dataset ds = DataCore.getInstance().getDataset();
         ds.begin(ReadWrite.READ);
         if (ds.containsNamedModel(r)) {

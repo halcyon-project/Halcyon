@@ -1,5 +1,6 @@
 package com.ebremer.halcyon.imagebox;
 
+import static com.ebremer.halcyon.imagebox.Enums.ImageFormat.TTL;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import com.ebremer.halcyon.lib.ImageMeta;
 import com.ebremer.halcyon.server.utils.ImageReaderPool;
@@ -37,6 +38,7 @@ public class ImageServer extends HttpServlet {
            
     @Override
     protected void doGet( HttpServletRequest request, HttpServletResponse response ) {
+        System.out.println(request.getRequestURI()+"?"+request.getQueryString());
         String iiif = request.getParameter("iiif");
         if (iiif!=null) {
             IIIFProcessor i;
@@ -69,7 +71,18 @@ public class ImageServer extends HttpServlet {
                         i.h = i.y - meta.getHeight();
                     }                 
                 }
-                TileRequest tr = TileRequest.genTileRequest(i.uri, new ImageRegion(i.x,i.y,i.w,i.h), new Rectangle(i.tx,i.ty), true);
+                TileRequest tr;
+                switch (i.imageformat) {
+                    case JPG:
+                    case PNG:
+                        tr = TileRequest.genTileRequest(i.uri, new ImageRegion(i.x,i.y,i.w,i.h), new Rectangle(i.tx,i.ty), true, true, false, i.aspectratio);
+                        break;
+                    case TTL:
+                        tr = TileRequest.genTileRequest(i.uri, new ImageRegion(i.x,i.y,i.w,i.h), new Rectangle(i.tx,i.ty), true, false, true, i.aspectratio);
+                        break;
+                    default:
+                        tr = TileRequest.genTileRequest(i.uri, new ImageRegion(i.x,i.y,i.w,i.h), new Rectangle(i.tx,i.ty), true, true, false, i.aspectratio);
+                }
                 Tile tile = null;
                 try (TileRequestEngine tre = new TileRequestEngine(i.uri)){
                     Future<Tile> ftile = tre.getFutureTile(tr);
@@ -107,12 +120,20 @@ public class ImageServer extends HttpServlet {
                     case TTL:
                         response.setContentType("application/x-turtle");
                         response.setHeader("Access-Control-Allow-Origin", "*");
-                        try (PrintWriter writer = response.getWriter()) {
-                            writer.append(tile.getMeta(RDFFormat.TURTLE));
-                            writer.flush();
+                        try {
+                            tile.getMeta(RDFFormat.TURTLE_PRETTY, response.getOutputStream());
                         } catch (IOException ex) {
                             ReportError(response, "issue writing image.ttl file");
-                        }   break;
+                        }
+                        break;
+                    case JSON:
+                        response.setContentType("application/ld+json");
+                        response.setHeader("Access-Control-Allow-Origin", "*");                   
+                        try {
+                            tile.getMeta(RDFFormat.JSONLD11_PRETTY, response.getOutputStream());
+                        } catch (IOException ex) {
+                            ReportError(response, "issue writing image.json file");
+                        }
                     default:
                         break;
                 }

@@ -16,7 +16,8 @@ import java.util.regex.Pattern;
  * @author Erich Bremer
  */
 public class IIIFProcessor {
-    private static final Pattern PATTERN1 = Pattern.compile("(.*)?/(\\d*),(\\d*),(\\d*),(\\d*)/(\\d*),/(\\d*)/default.(jpg|png|json|ttl)");
+    //private static final Pattern PATTERN1 = Pattern.compile("(.*)?/(\\d*),(\\d*),(\\d*),(\\d*)/(\\d*),/(\\d*)/default.(jpg|png|json|ttl)");
+    private static final Pattern PATTERN1 =   Pattern.compile("(.*)?/(\\d*),(\\d*),(\\d*),(\\d*)/([!0-9,]*)/(\\d*)/default.(jpg|png|json|ttl)");
     private static final Pattern PATTERN2 = Pattern.compile("(.*)?/full/(\\d*),/(\\d*)/default.(jpg|png|json)");
     private static final Pattern INFO = Pattern.compile("(.*)?/info.json");
     
@@ -32,6 +33,9 @@ public class IIIFProcessor {
     public boolean tilerequest = false;
     public boolean inforequest = false;
     public boolean fullrequest = false;
+    public boolean scalex = false;
+    public boolean scaley = false;
+    public boolean aspectratio = false;
     public ImageFormat imageformat;
 
     IIIFProcessor(String url) throws URISyntaxException {
@@ -43,24 +47,24 @@ public class IIIFProcessor {
             y = Integer.parseInt(matcher.group(3));
             w = Integer.parseInt(matcher.group(4));
             h = Integer.parseInt(matcher.group(5));
-            tx = Integer.parseInt(matcher.group(6));
-            rotation = Integer.parseInt(matcher.group(7));
-            if (null != matcher.group(8)) switch (matcher.group(8)) {
-                case "jpg":
-                    imageformat = ImageFormat.JPG;
-                    break;
-                case "png":
-                    imageformat = ImageFormat.PNG;
-                    break;
-                case "json":
-                    imageformat = ImageFormat.JSON;
-                    break;
-                case "ttl":
-                    imageformat = ImageFormat.TTL;
-                    break;    
-                default:
-                    break;
+            String[] sizes = matcher.group(6).split(",");
+            if (sizes[0].startsWith("!")) {
+                aspectratio = true;                
+                tx = Integer.parseInt(sizes[0].substring(1));
+                ty = Integer.parseInt(sizes[1]);
+            } else {
+                scalex = true;
+                tx = Integer.parseInt(sizes[0]);
+                ty = (sizes.length>1)?Integer.parseInt(sizes[1]):0;
             }
+            rotation = Integer.parseInt(matcher.group(7));
+            imageformat = switch (matcher.group(8)) {
+                case "jpg" -> ImageFormat.JPG;
+                case "png" -> ImageFormat.PNG;
+                case "json" -> ImageFormat.JSON;
+                case "ttl" -> ImageFormat.TTL;
+                default -> null;
+            };
         } else {
             matcher = INFO.matcher(url);
             if (matcher.find()) {

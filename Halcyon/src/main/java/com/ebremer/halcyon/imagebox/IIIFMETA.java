@@ -137,7 +137,7 @@ public class IIIFMETA {
     public static void main(String[] args) throws Exception {
         File file2 = new File("/HalcyonStorage/nuclearsegmentation2019/coad/TCGA-CM-5348-01Z-00-DX1.2ad0b8f6-684a-41a7-b568-26e97675cce9.zip");
         URI uri = file2.toURI();
-        ImageReader ir = new ROCImageReader(uri);
+        ImageReader ir = new ROCImageReader(uri,null);
         ImageMeta meta = ir.getImageMeta();
         System.out.println(GetImageInfo(new URI("https://beak.bmi.stonybrook.edu/iiif/?iiif=https://beak.bmi.stonybrook.edu/Storage/images/tcga_data/ov/TCGA-04-1342-01A-01-TS1.66421418-fc94-4215-9ab1-6398f710f6ca.svs"),meta));
     }

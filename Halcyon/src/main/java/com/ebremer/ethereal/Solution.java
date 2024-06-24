@@ -33,7 +33,7 @@ public class Solution implements IClusterable {
     public Model get(String key) {
         Node n = d.get(key);
         if (n==null) {
-          return Model.of("UNBOUND");  
+          return Model.of("");  
         }
         if (n.isURI()) {
             return Model.of(n.getURI());

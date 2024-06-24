@@ -9,7 +9,7 @@ import java.util.Set;
  * @author erich
  */
 public interface FileReaderFactory {
-    public FileReader create(URI uri);
-    public FileReader create(SeekableByteChannel src);
+    public FileReader create(URI uri, URI base);
+    public FileReader create(SeekableByteChannel src, URI base);
     public Set<String> getSupportedFormats();    
 }

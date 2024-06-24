@@ -13,21 +13,21 @@ import java.util.logging.Logger;
  * @author erich
  */
 public class ROCImageReaderFactory implements FileReaderFactory {
-
+    
     @Override
-    public FileReader create(URI uri) {
+    public FileReader create(URI uri, URI base) {
         try {
-            return new ROCImageReader(uri);
+            return new ROCImageReader(uri, base);
         } catch (IOException ex) {
             Logger.getLogger(ROCImageReaderFactory.class.getName()).log(Level.SEVERE, null, ex);
         } catch (Exception ex) {
             Logger.getLogger(ROCImageReaderFactory.class.getName()).log(Level.SEVERE, null, ex);
         }
-        return null;
+        return null;        
     }
 
     @Override
-    public FileReader create(SeekableByteChannel src) {
+    public FileReader create(SeekableByteChannel src, URI base) {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 

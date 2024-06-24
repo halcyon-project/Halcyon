@@ -9,9 +9,15 @@ import com.ebremer.ethereal.NodeColumn;
 import com.ebremer.halcyon.data.DataCore;
 import com.ebremer.halcyon.datum.HalcyonFactory;
 import com.ebremer.halcyon.gui.tree.NodeNestedTreePage;
+import com.ebremer.halcyon.wicket.Upload;
 import com.ebremer.ns.HAL;
+import com.ebremer.ns.LDP;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.ParameterizedSparqlString;
 import org.apache.jena.query.ReadWrite;
@@ -19,6 +25,7 @@ import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.update.UpdateAction;
 import org.apache.jena.update.UpdateFactory;
 import org.apache.jena.update.UpdateRequest;
+import org.apache.jena.vocabulary.DCTerms;
 import org.apache.jena.vocabulary.SchemaDO;
 import org.apache.wicket.ajax.AjaxEventBehavior;
 import org.apache.wicket.ajax.AjaxRequestTarget;
@@ -53,12 +60,20 @@ public class Collections extends BasePage {
                 cellItem.add(new ActionPanel(componentId, model, s.getMap().get("s").getURI()));
             }
         });
-        columns.add(new NodeColumn<>(Model.of("Collection Name"),"CollectionName","CollectionName"));
-        columns.add(new NodeColumn<>(Model.of("UUID"),"s","s"));
-        
+        columns.add(new NodeColumn<>(Model.of("Container Name"),"ContainerName","ContainerName"));
+        columns.add(new NodeColumn<>(Model.of("URI"),"s","s"));       
         ParameterizedSparqlString pss = new ParameterizedSparqlString();
-        pss.setCommandText("select ?CollectionName ?s where {graph ?s {?s a so:Collection; so:name ?CollectionName}} order by ?CollectionName");
-        pss.setNsPrefix("so", SchemaDO.NS);
+        pss.setCommandText("""
+            select ?ContainerName ?s
+            where {graph ?car {
+                ?s a ldp:Container .
+                optional { ?s dct:title ?ContainerName}
+                }
+            } order by ?s
+        """);
+        pss.setNsPrefix("ldp", LDP.NS);
+        pss.setNsPrefix("dct", DCTerms.NS);
+        pss.setIri("car", HAL.CollectionsAndResources.getURI());
         Dataset ds = DatabaseLocator.getDatabase().getDataset();
         SelectDataProvider rdfsdf = new SelectDataProvider(ds,pss.toString());
         rdfsdf.SetSPARQL(pss.toString());
@@ -92,7 +107,7 @@ public class Collections extends BasePage {
                 ds.commit();
                 ds.end();
                 PageParameters pageParameters = new PageParameters();
-                pageParameters.add("collection", uuid);
+                pageParameters.add("container", uuid);
                 setResponsePage(EditCollection.class, pageParameters);
             }
         });
@@ -112,7 +127,7 @@ public class Collections extends BasePage {
                 @Override
                 public void onClick() {
                     PageParameters pageParameters = new PageParameters();
-                    pageParameters.add("collection", collection);
+                    pageParameters.add("container", collection);
                     setResponsePage(EditCollection.class, pageParameters);
                 }
             });
@@ -122,12 +137,26 @@ public class Collections extends BasePage {
                     System.out.println("Delete not implemented yet");
                 }
             });
+            /*
             add(new Link<Void>("Edit") {
                 @Override
                 public void onClick() {
                     PageParameters pageParameters = new PageParameters();
                     pageParameters.add("collection", collection);
                     setResponsePage(NodeNestedTreePage.class, pageParameters);
+                }
+            });*/
+            add(new Link<Void>("AddFiles") {
+                @Override
+                public void onClick() {
+                    PageParameters pageParameters = new PageParameters();
+                    try {
+                        URI uri = new URI(collection);
+                        pageParameters.add("container", uri.getPath());
+                        setResponsePage(Upload.class, pageParameters);
+                    } catch (URISyntaxException ex) {
+                        Logger.getLogger(Collections.class.getName()).log(Level.SEVERE, null, ex);
+                    }
                 }
             });
         }

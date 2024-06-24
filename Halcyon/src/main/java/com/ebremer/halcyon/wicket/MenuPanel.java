@@ -30,7 +30,7 @@ public class MenuPanel extends Panel {
         ExternalLink account = new ExternalLink("account", host+"/user/account","Account");
         ExternalLink colorclasses = new ExternalLink("colorclasses", host+"/user/colorclasses","Color Classes");
         ExternalLink threed = new ExternalLink("threed", host+"/threed","3D");
-        ExternalLink collections = new ExternalLink("collections", host+"/collections","Collections");
+        ExternalLink containers = new ExternalLink("containers", host+"/containers","Containers");
         ExternalLink revisionhistory = new ExternalLink("revisionhistory", host+"/revisionhistory","Revision History");
         //ExternalLink login = new ExternalLink("loginLink", host+"/gui/login","Login");
         Link login = new Link<Void>("loginLink") {
@@ -45,7 +45,7 @@ public class MenuPanel extends Panel {
         add(colorclasses);
         add(security);
         add(sparql);
-        add(collections);
+        add(containers);
         add(threed);
         add(logout);
         add(login);
@@ -54,7 +54,7 @@ public class MenuPanel extends Panel {
         threed.setVisible(false);
         account.setVisible(false);
         colorclasses.setVisible(false);
-        collections.setVisible(false);
+        containers.setVisible(false);
         sparql.setVisible(false);
         logout.setVisible(false);
         login.setVisible(false);
@@ -75,7 +75,7 @@ public class MenuPanel extends Panel {
                 //threed.setVisible(true);
                 account.setVisible(true);
                 colorclasses.setVisible(true);
-                collections.setVisible(true);
+                containers.setVisible(true);
             }
         } 
     }

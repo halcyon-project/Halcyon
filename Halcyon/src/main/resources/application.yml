@@ -56,5 +56,5 @@ logging:
     max-history: 10
   level:
     root: ERROR
-    com.ebremer.halcyon: INFO
+    com.ebremer.halcyon: DEBUG
     com.ebremer.beakgraph: ERROR

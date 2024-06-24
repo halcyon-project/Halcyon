@@ -18,7 +18,8 @@ import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.riot.RDFFormat;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
-
+    import java.net.URI;
+import java.net.URISyntaxException;
 
 /**
  *
@@ -26,7 +27,22 @@ import org.apache.logging.log4j.core.config.Configurator;
  */
 public class Test {
     
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws URISyntaxException {
+        URI baseUri = new URI("http://example.com/some/path/to/file.txt");
+        URI targetUri = new URI("file:///a/b/c/d/e/f/g/some/path/to/file.txt");
+        // Normalize both URIs to the same scheme if needed, here stripping the scheme
+        URI normalizedBaseUri = new URI(null, baseUri.getHost(), baseUri.getPath(), null);
+        URI normalizedTargetUri = new URI(null, targetUri.getHost(), targetUri.getPath(), null);
+
+        // Relativize
+        URI relativeUri = normalizedBaseUri.relativize(normalizedTargetUri);
+
+        // Print the relative URI
+        System.out.println("Relative URI: " + relativeUri);
+    }
+
+    
+    public static void main2(String[] args) throws IOException {
         Configurator.setLevel("com.ebremer.beakgraph.ng", Level.DEBUG);
         //Configurator.setRootLevel(Level.ALL);
         

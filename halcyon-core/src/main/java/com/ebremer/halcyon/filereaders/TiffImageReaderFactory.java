@@ -15,17 +15,17 @@ import java.util.logging.Logger;
 public class TiffImageReaderFactory implements FileReaderFactory {
 
     @Override
-    public FileReader create(URI uri) {
+    public FileReader create(URI uri, URI base) {
         try {
-            return new TiffImageReader(uri);
+            return new TiffImageReader(uri, base);
         } catch (IOException ex) {
             Logger.getLogger(TiffImageReaderFactory.class.getName()).log(Level.SEVERE, null, ex);
         }
-        return null;
+        return null;        
     }
-
+    
     @Override
-    public FileReader create(SeekableByteChannel src) {
+    public FileReader create(SeekableByteChannel src, URI base) {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 

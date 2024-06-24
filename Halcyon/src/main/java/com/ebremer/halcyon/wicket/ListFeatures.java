@@ -16,6 +16,7 @@ import com.ebremer.halcyon.pools.AccessCachePool;
 import com.ebremer.ns.EXIF;
 import com.ebremer.ns.GEO;
 import com.ebremer.ns.HAL;
+import com.ebremer.ns.LDP;
 import com.ebremer.ns.PROVO;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -77,15 +78,15 @@ public class ListFeatures extends Panel {
             """
             select distinct ?name ?creator
             where {
+                graph ?car {?collection ldp:contains ?s}
               	graph ?s {?fc a geo:FeatureCollection; dct:title ?name ; prov:wasGeneratedBy/prov:wasAssociatedWith ?creator}
-                graph ?car {?s so:isPartOf ?collection}                
             }
             """
-        );
+        );        
         pss.setNsPrefix("owl", OWL.NS);
         pss.setNsPrefix("geo", GEO.NS);
         pss.setNsPrefix("hal", HAL.NS);
-        pss.setNsPrefix("so", SchemaDO.NS);
+        pss.setNsPrefix("ldp", LDP.NS);
         pss.setNsPrefix("dct", DCTerms.NS);
         pss.setNsPrefix("exif", EXIF.NS);
         pss.setNsPrefix("prov", PROVO.NS);
@@ -111,7 +112,7 @@ public class ListFeatures extends Panel {
                             org.apache.jena.rdf.model.Model ccc = ModelFactory.createDefaultModel();
                             try {
                                 HalcyonPrincipal p = HalcyonSession.get().getHalcyonPrincipal();
-                                String uuid = p.getURNUUID();
+                                String uuid = p.getUserURI();
                                 AccessCache ac = AccessCachePool.getPool().borrowObject(uuid);
                                 AccessCachePool.getPool().returnObject(uuid, ac);
                                 if (ac.getCollections().size()==0) {

@@ -17,7 +17,6 @@ public class CustomFilter implements Filter {
         String query = httpRequest.getParameter("query");
         if (query!=null) {
             HttpServletRequest r = (HttpServletRequest) request;
-            System.out.println("SPECIAL DETECTED!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"+r.getRequestURL()+"  "+r.getQueryString());
             //CustomRequestWrapper wrappedRequest = new CustomRequestWrapper(httpRequest);
             //wrappedRequest.addParameter("furi", "Erich Bremer was here");
             String uri = r.getRequestURI();

@@ -3,13 +3,12 @@ package com.ebremer.halcyon.server;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import com.ebremer.halcyon.data.DataCore;
 import com.ebremer.halcyon.filesystem.DirectoryProcessor;
+import com.ebremer.halcyon.server.utils.ResourceHandler;
 import com.ebremer.halcyon.services.Service;
-import com.ebremer.halcyon.server.utils.StorageLocation;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Iterator;
+import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 import org.apache.jena.query.Dataset;
@@ -49,17 +48,14 @@ public final class FileManager implements Service {
         task = new TimerTask() {
             @Override
             public void run() {
-                //System.out.println("Performing storage scan...");
                 pause();
                 Dataset ds = DataCore.getInstance().getDataset();
                 DirectoryProcessor dp = new DirectoryProcessor(ds);                
-                ArrayList<StorageLocation> list = hs.getStorageLocations();
-                Iterator<StorageLocation> i = list.iterator();
-                while (i.hasNext()) {                    
-                    Path p = i.next().path;
-                   // System.out.println("Scanning --> "+p);
-                    dp.Traverse(p);
-                }
+                List<ResourceHandler> list = HalcyonSettings.getSettings().GetResourceHandlers();
+                list.forEach(rh->{
+                    Path p = Path.of(rh.resourceBase());
+                    dp.Traverse(p);                
+                });
                 ValidateData();
                 resume();
             }

@@ -3,6 +3,7 @@ package com.ebremer.halcyon.datum;
 import com.ebremer.halcyon.fuseki.shiro.JwtToken;
 import com.ebremer.halcyon.fuseki.shiro.JwtVerifier;
 import com.ebremer.halcyon.fuseki.shiro.KeycloakPublicKeyFetcher;
+import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import com.ebremer.ns.HAL;
 import io.jsonwebtoken.Claims;
 import java.io.Serializable;
@@ -18,21 +19,31 @@ import org.pac4j.oidc.profile.keycloak.KeycloakOidcProfile;
 public class HalcyonPrincipal implements Principal, Serializable {
     private final String URNuuid;
     private final String uuid;
+    private final String useruri;
     private String webid;
     private final boolean anonymous;
     private String name = "Anonymous User";
     private String token;
     private String lastname;
     private String firstname;
+    private String preferred_username;
     private ArrayList<String> groups;
 
     public HalcyonPrincipal(KeycloakOidcProfile profile) {
         this(profile.getIdTokenString(),false);
     }
     
+    public HalcyonPrincipal(String webid) {
+        useruri = webid;
+        URNuuid = "ajjaja";
+        uuid = "ddsds";
+        anonymous = false;
+    }
+    
     public HalcyonPrincipal(String uuid, boolean anonymous) {
         this.URNuuid = "urn:uuid:"+uuid;
         this.uuid = uuid;
+        this.useruri = this.URNuuid;
         this.anonymous = anonymous;
         groups = new ArrayList<>();
         groups.add(HAL.Anonymous.toString());
@@ -58,6 +69,12 @@ public class HalcyonPrincipal implements Principal, Serializable {
         } else {
             firstname = "";
         }
+        if (claims.keySet().contains("preferred_username")) {
+            preferred_username = (String) claims.get("preferred_username");
+        } else {
+            preferred_username = "";
+        }
+        this.useruri = HalcyonSettings.getSettings().getHostName()+"/users/"+preferred_username;
         if (claims.keySet().contains("HalcyonGroups")) {
             groups = (ArrayList) claims.get("HalcyonGroups");
         } else {
@@ -78,10 +95,14 @@ public class HalcyonPrincipal implements Principal, Serializable {
         }
         return claimsx;
     }
-
-    public String getURNUUID() {
-        return URNuuid;
+    
+    public String getUserURI() {
+        return useruri;
     }
+    
+    //public String getURNUUID() {
+//        return URNuuid;
+  //  }
     
     public String getToken() {
         return token;
@@ -93,6 +114,10 @@ public class HalcyonPrincipal implements Principal, Serializable {
     
     public String getWebID() {
         return webid;
+    }
+    
+    public String getPreferredUserName() {
+        return preferred_username;
     }
     
     public ArrayList getGroups() {

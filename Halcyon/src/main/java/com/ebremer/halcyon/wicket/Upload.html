@@ -1,0 +1,145 @@
+<html>
+    <wicket:head>
+  <meta charset="UTF-8">
+  <title>Chunked Upload with Progress Bar</title>
+  <style>
+    #dropArea {
+      width: 300px;
+      height: 200px;
+      border: 2px dashed #ccc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 20px;
+    }
+    #dropArea.hover {
+      border-color: #333;
+    }
+    .progress-bar {
+      width: 100%;
+      background-color: #ddd;
+      margin-top: 10px;
+    }
+    .progress {
+      height: 20px;
+      background: #4CAF50;
+      width: 0%;
+      text-align: center;
+      color: white;
+      line-height: 20px;
+    }
+  </style>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const dropArea = document.getElementById('dropArea');
+
+      ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, preventDefaults, false);
+      });
+
+      function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+
+      ['dragenter', 'dragover'].forEach(eventName => {
+        dropArea.addEventListener(eventName, () => dropArea.classList.add('hover'), false);
+      });
+
+      ['dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, () => dropArea.classList.remove('hover'), false);
+      });
+
+      dropArea.addEventListener('drop', handleDrop, false);
+
+      function handleDrop(e) {
+        let dt = e.dataTransfer;
+        let items = dt.items;
+
+        if (items) {
+          for (let item of items) {
+            if (item.kind === 'file') {
+              var entry = item.webkitGetAsEntry();
+              if (entry) {
+                traverseFileTree(entry);
+              }
+            }
+          }
+        }
+      }
+
+      function traverseFileTree(item, path = '') {
+        path = path || '';
+        if (item.isFile) {
+          // Get file
+          item.file(file => {
+            processFile(file, path + file.name);
+          });
+        } else if (item.isDirectory) {
+          // Get folder contents
+          let dirReader = item.createReader();
+          dirReader.readEntries(entries => {
+            entries.forEach(entry => {
+              traverseFileTree(entry, path + item.name + '/');
+            });
+          });
+        }
+      }
+
+      function processFile(file, filePath) {
+        const progressBar = createProgressBar(filePath);
+        const chunkSize = 1024 * 1024 * 5; // 1MB
+        let offset = 0;
+
+        function uploadChunk() {
+          const xhr = new XMLHttpRequest();
+          console.log("Upload Path = "+path);
+          xhr.open('POST', path, true);
+          xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+          xhr.setRequestHeader('File-Name', filePath);
+          xhr.setRequestHeader('Chunk-Offset', offset);
+
+          xhr.upload.onprogress = function(event) {
+            if (event.lengthComputable) {
+              const percentComplete = Math.round((offset + event.loaded) / file.size * 100);
+              updateProgressBar(progressBar, percentComplete);
+            }
+          };
+
+          xhr.onload = function() {
+            if (offset < file.size) {
+              offset += chunkSize;
+              uploadChunk();
+            } else {
+              updateProgressBar(progressBar, 100);
+              console.log('Upload complete for ' + filePath);
+            }
+          };
+          const chunk = file.slice(offset, offset + chunkSize);
+          xhr.send(chunk);
+        }
+        uploadChunk();
+      }
+
+      function createProgressBar(fileName) {
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = `<div>${fileName}</div><div class="progress-bar"><div class="progress"></div></div>`;
+        document.body.appendChild(wrapper);
+        return wrapper.querySelector('.progress');
+      }
+
+      function updateProgressBar(progressBar, value) {
+        progressBar.style.width = value + '%';
+        progressBar.textContent = value + '%';
+      }
+    });
+  </script>        
+        
+        
+    </wicket:head>
+    <body>
+        <wicket:extend>
+            <div id="dropArea">Drag and drop files or folders here</div>
+        </wicket:extend>
+    </body>
+</html>

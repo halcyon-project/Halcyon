@@ -84,6 +84,7 @@ public class Cool {
         registration.setFilter(securityFilter);
         registration.setName("KeycloakOidcClient");
         registration.addUrlPatterns(
+                "/ldp*",
                 "/skunkworks/yay",
                 "/f*",
                 "/callback",

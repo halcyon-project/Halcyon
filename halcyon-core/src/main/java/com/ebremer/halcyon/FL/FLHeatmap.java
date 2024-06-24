@@ -277,7 +277,7 @@ public class FLHeatmap implements FL {
     public Model LoadExtendedManifest() {
         logger.info("Loading ROCrate Manifest");
         Model hh = ModelFactory.createDefaultModel();
-        BeakGraph bg = BeakGraphPool.getPool().borrowObject(uri);        
+        BeakGraph bg = BeakGraphPool.getPool().borrowObject(uri);
         hh.add(bg.getReader().getManifest());
         BeakGraphPool.getPool().returnObject(uri, bg);
         return hh;
@@ -488,5 +488,15 @@ public class FLHeatmap implements FL {
     
     private synchronized void setinfo(String x) {
         info = x;
+    }
+
+    @Override
+    public Model getManifest(URI uri) {
+        throw new Error("Not implemented");
+    }
+
+    @Override
+    public Model LoadExtendedManifest(URI uri) {
+        throw new Error("Not implemented");
     }
 }
