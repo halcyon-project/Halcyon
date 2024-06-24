@@ -96,11 +96,11 @@
 	<liquibase.version>4.23.2</liquibase.version>
         <org.snakeyaml.snakeyaml-engine.version>2.6</org.snakeyaml.snakeyaml-engine.version>
         <h2.version>2.2.224</h2.version>
-        <shiro.version>2.0.0</shiro.version>
+        <shiro.version>2.0.1</shiro.version>
         <jts.version>1.19.0</jts.version>
         <twelvemonkeys.version>3.10.1</twelvemonkeys.version>
         <!--<log4j.version>2.22.1</log4j.version>-->
-        <log4j.version>3.0.0-beta1</log4j.version>
+        <log4j.version>3.0.0-beta2</log4j.version>
         <jcommander.version>1.83</jcommander.version>
         <hibernate-orm.plugin.version>6.2.7.Final</hibernate-orm.plugin.version>
 	<hibernate.c3p0.version>6.2.7.Final</hibernate.c3p0.version>
@@ -112,17 +112,17 @@
             <dependency>
                 <groupId>org.graalvm.buildtools</groupId>
                 <artifactId>native-maven-plugin</artifactId>
-                <version>0.10.0</version>
+                <version>0.10.2</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-enforcer-plugin</artifactId>
-                <version>3.4.1</version>
+                <version>3.5.0</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
-                <version>3.5.1</version>
+                <version>3.6.0</version>
             </dependency>
             <dependency>
                 <groupId>org.springframework.boot</groupId>
@@ -132,7 +132,7 @@
             <dependency>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.12.1</version>
+                <version>3.13.0</version>
             </dependency>
             <dependency>
                 <groupId>org.springframework.boot</groupId>
