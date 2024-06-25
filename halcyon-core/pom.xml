@@ -54,18 +54,12 @@
         <dependency>
             <groupId>org.locationtech.jts</groupId>
             <artifactId>jts-core</artifactId>
-            <version>${jts.version}</version>
         </dependency>
         <dependency>
             <groupId>com.github.davidmoten</groupId>
             <artifactId>hilbert-curve</artifactId>
             <version>${hilbert.ver}</version>
         </dependency>
-        <!--
-        <dependency>
-            <groupId>ch.qos.logback</groupId>
-            <artifactId>logback-classic</artifactId>
-        </dependency>-->
         <dependency>
             <groupId>com.twelvemonkeys.imageio</groupId>
             <artifactId>imageio-tiff</artifactId>
@@ -89,7 +83,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
-                <version>3.5.1</version>
+                <version>${maven-shade-plugin.version}</version>
                 <executions>
                     <execution>
                         <id>libraryshade</id>
@@ -126,7 +120,7 @@
                 <configuration>
                     <skip>false</skip>
                 </configuration>
-                <version>3.1.1</version>
+                <version>${maven-deploy-plugin.version}</version>
             </plugin>
         </plugins>
     </build>

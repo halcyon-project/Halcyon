@@ -1,6 +1,5 @@
 package com.ebremer.halcyon.server;
 
-import com.ebremer.halcyon.gui.HalcyonSession;
 import com.ebremer.halcyon.server.keycloak.HalcyonApplianceBootstrap;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import java.util.NoSuchElementException;
@@ -16,6 +15,7 @@ import java.io.IOException;
 import jakarta.ws.rs.ApplicationPath;
 import jakarta.ws.rs.Path;
 import org.keycloak.exportimport.ExportImportConfig;
+import org.keycloak.models.KeycloakSessionFactory;
 import static org.keycloak.services.resources.KeycloakApplication.getSessionFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -9,8 +9,6 @@ import com.ebremer.halcyon.server.keycloak.RequestFilter;
 import com.ebremer.halcyon.server.keycloak.providers.SimplePlatformProvider;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
-import javax.net.ssl.SSLContext;
-import javax.sql.DataSource;
 import org.jboss.resteasy.plugins.server.servlet.HttpServlet30Dispatcher;
 import org.jboss.resteasy.plugins.server.servlet.ResteasyContextParameters;
 import org.keycloak.platform.Platform;
@@ -22,7 +20,6 @@ import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.boot.web.servlet.ServletRegistrationBean;
-import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.DependsOn;
 import org.springframework.context.annotation.Import;
@@ -33,9 +30,14 @@ import com.ebremer.halcyon.fuseki.HalcyonProxyServlet;
 import com.ebremer.halcyon.fuseki.SPARQLEndPoint;
 import com.ebremer.halcyon.lib.spatial.Spatial;
 import com.ebremer.halcyon.server.ldp.LDP;
+import jakarta.annotation.PostConstruct;
 import jakarta.servlet.Servlet;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import javax.net.ssl.SSLSocketFactory;
+//import javax.sql.DataSource;
+import org.keycloak.federation.sssd.SSSDFederationProviderFactory;
 import org.mitre.dsmiley.httpproxy.ProxyServlet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,6 +45,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.liquibase.LiquibaseAutoConfiguration;
 import org.pac4j.oidc.client.KeycloakOidcClient;
 import org.pac4j.oidc.config.KeycloakOidcConfiguration;
+import org.slf4j.bridge.SLF4JBridgeHandler;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.context.ConfigurableApplicationContext;
@@ -54,20 +57,27 @@ import org.springframework.context.ConfigurableApplicationContext;
 public class Main {
     private static final Logger logger = LoggerFactory.getLogger(Main.class);
     private final KeycloakServer properties;
-    private final SSLContext sslContext;
     
     @Autowired
     private KeycloakOidcConfiguration keycloakOidcConfiguration;
         
     @Autowired
-    public Main(KeycloakServer properties, SSLContext sslContext) {
+    public Main(KeycloakServer properties) {
         this.properties = properties;
-        this.sslContext = sslContext;
-        //KeycloakProperties.getInstance(properties.getContextPath(), properties.getUsername(), properties.getPassword());
+        SSSDFederationProviderFactory ha;
+        KeycloakProperties.getInstance(properties.getContextPath(), properties.getUsername(), properties.getPassword());
     }
 
-    @Autowired
-    private DataSource dataSource;
+    //@Autowired
+    //private DataSource dataSource;
+    
+    @PostConstruct
+    public void init() {
+        // Remove existing handlers attached to j.u.l root logger
+        SLF4JBridgeHandler.removeHandlersForRootLogger();
+        // Add SLF4JBridgeHandler to j.u.l's root logger
+        SLF4JBridgeHandler.install();
+    }
     
     @Bean(name = "xapp")
     @Order(Ordered.HIGHEST_PRECEDENCE)
@@ -103,8 +113,10 @@ public class Main {
         config.setClientId("account");
         config.setRealm("Halcyon");
         config.setBaseUri(HalcyonSettings.getSettings().getProxyHostName()+"/auth");  
-        SSLSocketFactory sf = sslContext.getSocketFactory();
-        config.setSslSocketFactory(sf);
+        if (HalcyonSettings.getSettings().isHTTPS2enabled()) {
+            SSLSocketFactory sf = SslConfig.getSslContext().getSocketFactory();
+            config.setSslSocketFactory(sf);
+        }
         return config;
     }
     
@@ -113,13 +125,11 @@ public class Main {
         return new KeycloakOidcClient(keycloakOidcConfiguration);
     }
 
-    /*
     @Bean("fixedThreadPool")
     @Order(Ordered.HIGHEST_PRECEDENCE)	
     ExecutorService fixedThreadPool() {
         return Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
     }
-*/
 
     @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE)	
@@ -172,13 +182,13 @@ public class Main {
 
     public static void main(String[] args) throws NoSuchAlgorithmException {
         logger.info("Starting Halcyon...");
+        INIT i = new INIT();
+        i.init();
         DataCore.getInstance();
         SPARQLEndPoint.getSPARQLEndPoint();
         ServicesLoader halcyonServiceLoader = new ServicesLoader();
         ClassLoader loader = Main.class.getClassLoader();
         FileReaderFactoryProvider frf = new FileReaderFactoryProvider(loader);
-        INIT i = new INIT();
-        i.init();
         Spatial.init();
         SpringApplicationBuilder sab = new SpringApplicationBuilder(Main.class);
         sab.initializers(new ServletInitializer());
@@ -186,7 +196,7 @@ public class Main {
         //SpringApplication app = new SpringApplication(Main.class);        
         app.setAdditionalProfiles("production");
         app.setBannerMode(Mode.CONSOLE);
-        ApplicationContext yay = app.run(args);
+        app.run(args);
         System.out.println("===================== Welcome to Halcyon!");
     }
     

@@ -1,43 +1,18 @@
 package com.ebremer.halcyon.server;
 
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
-import org.eclipse.jetty.http3.server.HTTP3ServerConnectionFactory;
-import org.eclipse.jetty.http3.server.HTTP3ServerConnector;
-import org.eclipse.jetty.server.HttpConfiguration;
 import org.eclipse.jetty.server.SecureRequestCustomizer;
 import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.util.ssl.SslContextFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.ssl.DefaultSslBundleRegistry;
 import org.springframework.boot.web.embedded.jetty.JettyServerCustomizer;
 import org.springframework.boot.web.embedded.jetty.JettyServletWebServerFactory;
 import org.springframework.boot.web.server.WebServerFactoryCustomizer;
 import org.springframework.context.annotation.Configuration;
-
-import java.nio.file.Paths;
-import javax.net.ssl.SSLContext;
 import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.server.HttpConnectionFactory;
 import org.eclipse.jetty.server.ServerConnector;
-import org.eclipse.jetty.server.SslConnectionFactory;
-import org.springframework.beans.factory.annotation.Value;
 
 @Configuration
 public class JettyConfiguration implements WebServerFactoryCustomizer<JettyServletWebServerFactory> {
-    private final SSLContext sslContext;
-    //@Autowired
-    //private DefaultSslBundleRegistry defaultSslBundleRegistry;
-
-    //@Value("${server.port}")
-    //private Integer serverPort = 8888;
-
-    //@Value("${server.jetty.connection-idle-timeout}")
-    private Integer idleTimeout = 900000;
-
-   @Autowired 
-    public JettyConfiguration(SSLContext sslContext) {
-        this.sslContext = sslContext;        
-    }
     
     @Override
     public void customize(JettyServletWebServerFactory factory) {
@@ -83,7 +58,7 @@ public class JettyConfiguration implements WebServerFactoryCustomizer<JettyServl
                // sslContextFactory.setKeyStore(keyStore);
                 sslContextFactory.setKeyStorePassword("password");
                 httpConfig.addCustomizer(new SecureRequestCustomizer());
-                httpConfig.setIdleTimeout(idleTimeout);
+                httpConfig.setIdleTimeout(900000);
                 HTTP3ServerConnector connector = new HTTP3ServerConnector(server, sslContextFactory, new HTTP3ServerConnectionFactory(httpConfig));
                 connector.setHost(HalcyonSettings.getSettings().GetHostIP());
                 connector.getQuicConfiguration().setPemWorkDirectory(Paths.get(System.getProperty("java.io.tmpdir")));

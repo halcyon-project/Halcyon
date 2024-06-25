@@ -27,49 +27,45 @@ public class SimplePlatformProvider implements PlatformProvider {
         return "springboot-keycloak-server";
     }
 
-	@Override
-	public void onStartup(Runnable startupHook) {
-		startupHook.run();
-	}
+    @Override
+    public void onStartup(Runnable startupHook) {
+	startupHook.run();
+    }
 
-	@Override
-	public void onShutdown(Runnable shutdownHook) {
-	}
+    @Override
+    public void onShutdown(Runnable shutdownHook) {}
 
-	@Override
-	public void exit(Throwable cause) {
-		throw new RuntimeException(cause);
-	}
+    @Override
+    public void exit(Throwable cause) {
+	throw new RuntimeException(cause);
+    }
 
-	@Override
-	public File getTmpDirectory() {
-		if (tmpDir == null) {
-			final var projectBuildDir = System.getProperty("project.build.directory");
-			File tmpDir;
-			if (projectBuildDir != null) {
-				tmpDir = new File(projectBuildDir, "server-tmp");
-				tmpDir.mkdir();
-			} else {
-				try {
-					tmpDir = Files.createTempDirectory("keycloak-server-").toFile();
-					tmpDir.deleteOnExit();
-				} catch (IOException ioe) {
-					throw new RuntimeException("Could not create temporary directory", ioe);
-				}
-			}
-			if (tmpDir.isDirectory()) {
-				this.tmpDir = tmpDir;
-				logger.info("Using server tmp directory: {}", tmpDir.getAbsolutePath());
-			} else {
-				throw new RuntimeException("Directory " + tmpDir + " was not created and does not exists");
-			}
-		}
-		return tmpDir;
+    @Override
+    public File getTmpDirectory() {
+	if (tmpDir == null) {
+            final var projectBuildDir = System.getProperty("project.build.directory");
+            if (projectBuildDir != null) {
+                tmpDir = new File(projectBuildDir, "server-tmp");
+                tmpDir.mkdir();
+            } else {
+                try {
+                    tmpDir = Files.createTempDirectory("keycloak-server-").toFile();
+                    tmpDir.deleteOnExit();
+                } catch (IOException ioe) {
+                    throw new RuntimeException("Could not create temporary directory", ioe);
+                }
+            }
+            if (tmpDir.isDirectory()) {
+                logger.info("Using server tmp directory: {}", tmpDir.getAbsolutePath());
+            } else {
+                throw new RuntimeException("Directory " + tmpDir + " was not created and does not exists");
+            }
 	}
+	return tmpDir;
+    }
 
-	@Override
-	public ClassLoader getScriptEngineClassLoader(Scope scriptProviderConfig) {
-		return null;
-	}
-
+    @Override
+    public ClassLoader getScriptEngineClassLoader(Scope scriptProviderConfig) {
+	return null;
+    }
 }

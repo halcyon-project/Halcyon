@@ -12,7 +12,7 @@
     <plugins>
       <plugin>
         <artifactId>maven-shade-plugin</artifactId>
-        <version>3.5.1</version>
+        <version>${maven-shade-plugin.version}</version>
         <executions>
           <execution>
             <id>libraryshade</id>
@@ -45,7 +45,7 @@
       </plugin>
       <plugin>
         <artifactId>maven-deploy-plugin</artifactId>
-        <version>3.1.1</version>
+        <version>${maven-deploy-plugin.version}</version>
         <configuration>
           <skip>false</skip>
         </configuration>

@@ -1,7 +1,6 @@
 package com.ebremer.halcyon.server;
 
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
-import javax.net.ssl.SSLContext;
 import org.pac4j.core.client.Clients;
 import org.pac4j.core.config.Config;
 import org.pac4j.jee.filter.CallbackFilter;
@@ -22,15 +21,9 @@ import org.springframework.core.Ordered;
 
 @Configuration
 public class Cool {
-    private final SSLContext sslContext;
-    
-    @Autowired
-    public Cool(SSLContext sslContext) {
-        this.sslContext = sslContext;
-    }
-    
-    @Autowired
-    private Config config;
+
+//    @Autowired
+//    private Config config;
     
     @Bean
     public HalcyonSecurityFilter securityFilter(Config pac4jConfig) {
@@ -52,7 +45,9 @@ public class Cool {
         keyconfig.setClientId("account");
         keyconfig.setRealm("Halcyon");
         keyconfig.setBaseUri(HalcyonSettings.getSettings().getAuthServer()+"/auth");
-        keyconfig.setSslSocketFactory(sslContext.getSocketFactory());
+        if (HalcyonSettings.getSettings().isHTTPS2enabled()) {
+            keyconfig.setSslSocketFactory(SslConfig.getSslContext().getSocketFactory());
+        }
         KeycloakOidcClient keycloakclient = new KeycloakOidcClient(keyconfig);
         final Clients clients = new Clients(HalcyonSettings.getSettings().getProxyHostName()+"/callback", keycloakclient);
         return new Config(clients);

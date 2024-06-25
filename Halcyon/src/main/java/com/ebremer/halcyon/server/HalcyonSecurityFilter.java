@@ -16,6 +16,7 @@ import org.pac4j.core.util.security.SecurityEndpointBuilder;
 import org.pac4j.jee.config.AbstractConfigFilter;
 import org.pac4j.jee.context.JEEFrameworkParameters;
 import java.io.IOException;
+import org.pac4j.core.resource.SpringResourceHelper;
 
 /**
  * <p>This filter protects an URL.</p>
@@ -75,7 +76,6 @@ public class HalcyonSecurityFilter extends AbstractConfigFilter implements Secur
      */
     @Override
     protected final void internalFilter( final HttpServletRequest request, final HttpServletResponse response, final FilterChain filterChain ) throws IOException, ServletException {
-        System.out.println(request.getRequestURI());
         val config = getSharedConfig();
         FrameworkAdapter.INSTANCE.applyDefaultSettingsIfUndefined(config);
         config.getSecurityLogic().perform(config, (ctx, session, profiles) -> {
