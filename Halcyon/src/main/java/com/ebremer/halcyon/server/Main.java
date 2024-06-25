@@ -9,8 +9,6 @@ import com.ebremer.halcyon.server.keycloak.RequestFilter;
 import com.ebremer.halcyon.server.keycloak.providers.SimplePlatformProvider;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import javax.net.ssl.SSLContext;
 import javax.sql.DataSource;
 import org.jboss.resteasy.plugins.server.servlet.HttpServlet30Dispatcher;
@@ -37,6 +35,7 @@ import com.ebremer.halcyon.lib.spatial.Spatial;
 import com.ebremer.halcyon.server.ldp.LDP;
 import jakarta.servlet.Servlet;
 import java.util.UUID;
+import javax.net.ssl.SSLSocketFactory;
 import org.mitre.dsmiley.httpproxy.ProxyServlet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,7 +44,6 @@ import org.springframework.boot.autoconfigure.liquibase.LiquibaseAutoConfigurati
 import org.pac4j.oidc.client.KeycloakOidcClient;
 import org.pac4j.oidc.config.KeycloakOidcConfiguration;
 import org.springframework.boot.builder.SpringApplicationBuilder;
-import org.springframework.boot.ssl.DefaultSslBundleRegistry;
 import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.context.ConfigurableApplicationContext;
 
@@ -56,16 +54,16 @@ import org.springframework.context.ConfigurableApplicationContext;
 public class Main {
     private static final Logger logger = LoggerFactory.getLogger(Main.class);
     private final KeycloakServer properties;
-    
-    @Autowired
-    private DefaultSslBundleRegistry defaultSslBundleRegistry;
+    private final SSLContext sslContext;
     
     @Autowired
     private KeycloakOidcConfiguration keycloakOidcConfiguration;
         
-    public Main(KeycloakServer properties) {
+    @Autowired
+    public Main(KeycloakServer properties, SSLContext sslContext) {
         this.properties = properties;
-        KeycloakProperties.getInstance(properties.getContextPath(), properties.getUsername(), properties.getPassword());
+        this.sslContext = sslContext;
+        //KeycloakProperties.getInstance(properties.getContextPath(), properties.getUsername(), properties.getPassword());
     }
 
     @Autowired
@@ -105,8 +103,8 @@ public class Main {
         config.setClientId("account");
         config.setRealm("Halcyon");
         config.setBaseUri(HalcyonSettings.getSettings().getProxyHostName()+"/auth");  
-        SSLContext sc = defaultSslBundleRegistry.getBundle("server").createSslContext();
-        config.setSslSocketFactory(sc.getSocketFactory());
+        SSLSocketFactory sf = sslContext.getSocketFactory();
+        config.setSslSocketFactory(sf);
         return config;
     }
     
@@ -115,11 +113,13 @@ public class Main {
         return new KeycloakOidcClient(keycloakOidcConfiguration);
     }
 
+    /*
     @Bean("fixedThreadPool")
     @Order(Ordered.HIGHEST_PRECEDENCE)	
     ExecutorService fixedThreadPool() {
-        return Executors.newFixedThreadPool(5);
+        return Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
     }
+*/
 
     @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE)	
@@ -172,13 +172,6 @@ public class Main {
 
     public static void main(String[] args) throws NoSuchAlgorithmException {
         logger.info("Starting Halcyon...");
-        //if (HalcyonSettings.getSettings().isHTTPS2enabled()) {
-            logger.info("Setting Key and Trust stores...");
-            System.setProperty("javax.net.ssl.keyStore", "halcyonkeystore.jks");
-            System.setProperty("javax.net.ssl.keyStorePassword", "password");
-            System.setProperty("javax.net.ssl.trustStore", "halcyontruststore.jks");
-            System.setProperty("javax.net.ssl.trustStorePassword", "password");
-        //}
         DataCore.getInstance();
         SPARQLEndPoint.getSPARQLEndPoint();
         ServicesLoader halcyonServiceLoader = new ServicesLoader();
@@ -216,202 +209,3 @@ public class Main {
         }
     }    
 }
-
-    /*
-    @Bean
-    @Order(Ordered.HIGHEST_PRECEDENCE)
-    public UndertowServletWebServerFactory embeddedServletContainerFactory() {
-        System.out.println("Configuring Undertow Web Engine...");
-        UndertowServletWebServerFactory factory = new UndertowServletWebServerFactory();
-        int cores = Runtime.getRuntime().availableProcessors();
-        int ioThreads = cores;
-        int taskThreads = 16*cores;
-        System.out.println("ioThreads   : "+ioThreads+"\ntaskThreads : "+taskThreads);
-        factory.setIoThreads(ioThreads);
-        HalcyonSettings settings = HalcyonSettings.getSettings();
-        factory.setPort(settings.GetHTTPPort());
-        if (settings.isHTTPSenabled()) {
-            factory.addBuilderCustomizers(builder -> {
-                SSLContext ssl;
-                try {
-                    ssl = getSSLContext();
-                    System.out.println("HTTPS PORT : "+settings.GetHTTPSPort());
-                    builder
-                        .addHttpsListener(settings.GetHTTPSPort(), settings.GetHostIP(), ssl)
-                        .setServerOption(UndertowOptions.ENABLE_HTTP2, true)
-                        .setServerOption(UndertowOptions.MAX_PARAMETERS, 100000)
-                        .setServerOption(UndertowOptions.MAX_CONCURRENT_REQUESTS_PER_CONNECTION, 100);
-                } catch (Exception ex) {
-                    log.error(ex.toString());
-                }
-            });
-        } else {
-            System.out.println("HTTPS not enabled.");
-        }
-        return factory;
-    }*/
-
-    
-    /*
-    @Bean
-    @Order(Ordered.HIGHEST_PRECEDENCE)
-    public FilterRegistrationBean<HALKeycloakOIDCFilter> KeycloakOIDCFilterFilterRegistration(){
-        FilterRegistrationBean<HALKeycloakOIDCFilter> registration = new FilterRegistrationBean<>();
-        registration.setName("keycloak");
-	registration.setFilter(new HALKeycloakOIDCFilter());
-	registration.addUrlPatterns("/*");
-        registration.setOrder(Ordered.HIGHEST_PRECEDENCE);
-        registration.addInitParameter(KeycloakOIDCFilter.CONFIG_FILE_PARAM, "keycloak.json");        
-        registration.addInitParameter(KeycloakOIDCFilter.SKIP_PATTERN_PARAM, "(^/zephyr.*|^/h2.*|^/skunkworks/.*|^/puffin.*|^/threejs/.*|^/halcyon.*|^/zephyrx.*|^/rdf.*|^/talon/.*|/;jsessionid=.*|/gui/images/halcyon.png|^/wicket/resource/.*|^/multi-viewer.*|^/iiif.*|^/|^/about|^/ListImages.*|^/wicket/resource/com.*\\.css||^/auth/.*|^/favicon.ico)");
-        registration.setEnabled(true);
-        return registration;
-    }*/
-
-
-/*    
-    private static class TrustAllHostnames implements HostnameVerifier {
-        @Override
-        public boolean verify(String s, SSLSession sslSession) {
-            return true; // Trust all hostnames
-        }
-    }
-
-    private static void trustAllHosts() {    
-        TrustAllHostnames trust = new TrustAllHostnames();
-        HttpsURLConnection.setDefaultHostnameVerifier(trust);
-    }
-    
-    private static void trustAllCertificates() {
-        TrustManager[] trustAllCerts = new TrustManager[]{
-            new X509TrustManager() {
-                @Override
-                public java.security.cert.X509Certificate[] getAcceptedIssuers() {
-                    return null;
-                }
-                
-                @Override
-                public void checkClientTrusted(
-                    java.security.cert.X509Certificate[] certs, String authType) {
-                }
-                
-                @Override
-                public void checkServerTrusted(
-                    java.security.cert.X509Certificate[] certs, String authType) {
-                }
-            }
-        };
-
-        try {
-            SSLContext sc = SSLContext.getInstance("SSL");
-            sc.init(null, trustAllCerts, new java.security.SecureRandom());
-            HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
-        } catch (NoSuchAlgorithmException | KeyManagementException e) {
-            System.out.println("Exception occurred while setting up all-trusting trust manager:" + e.getMessage());
-        }
-    }*/
-    
-    
-    /*
-    @Bean
-    @Order(Ordered.HIGHEST_PRECEDENCE)	
-    public FilterRegistrationBean<SimpleLoggingFilter> loggingFilter() {
-        FilterRegistrationBean<SimpleLoggingFilter> registrationBean = new FilterRegistrationBean<>();
-        registrationBean.setFilter(new SimpleLoggingFilter());
-        registrationBean.addUrlPatterns("/*");
-        return registrationBean;
-    }*/
-    
-    /*
-    @Component
-    public class CustomTomcatConfiguration implements WebServerFactoryCustomizer<TomcatServletWebServerFactory> {
-
-        @Override
-        public void customize(TomcatServletWebServerFactory factory) {
-            HalcyonSettings settings = HalcyonSettings.getSettings();
-            factory.setPort(settings.GetHTTPPort());
-            
-            //Ssl ssl = new Ssl();
-            //ssl.setKeyStore("classpath:keystore.jks"); // Key store file in the classpath
-            //ssl.setKeyStorePassword("yourKeystorePassword"); // Key store password
-            //ssl.setKeyAlias("yourKeyAlias"); // Key alias in the key store
-
-            //factory.setSsl(ssl);
-            //factory.setProtocol(Http11NioProtocol.class.getName());
-            //factory.setPort(settings.GetHTTPSPort());
-            //factory.addAdditionalTomcatConnectors(createStandardConnector());
-            
-        }
-
-        private Connector createStandardConnector() {
-            HalcyonSettings settings = HalcyonSettings.getSettings();
-            Connector connector = new Connector(TomcatServletWebServerFactory.DEFAULT_PROTOCOL);
-            connector.setPort(settings.GetHTTPPort());
-            return connector;
-        }
-    }*/
-
-    /*
-    private final String keyStorePassword = "changeit";
-    private final String serverKeystore = "cacerts";
-    private final String serverTruststore = "cacerts";
-    private final String trustStorePassword = "changeit";
-    
-    public SSLContext getSSLContext() throws Exception {
-        return createSSLContext(loadKeyStore(serverKeystore,keyStorePassword), loadKeyStore(serverTruststore,trustStorePassword));
-    }
-
-    private SSLContext createSSLContext(final KeyStore keyStore, final KeyStore trustStore) throws Exception {
-        KeyManager[] keyManagers;
-        KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-        keyManagerFactory.init(keyStore, keyStorePassword.toCharArray());
-        keyManagers = keyManagerFactory.getKeyManagers();
-        TrustManager[] trustManagers;
-        TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-        trustManagerFactory.init(trustStore);
-        trustManagers = trustManagerFactory.getTrustManagers();
-        SSLContext sslContext;
-        sslContext = SSLContext.getInstance("TLS");
-        sslContext.init(keyManagers, trustManagers, null);
-        return sslContext;
-    }
-    
-    private static KeyStore loadKeyStore(final String storeLoc, final String storePw) throws Exception {
-        InputStream stream = Files.newInputStream(Paths.get(storeLoc));
-        if(stream == null) {
-            throw new IllegalArgumentException("Could not load keystore");
-        }
-        try (InputStream is = stream) {
-            KeyStore loadedKeystore = KeyStore.getInstance("JKS");
-            loadedKeystore.load(is, storePw.toCharArray());
-            return loadedKeystore;
-        }
-    }*/
-
-    /*
-    private void mockJndiEnvironment() throws NamingException {
-        NamingManager.setInitialContextFactoryBuilder((env) -> (environment) -> new InitialContext() {
-            
-            @Override
-            public Object lookup(Name name) {
-                return lookup(name.toString());
-            }
-                
-            @Override
-            public Object lookup(String name) {
-                if ("spring/datasource".equals(name)) {
-                    return dataSource;
-                } else if (name.startsWith("java:jboss/ee/concurrency/executor/")) {
-                    return fixedThreadPool();
-                }
-                return null;
-            }
-
-            @Override
-            public NameParser getNameParser(String name) {
-                return CompositeName::new;
-            }
-
-            @Override
-            public void close() {}
-        });
-    }*/

@@ -26,11 +26,8 @@ import java.io.IOException;
 @Getter
 @Setter
 public class HalcyonSecurityFilter extends AbstractConfigFilter implements SecurityEndpoint {
-
     private String clients;
-
     private String authorizers;
-
     private String matchers;
 
     public HalcyonSecurityFilter() {}
@@ -68,12 +65,17 @@ public class HalcyonSecurityFilter extends AbstractConfigFilter implements Secur
         this.matchers = getStringParam(filterConfig, Pac4jConstants.MATCHERS, this.matchers);
     }
 
+    /**
+     *
+     * @param request
+     * @param response
+     * @param filterChain
+     * @throws IOException
+     * @throws ServletException
+     */
     @Override
-    protected final void internalFilter(
-            final HttpServletRequest request,
-            final HttpServletResponse response,
-            final FilterChain filterChain
-    ) throws IOException, ServletException {
+    protected final void internalFilter( final HttpServletRequest request, final HttpServletResponse response, final FilterChain filterChain ) throws IOException, ServletException {
+        System.out.println(request.getRequestURI());
         val config = getSharedConfig();
         FrameworkAdapter.INSTANCE.applyDefaultSettingsIfUndefined(config);
         config.getSecurityLogic().perform(config, (ctx, session, profiles) -> {

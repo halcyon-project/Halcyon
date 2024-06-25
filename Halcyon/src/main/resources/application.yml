@@ -3,18 +3,18 @@ keycloak:
     contextPath: /auth
     username: admin
     password: admin
-server:
-  port: 8888
-  http2:
-    enabled: true
-  ssl:
-    bundle: server
-    enabled-protocols: TLSv1.3
-  servlet:
-    session:
-      timeout: 900
-  jetty:
-    connection-idle-timeout: 900000
+#server:
+#  port: 8888
+#  http2:
+#    enabled: false
+#  ssl:
+#    bundle: server
+#    enabled-protocols: TLSv1.3
+#  servlet:
+#    session:
+#      timeout: 900
+#  jetty:
+#    connection-idle-timeout: 900000
 spring:
   main:
     lazy-initialization: false
@@ -35,20 +35,21 @@ spring:
         transaction:
           jta:
             platform: org.hibernate.engine.transaction.jta.platform.internal.NoJtaPlatform
-  ssl:
-    bundle:
-      jks:
-        server:
-          key:
-            alias: "halcyon"
-          keystore:
-            location: "halcyonkeystore.jks"
-            password: "password"
-            type: "JKS"
-          truststore:
-            location: "halcyontruststore.jks"
-            password: "password"
-            type: "JKS"
+#  ssl:
+#    bundle:
+#      jks:
+#        server:
+#          key:
+#            alias: "halcyon"
+#          keystore:
+#            location: "halcyonkeystore.jks"
+#            password: "password"
+#            type: "JKS"
+#          truststore:
+#            location: "halcyontruststore.jks"
+#            password: "password"
+#            type: "JKS"
+
 logging:
   file:
     name: logs/halcyon.log

@@ -151,14 +151,6 @@ public final class HalcyonSession extends WebSession {
         }
     }
     
-    //public String getUUIDURN() {
-      //  return uuidurn;
-    //}
-    
-    //public String getUUID() {
-      //  return uuid;
-    //}
-    
     public Block getBlock() {
         return UserSessionDataStorage.getInstance().get(userURI);
     }

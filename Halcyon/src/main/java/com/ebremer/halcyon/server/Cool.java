@@ -1,6 +1,7 @@
 package com.ebremer.halcyon.server;
 
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
+import javax.net.ssl.SSLContext;
 import org.pac4j.core.client.Clients;
 import org.pac4j.core.config.Config;
 import org.pac4j.jee.filter.CallbackFilter;
@@ -8,7 +9,6 @@ import org.pac4j.jee.filter.LogoutFilter;
 import org.pac4j.jee.util.Pac4jProducer;
 import org.pac4j.oidc.client.KeycloakOidcClient;
 import org.pac4j.oidc.config.KeycloakOidcConfiguration;
-import org.pac4j.oidc.metadata.OidcOpMetadataResolver;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
@@ -22,6 +22,12 @@ import org.springframework.core.Ordered;
 
 @Configuration
 public class Cool {
+    private final SSLContext sslContext;
+    
+    @Autowired
+    public Cool(SSLContext sslContext) {
+        this.sslContext = sslContext;
+    }
     
     @Autowired
     private Config config;
@@ -45,7 +51,8 @@ public class Cool {
         final KeycloakOidcConfiguration keyconfig = new KeycloakOidcConfiguration();
         keyconfig.setClientId("account");
         keyconfig.setRealm("Halcyon");
-        keyconfig.setBaseUri(HalcyonSettings.getSettings().getAuthServer()+"/auth");    
+        keyconfig.setBaseUri(HalcyonSettings.getSettings().getAuthServer()+"/auth");
+        keyconfig.setSslSocketFactory(sslContext.getSocketFactory());
         KeycloakOidcClient keycloakclient = new KeycloakOidcClient(keyconfig);
         final Clients clients = new Clients(HalcyonSettings.getSettings().getProxyHostName()+"/callback", keycloakclient);
         return new Config(clients);
