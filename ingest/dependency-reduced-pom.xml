@@ -7,7 +7,6 @@
   </parent>
   <modelVersion>4.0.0</modelVersion>
   <artifactId>ingest</artifactId>
-  <version>1.1.0</version>
   <profiles>
     <profile>
       <id>ingest</id>
@@ -16,7 +15,7 @@
           <plugin>
             <groupId>org.graalvm.buildtools</groupId>
             <artifactId>native-maven-plugin</artifactId>
-            <version>0.10.2</version>
+            <version>${native-maven-plugin.version}</version>
             <extensions>true</extensions>
             <executions>
               <execution>
@@ -62,7 +61,7 @@
         <plugins>
           <plugin>
             <artifactId>maven-shade-plugin</artifactId>
-            <version>3.5.1</version>
+            <version>${maven-shade-plugin.version}</version>
             <executions>
               <execution>
                 <id>ingestjarshade</id>
@@ -104,7 +103,7 @@
         <plugins>
           <plugin>
             <artifactId>maven-shade-plugin</artifactId>
-            <version>3.5.1</version>
+            <version>${maven-shade-plugin.version}</version>
             <executions>
               <execution>
                 <id>ns2gsshade</id>
@@ -136,7 +135,7 @@
         <plugins>
           <plugin>
             <artifactId>maven-shade-plugin</artifactId>
-            <version>3.5.1</version>
+            <version>${maven-shade-plugin.version}</version>
             <executions>
               <execution>
                 <id>heatmap2geosparqlshade</id>

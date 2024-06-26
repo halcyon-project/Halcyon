@@ -121,7 +121,8 @@ public class HAL {
     public static final Property HTTPPort = m.createProperty(NS+"HTTPPort");
     public static final Property HTTPSPort = m.createProperty(NS+"HTTPSPort");
     public static final Property ProxyHostName = m.createProperty(NS+"ProxyHostName");
-    public static final Property HTTPSenabled = m.createProperty(NS+"HTTPSenabled");
+    public static final Property HTTPS2enabled = m.createProperty(NS+"HTTPS2enabled");
+    public static final Property HTTPS3enabled = m.createProperty(NS+"HTTPS3enabled");
     public static final Property SPARQLport = m.createProperty(NS+"SPARQLport");
     public static final Property urlpathprefix = m.createProperty(NS+"urlpathprefix");
     public static final Property mppx = m.createProperty(NS+"mppx");

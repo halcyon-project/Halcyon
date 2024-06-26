@@ -1,5 +1,6 @@
 package com.ebremer.halcyon.fuseki.shiro;
 
+import com.ebremer.halcyon.server.SslConfig;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import jakarta.json.Json;
 import jakarta.json.JsonArray;
@@ -21,13 +22,14 @@ import java.security.spec.RSAPublicKeySpec;
 import java.util.Base64;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.net.ssl.HttpsURLConnection;
 
 public class KeycloakPublicKeyFetcher {
     private static KeycloakPublicKeyFetcher kpkf = null; 
     private final String oidcConfigurationUrl;
     private static PublicKey publicKey = null;
-    
-    private KeycloakPublicKeyFetcher() {
+        
+    public KeycloakPublicKeyFetcher() {
         oidcConfigurationUrl = HalcyonSettings.getSettings().getProxyHostName() + "/auth/realms/"+HalcyonSettings.realm+"/protocol/openid-connect/certs";
     }
     
@@ -48,14 +50,19 @@ public class KeycloakPublicKeyFetcher {
                 Logger.getLogger(KeycloakPublicKeyFetcher.class.getName()).log(Level.SEVERE, null, ex);
             } catch (URISyntaxException ex) {
                 Logger.getLogger(KeycloakPublicKeyFetcher.class.getName()).log(Level.SEVERE, null, ex);
+            } catch (Exception ex) {
+                Logger.getLogger(KeycloakPublicKeyFetcher.class.getName()).log(Level.SEVERE, null, ex);
             }
         }
         return kpkf;
     }
 
-    private PublicKey fetchPublicKey() throws IOException, NoSuchAlgorithmException, InvalidKeySpecException, URISyntaxException {
+    private PublicKey fetchPublicKey() throws IOException, NoSuchAlgorithmException, InvalidKeySpecException, URISyntaxException, Exception {
         URL url = (new URI(oidcConfigurationUrl)).toURL();
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        if (connection instanceof HttpsURLConnection httpsConnection) {
+            httpsConnection.setSSLSocketFactory(SslConfig.getSslContext().getSocketFactory());
+        }
         connection.setRequestMethod("GET");
         connection.setRequestProperty("Accept", "application/json");
         if (connection.getResponseCode() != 200) {

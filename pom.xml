@@ -78,33 +78,34 @@
         <java.version>21</java.version>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
-        <springboot.version>3.2.2</springboot.version>
         <exec.longClasspath>true</exec.longClasspath>
+        <springboot.version>3.3.1</springboot.version>
+        <keycloak.version>24.0.5</keycloak.version>        
+	<infinispan.version>15.0.5.Final</infinispan.version>
+	<resteasy.version>6.2.9.Final</resteasy.version>
+	<liquibase.version>4.27.0</liquibase.version>
+        <jetty.version>12.0.10</jetty.version>
+        <h2.version>2.2.224</h2.version>
         <jena.version>5.0.0</jena.version>
         <wicket.ver>10.1.0</wicket.ver>
-        <beakgraph.version>0.9.0</beakgraph.version>
-        <keycloak.version>23.0.4</keycloak.version>
+        <beakgraph.version>0.9.0</beakgraph.version>        
         <hilbert.ver>0.2.3</hilbert.ver>
         <commons-pool2.ver>2.12.0</commons-pool2.ver>
         <jakarta.json.version>2.0.1</jakarta.json.version> 
         <parrson.json.version>1.1.6</parrson.json.version>
         <titanium-json-ld.ver>1.4.0</titanium-json-ld.ver>
-        <dcm4che.ver>5.31.2</dcm4che.ver>
-	<infinispan.version>14.0.21.Final</infinispan.version>
-	<resteasy.version>6.2.7.Final</resteasy.version>
-	<micrometer.version>1.10.3</micrometer.version>
-	<liquibase.version>4.23.2</liquibase.version>
-        <org.snakeyaml.snakeyaml-engine.version>2.6</org.snakeyaml.snakeyaml-engine.version>
-        <h2.version>2.2.224</h2.version>
-        <shiro.version>2.0.0</shiro.version>
+        <!--<dcm4che.ver>5.31.2</dcm4che.ver>-->
+        <shiro.version>2.0.1</shiro.version>
         <jts.version>1.19.0</jts.version>
         <twelvemonkeys.version>3.10.1</twelvemonkeys.version>
-        <!--<log4j.version>2.22.1</log4j.version>-->
-        <log4j.version>3.0.0-beta1</log4j.version>
         <jcommander.version>1.83</jcommander.version>
-        <hibernate-orm.plugin.version>6.2.7.Final</hibernate-orm.plugin.version>
-	<hibernate.c3p0.version>6.2.7.Final</hibernate.c3p0.version>
-        <jetty.version>12.0.5</jetty.version>
+        <maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
+        <maven-shade-plugin.version>3.6.0</maven-shade-plugin.version>
+        <maven-enforcer-plugin.version>3.5.0</maven-enforcer-plugin.version>
+        <maven-deploy-plugin.version>3.1.2</maven-deploy-plugin.version>
+        <maven-dependency-plugin.version>3.7.0</maven-dependency-plugin.version>
+        <native-maven-plugin.version>0.10.2</native-maven-plugin.version>
+        <jpackage-maven-plugin.version>1.6.0</jpackage-maven-plugin.version>
     </properties>
     
     <dependencyManagement>
@@ -112,27 +113,27 @@
             <dependency>
                 <groupId>org.graalvm.buildtools</groupId>
                 <artifactId>native-maven-plugin</artifactId>
-                <version>0.10.0</version>
+                <version>${native-maven-plugin}</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-enforcer-plugin</artifactId>
-                <version>3.4.1</version>
+                <version>${maven-enforcer-plugin.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
-                <version>3.5.1</version>
+                <version>${maven-shade-plugin.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
-                <version>3.2.2</version>
+                <version>${springboot.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.12.1</version>
+                <version>${maven-compiler-plugin}</version>
             </dependency>
             <dependency>
                 <groupId>org.springframework.boot</groupId>
@@ -164,12 +165,6 @@
                 <artifactId>jena-fuseki-main</artifactId>
                 <version>${jena.version}</version>
             </dependency>
-            <dependency>
-                <groupId>io.micrometer</groupId>
-                <artifactId>micrometer-registry-prometheus</artifactId>
-                <version>${micrometer.version}</version>
-            </dependency>
-            
             <dependency>
                 <groupId>com.github.ben-manes.caffeine</groupId>
                 <artifactId>caffeine</artifactId>
@@ -223,7 +218,7 @@
             <dependency>
                 <groupId>org.projectlombok</groupId>
                 <artifactId>lombok</artifactId>
-                <version>1.18.30</version>
+                <version>1.18.32</version>
                 <scope>provided</scope>
             </dependency>
             <dependency>
@@ -245,27 +240,6 @@
                         <artifactId>commons-text</artifactId>
                     </exclusion>
                 </exclusions>
-            </dependency>
-            <dependency>
-                <groupId>org.yaml</groupId>
-                <artifactId>snakeyaml-engine</artifactId>
-                <version>${org.snakeyaml.snakeyaml-engine.version}</version>
-            </dependency>
-            
-            <dependency>
-                <groupId>org.apache.logging.log4j</groupId>
-                <artifactId>log4j-api</artifactId>
-                <version>${log4j.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.logging.log4j</groupId>
-                <artifactId>log4j-core</artifactId>
-                <version>${log4j.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.logging.log4j</groupId>
-                <artifactId>log4j-slf4j-impl</artifactId>
-                <version>${log4j.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.apicatalog</groupId>
@@ -341,11 +315,12 @@
             <name>Halcyon</name>
             <url>https://cursus.bmi.stonybrookmedicine.edu/releases</url>
         </repository>
+        <!--
         <repository>
             <id>dcm4che</id>
             <name>dcm4che</name>
             <url>https://www.dcm4che.org/maven2</url>
-        </repository>
+        </repository>-->
         <!--
         <repository>
             <id>apache</id>

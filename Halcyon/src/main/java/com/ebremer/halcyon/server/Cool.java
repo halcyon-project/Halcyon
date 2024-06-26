@@ -8,7 +8,6 @@ import org.pac4j.jee.filter.LogoutFilter;
 import org.pac4j.jee.util.Pac4jProducer;
 import org.pac4j.oidc.client.KeycloakOidcClient;
 import org.pac4j.oidc.config.KeycloakOidcConfiguration;
-import org.pac4j.oidc.metadata.OidcOpMetadataResolver;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
@@ -22,9 +21,9 @@ import org.springframework.core.Ordered;
 
 @Configuration
 public class Cool {
-    
-    @Autowired
-    private Config config;
+
+//    @Autowired
+//    private Config config;
     
     @Bean
     public HalcyonSecurityFilter securityFilter(Config pac4jConfig) {
@@ -45,7 +44,10 @@ public class Cool {
         final KeycloakOidcConfiguration keyconfig = new KeycloakOidcConfiguration();
         keyconfig.setClientId("account");
         keyconfig.setRealm("Halcyon");
-        keyconfig.setBaseUri(HalcyonSettings.getSettings().getAuthServer()+"/auth");    
+        keyconfig.setBaseUri(HalcyonSettings.getSettings().getAuthServer()+"/auth");
+        if (HalcyonSettings.getSettings().isHTTPS2enabled()) {
+            keyconfig.setSslSocketFactory(SslConfig.getSslContext().getSocketFactory());
+        }
         KeycloakOidcClient keycloakclient = new KeycloakOidcClient(keyconfig);
         final Clients clients = new Clients(HalcyonSettings.getSettings().getProxyHostName()+"/callback", keycloakclient);
         return new Config(clients);

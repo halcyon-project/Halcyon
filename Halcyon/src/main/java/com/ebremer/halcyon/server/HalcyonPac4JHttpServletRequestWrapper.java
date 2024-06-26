@@ -13,7 +13,7 @@ import org.pac4j.oidc.profile.keycloak.KeycloakOidcProfile;
 
 public class HalcyonPac4JHttpServletRequestWrapper extends HttpServletRequestWrapper {
 
-    private Collection<UserProfile> profiles;
+    private final Collection<UserProfile> profiles;
 
     public HalcyonPac4JHttpServletRequestWrapper(final HttpServletRequest request, final Collection<UserProfile> profiles) {
         super(request);

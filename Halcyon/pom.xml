@@ -10,6 +10,9 @@
         <artifactId>HalcyonProject</artifactId>
         <version>1.1.0</version>
     </parent>      
+    <properties>
+        <exec.longClasspath>true</exec.longClasspath>
+    </properties>
     <build>
         <plugins>
             <plugin>
@@ -20,12 +23,12 @@
                         <dependency>org.apache.jena:jena-tdb2</dependency>
                    </usedDependencies>
                 </configuration>
-                <version>3.6.1</version>
+                <version>${maven-dependency-plugin.version}</version>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-enforcer-plugin</artifactId>
-                <version>3.4.1</version>
+                <version>${maven-enforcer-plugin.version}</version>
                 <executions>
                     <execution>
                         <id>enforce</id>
@@ -43,7 +46,7 @@
             <plugin>
                 <groupId>org.panteleyev</groupId>
                 <artifactId>jpackage-maven-plugin</artifactId>
-                <version>1.6.0</version>
+                <version>${jpackage-maven-plugin.version}</version>
                 <configuration>
                     <name>Halcyon</name>
                     <appVersion>${project.version}</appVersion>
@@ -101,7 +104,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.12.1</version>
+                <version>${maven-compiler-plugin.version}</version>
                 <configuration>
                     <compilerArgs>
                         <arg>--enable-preview</arg>
@@ -128,7 +131,7 @@
     </build>
     <profiles>
         <profile>
-            <id>halcyonjar</id>
+            <id>jar</id>
             <activation>
                 <activeByDefault>true</activeByDefault>
             </activation>
@@ -150,41 +153,6 @@
                                     </rules>
                                 </configuration>
                             </execution>
-                        </executions>
-                    </plugin>                    
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-shade-plugin</artifactId>
-                        <version>3.5.2</version>
-                        <configuration>
-                            <shadedArtifactAttached>false</shadedArtifactAttached>
-                            <transformers>
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>com.ebremer.halcyon.server.Main</mainClass>
-                                    <manifestEntries>
-                                        <Multi-Release>true</Multi-Release>
-                                    </manifestEntries>
-                                </transformer>
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
-                            </transformers>
-                            <filters>
-                                <filter>
-                                    <artifact>*:*</artifact>
-                                    <excludes>
-                                        <exclude>META-INF/*.SF</exclude>
-                                        <exclude>META-INF/*.DSA</exclude>
-                                        <exclude>META-INF/*.RSA</exclude>
-                                    </excludes>
-                                </filter>
-                            </filters>
-                        </configuration>
-                        <executions>
-                            <execution>
-                            <phase>package</phase>
-                            <goals>
-                                <goal>shade</goal>
-                            </goals>
-                           </execution>
                         </executions>
                     </plugin>
                     <plugin>
@@ -209,60 +177,15 @@
             <id>native</id>
             <build>
                 <plugins>   
-                    <!--                
                     <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-shade-plugin</artifactId>
-                        <configuration>
-                            <shadedArtifactAttached>false</shadedArtifactAttached>
-                            <transformers>
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>com.ebremer.halcyon.server.Main</mainClass>
-                                    <manifestEntries>
-                                        <Multi-Release>true</Multi-Release>
-                                    </manifestEntries>
-                                </transformer>
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
-                            </transformers>
-                            <filters>
-                                <filter>
-                                    <artifact>*:*</artifact>
-                                    <excludes>
-                                        <exclude>META-INF/*.SF</exclude>
-                                        <exclude>META-INF/*.DSA</exclude>
-                                        <exclude>META-INF/*.RSA</exclude>
-                                    </excludes>
-                                </filter>
-                            </filters>
-                        </configuration>
-                        <executions>
-                            <execution>
-                            <phase>package</phase>
-                            <goals>
-                                <goal>shade</goal>
-                            </goals>
-                           </execution>
-                        </executions>
-                    </plugin>-->
-                    <plugin>
-                        <groupId>org.springframework.boot</groupId>
-                        <artifactId>spring-boot-maven-plugin</artifactId>
-                        <version>3.2.2</version>
-                        <configuration>
-                        </configuration>
-                        <executions>
-                            <execution>
-                                <id>process-aot</id>
-                                <goals>
-                                    <goal>process-aot</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                    </plugin>                    
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-maven-plugin</artifactId>
+                        <version>${springboot.version}</version>
+                    </plugin>
                     <plugin>
                         <groupId>org.graalvm.buildtools</groupId>
                         <artifactId>native-maven-plugin</artifactId>
-                        <version>0.10.1</version>
+                        <version>${native-maven-plugin.version}</version>
                         <extensions>true</extensions>
                         <executions>
                             <execution>
@@ -277,60 +200,42 @@
                             <imageName>hatch</imageName>
                             <fallback>false</fallback>
                             <mainClass>com.ebremer.halcyon.server.Main</mainClass>
-                            <buildArgs>
-                            </buildArgs>
+                                <debug>true</debug>
+                                <skipNativeTests>true</skipNativeTests>
+                                <verbose>true</verbose>
+                                <buildArgs>
+                                    <buildArg>--no-fallback</buildArg>
+                                    <buildArg>-H:ConfigurationFileDirectories=nativeconfig</buildArg>
+                                    <buildArg>--enable-url-protocols=https</buildArg>
+                                    <buildArg>-H:+AddAllCharsets</buildArg>
+                                    <!--
+                                    <buildArg>initialize-at-build-time=jakarta.servlet.Servlet</buildArg>
+                                    <buildArg>initialize-at-run-time=jakarta.servlet.Servlet</buildArg>-->
+                                </buildArgs>
                             <classesDirectory>${project.build.outputDirectory}</classesDirectory>
                                 <metadataRepository>
                                 <enabled>true</enabled>
                             </metadataRepository>
                             <requiredVersion>22.3</requiredVersion>
                             <classpath>
-                                <param>${project.build.directory}/${project.artifactId}-${project.version}-shaded.jar</param>
+                                <param>${project.build.directory}/${project.artifactId}-${project.version}.jar</param>
                             </classpath>
                         </configuration>
                     </plugin>
                 </plugins>
             </build>
         </profile>
-        <profile>
-            <id>halcyon</id>
-                <build>
-                    <plugins>
-                        <plugin>
-                            <groupId>org.springframework.boot</groupId>
-                            <artifactId>spring-boot-maven-plugin</artifactId>
-                            <extensions>true</extensions>
-                            <executions>
-                                <execution>
-                                    <id>build-native</id>
-                                    <goals>
-                                        <goal>compile-no-fork</goal>
-                                    </goals>
-                                    <phase>package</phase>
-                                </execution>
-                            </executions>
-                            <configuration>
-                                <imageName>halcyon</imageName>
-                                <mainClass>com.ebremer.halcyon.server.Main</mainClass>
-                                <debug>true</debug>
-                                <skipNativeTests>true</skipNativeTests>
-                                <verbose>true</verbose>
-                                <buildArgs>
-                                    <buildArg>--no-fallback</buildArg>
-                                    <buildArg>-H:ConfigurationFileDirectories=config</buildArg>
-                                    <buildArg>--enable-url-protocols=https</buildArg>
-                                    <buildArg>-H:+AddAllCharsets</buildArg>
-                                </buildArgs>
-                            </configuration>
-                        </plugin>
-                    </plugins>
-                </build>
-            </profile>
-        </profiles>
+    </profiles>
     <dependencies>       
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.jboss.logging</groupId>
+                    <artifactId>jboss-logging</artifactId>
+                </exclusion>
+            </exclusions>            
         </dependency>        
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -347,6 +252,11 @@
             <artifactId>spring-boot-starter-jetty</artifactId>
         </dependency>
         <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-configuration-processor</artifactId>
+            <optional>true</optional>
+        </dependency>  
+        <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
             <scope>runtime</scope>
@@ -359,18 +269,17 @@
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <optional>true</optional>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-configuration-processor</artifactId>
-            <optional>true</optional>
-        </dependency>        
+        </dependency>      
         <dependency>
             <groupId>org.keycloak</groupId>
             <artifactId>keycloak-dependencies-server-all</artifactId>
             <version>${keycloak.version}</version>
             <type>pom</type>
             <exclusions>
+                <exclusion>
+                    <groupId>org.jboss.logging</groupId>
+                    <artifactId>jboss-logging</artifactId>
+                </exclusion>           
                 <exclusion>
                     <groupId>org.slf4j</groupId>
                     <artifactId>slf4j-log4j2</artifactId>
@@ -401,16 +310,34 @@
             <groupId>org.keycloak</groupId>
             <artifactId>keycloak-rest-admin-ui-ext</artifactId>
             <version>${keycloak.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.jboss.logging</groupId>
+                    <artifactId>jboss-logging</artifactId>
+                </exclusion>
+            </exclusions>            
         </dependency>
         <dependency>
             <groupId>org.jboss.resteasy</groupId>
             <artifactId>resteasy-jackson2-provider</artifactId>
             <version>${resteasy.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.jboss.logging</groupId>
+                    <artifactId>jboss-logging</artifactId>
+                </exclusion>
+            </exclusions>            
         </dependency>
         <dependency>
             <groupId>org.jboss.resteasy</groupId>
             <artifactId>resteasy-client</artifactId>
             <version>${resteasy.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.jboss.logging</groupId>
+                    <artifactId>jboss-logging</artifactId>
+                </exclusion>
+            </exclusions>            
         </dependency>
         <dependency>
             <groupId>org.mitre.dsmiley.httpproxy</groupId>
@@ -584,6 +511,12 @@
         <dependency>
             <groupId>org.infinispan</groupId>
             <artifactId>infinispan-core</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.jboss.logging</groupId>
+                    <artifactId>jboss-logging</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.infinispan</groupId>
@@ -596,10 +529,22 @@
         <dependency>
             <groupId>org.infinispan</groupId>
             <artifactId>infinispan-client-hotrod</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.jboss.logging</groupId>
+                    <artifactId>jboss-logging</artifactId>
+                </exclusion>
+            </exclusions>            
         </dependency>
         <dependency>
             <groupId>org.infinispan</groupId>
             <artifactId>infinispan-commons</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.jboss.logging</groupId>
+                    <artifactId>jboss-logging</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.infinispan</groupId>
@@ -618,18 +563,6 @@
             <artifactId>infinispan-remote-query-client</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-api</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-core</artifactId>
-        </dependency>
-            <dependency>
-                <groupId>org.apache.logging.log4j</groupId>
-                <artifactId>log4j-slf4j-impl</artifactId>
-        </dependency>        
-        <dependency>
             <groupId>org.pac4j</groupId>
             <artifactId>jakartaee-pac4j</artifactId>
             <version>8.0.0</version>
@@ -642,13 +575,30 @@
         <dependency>
             <groupId>jakarta.inject</groupId>
             <artifactId>jakarta.inject-api</artifactId>
-            <version>2.0.1</version>
         </dependency>
         <dependency>
             <groupId>jakarta.enterprise</groupId>
             <artifactId>jakarta.enterprise.cdi-api</artifactId>
             <version>4.0.1</version>
             <scope>provided</scope>
+        </dependency>                    
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>jul-to-slf4j</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.servlet</groupId>
+            <artifactId>jakarta.servlet-api</artifactId>
+            <version>6.0.0</version>
+            <!--<scope>provided</scope>-->
+        </dependency>
+        <dependency>
+            <groupId>org.jboss.logging</groupId>
+            <artifactId>jboss-logging</artifactId>
         </dependency>
     </dependencies>
 </project>

@@ -1,0 +1,3798 @@
+{
+  "resources":{
+  "includes":[{
+    "pattern":"\\QMETA-INF/build-info.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/infinispan-features.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/infinispan-version.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-1.0.0.Final-db2.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-1.0.0.Final.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-1.1.0.Beta1.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-1.1.0.Final.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-1.2.0.Beta1-db2.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-1.2.0.Beta1.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-1.2.0.CR1-db2.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-1.2.0.CR1.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-1.2.0.Final.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-1.3.0.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-1.4.0-db2.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-1.4.0.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-1.5.0.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-1.6.1.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-1.7.0.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-1.8.0-db2.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-1.8.0.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-1.9.0.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-1.9.1-db2.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-1.9.1.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-1.9.2.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-11.0.0.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-12.0.0.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-13.0.0.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-14.0.0.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-15.0.0.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-17.0.0.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-18.0.0.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-19.0.0.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-2.1.0.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-2.2.0.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-2.3.0.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-2.4.0.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-2.5.0.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-2.5.1.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-20.0.0.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-21.0.2.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-21.1.0.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-22.0.0.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-23.0.0.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-3.0.0.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-3.2.0.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-3.3.0.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-3.4.0.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-3.4.1.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-3.4.2.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-4.0.0.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-4.2.0.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-4.3.0.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-4.6.0.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-4.7.0.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-4.8.0.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-8.0.0.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-9.0.0.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-9.0.1.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-authz-2.0.0.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-authz-2.5.1.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-authz-3.4.0.CR1.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-authz-4.0.0.Beta3.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-authz-4.0.0.CR1.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-authz-4.2.0.Final.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-authz-7.0.0.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-authz-master.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/jpa-changelog-master.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/keycloak-server.json\\E"
+  }, {
+    "pattern":"\\QMETA-INF/keycloak-themes.json\\E"
+  }, {
+    "pattern":"\\QMETA-INF/mime.types\\E"
+  }, {
+    "pattern":"\\QMETA-INF/mimetypes.default\\E"
+  }, {
+    "pattern":"\\QMETA-INF/orm.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/persistence.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/public-web-resources/images/halcyon.png\\E"
+  }, {
+    "pattern":"\\QMETA-INF/public-web-resources/multi-viewer/css/main.min.css\\E"
+  }, {
+    "pattern":"\\QMETA-INF/public-web-resources/multi-viewer/vendor/fontawesome-free-6.5.1-web/css/all.min.css\\E"
+  }, {
+    "pattern":"\\QMETA-INF/public-web-resources/multi-viewer/vendor/fontawesome-free-6.5.1-web/webfonts/fa-regular-400.woff2\\E"
+  }, {
+    "pattern":"\\QMETA-INF/public-web-resources/multi-viewer/vendor/fontawesome-free-6.5.1-web/webfonts/fa-solid-900.woff2\\E"
+  }, {
+    "pattern":"\\QMETA-INF/public-web-resources/threejs/build/three.module.js\\E"
+  }, {
+    "pattern":"\\QMETA-INF/public-web-resources/threejs/examples/fonts/helvetiker_regular.typeface.json\\E"
+  }, {
+    "pattern":"\\QMETA-INF/public-web-resources/threejs/examples/jsm/controls/DragControls.js\\E"
+  }, {
+    "pattern":"\\QMETA-INF/public-web-resources/threejs/examples/jsm/controls/TrackballControls.js\\E"
+  }, {
+    "pattern":"\\QMETA-INF/public-web-resources/threejs/examples/jsm/geometries/TextGeometry.js\\E"
+  }, {
+    "pattern":"\\QMETA-INF/public-web-resources/threejs/examples/jsm/libs/lil-gui.module.min.js\\E"
+  }, {
+    "pattern":"\\QMETA-INF/public-web-resources/threejs/examples/jsm/libs/stats.module.js\\E"
+  }, {
+    "pattern":"\\QMETA-INF/public-web-resources/threejs/examples/jsm/loaders/FontLoader.js\\E"
+  }, {
+    "pattern":"\\QMETA-INF/queries-default.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/queries-h2.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/gui/ColorClasses.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/gui/ColorClasses.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/gui/ColorClasses.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/gui/ColorClasses_en.html\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/gui/ColorClasses_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/gui/ColorClasses_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/gui/ColorClasses_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/gui/HalcyonApplication.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/gui/HalcyonApplication.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/gui/HalcyonApplication.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/gui/HalcyonApplication_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/gui/HalcyonApplication_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/gui/HalcyonApplication_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/gui/HomePage_en.html\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/gui/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/gui/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/gui/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/gui/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/gui/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/gui/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/puffin/GridPanel$ActionPanel_en.html\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/puffin/GridPanel.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/puffin/GridPanel.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/puffin/GridPanel.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/puffin/GridPanel_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/puffin/GridPanel_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/puffin/GridPanel_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/puffin/RDFDataTable.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/puffin/RDFDataTable.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/puffin/RDFDataTable.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/puffin/RDFDataTable_en.html\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/puffin/RDFDataTable_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/puffin/RDFDataTable_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/puffin/RDFDataTable_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/puffin/SHACLForm_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/puffin/SHACLForm_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/puffin/SHACLForm_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/puffin/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/puffin/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/puffin/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/puffin/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/puffin/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/puffin/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/sparql/Sparql_en.html\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/sparql/yasgui.min_en.css\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/sparql/yasgui.min_en.js\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/wicket/AccountPage_en.html\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/wicket/AdminPage_en.html\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/wicket/BasePage.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/wicket/BasePage.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/wicket/BasePage.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/wicket/BasePage_en.html\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/wicket/BasePage_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/wicket/BasePage_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/wicket/BasePage_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/wicket/ListFeatures.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/wicket/ListFeatures.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/wicket/ListFeatures.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/wicket/ListFeatures_en.html\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/wicket/ListFeatures_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/wicket/ListFeatures_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/wicket/ListFeatures_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/wicket/ListImages$ActionPanel_en.html\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/wicket/ListImages.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/wicket/ListImages.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/wicket/ListImages.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/wicket/ListImages_en.html\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/wicket/ListImages_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/wicket/ListImages_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/wicket/ListImages_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/wicket/MenuPanel_en.css\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/wicket/MenuPanel_en.html\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/wicket/arrow_off.png\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/wicket/ethereal/Zephyr2_en.html\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/wicket/repeater_en.css\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/wicket/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/wicket/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/wicket/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/wicket/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/wicket/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/halcyon/wicket/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/ebremer/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/com/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/index.html\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/java/lang/Object.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/java/lang/Object.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/java/lang/Object.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/java/lang/Object_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/java/lang/Object_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/java/lang/Object_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/java/lang/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/java/lang/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/java/lang/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/java/lang/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/java/lang/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/java/lang/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/java/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/java/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/java/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/java/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/java/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/java/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/Application.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/Application_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/Application_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/Application_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/Initializer.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/Initializer.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/Initializer.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/Initializer_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/Initializer_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/Initializer_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/ajax/markup/html/navigation/paging/AjaxPagingNavigator.html\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/ajax/markup/html/navigation/paging/AjaxPagingNavigator_en.html\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/ajax/res/js/wicket-ajax-jquery_en.js\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/devutils/debugbar/DebugBarInitializer.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/devutils/debugbar/DebugBarInitializer.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/devutils/debugbar/DebugBarInitializer.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/devutils/debugbar/DebugBarInitializer_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/devutils/debugbar/DebugBarInitializer_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/devutils/debugbar/DebugBarInitializer_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/Initializer_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/Initializer_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/Initializer_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/sort/AjaxFallbackOrderByBorder.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/sort/AjaxFallbackOrderByBorder.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/sort/AjaxFallbackOrderByBorder.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/sort/AjaxFallbackOrderByBorder_en.html\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/sort/AjaxFallbackOrderByBorder_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/sort/AjaxFallbackOrderByBorder_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/sort/AjaxFallbackOrderByBorder_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/sort/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/sort/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/sort/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/sort/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/sort/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/sort/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxFallbackDefaultDataTable.html\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxFallbackDefaultDataTable.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxFallbackDefaultDataTable.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxFallbackDefaultDataTable.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxFallbackDefaultDataTable_en.html\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxFallbackDefaultDataTable_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxFallbackDefaultDataTable_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxFallbackDefaultDataTable_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxFallbackHeadersToolbar$1.html\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxFallbackHeadersToolbar$1.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxFallbackHeadersToolbar$1.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxFallbackHeadersToolbar$1.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxFallbackHeadersToolbar$1_en.html\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxFallbackHeadersToolbar$1_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxFallbackHeadersToolbar$1_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxFallbackHeadersToolbar$1_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxFallbackHeadersToolbar.html\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxFallbackHeadersToolbar.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxFallbackHeadersToolbar.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxFallbackHeadersToolbar.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxFallbackHeadersToolbar_en.html\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxFallbackHeadersToolbar_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxFallbackHeadersToolbar_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxFallbackHeadersToolbar_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxNavigationToolbar$1.html\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxNavigationToolbar$1_en.html\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxNavigationToolbar.html\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxNavigationToolbar_en.html\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/table/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/table/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/table/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/table/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/table/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/table/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/data/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/repeater/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/html/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/markup/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/ajax/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/grid/AbstractDataGridView.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/grid/AbstractDataGridView.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/grid/AbstractDataGridView.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/grid/AbstractDataGridView_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/grid/AbstractDataGridView_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/grid/AbstractDataGridView_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/grid/DataGridView.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/grid/DataGridView.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/grid/DataGridView.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/grid/DataGridView_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/grid/DataGridView_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/grid/DataGridView_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/grid/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/grid/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/grid/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/grid/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/grid/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/grid/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/sort/OrderByBorder.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/sort/OrderByBorder.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/sort/OrderByBorder.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/sort/OrderByBorder_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/sort/OrderByBorder_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/sort/OrderByBorder_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/sort/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/sort/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/sort/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/sort/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/sort/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/sort/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/AbstractToolbar.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/AbstractToolbar.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/AbstractToolbar.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/AbstractToolbar_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/AbstractToolbar_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/AbstractToolbar_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/ColGroup_en.html\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/DataTable$DefaultDataGridView.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/DataTable$DefaultDataGridView.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/DataTable$DefaultDataGridView.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/DataTable$DefaultDataGridView_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/DataTable$DefaultDataGridView_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/DataTable$DefaultDataGridView_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/DataTable$ToolbarsContainer.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/DataTable$ToolbarsContainer.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/DataTable$ToolbarsContainer.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/DataTable$ToolbarsContainer_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/DataTable$ToolbarsContainer_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/DataTable$ToolbarsContainer_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/DataTable.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/DataTable.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/DataTable.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/DataTable_en.html\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/DataTable_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/DataTable_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/DataTable_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/HeadersToolbar$1.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/HeadersToolbar$1.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/HeadersToolbar$1.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/HeadersToolbar$1_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/HeadersToolbar$1_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/HeadersToolbar$1_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/HeadersToolbar.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/HeadersToolbar.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/HeadersToolbar.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/HeadersToolbar_en.html\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/HeadersToolbar_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/HeadersToolbar_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/HeadersToolbar_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/NavigationToolbar_en.html\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/NoRecordsToolbar.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/NoRecordsToolbar.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/NoRecordsToolbar.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/NoRecordsToolbar_en.html\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/NoRecordsToolbar_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/NoRecordsToolbar_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/NoRecordsToolbar_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/table/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/data/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/repeater/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/html/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/markup/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/extensions/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/WebComponent.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/WebComponent.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/WebComponent.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/WebComponent_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/WebComponent_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/WebComponent_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/WebMarkupContainer.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/WebMarkupContainer.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/WebMarkupContainer.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/WebMarkupContainer_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/WebMarkupContainer_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/WebMarkupContainer_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/WebPage.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/WebPage.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/WebPage.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/WebPage_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/WebPage_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/WebPage_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/basic/Label.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/basic/Label.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/basic/Label.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/basic/Label_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/basic/Label_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/basic/Label_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/basic/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/basic/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/basic/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/basic/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/basic/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/basic/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/border/Border.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/border/Border.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/border/Border.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/border/Border_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/border/Border_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/border/Border_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/border/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/border/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/border/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/border/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/border/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/border/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/form/AbstractChoice.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/form/AbstractChoice.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/form/AbstractChoice.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/form/AbstractChoice_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/form/AbstractChoice_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/form/AbstractChoice_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/form/AbstractSingleSelectChoice.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/form/AbstractSingleSelectChoice.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/form/AbstractSingleSelectChoice.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/form/AbstractSingleSelectChoice_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/form/AbstractSingleSelectChoice_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/form/AbstractSingleSelectChoice_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/form/DropDownChoice.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/form/DropDownChoice.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/form/DropDownChoice.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/form/DropDownChoice_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/form/DropDownChoice_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/form/DropDownChoice_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/form/Form.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/form/Form.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/form/Form.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/form/FormComponent.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/form/FormComponent.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/form/FormComponent.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/form/FormComponent_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/form/FormComponent_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/form/FormComponent_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/form/Form_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/form/Form_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/form/Form_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/form/LabeledWebMarkupContainer.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/form/LabeledWebMarkupContainer.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/form/LabeledWebMarkupContainer.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/form/LabeledWebMarkupContainer_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/form/LabeledWebMarkupContainer_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/form/LabeledWebMarkupContainer_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/form/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/form/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/form/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/form/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/form/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/form/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/list/AbstractItem.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/list/AbstractItem.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/list/AbstractItem.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/list/AbstractItem_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/list/AbstractItem_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/list/AbstractItem_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/list/ListItem.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/list/ListItem.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/list/ListItem.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/list/ListItem_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/list/ListItem_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/list/ListItem_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/list/LoopItem.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/list/LoopItem.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/list/LoopItem.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/list/LoopItem_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/list/LoopItem_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/list/LoopItem_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/list/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/list/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/list/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/list/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/list/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/list/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/navigation/paging/PagingNavigator_en.html\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/panel/FeedbackPanel_en.html\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/panel/Panel.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/panel/Panel.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/panel/Panel.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/panel/Panel_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/panel/Panel_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/panel/Panel_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/panel/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/panel/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/panel/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/panel/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/panel/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/panel/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/html/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/AbstractPageableView.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/AbstractPageableView.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/AbstractPageableView.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/AbstractPageableView_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/AbstractPageableView_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/AbstractPageableView_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/AbstractRepeater.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/AbstractRepeater.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/AbstractRepeater.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/AbstractRepeater_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/AbstractRepeater_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/AbstractRepeater_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/Item.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/Item.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/Item.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/Item_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/Item_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/Item_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/OddEvenItem.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/OddEvenItem.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/OddEvenItem.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/OddEvenItem_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/OddEvenItem_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/OddEvenItem_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/RefreshingView.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/RefreshingView.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/RefreshingView.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/RefreshingView_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/RefreshingView_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/RefreshingView_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/RepeatingView.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/RepeatingView.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/RepeatingView.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/RepeatingView_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/RepeatingView_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/RepeatingView_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/data/DataViewBase.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/data/DataViewBase.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/data/DataViewBase.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/data/DataViewBase_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/data/DataViewBase_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/data/DataViewBase_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/data/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/data/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/data/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/data/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/data/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/data/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/repeater/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/markup/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/protocol/http/WebApplication.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/protocol/http/WebApplication.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/protocol/http/WebApplication.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/protocol/http/WebApplication_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/protocol/http/WebApplication_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/protocol/http/WebApplication_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/resource/jquery/jquery-3.7.1_en.js\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/apache/wicket/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/wicketstuff/select2/res/css/select2_en.css\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/wicketstuff/select2/res/js/i18n/en_en.js\\E"
+  }, {
+    "pattern":"\\QMETA-INF/resources/org/wicketstuff/select2/res/js/select2.full_en.js\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/ch.qos.logback.classic.spi.Configurator\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/com.ebremer.halcyon.filereaders.FileReaderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/com.ebremer.halcyon.services.Service\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/com.fasterxml.jackson.databind.Module\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/com.sun.media.imageioimpl.plugins.jpeg2000.J2KImageReaderSpi\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/io.jsonwebtoken.CompressionCodec\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/io.jsonwebtoken.io.Deserializer\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/jakarta.activation.spi.MimeTypeRegistryProvider\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/jakarta.json.spi.JsonProvider\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/jakarta.validation.spi.ValidationProvider\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/jakarta.ws.rs.client.ClientBuilder\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/jakarta.ws.rs.container.DynamicFeature\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/jakarta.ws.rs.core.Feature\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/jakarta.ws.rs.ext.Providers\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/java.lang.System$LoggerFinder\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/java.net.spi.InetAddressResolverProvider\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/java.net.spi.URLStreamHandlerProvider\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/java.nio.channels.spi.SelectorProvider\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/java.sql.Driver\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/java.time.zone.ZoneRulesProvider\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/java.util.spi.ResourceBundleControlProvider\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/javax.imageio.spi.ImageInputStreamSpi\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/javax.imageio.spi.ImageOutputStreamSpi\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/javax.imageio.spi.ImageReaderSpi\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/javax.imageio.spi.ImageTranscoderSpi\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/javax.imageio.spi.ImageWriterSpi\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/javax.naming.spi.InitialContextFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/javax.xml.parsers.DocumentBuilderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/javax.xml.parsers.SAXParserFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/javax.xml.stream.XMLEventFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/javax.xml.stream.XMLInputFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/javax.xml.transform.TransformerFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/javax.xml.validation.SchemaFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/liquibase.change.Change\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/liquibase.changelog.ChangeLogHistoryService\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/liquibase.configuration.AutoloadedConfigurations\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/liquibase.configuration.ConfigurationValueProvider\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/liquibase.configuration.ConfiguredValueModifier\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/liquibase.database.Database\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/liquibase.diff.compare.DatabaseObjectComparator\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/liquibase.executor.Executor\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/liquibase.lockservice.LockService\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/liquibase.logging.LogService\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/liquibase.logging.mdc.MdcManager\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/liquibase.parser.ChangeLogParser\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/liquibase.precondition.Precondition\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/liquibase.servicelocator.ServiceLocator\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/liquibase.snapshot.SnapshotGenerator\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/liquibase.sqlgenerator.SqlGenerator\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.apache.commons.logging.LogFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.apache.jena.fuseki.main.sys.FusekiAutoModule\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.apache.jena.fuseki.main.sys.FusekiModule\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.apache.jena.sys.JenaSubsystemLifecycle\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.apache.shiro.web.env.WebEnvironment\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.apache.wicket.IInitializer\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.eclipse.jetty.ee10.webapp.Configuration\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.eclipse.jetty.http.HttpFieldPreEncoder\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.eclipse.jetty.security.Authenticator$Factory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.eclipse.jetty.util.security.CredentialProvider\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.eclipse.jetty.websocket.core.Extension\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.freedesktop.dbus.spi.transport.ITransportProvider\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.hibernate.boot.model.FunctionContributor\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.hibernate.boot.model.TypeContributor\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.hibernate.boot.registry.selector.StrategyRegistrationProvider\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.hibernate.boot.registry.selector.spi.DialectSelector\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.hibernate.boot.spi.AdditionalJaxbMappingProducer\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.hibernate.boot.spi.AdditionalMappingContributor\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.hibernate.boot.spi.MetadataBuilderContributor\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.hibernate.boot.spi.MetadataBuilderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.hibernate.boot.spi.MetadataBuilderInitializer\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.hibernate.boot.spi.MetadataContributor\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.hibernate.boot.spi.MetadataSourcesContributor\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.hibernate.boot.spi.SessionFactoryBuilderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.hibernate.engine.jdbc.dialect.spi.DialectResolver\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.hibernate.engine.transaction.jta.platform.spi.JtaPlatformProvider\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.hibernate.event.spi.EventEngineContributor\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.hibernate.event.spi.EventManager\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.hibernate.id.factory.spi.GenerationTypeStrategyRegistration\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.hibernate.integrator.spi.Integrator\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.hibernate.query.criteria.spi.CriteriaBuilderExtension\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.hibernate.service.spi.ServiceContributor\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.hibernate.service.spi.SessionFactoryServiceContributor\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.infinispan.commands.module.ModuleCommandExtensions\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.infinispan.configuration.parsing.ConfigurationParser\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.infinispan.factories.impl.ModuleMetadataBuilder\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.infinispan.notifications.cachelistener.filter.FilterIndexingServiceProvider\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.infinispan.protostream.SerializationContextInitializer\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.infinispan.upgrade.TargetMigrator\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.jboss.marshalling.ProviderDescriptor\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.jboss.resteasy.client.jaxrs.spi.ClientConfigProvider\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.jboss.resteasy.spi.config.ConfigurationFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.authentication.AuthenticatorFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.authentication.ClientAuthenticatorFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.authentication.FormActionFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.authentication.FormAuthenticatorFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.authentication.RequiredActionFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.authentication.actiontoken.ActionTokenHandlerFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.authentication.otp.OTPApplicationProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.authorization.AuthorizationProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.authorization.policy.provider.PolicyProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.authorization.store.AuthorizationStoreFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.broker.provider.IdentityProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.broker.provider.IdentityProviderMapper\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.broker.social.SocialIdentityProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.cluster.ClusterProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.cluster.ManagedCacheManagerProvider\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.common.crypto.CryptoProvider\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.common.util.ResteasyProvider\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.component.ComponentFactoryProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.connections.httpclient.HttpClientFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.connections.infinispan.InfinispanConnectionProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.connections.jpa.JpaConnectionProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.connections.jpa.entityprovider.JpaEntityProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.connections.jpa.updater.JpaUpdaterProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.connections.jpa.updater.liquibase.conn.LiquibaseConnectionProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.credential.CredentialProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.credential.hash.PasswordHashProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.crypto.CekManagementProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.crypto.ClientSignatureVerifierProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.crypto.ContentEncryptionProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.crypto.HashProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.crypto.SignatureProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.deployment.DeployedConfigurationsProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.device.DeviceRepresentationProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.email.EmailSenderProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.email.EmailTemplateProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.encoding.ResourceEncodingProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.events.EventListenerProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.events.EventStoreProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.executors.ExecutorsProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.exportimport.ClientDescriptionConverterFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.exportimport.ExportProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.exportimport.ImportProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.forms.login.LoginFormsProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.headers.SecurityHeadersProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.health.LoadBalancerCheckProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.keys.KeyProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.keys.PublicKeyStorageProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.locale.LocaleSelectorProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.locale.LocaleUpdaterProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.migration.MigrationProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.models.ClientProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.models.ClientScopeProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.models.DeploymentStateProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.models.GroupProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.models.OAuth2DeviceUserCodeProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.models.RealmProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.models.RoleProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.models.SingleUseObjectProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.models.UserLoginFailureProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.models.UserProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.models.UserSessionProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.models.cache.CachePublicKeyProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.models.cache.CacheRealmProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.models.cache.UserCacheProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.models.cache.authorization.CachedStoreProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.models.dblock.DBLockProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.models.locking.GlobalLockProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.models.session.UserSessionPersisterProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.platform.PlatformProvider\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.policy.PasswordPolicyManagerProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.policy.PasswordPolicyProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.protocol.ClientInstallationProvider\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.protocol.LoginProtocolFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.protocol.ProtocolMapper\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.protocol.oidc.TokenExchangeProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.protocol.oidc.TokenIntrospectionProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.protocol.oidc.ext.OIDCExtProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.protocol.oidc.grants.ciba.channel.AuthenticationChannelProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.protocol.oidc.grants.ciba.resolvers.CIBALoginUserResolverFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.protocol.oidc.rar.AuthorizationRequestParserProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.protocol.saml.ArtifactResolverFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.protocol.saml.preprocessor.SamlAuthenticationPreprocessor\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.provider.ExceptionConverter\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.provider.ProviderLoaderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.provider.Spi\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.scripting.ScriptingProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.services.clientpolicy.ClientPolicyManagerFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.services.clientpolicy.condition.ClientPolicyConditionProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.services.clientpolicy.executor.ClientPolicyExecutorProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.services.clientregistration.ClientRegistrationProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.services.clientregistration.policy.ClientRegistrationPolicyFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.services.managers.BruteForceProtectorFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.services.managers.RealmManagerProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.services.resource.AccountResourceProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.services.resource.RealmResourceProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.services.resources.admin.ext.AdminRealmResourceProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.services.x509.X509ClientCertificateLookupFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.sessions.AuthenticationSessionProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.sessions.StickySessionEncoderProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.storage.DatastoreProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.storage.UserStorageProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.storage.client.ClientStorageProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.storage.clientscope.ClientScopeStorageProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.storage.federated.UserFederatedStorageProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.storage.group.GroupStorageProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.storage.ldap.mappers.LDAPStorageMapperFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.storage.role.RoleStorageProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.theme.ThemeProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.theme.ThemeResourceProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.theme.ThemeSelectorProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.theme.freemarker.FreeMarkerProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.timer.TimerProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.transaction.JtaTransactionManagerLookup\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.truststore.TruststoreProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.urls.HostnameProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.userprofile.UserProfileProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.validate.ValidatorFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.validation.ClientValidationProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.vault.VaultProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.keycloak.wellknown.WellKnownProviderFactory\\E"
+  }, {
+    "pattern":"\\QMETA-INF/services/org.slf4j.spi.SLF4JServiceProvider\\E"
+  }, {
+    "pattern":"\\QMETA-INF/spring-autoconfigure-metadata.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/spring.components\\E"
+  }, {
+    "pattern":"\\QMETA-INF/spring.factories\\E"
+  }, {
+    "pattern":"\\QMETA-INF/spring.integration.properties\\E"
+  }, {
+    "pattern":"\\QMETA-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports\\E"
+  }, {
+    "pattern":"\\Q\\E"
+  }, {
+    "pattern":"\\Qapplication-production.properties\\E"
+  }, {
+    "pattern":"\\Qapplication-production.xml\\E"
+  }, {
+    "pattern":"\\Qapplication-production.yaml\\E"
+  }, {
+    "pattern":"\\Qapplication-production.yml\\E"
+  }, {
+    "pattern":"\\Qapplication.properties\\E"
+  }, {
+    "pattern":"\\Qapplication.xml\\E"
+  }, {
+    "pattern":"\\Qapplication.yaml\\E"
+  }, {
+    "pattern":"\\Qapplication.yml\\E"
+  }, {
+    "pattern":"\\Qbanner.txt\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/gui/ColorClasses.html\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/gui/ColorClasses.properties.xml\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/gui/ColorClasses.properties\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/gui/ColorClasses.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/gui/ColorClasses_en.html\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/gui/ColorClasses_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/gui/ColorClasses_en.properties\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/gui/ColorClasses_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/gui/HalcyonApplication.properties.xml\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/gui/HalcyonApplication.properties\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/gui/HalcyonApplication.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/gui/HalcyonApplication_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/gui/HalcyonApplication_en.properties\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/gui/HalcyonApplication_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/gui/HomePage.html\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/gui/HomePage_en.html\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/gui/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/gui/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/gui/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/gui/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/gui/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/gui/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/puffin/GridPanel$ActionPanel.html\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/puffin/GridPanel$ActionPanel_en.html\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/puffin/GridPanel.properties.xml\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/puffin/GridPanel.properties\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/puffin/GridPanel.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/puffin/GridPanel_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/puffin/GridPanel_en.properties\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/puffin/GridPanel_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/puffin/RDFDataTable.html\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/puffin/RDFDataTable.properties.xml\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/puffin/RDFDataTable.properties\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/puffin/RDFDataTable.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/puffin/RDFDataTable_en.html\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/puffin/RDFDataTable_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/puffin/RDFDataTable_en.properties\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/puffin/RDFDataTable_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/puffin/SHACLForm.properties\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/puffin/SHACLForm_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/puffin/SHACLForm_en.properties\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/puffin/SHACLForm_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/puffin/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/puffin/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/puffin/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/puffin/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/puffin/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/puffin/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/server/AddResponseHeaderFilter.class\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/server/Cool.class\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/server/DisableSniHostCheckConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/server/HalcyonConfigFactory.class\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/server/HalcyonResourceConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/server/JettyConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/server/KeycloakServer.class\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/server/Main.class\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/server/MyErrorController.class\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/server/SslConfig.class\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/server/Wicket.class\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/server/Zork.class\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/server/\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/services/Service.class\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/sparql/Sparql.html\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/sparql/Sparql_en.html\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/sparql/yasgui.min.css\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/sparql/yasgui.min.js\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/sparql/yasgui.min_en.css\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/sparql/yasgui.min_en.js\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket/AccountPage.html\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket/AccountPage_en.html\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket/AdminPage.html\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket/AdminPage_en.html\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket/BasePage.html\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket/BasePage.properties.xml\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket/BasePage.properties\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket/BasePage.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket/BasePage_en.html\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket/BasePage_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket/BasePage_en.properties\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket/BasePage_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket/ListFeatures.html\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket/ListFeatures.properties.xml\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket/ListFeatures.properties\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket/ListFeatures.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket/ListFeatures_en.html\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket/ListFeatures_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket/ListFeatures_en.properties\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket/ListFeatures_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket/ListImages$ActionPanel.html\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket/ListImages$ActionPanel_en.html\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket/ListImages.html\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket/ListImages.properties.xml\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket/ListImages.properties\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket/ListImages.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket/ListImages_en.html\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket/ListImages_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket/ListImages_en.properties\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket/ListImages_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket/MenuPanel.css\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket/MenuPanel.html\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket/MenuPanel_en.css\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket/MenuPanel_en.html\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket/arrow_off.png\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket/ethereal/Zephyr2.html\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket/ethereal/Zephyr2_en.html\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket/repeater.css\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket/repeater_en.css\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/halcyon/wicket/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\Qcom/ebremer/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qcom/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\Qcom/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\Qcom/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qcom/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qcom/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\Qcom/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qcommons-logging.properties\\E"
+  }, {
+    "pattern":"\\Qconfig/application-production.properties\\E"
+  }, {
+    "pattern":"\\Qconfig/application-production.xml\\E"
+  }, {
+    "pattern":"\\Qconfig/application-production.yaml\\E"
+  }, {
+    "pattern":"\\Qconfig/application-production.yml\\E"
+  }, {
+    "pattern":"\\Qconfig/application.properties\\E"
+  }, {
+    "pattern":"\\Qconfig/application.xml\\E"
+  }, {
+    "pattern":"\\Qconfig/application.yaml\\E"
+  }, {
+    "pattern":"\\Qconfig/application.yml\\E"
+  }, {
+    "pattern":"\\Qdata-all.sql\\E"
+  }, {
+    "pattern":"\\Qdata.sql\\E"
+  }, {
+    "pattern":"\\Qdefault-persistence.xml\\E"
+  }, {
+    "pattern":"\\Qetc/location-mapping.rdf\\E"
+  }, {
+    "pattern":"\\Qetc/location-mapping.ttl\\E"
+  }, {
+    "pattern":"\\Qfreemarker/ext/beans/DefaultMemberAccessPolicy-rules\\E"
+  }, {
+    "pattern":"\\Qfreemarker/version.properties\\E"
+  }, {
+    "pattern":"\\Qgit.properties\\E"
+  }, {
+    "pattern":"\\Qhibernate.properties\\E"
+  }, {
+    "pattern":"\\Qjakarta/servlet/Filter.class\\E"
+  }, {
+    "pattern":"\\Qjakarta/servlet/GenericServlet.class\\E"
+  }, {
+    "pattern":"\\Qjakarta/servlet/Servlet.class\\E"
+  }, {
+    "pattern":"\\Qjakarta/servlet/ServletConfig.class\\E"
+  }, {
+    "pattern":"\\Qjakarta/servlet/ServletRequest.class\\E"
+  }, {
+    "pattern":"\\Qjakarta/servlet/ServletRequestWrapper.class\\E"
+  }, {
+    "pattern":"\\Qjakarta/servlet/http/HttpServlet.class\\E"
+  }, {
+    "pattern":"\\Qjakarta/servlet/http/HttpServletRequest.class\\E"
+  }, {
+    "pattern":"\\Qjakarta/servlet/http/HttpServletRequestWrapper.class\\E"
+  }, {
+    "pattern":"\\Qjakarta/servlet/http/HttpSessionListener.class\\E"
+  }, {
+    "pattern":"\\Qjakarta/ws/rs/core/Application.class\\E"
+  }, {
+    "pattern":"\\Qjava/lang/Object.properties.xml\\E"
+  }, {
+    "pattern":"\\Qjava/lang/Object.properties\\E"
+  }, {
+    "pattern":"\\Qjava/lang/Object.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qjava/lang/Object_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qjava/lang/Object_en.properties\\E"
+  }, {
+    "pattern":"\\Qjava/lang/Object_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qjava/lang/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\Qjava/lang/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\Qjava/lang/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qjava/lang/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qjava/lang/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\Qjava/lang/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qjava/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\Qjava/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\Qjava/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qjava/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qjava/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\Qjava/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qjndi.properties\\E"
+  }, {
+    "pattern":"\\Qkeycloak-version.properties\\E"
+  }, {
+    "pattern":"\\Qkeycloak.js\\E"
+  }, {
+    "pattern":"\\Qliquibase.build.properties\\E"
+  }, {
+    "pattern":"\\Qlocation-mapping.rdf\\E"
+  }, {
+    "pattern":"\\Qlocation-mapping.ttl\\E"
+  }, {
+    "pattern":"\\Qloci/common/services/services.properties\\E"
+  }, {
+    "pattern":"\\Qloci/formats/FormatTools.class\\E"
+  }, {
+    "pattern":"\\Qlogback-spring.groovy\\E"
+  }, {
+    "pattern":"\\Qlogback-spring.xml\\E"
+  }, {
+    "pattern":"\\Qlogback-test-spring.groovy\\E"
+  }, {
+    "pattern":"\\Qlogback-test-spring.xml\\E"
+  }, {
+    "pattern":"\\Qlogback-test.groovy\\E"
+  }, {
+    "pattern":"\\Qlogback-test.scmo\\E"
+  }, {
+    "pattern":"\\Qlogback-test.xml\\E"
+  }, {
+    "pattern":"\\Qlogback.groovy\\E"
+  }, {
+    "pattern":"\\Qlogback.scmo\\E"
+  }, {
+    "pattern":"\\Qlogback.xml\\E"
+  }, {
+    "pattern":"\\Qmessages.properties\\E"
+  }, {
+    "pattern":"\\Qmozilla/public-suffix-list.txt\\E"
+  }, {
+    "pattern":"\\Qorg/apache/commons/pool2/BaseKeyedPooledObjectFactory.class\\E"
+  }, {
+    "pattern":"\\Qorg/apache/commons/pool2/BaseObject.class\\E"
+  }, {
+    "pattern":"\\Qorg/apache/commons/pool2/KeyedObjectPool.class\\E"
+  }, {
+    "pattern":"\\Qorg/apache/commons/pool2/KeyedPooledObjectFactory.class\\E"
+  }, {
+    "pattern":"\\Qorg/apache/commons/pool2/UsageTracking.class\\E"
+  }, {
+    "pattern":"\\Qorg/apache/commons/pool2/impl/BaseGenericObjectPool.class\\E"
+  }, {
+    "pattern":"\\Qorg/apache/commons/pool2/impl/GenericKeyedObjectPool.class\\E"
+  }, {
+    "pattern":"\\Qorg/apache/commons/pool2/impl/GenericKeyedObjectPoolMXBean.class\\E"
+  }, {
+    "pattern":"\\Qorg/apache/http/client/version.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/Application.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/Application.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/Application_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/Application_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/Application_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/Initializer.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/Initializer.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/Initializer.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/Initializer_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/Initializer_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/Initializer_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/ajax/markup/html/navigation/paging/AjaxPagingNavigator.html\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/ajax/markup/html/navigation/paging/AjaxPagingNavigator_en.html\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/ajax/res/js/wicket-ajax-jquery.js\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/ajax/res/js/wicket-ajax-jquery_en.js\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/devutils/debugbar/DebugBarInitializer.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/devutils/debugbar/DebugBarInitializer.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/devutils/debugbar/DebugBarInitializer.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/devutils/debugbar/DebugBarInitializer_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/devutils/debugbar/DebugBarInitializer_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/devutils/debugbar/DebugBarInitializer_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/Initializer.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/Initializer_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/Initializer_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/Initializer_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/sort/AjaxFallbackOrderByBorder.html\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/sort/AjaxFallbackOrderByBorder.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/sort/AjaxFallbackOrderByBorder.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/sort/AjaxFallbackOrderByBorder.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/sort/AjaxFallbackOrderByBorder_en.html\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/sort/AjaxFallbackOrderByBorder_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/sort/AjaxFallbackOrderByBorder_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/sort/AjaxFallbackOrderByBorder_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/sort/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/sort/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/sort/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/sort/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/sort/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/sort/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxFallbackDefaultDataTable.html\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxFallbackDefaultDataTable.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxFallbackDefaultDataTable.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxFallbackDefaultDataTable.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxFallbackDefaultDataTable_en.html\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxFallbackDefaultDataTable_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxFallbackDefaultDataTable_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxFallbackDefaultDataTable_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxFallbackHeadersToolbar$1.html\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxFallbackHeadersToolbar$1.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxFallbackHeadersToolbar$1.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxFallbackHeadersToolbar$1.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxFallbackHeadersToolbar$1_en.html\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxFallbackHeadersToolbar$1_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxFallbackHeadersToolbar$1_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxFallbackHeadersToolbar$1_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxFallbackHeadersToolbar.html\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxFallbackHeadersToolbar.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxFallbackHeadersToolbar.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxFallbackHeadersToolbar.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxFallbackHeadersToolbar_en.html\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxFallbackHeadersToolbar_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxFallbackHeadersToolbar_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxFallbackHeadersToolbar_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxNavigationToolbar$1.html\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxNavigationToolbar$1_en.html\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxNavigationToolbar.html\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/table/AjaxNavigationToolbar_en.html\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/table/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/table/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/table/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/table/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/table/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/table/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/data/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/repeater/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/html/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/markup/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/ajax/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/grid/AbstractDataGridView.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/grid/AbstractDataGridView.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/grid/AbstractDataGridView.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/grid/AbstractDataGridView_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/grid/AbstractDataGridView_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/grid/AbstractDataGridView_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/grid/DataGridView.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/grid/DataGridView.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/grid/DataGridView.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/grid/DataGridView_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/grid/DataGridView_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/grid/DataGridView_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/grid/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/grid/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/grid/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/grid/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/grid/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/grid/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/sort/OrderByBorder.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/sort/OrderByBorder.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/sort/OrderByBorder.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/sort/OrderByBorder_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/sort/OrderByBorder_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/sort/OrderByBorder_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/sort/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/sort/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/sort/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/sort/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/sort/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/sort/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/AbstractToolbar.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/AbstractToolbar.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/AbstractToolbar.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/AbstractToolbar_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/AbstractToolbar_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/AbstractToolbar_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/ColGroup.html\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/ColGroup_en.html\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/DataTable$DefaultDataGridView.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/DataTable$DefaultDataGridView.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/DataTable$DefaultDataGridView.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/DataTable$DefaultDataGridView_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/DataTable$DefaultDataGridView_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/DataTable$DefaultDataGridView_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/DataTable$ToolbarsContainer.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/DataTable$ToolbarsContainer.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/DataTable$ToolbarsContainer.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/DataTable$ToolbarsContainer_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/DataTable$ToolbarsContainer_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/DataTable$ToolbarsContainer_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/DataTable.html\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/DataTable.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/DataTable.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/DataTable.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/DataTable_en.html\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/DataTable_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/DataTable_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/DataTable_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/HeadersToolbar$1.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/HeadersToolbar$1.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/HeadersToolbar$1.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/HeadersToolbar$1_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/HeadersToolbar$1_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/HeadersToolbar$1_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/HeadersToolbar.html\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/HeadersToolbar.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/HeadersToolbar.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/HeadersToolbar.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/HeadersToolbar_en.html\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/HeadersToolbar_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/HeadersToolbar_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/HeadersToolbar_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/NavigationToolbar.html\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/NavigationToolbar_en.html\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/NoRecordsToolbar.html\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/NoRecordsToolbar.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/NoRecordsToolbar.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/NoRecordsToolbar.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/NoRecordsToolbar_en.html\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/NoRecordsToolbar_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/NoRecordsToolbar_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/NoRecordsToolbar_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/table/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/data/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/repeater/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/html/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/markup/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/extensions/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/WebComponent.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/WebComponent.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/WebComponent.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/WebComponent_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/WebComponent_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/WebComponent_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/WebMarkupContainer.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/WebMarkupContainer.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/WebMarkupContainer.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/WebMarkupContainer_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/WebMarkupContainer_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/WebMarkupContainer_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/WebPage.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/WebPage.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/WebPage.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/WebPage_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/WebPage_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/WebPage_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/basic/Label.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/basic/Label.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/basic/Label.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/basic/Label_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/basic/Label_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/basic/Label_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/basic/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/basic/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/basic/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/basic/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/basic/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/basic/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/border/Border.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/border/Border.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/border/Border.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/border/Border_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/border/Border_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/border/Border_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/border/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/border/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/border/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/border/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/border/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/border/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/form/AbstractChoice.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/form/AbstractChoice.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/form/AbstractChoice.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/form/AbstractChoice_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/form/AbstractChoice_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/form/AbstractChoice_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/form/AbstractSingleSelectChoice.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/form/AbstractSingleSelectChoice.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/form/AbstractSingleSelectChoice.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/form/AbstractSingleSelectChoice_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/form/AbstractSingleSelectChoice_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/form/AbstractSingleSelectChoice_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/form/DropDownChoice.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/form/DropDownChoice.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/form/DropDownChoice.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/form/DropDownChoice_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/form/DropDownChoice_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/form/DropDownChoice_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/form/Form.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/form/Form.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/form/Form.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/form/FormComponent.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/form/FormComponent.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/form/FormComponent.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/form/FormComponent_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/form/FormComponent_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/form/FormComponent_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/form/Form_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/form/Form_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/form/Form_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/form/LabeledWebMarkupContainer.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/form/LabeledWebMarkupContainer.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/form/LabeledWebMarkupContainer.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/form/LabeledWebMarkupContainer_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/form/LabeledWebMarkupContainer_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/form/LabeledWebMarkupContainer_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/form/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/form/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/form/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/form/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/form/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/form/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/list/AbstractItem.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/list/AbstractItem.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/list/AbstractItem.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/list/AbstractItem_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/list/AbstractItem_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/list/AbstractItem_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/list/ListItem.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/list/ListItem.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/list/ListItem.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/list/ListItem_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/list/ListItem_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/list/ListItem_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/list/LoopItem.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/list/LoopItem.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/list/LoopItem.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/list/LoopItem_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/list/LoopItem_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/list/LoopItem_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/list/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/list/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/list/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/list/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/list/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/list/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/navigation/paging/PagingNavigator.html\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/navigation/paging/PagingNavigator_en.html\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/panel/FeedbackPanel.html\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/panel/FeedbackPanel_en.html\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/panel/Panel.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/panel/Panel.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/panel/Panel.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/panel/Panel_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/panel/Panel_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/panel/Panel_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/panel/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/panel/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/panel/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/panel/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/panel/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/panel/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/html/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/AbstractPageableView.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/AbstractPageableView.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/AbstractPageableView.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/AbstractPageableView_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/AbstractPageableView_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/AbstractPageableView_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/AbstractRepeater.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/AbstractRepeater.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/AbstractRepeater.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/AbstractRepeater_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/AbstractRepeater_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/AbstractRepeater_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/Item.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/Item.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/Item.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/Item_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/Item_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/Item_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/OddEvenItem.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/OddEvenItem.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/OddEvenItem.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/OddEvenItem_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/OddEvenItem_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/OddEvenItem_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/RefreshingView.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/RefreshingView.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/RefreshingView.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/RefreshingView_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/RefreshingView_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/RefreshingView_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/RepeatingView.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/RepeatingView.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/RepeatingView.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/RepeatingView_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/RepeatingView_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/RepeatingView_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/data/DataViewBase.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/data/DataViewBase.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/data/DataViewBase.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/data/DataViewBase_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/data/DataViewBase_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/data/DataViewBase_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/data/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/data/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/data/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/data/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/data/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/data/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/repeater/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/markup/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/protocol/http/WebApplication.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/protocol/http/WebApplication.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/protocol/http/WebApplication.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/protocol/http/WebApplication_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/protocol/http/WebApplication_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/protocol/http/WebApplication_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/resource/jquery/jquery-3.7.1.js\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/resource/jquery/jquery-3.7.1_en.js\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/apache/wicket/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/eclipse/jetty/ee10/servlet/DefaultServlet.class\\E"
+  }, {
+    "pattern":"\\Qorg/eclipse/jetty/http/encoding.properties\\E"
+  }, {
+    "pattern":"\\Qorg/eclipse/jetty/http/mime.properties\\E"
+  }, {
+    "pattern":"\\Qorg/eclipse/jetty/server/jetty-dir.css\\E"
+  }, {
+    "pattern":"\\Qorg/eclipse/jetty/version/build.properties\\E"
+  }, {
+    "pattern":"\\Qorg/h2/util/data.zip\\E"
+  }, {
+    "pattern":"\\Qorg/hibernate/hibernate-configuration-3.0.dtd\\E"
+  }, {
+    "pattern":"\\Qorg/hibernate/hibernate-mapping-3.0.dtd\\E"
+  }, {
+    "pattern":"\\Qorg/hibernate/jpa/persistence_3_0.xsd\\E"
+  }, {
+    "pattern":"\\Qorg/infinispan/protostream/message-wrapping.proto\\E"
+  }, {
+    "pattern":"\\Qorg/joda/time/tz/data/America/New_York\\E"
+  }, {
+    "pattern":"\\Qorg/joda/time/tz/data/ZoneInfoMap\\E"
+  }, {
+    "pattern":"\\Qorg/keycloak/common/ClientConnection.class\\E"
+  }, {
+    "pattern":"\\Qorg/keycloak/common/util/ResteasyProvider.class\\E"
+  }, {
+    "pattern":"\\Qorg/keycloak/config/ConfigProviderFactory.class\\E"
+  }, {
+    "pattern":"\\Qorg/keycloak/platform/PlatformProvider.class\\E"
+  }, {
+    "pattern":"\\Qorg/keycloak/protocol/oidc/endpoints/3p-cookies-step1.html\\E"
+  }, {
+    "pattern":"\\Qorg/keycloak/protocol/oidc/endpoints/3p-cookies-step2.html\\E"
+  }, {
+    "pattern":"\\Qorg/keycloak/protocol/oidc/endpoints/login-status-iframe.html\\E"
+  }, {
+    "pattern":"\\Qorg/keycloak/services/filters/AbstractRequestFilter.class\\E"
+  }, {
+    "pattern":"\\Qorg/keycloak/services/managers/ApplianceBootstrap.class\\E"
+  }, {
+    "pattern":"\\Qorg/keycloak/services/resources/KeycloakApplication.class\\E"
+  }, {
+    "pattern":"\\Qorg/keycloak/services/util/JsonConfigProviderFactory.class\\E"
+  }, {
+    "pattern":"\\Qorg/keycloak/userprofile/config/keycloak-default-user-profile.json\\E"
+  }, {
+    "pattern":"\\Qorg/pac4j/core/authorization/authorizer/Authorizer.class\\E"
+  }, {
+    "pattern":"\\Qorg/pac4j/core/authorization/authorizer/ProfileAuthorizer.class\\E"
+  }, {
+    "pattern":"\\Qorg/pac4j/core/config/ConfigFactory.class\\E"
+  }, {
+    "pattern":"\\Qorg/pac4j/core/profile/creator/ProfileCreator.class\\E"
+  }, {
+    "pattern":"\\Qorg/pac4j/core/util/security/SecurityEndpoint.class\\E"
+  }, {
+    "pattern":"\\Qorg/pac4j/jee/config/AbstractConfigFilter.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/aot/hint/annotation/Reflective.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/beans/factory/Aware.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/beans/factory/BeanClassLoaderAware.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/beans/factory/BeanFactoryAware.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/beans/factory/config/BeanFactoryPostProcessor.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/AbstractDependsOnBeanFactoryPostProcessor.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/AutoConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/AutoConfigureAfter.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/AutoConfigureBefore.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/AutoConfigureOrder.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/admin/SpringApplicationAdminJmxAutoConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/aop/AopAutoConfiguration$AspectJAutoProxyingConfiguration$CglibAutoProxyConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/aop/AopAutoConfiguration$AspectJAutoProxyingConfiguration$JdkDynamicAutoProxyConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/aop/AopAutoConfiguration$AspectJAutoProxyingConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/aop/AopAutoConfiguration$ClassProxyingConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/aop/AopAutoConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/availability/ApplicationAvailabilityAutoConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/cache/CacheAutoConfiguration$CacheConfigurationImportSelector.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/cache/CacheAutoConfiguration$CacheManagerEntityManagerFactoryDependsOnPostProcessor.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/cache/CacheAutoConfiguration$CacheManagerValidator.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/cache/CacheAutoConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/cache/GenericCacheConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/cache/NoOpCacheConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/cache/SimpleCacheConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/condition/ConditionalOnBean.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/condition/ConditionalOnClass.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/condition/ConditionalOnMissingBean.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/condition/ConditionalOnNotWarDeployment.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/condition/ConditionalOnProperty.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/condition/ConditionalOnSingleCandidate.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/condition/ConditionalOnWebApplication.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/context/ConfigurationPropertiesAutoConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/context/LifecycleAutoConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/context/MessageSourceAutoConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/context/PropertyPlaceholderAutoConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/dao/PersistenceExceptionTranslationAutoConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/data/AbstractRepositoryConfigurationSourceSupport.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/data/jpa/JpaRepositoriesAutoConfiguration$BootstrapExecutorCondition$DeferredBootstrapMode.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/data/jpa/JpaRepositoriesAutoConfiguration$BootstrapExecutorCondition$LazyBootstrapMode.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/data/jpa/JpaRepositoriesAutoConfiguration$BootstrapExecutorCondition.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/data/jpa/JpaRepositoriesAutoConfiguration$JpaRepositoriesImportSelector.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/data/jpa/JpaRepositoriesAutoConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/data/jpa/JpaRepositoriesRegistrar.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/data/web/SpringDataWebAutoConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/gson/GsonAutoConfiguration$StandardGsonBuilderCustomizer.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/gson/GsonAutoConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/h2/H2ConsoleAutoConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/http/GsonHttpMessageConvertersConfiguration$GsonHttpMessageConverterConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/http/GsonHttpMessageConvertersConfiguration$JacksonAndJsonbUnavailableCondition$JacksonAvailable.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/http/GsonHttpMessageConvertersConfiguration$JacksonAndJsonbUnavailableCondition$JsonbPreferred.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/http/GsonHttpMessageConvertersConfiguration$JacksonAndJsonbUnavailableCondition.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/http/GsonHttpMessageConvertersConfiguration$PreferGsonOrJacksonAndJsonbUnavailableCondition$GsonPreferred.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/http/GsonHttpMessageConvertersConfiguration$PreferGsonOrJacksonAndJsonbUnavailableCondition$JacksonJsonbUnavailable.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/http/GsonHttpMessageConvertersConfiguration$PreferGsonOrJacksonAndJsonbUnavailableCondition.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/http/GsonHttpMessageConvertersConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/http/HttpMessageConvertersAutoConfiguration$HttpMessageConvertersAutoConfigurationRuntimeHints.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/http/HttpMessageConvertersAutoConfiguration$NotReactiveWebApplicationCondition$ReactiveWebApplication.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/http/HttpMessageConvertersAutoConfiguration$NotReactiveWebApplicationCondition.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/http/HttpMessageConvertersAutoConfiguration$StringHttpMessageConverterConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/http/HttpMessageConvertersAutoConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/http/JacksonHttpMessageConvertersConfiguration$MappingJackson2HttpMessageConverterConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/http/JacksonHttpMessageConvertersConfiguration$MappingJackson2XmlHttpMessageConverterConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/http/JacksonHttpMessageConvertersConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/http/JsonbHttpMessageConvertersConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/info/ProjectInfoAutoConfiguration$GitResourceAvailableCondition.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/info/ProjectInfoAutoConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/jackson/JacksonAutoConfiguration$Jackson2ObjectMapperBuilderCustomizerConfiguration$StandardJackson2ObjectMapperBuilderCustomizer.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/jackson/JacksonAutoConfiguration$Jackson2ObjectMapperBuilderCustomizerConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/jackson/JacksonAutoConfiguration$JacksonAutoConfigurationRuntimeHints.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/jackson/JacksonAutoConfiguration$JacksonMixinConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/jackson/JacksonAutoConfiguration$JacksonObjectMapperBuilderConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/jackson/JacksonAutoConfiguration$JacksonObjectMapperConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/jackson/JacksonAutoConfiguration$ParameterNamesModuleConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/jackson/JacksonAutoConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/jdbc/DataSourceAutoConfiguration$EmbeddedDatabaseCondition.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/jdbc/DataSourceAutoConfiguration$EmbeddedDatabaseConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/jdbc/DataSourceAutoConfiguration$PooledDataSourceAvailableCondition.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/jdbc/DataSourceAutoConfiguration$PooledDataSourceCondition$ExplicitType.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/jdbc/DataSourceAutoConfiguration$PooledDataSourceCondition$PooledDataSourceAvailable.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/jdbc/DataSourceAutoConfiguration$PooledDataSourceCondition.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/jdbc/DataSourceAutoConfiguration$PooledDataSourceConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/jdbc/DataSourceAutoConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/jdbc/DataSourceCheckpointRestoreConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/jdbc/DataSourceConfiguration$Dbcp2.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/jdbc/DataSourceConfiguration$Generic.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/jdbc/DataSourceConfiguration$Hikari.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/jdbc/DataSourceConfiguration$OracleUcp.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/jdbc/DataSourceConfiguration$Tomcat.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/jdbc/DataSourceJmxConfiguration$Hikari.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/jdbc/DataSourceJmxConfiguration$TomcatDataSourceJmxConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/jdbc/DataSourceJmxConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/jdbc/DataSourceTransactionManagerAutoConfiguration$JdbcTransactionManagerConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/jdbc/DataSourceTransactionManagerAutoConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/jdbc/JdbcClientAutoConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/jdbc/JdbcTemplateAutoConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/jdbc/JdbcTemplateConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/jdbc/JndiDataSourceAutoConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/jdbc/NamedParameterJdbcTemplateConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/jdbc/XADataSourceAutoConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/jdbc/metadata/DataSourcePoolMetadataProvidersConfiguration$CommonsDbcp2PoolDataSourceMetadataProviderConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/jdbc/metadata/DataSourcePoolMetadataProvidersConfiguration$HikariPoolDataSourceMetadataProviderConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/jdbc/metadata/DataSourcePoolMetadataProvidersConfiguration$OracleUcpPoolDataSourceMetadataProviderConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/jdbc/metadata/DataSourcePoolMetadataProvidersConfiguration$TomcatDataSourcePoolMetadataProviderConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/jdbc/metadata/DataSourcePoolMetadataProvidersConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/jmx/JmxAutoConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/netty/NettyAutoConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/orm/jpa/EntityManagerFactoryDependsOnPostProcessor.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/orm/jpa/HibernateJpaAutoConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/orm/jpa/HibernateJpaConfiguration$HibernateRuntimeHints.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/orm/jpa/HibernateJpaConfiguration$NamingStrategiesHibernatePropertiesCustomizer.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/orm/jpa/HibernateJpaConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/orm/jpa/JpaBaseConfiguration$JpaWebConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/orm/jpa/JpaBaseConfiguration$PersistenceManagedTypesConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/orm/jpa/JpaBaseConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/sql/init/DataSourceInitializationConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/sql/init/R2dbcInitializationConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/sql/init/SqlInitializationAutoConfiguration$SqlInitializationModeCondition$ModeIsNever.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/sql/init/SqlInitializationAutoConfiguration$SqlInitializationModeCondition.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/sql/init/SqlInitializationAutoConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/ssl/SslAutoConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/task/TaskExecutionAutoConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/task/TaskExecutorConfigurations$SimpleAsyncTaskExecutorBuilderConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/task/TaskExecutorConfigurations$TaskExecutorBuilderConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/task/TaskExecutorConfigurations$TaskExecutorConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/task/TaskExecutorConfigurations$ThreadPoolTaskExecutorBuilderConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/task/TaskSchedulingAutoConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/task/TaskSchedulingConfigurations$SimpleAsyncTaskSchedulerBuilderConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/task/TaskSchedulingConfigurations$TaskSchedulerBuilderConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/task/TaskSchedulingConfigurations$TaskSchedulerConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/task/TaskSchedulingConfigurations$ThreadPoolTaskSchedulerBuilderConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/transaction/TransactionAutoConfiguration$AspectJTransactionManagementConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/transaction/TransactionAutoConfiguration$EnableTransactionManagementConfiguration$CglibAutoProxyConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/transaction/TransactionAutoConfiguration$EnableTransactionManagementConfiguration$JdkDynamicAutoProxyConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/transaction/TransactionAutoConfiguration$EnableTransactionManagementConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/transaction/TransactionAutoConfiguration$TransactionTemplateConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/transaction/TransactionAutoConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/transaction/TransactionManagerCustomizationAutoConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/transaction/jta/JndiJtaConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/transaction/jta/JtaAutoConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/validation/ValidationAutoConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/web/client/NotReactiveWebApplicationCondition$ReactiveWebApplication.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/web/client/NotReactiveWebApplicationCondition.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/web/client/RestClientAutoConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/web/client/RestTemplateAutoConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/web/embedded/EmbeddedWebServerFactoryCustomizerAutoConfiguration$JettyWebServerFactoryCustomizerConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/web/embedded/EmbeddedWebServerFactoryCustomizerAutoConfiguration$NettyWebServerFactoryCustomizerConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/web/embedded/EmbeddedWebServerFactoryCustomizerAutoConfiguration$TomcatWebServerFactoryCustomizerConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/web/embedded/EmbeddedWebServerFactoryCustomizerAutoConfiguration$UndertowWebServerFactoryCustomizerConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/web/embedded/EmbeddedWebServerFactoryCustomizerAutoConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/web/servlet/ConditionalOnMissingFilterBean.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/web/servlet/DispatcherServletAutoConfiguration$DefaultDispatcherServletCondition.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/web/servlet/DispatcherServletAutoConfiguration$DispatcherServletConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/web/servlet/DispatcherServletAutoConfiguration$DispatcherServletRegistrationCondition.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/web/servlet/DispatcherServletAutoConfiguration$DispatcherServletRegistrationConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/web/servlet/DispatcherServletAutoConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/web/servlet/HttpEncodingAutoConfiguration$LocaleCharsetMappingsCustomizer.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/web/servlet/HttpEncodingAutoConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/web/servlet/MultipartAutoConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/web/servlet/ServletWebServerFactoryAutoConfiguration$BeanPostProcessorsRegistrar.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/web/servlet/ServletWebServerFactoryAutoConfiguration$ForwardedHeaderFilterConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/web/servlet/ServletWebServerFactoryAutoConfiguration$ForwardedHeaderFilterCustomizer.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/web/servlet/ServletWebServerFactoryAutoConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/web/servlet/ServletWebServerFactoryConfiguration$EmbeddedJetty.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/web/servlet/ServletWebServerFactoryConfiguration$EmbeddedTomcat.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/web/servlet/ServletWebServerFactoryConfiguration$EmbeddedUndertow.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/web/servlet/WebMvcAutoConfiguration$EnableWebMvcConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/web/servlet/WebMvcAutoConfiguration$OptionalPathExtensionContentNegotiationStrategy.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/web/servlet/WebMvcAutoConfiguration$ProblemDetailsErrorHandlingConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/web/servlet/WebMvcAutoConfiguration$ResourceChainCustomizerConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/web/servlet/WebMvcAutoConfiguration$ResourceChainResourceHandlerRegistrationCustomizer.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/web/servlet/WebMvcAutoConfiguration$ResourceHandlerRegistrationCustomizer.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/web/servlet/WebMvcAutoConfiguration$WebMvcAutoConfigurationAdapter.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/web/servlet/WebMvcAutoConfiguration$WelcomePageHandlerMappingFactory.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/web/servlet/WebMvcAutoConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/web/servlet/error/AbstractErrorController.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/web/servlet/error/BasicErrorController.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/web/servlet/error/ErrorMvcAutoConfiguration$DefaultErrorViewResolverConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/web/servlet/error/ErrorMvcAutoConfiguration$ErrorPageCustomizer.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/web/servlet/error/ErrorMvcAutoConfiguration$ErrorTemplateMissingCondition.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/web/servlet/error/ErrorMvcAutoConfiguration$PreserveErrorControllerTargetClassPostProcessor.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/web/servlet/error/ErrorMvcAutoConfiguration$StaticView.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/web/servlet/error/ErrorMvcAutoConfiguration$WhitelabelErrorViewConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/web/servlet/error/ErrorMvcAutoConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/websocket/servlet/WebSocketServletAutoConfiguration$JettyWebSocketConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/websocket/servlet/WebSocketServletAutoConfiguration$TomcatWebSocketConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/websocket/servlet/WebSocketServletAutoConfiguration$UndertowWebSocketConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/autoconfigure/websocket/servlet/WebSocketServletAutoConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/context/properties/ConfigurationProperties.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/context/properties/EnableConfigurationProperties.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/context/properties/EnableConfigurationPropertiesRegistrar.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/sql/init/dependency/DatabaseInitializationDependencyConfigurer.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/web/server/WebServerFactoryCustomizer.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/web/server/mime-mappings.properties\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/boot/web/servlet/error/ErrorController.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/context/ApplicationContextAware.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/context/ApplicationContextInitializer.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/context/EnvironmentAware.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/context/ResourceLoaderAware.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/context/annotation/AdviceModeImportSelector.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/context/annotation/AspectJAutoProxyRegistrar.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/context/annotation/AutoProxyRegistrar.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/context/annotation/Conditional.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/context/annotation/Configuration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/context/annotation/EnableAspectJAutoProxy.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/context/annotation/Import.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/context/annotation/ImportAware.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/context/annotation/ImportBeanDefinitionRegistrar.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/context/annotation/ImportRuntimeHints.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/context/annotation/Lazy.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/context/annotation/Primary.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/context/annotation/Role.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/core/Ordered.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/core/annotation/Order.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/data/jpa/util/JpaMetamodelCacheCleanup.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/data/web/config/EnableSpringDataWebSupport$QuerydslActivator.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/data/web/config/EnableSpringDataWebSupport$SpringDataWebConfigurationImportSelector.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/data/web/config/EnableSpringDataWebSupport.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/data/web/config/ProjectingArgumentResolverRegistrar$ProjectingArgumentResolverBeanPostProcessor.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/data/web/config/ProjectingArgumentResolverRegistrar.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/data/web/config/SpringDataJacksonConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/data/web/config/SpringDataJacksonModules.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/data/web/config/SpringDataWebConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/transaction/annotation/AbstractTransactionManagementConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/transaction/annotation/EnableTransactionManagement.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/transaction/annotation/ProxyTransactionManagementConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/transaction/annotation/TransactionManagementConfigurationSelector.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/web/bind/annotation/Mapping.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/web/bind/annotation/RequestMapping.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/web/bind/annotation/ResponseBody.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/web/bind/annotation/RestController.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/web/context/ServletContextAware.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/web/servlet/config/annotation/DelegatingWebMvcConfiguration.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/web/servlet/config/annotation/WebMvcConfigurationSupport$NoOpValidator.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/web/servlet/config/annotation/WebMvcConfigurationSupport.class\\E"
+  }, {
+    "pattern":"\\Qorg/springframework/web/servlet/config/annotation/WebMvcConfigurer.class\\E"
+  }, {
+    "pattern":"\\Qorg/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/wicket-package.properties\\E"
+  }, {
+    "pattern":"\\Qorg/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"\\Qorg/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"\\Qorg/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"\\Qorg/wicketstuff/select2/res/css/select2.css\\E"
+  }, {
+    "pattern":"\\Qorg/wicketstuff/select2/res/css/select2_en.css\\E"
+  }, {
+    "pattern":"\\Qorg/wicketstuff/select2/res/js/i18n/en.js\\E"
+  }, {
+    "pattern":"\\Qorg/wicketstuff/select2/res/js/i18n/en_en.js\\E"
+  }, {
+    "pattern":"\\Qorg/wicketstuff/select2/res/js/select2.full.js\\E"
+  }, {
+    "pattern":"\\Qorg/wicketstuff/select2/res/js/select2.full_en.js\\E"
+  }, {
+    "pattern":"\\Qproto/generated/global.commons.proto\\E"
+  }, {
+    "pattern":"\\Qproto/generated/persistence.commons.proto\\E"
+  }, {
+    "pattern":"\\Qproto/generated/persistence.core.proto\\E"
+  }, {
+    "pattern":"\\Qproto/generated/persistence.multimap.proto\\E"
+  }, {
+    "pattern":"\\Qproto/generated/user.commons.proto\\E"
+  }, {
+    "pattern":"\\Qprotostream/common-java-container-types.proto\\E"
+  }, {
+    "pattern":"\\Qprotostream/common-java-types.proto\\E"
+  }, {
+    "pattern":"\\Qprotostream/google/protobuf/any.proto\\E"
+  }, {
+    "pattern":"\\Qprotostream/google/protobuf/duration.proto\\E"
+  }, {
+    "pattern":"\\Qprotostream/google/protobuf/empty.proto\\E"
+  }, {
+    "pattern":"\\Qprotostream/google/protobuf/timestamp.proto\\E"
+  }, {
+    "pattern":"\\Qprotostream/google/protobuf/wrappers.proto\\E"
+  }, {
+    "pattern":"\\Qpublic/index.html\\E"
+  }, {
+    "pattern":"\\Qresources/index.html\\E"
+  }, {
+    "pattern":"\\Qschema-all.sql\\E"
+  }, {
+    "pattern":"\\Qschema.sql\\E"
+  }, {
+    "pattern":"\\Qshapes.ttl\\E"
+  }, {
+    "pattern":"\\Qshiro.ini\\E"
+  }, {
+    "pattern":"\\Qspring.properties\\E"
+  }, {
+    "pattern":"\\Qstatic/index.html\\E"
+  }, {
+    "pattern":"\\Qtemplates/error.ftlh\\E"
+  }, {
+    "pattern":"\\Qtemplates/index.ftlh\\E"
+  }, {
+    "pattern":"\\Qtheme/base/account/index_en.ftl\\E"
+  }, {
+    "pattern":"\\Qtheme/base/account/index_en_US.ftl\\E"
+  }, {
+    "pattern":"\\Qtheme/base/account/messages/messages_en.properties\\E"
+  }, {
+    "pattern":"\\Qtheme/base/account/resources/content_en.json\\E"
+  }, {
+    "pattern":"\\Qtheme/base/account/resources/content_en_US.json\\E"
+  }, {
+    "pattern":"\\Qtheme/base/account/theme.properties\\E"
+  }, {
+    "pattern":"\\Qtheme/base/admin/index_en.ftl\\E"
+  }, {
+    "pattern":"\\Qtheme/base/admin/index_en_US.ftl\\E"
+  }, {
+    "pattern":"\\Qtheme/base/admin/messages/messages_en.properties\\E"
+  }, {
+    "pattern":"\\Qtheme/base/admin/theme.properties\\E"
+  }, {
+    "pattern":"\\Qtheme/base/email/theme.properties\\E"
+  }, {
+    "pattern":"\\Qtheme/base/login/login.ftl\\E"
+  }, {
+    "pattern":"\\Qtheme/base/login/login_en.ftl\\E"
+  }, {
+    "pattern":"\\Qtheme/base/login/login_en_US.ftl\\E"
+  }, {
+    "pattern":"\\Qtheme/base/login/messages/messages_en.properties\\E"
+  }, {
+    "pattern":"\\Qtheme/base/login/template.ftl\\E"
+  }, {
+    "pattern":"\\Qtheme/base/login/template_en.ftl\\E"
+  }, {
+    "pattern":"\\Qtheme/base/login/template_en_US.ftl\\E"
+  }, {
+    "pattern":"\\Qtheme/base/login/theme.properties\\E"
+  }, {
+    "pattern":"\\Qtheme/keycloak.v2/account/index.ftl\\E"
+  }, {
+    "pattern":"\\Qtheme/keycloak.v2/account/index_en.ftl\\E"
+  }, {
+    "pattern":"\\Qtheme/keycloak.v2/account/index_en_US.ftl\\E"
+  }, {
+    "pattern":"\\Qtheme/keycloak.v2/account/messages/messages_en.properties\\E"
+  }, {
+    "pattern":"\\Qtheme/keycloak.v2/account/resources/Main.js\\E"
+  }, {
+    "pattern":"\\Qtheme/keycloak.v2/account/resources/\\E"
+  }, {
+    "pattern":"\\Qtheme/keycloak.v2/account/resources/content.json\\E"
+  }, {
+    "pattern":"\\Qtheme/keycloak.v2/account/resources/content_en.json\\E"
+  }, {
+    "pattern":"\\Qtheme/keycloak.v2/account/resources/content_en_US.json\\E"
+  }, {
+    "pattern":"\\Qtheme/keycloak.v2/account/resources/web_modules/react-dom.js\\E"
+  }, {
+    "pattern":"\\Qtheme/keycloak.v2/account/resources/web_modules/react.js\\E"
+  }, {
+    "pattern":"\\Qtheme/keycloak.v2/account/theme.properties\\E"
+  }, {
+    "pattern":"\\Qtheme/keycloak.v2/admin/index.ftl\\E"
+  }, {
+    "pattern":"\\Qtheme/keycloak.v2/admin/index_en.ftl\\E"
+  }, {
+    "pattern":"\\Qtheme/keycloak.v2/admin/index_en_US.ftl\\E"
+  }, {
+    "pattern":"\\Qtheme/keycloak.v2/admin/messages/messages_en.properties\\E"
+  }, {
+    "pattern":"\\Qtheme/keycloak.v2/admin/resources/\\E"
+  }, {
+    "pattern":"\\Qtheme/keycloak.v2/admin/resources/assets/RedHatText-Regular-J2SerA9k.woff2\\E"
+  }, {
+    "pattern":"\\Qtheme/keycloak.v2/admin/resources/assets/ToolbarContent--0sdC8NZ.css\\E"
+  }, {
+    "pattern":"\\Qtheme/keycloak.v2/admin/resources/assets/ViewHeader-oMwRaaOr.css\\E"
+  }, {
+    "pattern":"\\Qtheme/keycloak.v2/admin/resources/assets/index-fWBYmwO3.css\\E"
+  }, {
+    "pattern":"\\Qtheme/keycloak.v2/admin/resources/assets/index-mmsIGadD.js\\E"
+  }, {
+    "pattern":"\\Qtheme/keycloak.v2/admin/resources/assets/overpass-bold-LEVsZ7tP.woff2\\E"
+  }, {
+    "pattern":"\\Qtheme/keycloak.v2/admin/resources/assets/overpass-light-DGQKZV-C.woff2\\E"
+  }, {
+    "pattern":"\\Qtheme/keycloak.v2/admin/resources/img_avatar.svg\\E"
+  }, {
+    "pattern":"\\Qtheme/keycloak.v2/admin/resources/logo.svg\\E"
+  }, {
+    "pattern":"\\Qtheme/keycloak.v2/admin/theme.properties\\E"
+  }, {
+    "pattern":"\\Qtheme/keycloak.v3/account/theme.properties\\E"
+  }, {
+    "pattern":"\\Qtheme/keycloak/common/login.ftl\\E"
+  }, {
+    "pattern":"\\Qtheme/keycloak/common/login_en.ftl\\E"
+  }, {
+    "pattern":"\\Qtheme/keycloak/common/login_en_US.ftl\\E"
+  }, {
+    "pattern":"\\Qtheme/keycloak/common/messages/messages_en.properties\\E"
+  }, {
+    "pattern":"\\Qtheme/keycloak/common/template.ftl\\E"
+  }, {
+    "pattern":"\\Qtheme/keycloak/common/template_en.ftl\\E"
+  }, {
+    "pattern":"\\Qtheme/keycloak/common/template_en_US.ftl\\E"
+  }, {
+    "pattern":"\\Qtheme/keycloak/common/theme.properties\\E"
+  }, {
+    "pattern":"\\Qtheme/keycloak/email/theme.properties\\E"
+  }, {
+    "pattern":"\\Qtheme/keycloak/login/login.ftl\\E"
+  }, {
+    "pattern":"\\Qtheme/keycloak/login/login_en.ftl\\E"
+  }, {
+    "pattern":"\\Qtheme/keycloak/login/login_en_US.ftl\\E"
+  }, {
+    "pattern":"\\Qtheme/keycloak/login/messages/messages_en.properties\\E"
+  }, {
+    "pattern":"\\Qtheme/keycloak/login/template.ftl\\E"
+  }, {
+    "pattern":"\\Qtheme/keycloak/login/template_en.ftl\\E"
+  }, {
+    "pattern":"\\Qtheme/keycloak/login/template_en_US.ftl\\E"
+  }, {
+    "pattern":"\\Qtheme/keycloak/login/theme.properties\\E"
+  }, {
+    "pattern":"\\Qtheme/keycloak/welcome/theme.properties\\E"
+  }, {
+    "pattern":"\\Qtheme/providers-only/login/theme.properties\\E"
+  }, {
+    "pattern":"\\Qua_parser/regexes.yaml\\E"
+  }, {
+    "pattern":"\\Qwin/amd64/libzstd-jni-1.5.5-11.dll\\E"
+  }, {
+    "pattern":"\\Qwww.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.1.xsd\\E"
+  }, {
+    "pattern":"\\Qwww.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.2.xsd\\E"
+  }, {
+    "pattern":"java.base:\\Qjava/lang/Object.properties.xml\\E"
+  }, {
+    "pattern":"java.base:\\Qjava/lang/Object.properties\\E"
+  }, {
+    "pattern":"java.base:\\Qjava/lang/Object.utf8.properties\\E"
+  }, {
+    "pattern":"java.base:\\Qjava/lang/Object_en.properties.xml\\E"
+  }, {
+    "pattern":"java.base:\\Qjava/lang/Object_en.properties\\E"
+  }, {
+    "pattern":"java.base:\\Qjava/lang/Object_en.utf8.properties\\E"
+  }, {
+    "pattern":"java.base:\\Qjava/lang/wicket-package.properties.xml\\E"
+  }, {
+    "pattern":"java.base:\\Qjava/lang/wicket-package.properties\\E"
+  }, {
+    "pattern":"java.base:\\Qjava/lang/wicket-package.utf8.properties\\E"
+  }, {
+    "pattern":"java.base:\\Qjava/lang/wicket-package_en.properties.xml\\E"
+  }, {
+    "pattern":"java.base:\\Qjava/lang/wicket-package_en.properties\\E"
+  }, {
+    "pattern":"java.base:\\Qjava/lang/wicket-package_en.utf8.properties\\E"
+  }, {
+    "pattern":"java.base:\\Qjdk/internal/icu/impl/data/icudt72b/nfc.nrm\\E"
+  }, {
+    "pattern":"java.base:\\Qjdk/internal/icu/impl/data/icudt72b/nfkc.nrm\\E"
+  }, {
+    "pattern":"java.base:\\Qjdk/internal/icu/impl/data/icudt72b/uprops.icu\\E"
+  }, {
+    "pattern":"java.base:\\Qsun/net/idn/uidna.spp\\E"
+  }, {
+    "pattern":"java.base:\\Qsun/net/www/content-types.properties\\E"
+  }, {
+    "pattern":"jdk.jfr:\\Qjdk/jfr/internal/query/view.ini\\E"
+  }]},
+  "bundles":[{
+    "name":"com.sun.org.apache.xerces.internal.impl.xpath.regex.message",
+    "locales":[""]
+  }, {
+    "name":"jakarta.servlet.LocalStrings",
+    "locales":[""]
+  }, {
+    "name":"jakarta.servlet.http.LocalStrings",
+    "locales":[""]
+  }, {
+    "name":"liquibase/i18n/liquibase-core",
+    "locales":[""]
+  }, {
+    "name":"org.apache.jena.ext.xerces.impl.xpath.regex.message",
+    "locales":[""]
+  }, {
+    "name":"sun.awt.resources.awt",
+    "classNames":["sun.awt.resources.awt"]
+  }, {
+    "name":"sun.security.util.Resources",
+    "classNames":["sun.security.util.Resources"]
+  }]
+}
