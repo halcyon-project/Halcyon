@@ -50,7 +50,7 @@ public class BackgroundDetector {
                 }
             }
         }
-        BufferedImage bix = ImageTools.ScaleBufferedImage(bi, new Rectangle(a,b));
+        BufferedImage bix = ImageTools.ScaleBufferedImage(bi, new Rectangle(a,b), true);
         try {
             File outputfile = new File("D:\\ATAN\\adjustedmask.png");
             ImageIO.write(bix, "png", outputfile);

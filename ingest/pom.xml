@@ -6,14 +6,14 @@
     <parent>
         <groupId>com.ebremer.HalcyonProject</groupId>
         <artifactId>HalcyonProject</artifactId>
-        <version>1.0.0</version>
+        <version>1.1.0</version>
     </parent>
     <properties>
         <exec.mainClass>com.ebremer.ingest.Ingest</exec.mainClass>
     </properties>
     <dependencies>
         <dependency>
-            <groupId>com.beust</groupId>
+            <groupId>org.jcommander</groupId>
             <artifactId>jcommander</artifactId>
         </dependency>
         <dependency>
@@ -44,7 +44,7 @@
                     <plugin>
                         <groupId>org.graalvm.buildtools</groupId>
                         <artifactId>native-maven-plugin</artifactId>
-                        <version>0.9.28</version>
+                        <version>${native-maven-plugin.version}</version>
                         <extensions>true</extensions>
                         <executions>
                             <execution>
@@ -58,7 +58,6 @@
                         <configuration>
                             <imageName>ingest</imageName>
                             <mainClass>com.ebremer.halcyon.converters.Ingest</mainClass>
-                            <skipNativeBuild>true</skipNativeBuild>
                             <skipNativeTests>true</skipNativeTests>
                             <verbose>true</verbose>
                             <jvmArgs>
@@ -67,10 +66,17 @@
                             </jvmArgs>
                             <buildArgs>
                                 <buildArg>--no-fallback</buildArg>
-                                <buildArg>-H:ConfigurationFileDirectories=ingestconfig</buildArg>
+                                <buildArg>-H:ConfigurationFileDirectories=config</buildArg>
+                                <buildArg>--initialize-at-run-time=org.slf4j</buildArg>
+                                <buildArg>--initialize-at-run-time=org.apache.logging.log4j.core.config.Configurator</buildArg>
                                 <buildArg>--enable-url-protocols=https</buildArg>
                                 <buildArg>-H:+AddAllCharsets</buildArg>
                                 <buildArg>--static</buildArg>
+                                <buildArg>--strict-image-heap</buildArg>
+                                <buildArg>-march=native</buildArg>
+                                <buildArg>-J-Xmx32G</buildArg>
+                                <buildArg>--no-server</buildArg>
+                                <buildArg>--parallelism=32</buildArg>
                             </buildArgs>
                         </configuration>
                     </plugin>
@@ -88,7 +94,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-shade-plugin</artifactId>
-                        <version>3.5.1</version>
+                        <version>${maven-shade-plugin.version}</version>
                         <executions>
                             <execution>
                                 <id>ingestjarshade</id>
@@ -131,7 +137,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-shade-plugin</artifactId>
-                        <version>3.5.1</version>
+                        <version>${maven-shade-plugin.version}</version>
                         <executions>
                             <execution>
                                 <id>ns2gsshade</id>
@@ -164,7 +170,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-shade-plugin</artifactId>
-                        <version>3.5.1</version>
+                        <version>${maven-shade-plugin.version}</version>
                         <executions>
                             <execution>
                                 <id>heatmap2geosparqlshade</id>

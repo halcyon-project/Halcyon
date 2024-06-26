@@ -3,17 +3,14 @@ package com.ebremer.halcyon.server;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import com.ebremer.halcyon.data.DataCore;
 import com.ebremer.halcyon.filesystem.DirectoryProcessor;
+import com.ebremer.halcyon.server.utils.ResourceHandler;
 import com.ebremer.halcyon.services.Service;
-import com.ebremer.halcyon.server.utils.StorageLocation;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Iterator;
+import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.ParameterizedSparqlString;
 import org.apache.jena.query.QueryExecution;
@@ -23,6 +20,8 @@ import org.apache.jena.query.ResultSet;
 import org.apache.jena.update.UpdateAction;
 import org.apache.jena.update.UpdateFactory;
 import org.apache.jena.update.UpdateRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -32,9 +31,10 @@ public final class FileManager implements Service {
     private static HalcyonSettings hs = null;
     private Timer timer;
     private TimerTask task;
+    private static final Logger logger = LoggerFactory.getLogger(FileManager.class);
     
     public FileManager() {
-        System.out.println("Starting FileManager...");
+        logger.info("Starting FileManager...");
         hs = HalcyonSettings.getSettings();
         resume();
     }
@@ -48,17 +48,14 @@ public final class FileManager implements Service {
         task = new TimerTask() {
             @Override
             public void run() {
-                //System.out.println("Performing storage scan...");
                 pause();
                 Dataset ds = DataCore.getInstance().getDataset();
                 DirectoryProcessor dp = new DirectoryProcessor(ds);                
-                ArrayList<StorageLocation> list = hs.getStorageLocations();
-                Iterator<StorageLocation> i = list.iterator();
-                while (i.hasNext()) {                    
-                    Path p = i.next().path;
-                   // System.out.println("Scanning --> "+p);
-                    dp.Traverse(p);
-                }
+                List<ResourceHandler> list = HalcyonSettings.getSettings().GetResourceHandlers();
+                list.forEach(rh->{
+                    Path p = Path.of(rh.resourceBase());
+                    dp.Traverse(p);                
+                });
                 ValidateData();
                 resume();
             }
@@ -97,7 +94,7 @@ public final class FileManager implements Service {
                     }
                 } catch (URISyntaxException ex) {
                     System.out.println("NG --> "+r);
-                    Logger.getLogger(FileManager.class.getName()).log(Level.SEVERE, null, ex);
+                    logger.error(ex.getMessage());
                 }
             }
         });                

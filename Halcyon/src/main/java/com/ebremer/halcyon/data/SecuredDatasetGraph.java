@@ -1,6 +1,5 @@
 package com.ebremer.halcyon.data;
 
-import com.ebremer.halcyon.data.WACSecurityEvaluator;
 import com.ebremer.halcyon.datum.AccessDeniedException;
 import com.ebremer.halcyon.datum.HalSec;
 import com.ebremer.halcyon.datum.HalcyonPrincipal;
@@ -72,17 +71,16 @@ public class SecuredDatasetGraph implements DatasetGraph {
     public Graph getGraph(Node graphNode) {
         boolean isReadAllowed = hasReadAccess(graphNode);
         if (isReadAllowed) {
-            Graph gg = base.getGraph(graphNode);
-            gg = Factory.getInstance(securityEvaluator, graphNode.getURI(), gg);
-            return gg;
+            return Factory.getInstance(securityEvaluator, graphNode.getURI(), base.getGraph(graphNode));
         } else {
-            return GraphZero.instance();
+            return (Graph) GraphZero.instance();
         }
     }
 
     @Override
     public Graph getUnionGraph() {
-        throw new UnsupportedOperationException("Not supported yet.");
+        Graph g = base.getUnionGraph();
+        return Factory.getInstance(securityEvaluator, "http://localhost/unionx", g);
     }
 
     @Override
@@ -93,7 +91,7 @@ public class SecuredDatasetGraph implements DatasetGraph {
     @Override
     public void addGraph(Node node, Graph graph) {
         HalcyonPrincipal hp = HalcyonSession.get().getHalcyonPrincipal();
-        if (HalSec.canCreateCollection(hp.getURNUUID())) {
+        if (HalSec.canCreateCollection(hp.getUserURI())) {
             base.addGraph(node, graph);
         } else {
             throw new UnsupportedOperationException("Not supported yet.");
@@ -301,10 +299,5 @@ public class SecuredDatasetGraph implements DatasetGraph {
         } else {
             throw new AccessDeniedException("User is not allowed to add triples to graph " + g);
         }
-    }
-
-    @Override
-    public void setDefaultGraph(Graph g) {
-        throw new UnsupportedOperationException("Not supported yet.");
     }
 }

@@ -1,8 +1,10 @@
 package com.ebremer.halcyon.lib;
 
+import com.ebremer.halcyon.utils.HalJsonLD;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -13,7 +15,6 @@ import javax.imageio.ImageWriter;
 import javax.imageio.plugins.jpeg.JPEGImageWriteParam;
 import javax.imageio.stream.ImageOutputStream;
 import org.apache.jena.rdf.model.Model;
-import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.riot.RDFFormat;
 
@@ -24,7 +25,7 @@ import org.apache.jena.riot.RDFFormat;
 public class Tile {
     public static enum TileType {RDF, BUFFEREDIMAGE};   
     private final TileRequest tilerequest;
-    private final BufferedImage bi;
+    private BufferedImage bi = null;
     private byte[] jpg = null;
     private byte[] png = null;
     private Model meta = null;
@@ -33,12 +34,28 @@ public class Tile {
         this.tilerequest = tilerequest;
         this.bi = bi;
     }
+
+    public Tile(TileRequest tilerequest) {
+        this.tilerequest = tilerequest;
+    }    
+
+    public void setBufferedImage(BufferedImage bi) {
+        this.bi = bi;
+    }
+    
+    public void setMeta(Model m) {
+        meta = m;
+    }
     
     public BufferedImage getBufferedImage() {
+        if (bi==null) {
+            bi = tilerequest.getBufferedImage(tilerequest.MaintainAspectRatio());
+        }
         return bi;
     }
     
     public byte[] getJPG() {
+        getBufferedImage();
         if (jpg==null) {
             ImageWriter writer = ImageIO.getImageWritersByFormatName("jpg").next();
             JPEGImageWriteParam jpegParams = new JPEGImageWriteParam(null);
@@ -59,9 +76,9 @@ public class Tile {
     
     public String getMeta(RDFFormat format) {
         if (meta==null) {
-            meta = ModelFactory.createDefaultModel();
+            meta = tilerequest.getMeta();
         }
-        try (ByteArrayOutputStream bos = new ByteArrayOutputStream(2000)) {
+        try (ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
             RDFDataMgr.write(bos, meta, format);
             return new String(bos.toByteArray(), StandardCharsets.UTF_8);
         } catch (IOException ex) {
@@ -69,7 +86,19 @@ public class Tile {
         }
     }
     
+    public void getMeta(RDFFormat format, OutputStream out) {
+        if (meta==null) {
+            meta = tilerequest.getMeta();
+        }
+        if (format.equals(RDFFormat.JSONLD11_PRETTY)) {
+            HalJsonLD.GetPolygons(meta, out);
+        } else {
+            RDFDataMgr.write(out, meta, format);                       
+        }        
+    }
+    
     public byte[] getPNG() {
+        getBufferedImage();
         if (png==null) {
             ImageWriter writer = ImageIO.getImageWritersByFormatName("png").next();
             ImageWriteParam pjpegParams = writer.getDefaultWriteParam();

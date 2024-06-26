@@ -81,7 +81,7 @@ csscomb file.css
 
 [fabric.js](https://github.com/fabricjs/fabric.js/releases/tag/v521)
 
-[Font Awesome](https://use.fontawesome.com/releases/v5.15.3/fontawesome-free-5.15.3-web.zip)
+[Font Awesome](https://use.fontawesome.com/releases/v6.5.1/fontawesome-free-6.5.1-web.zip)
 
 [jQuery](https://github.com/jquery/jquery/archive/refs/tags/3.5.1.tar.gz)
 

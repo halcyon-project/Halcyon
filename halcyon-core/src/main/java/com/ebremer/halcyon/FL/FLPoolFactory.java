@@ -32,7 +32,7 @@ public class FLPoolFactory extends BaseKeyedPooledObjectFactory<URI, FL> {
     @Override
     public FL create(URI uri) throws Exception {
         logger.trace("Creating FL "+uri+" # of Objects Alive : "+getInstanceCount(uri));
-        instanceCountMap.computeIfAbsent(uri, k -> new AtomicInteger()).incrementAndGet();
+        instanceCountMap.computeIfAbsent(uri, k -> new AtomicInteger()).incrementAndGet();        
         BeakGraph bg = BeakGraphPool.getPool().borrowObject(uri);
         Dataset ds = DatasetFactory.wrap(new BGDatasetGraph(bg));
         ParameterizedSparqlString pss = new ParameterizedSparqlString(

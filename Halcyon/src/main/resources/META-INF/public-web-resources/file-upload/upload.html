@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>Multiple files and directories</title>
+  <style>
+    #dropArea {
+      text-align: center;
+      width: 300px;
+      height: 100px;
+      margin: 10px;
+      padding: 10px;
+      border: 4px dashed blue;
+      border-radius: 10px;
+    }
+
+    body {
+      font: 16px "Arial",
+      sans-serif;
+    }
+
+    progress {
+      width: 100%;
+      height: 20px;
+      -webkit-appearance: none;
+      appearance: none;
+      margin: 20px 0;
+    }
+
+    /* Styling the progress bar for Chrome, Safari, and Opera */
+    progress::-webkit-progress-bar {
+      background-color: #eee;
+      border-radius: 10px;
+      box-shadow: 0 2px 3px rgba(0, 0, 0, 0.1) inset;
+    }
+
+    progress::-webkit-progress-value {
+      background-color: #4caf50;
+      border-radius: 10px;
+      transition: width 0.25s ease-in-out;
+    }
+
+    /* Styling the progress bar for Firefox */
+    progress::-moz-progress-bar {
+      background-color: #4caf50;
+      border-radius: 10px;
+      transition: width 0.25s ease-in-out;
+    }
+
+    #progressPercentage {
+      font-size: 16px;
+      text-align: center;
+      margin-top: 10px;
+      color: #4caf50;
+    }
+  </style>
+</head>
+<body>
+<div id="dropArea">Drag files and directories here</div>
+<progress id="uploadProgress" value="0" max="100"></progress>
+<div id="progressPercentage">0%</div>
+<script>
+  let formData = new FormData();
+
+  function traverseFileTree(item, path = '') {
+    return new Promise((resolve, reject) => {
+      if (item.isFile) {
+        item.file(file => {
+          // Append files and paths as separate entries
+          formData.append('files', file); // Append the file
+          formData.append('paths', item.fullPath.substring(1)); // Append the path, removing the leading '/'
+          resolve();
+        }, reject);
+      } else if (item.isDirectory) {
+        const dirReader = item.createReader();
+        dirReader.readEntries(entries => {
+          Promise.all(entries.map(entry => traverseFileTree(entry, `${path}${item.name}/`)))
+            .then(resolve)
+            .catch(reject);
+        }, reject);
+      } else {
+        resolve(); // Resolve the promise for non-file, non-directory entries
+      }
+    });
+  }
+
+  function handleDrop(event) {
+    event.stopPropagation();
+    event.preventDefault();
+    this.style.border = "4px dashed blue";
+    formData = new FormData(); // Reset formData for a new set of files and paths
+    const items = event.dataTransfer.items;
+
+    const promises = Array.from(items).map(item =>
+      traverseFileTree(item.webkitGetAsEntry())
+    );
+
+    Promise.all(promises).then(() => uploadFiles())
+      .catch(error => console.error("Error processing files:", error));
+  }
+
+  function uploadFiles() {
+    // The URL to your upload endpoint
+    const loc = window.location;
+    const uploadUrl = `${loc.protocol}//${loc.hostname}:3000/upload`;
+
+    // Set up the request for uploading files
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', uploadUrl, true);
+
+    // Set up the progress bar
+    const progressBar = document.getElementById('uploadProgress');
+    progressBar.style.display = 'block'; // Show the progress bar
+
+    // Update the progress bar during the upload
+    xhr.upload.onprogress = function(event) {
+      if (event.lengthComputable) {
+        const percentComplete = event.loaded / event.total * 100;
+        progressBar.value = percentComplete;
+
+        // Update the percentage text
+        const percentageText = document.getElementById('progressPercentage');
+        percentageText.textContent = `${Math.round(percentComplete)}%`; // Round the percentage
+      }
+    };
+
+    // Handle the response from the server
+    xhr.onload = function() {
+      if (xhr.status === 200) {
+        console.log('Success:', xhr.responseText);
+        progressBar.value = 100; // Ensure the progress bar shows as complete
+      } else {
+        console.error('Error:', xhr.statusText);
+      }
+      progressBar.style.display = 'none'; // Hide the progress bar after upload
+    };
+
+    xhr.onerror = function() {
+      console.error('Error during the upload process.');
+      progressBar.style.display = 'none'; // Hide the progress bar on error
+    };
+
+    // Send the form data with the file
+    xhr.send(formData);
+  }
+
+  // Add event listeners for drag and drop functionality
+  const dropArea = document.getElementById('dropArea');
+  dropArea.addEventListener('dragover', (event) => {
+    event.stopPropagation();
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'copy';
+    dropArea.style.border = "4px dashed cyan";
+  });
+  dropArea.addEventListener('drop', handleDrop);
+</script>
+</body>
+</html>

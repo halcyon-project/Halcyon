@@ -3,6 +3,10 @@
 /keycloak.json
 /keycloak-realm-config.json
 /dependency-reduced-pom.xml
+/beak*
+/cacerts*
+/cert*
+
 
 # Compiled class file
 *.class
@@ -28,6 +32,8 @@
 # cert files/SSL Stuff
 *.pem
 *.p12
+*.jks
+*.crt
 cacerts
 cacerts.p12
 *.cer

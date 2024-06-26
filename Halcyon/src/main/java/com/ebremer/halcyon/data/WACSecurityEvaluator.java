@@ -8,6 +8,7 @@ import com.ebremer.halcyon.gui.HalcyonSession;
 import com.ebremer.halcyon.pools.AccessCache;
 import com.ebremer.halcyon.pools.AccessCachePool;
 import com.ebremer.ns.HAL;
+import com.ebremer.ns.WAC;
 import java.security.Principal;
 import java.util.HashMap;
 import java.util.Set;
@@ -18,7 +19,6 @@ import org.apache.jena.query.ParameterizedSparqlString;
 import org.apache.jena.query.QueryExecutionFactory;
 import org.apache.jena.shared.AuthenticationRequiredException;
 import org.apache.jena.vocabulary.SchemaDO;
-import org.apache.jena.vocabulary.WAC;
 import org.apache.shiro.SecurityUtils;
 
 /**
@@ -33,31 +33,33 @@ public final class WACSecurityEvaluator implements SecurityEvaluator {
     }
 
     @Override
-    public boolean evaluate(Object principal, Action action, Node graphIRI) {
-        //System.out.println(UUID.randomUUID().toString()+" evaluate(Object principal, Action action, Node graphIRI) --> "+action+"   "+graphIRI);
+    public boolean evaluate(Object principal, Action action, Node node) {
+        if (node.equals(Node.ANY)) {
+            return false; // all wild cards are false
+        }
+        //return true;
+        
         if (level == OPEN) {
-            if (graphIRI.matches(HAL.CollectionsAndResources.asNode())) {
+            if (node.matches(HAL.CollectionsAndResources.asNode())) {
                 return true;
             }
         }
         HalcyonPrincipal hp = (HalcyonPrincipal) principal;
         AccessCache ac;
         try {
-            ac = AccessCachePool.getPool().borrowObject(hp.getURNUUID());
+            ac = AccessCachePool.getPool().borrowObject(hp.getUserURI());
         } catch (Exception ex) {
             return false;
         }
-        if (ac.getCache().containsKey(graphIRI)) {
-            if (ac.getCache().get(graphIRI).containsKey(action)) {
-                //System.out.println("HIT "+graphIRI);
-                boolean ha = ac.getCache().get(graphIRI).get(action);
-                AccessCachePool.getPool().returnObject(hp.getURNUUID(), ac);
+        if (ac.getCache().containsKey(node)) {
+            if (ac.getCache().get(node).containsKey(action)) {
+                boolean ha = ac.getCache().get(node).get(action);
+                AccessCachePool.getPool().returnObject(hp.getUserURI(), ac);
                 return ha;
             }
         }
-        //System.out.println("MISS "+graphIRI);
         HashMap<Action,Boolean> set = new HashMap<>();
-        ac.getCache().put(graphIRI, set);
+        ac.getCache().put(node, set);
         ParameterizedSparqlString pss = new ParameterizedSparqlString("""
             ASK {?rule acl:accessTo/so:hasPart* ?target;
                         acl:mode ?mode;
@@ -67,12 +69,12 @@ public final class WACSecurityEvaluator implements SecurityEvaluator {
         pss.setNsPrefix("acl", WAC.NS);
         pss.setNsPrefix("so", SchemaDO.NS);
         pss.setNsPrefix("hal", HAL.NS);
-        pss.setIri("target", graphIRI.toString());
+        pss.setIri("target", node.toString());
         pss.setIri("mode", WACUtil.WAC(action));
         pss.setIri("group", HAL.Anonymous.toString());
         if (QueryExecutionFactory.create(pss.toString(), ac.getSECM()).execAsk()) {
             set.put(action, true);
-            AccessCachePool.getPool().returnObject(hp.getURNUUID(), ac);
+            AccessCachePool.getPool().returnObject(hp.getUserURI(), ac);
             return true;
         }
         pss = new ParameterizedSparqlString("""
@@ -85,52 +87,58 @@ public final class WACSecurityEvaluator implements SecurityEvaluator {
         pss.setNsPrefix("acl", WAC.NS);
         pss.setNsPrefix("so", SchemaDO.NS);
         pss.setNsPrefix("hal", HAL.NS);
-        pss.setIri("target", graphIRI.toString());
+        pss.setIri("target", node.toString());
         pss.setIri("mode", WACUtil.WAC(action));
-        pss.setIri("member", hp.getURNUUID());
+        pss.setIri("member", hp.getUserURI());
         boolean ha = QueryExecutionFactory.create(pss.toString(), ac.getSECM()).execAsk();
         set.put(action, ha);
-        AccessCachePool.getPool().returnObject(hp.getURNUUID(), ac);
+        AccessCachePool.getPool().returnObject(hp.getUserURI(), ac);
         return ha;
+
     }
 
     @Override
     public boolean evaluate(Object principal, Action action, Node graphIRI, Triple triple) {
-        //System.out.println("evaluate(Object principal, Action action, Node graphIRI, Triple triple)");
-        return evaluate( principal, triple );
+        //return evaluate( principal, triple );
+        return evaluate( principal, action, triple.getSubject());
+        //return evaluate( principal, action, triple.getSubject()) && evaluate( principal, action, triple.getObject()) && evaluate( principal, action, triple.getPredicate());
     }
     
-    private boolean evaluate( Object principal, Triple triple ) {
-        //System.out.println("evaluate( Object principal, Triple triple )");
-        return evaluate( principal, triple.getSubject()) && evaluate( principal, triple.getObject()) && evaluate( principal, triple.getPredicate());
-    }
+    //private boolean evaluate( Object principal, Triple triple ) {
+      //  return evaluate( principal, triple.getSubject()) && evaluate( principal, triple.getObject()) && evaluate( principal, triple.getPredicate());
+    //}
     
-    private boolean evaluate( Object principal, Node node ) {
-        return node.equals( Node.ANY );
-    }
-
     @Override
-    public boolean evaluate(Object principal, Set<Action> actions, Node graphIRI) throws AuthenticationRequiredException {
+    public boolean evaluate(Object principal, Set<Action> actions, Node graphIRI) {
         return SecurityEvaluator.super.evaluate(principal, actions, graphIRI);
     }
 
     @Override
-    public boolean evaluate(Object principal, Set<Action> actions, Node graphIRI, Triple triple) throws AuthenticationRequiredException {
+    public boolean evaluate(Object principal, Set<Action> actions, Node graphIRI, Triple triple) {
         return SecurityEvaluator.super.evaluate(principal, actions, graphIRI, triple);
     }
+    
+    /*
+    private boolean evaluate( Object principal, Node node ) {
+        if (node.equals(Node.ANY)) {
+            return false; // all wild cards are false
+        }
+        return node.equals( Node.ANY );
+    }*/
+
 
     @Override
-    public boolean evaluateAny(Object principal, Set<Action> actions, Node graphIRI) throws AuthenticationRequiredException {
+    public boolean evaluateAny(Object principal, Set<Action> actions, Node graphIRI) {
         return SecurityEvaluator.super.evaluateAny(principal, actions, graphIRI);
     }
 
     @Override
-    public boolean evaluateAny(Object principal, Set<Action> actions, Node graphIRI, Triple triple) throws AuthenticationRequiredException {
+    public boolean evaluateAny(Object principal, Set<Action> actions, Node graphIRI, Triple triple) {
         return SecurityEvaluator.super.evaluateAny(principal, actions, graphIRI, triple);
     }
 
     @Override
-    public boolean evaluateUpdate(Object principal, Node graphIRI, Triple from, Triple to) throws AuthenticationRequiredException {
+    public boolean evaluateUpdate(Object principal, Node graphIRI, Triple from, Triple to) {
         return SecurityEvaluator.super.evaluateUpdate(principal, graphIRI, from, to);
     }
 
@@ -141,6 +149,7 @@ public final class WACSecurityEvaluator implements SecurityEvaluator {
         } catch (org.apache.shiro.UnavailableSecurityManagerException ex) {
             // assume and try for a Keycloak Servlet Filter Auth
         }
+        //return new HalcyonPrincipal("https://ebremer.com/profile#me");
         return HalcyonSession.get().getHalcyonPrincipal();
     }
 

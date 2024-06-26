@@ -1,10 +1,15 @@
+keycloak:
+  server:
+    contextPath: /auth
+    username: admin
+    password: admin
 spring:
   main:
     lazy-initialization: false
     allow-circular-references: true
   h2:
     console:
-      enabled: true
+      enabled: false
       path: /h2
   datasource:
     username: sa
@@ -12,35 +17,12 @@ spring:
     url: jdbc:h2:file:./data/keycloak;DB_CLOSE_ON_EXIT=FALSE
     driver-class-name: org.h2.Driver
   jpa:
-    database-platform: org.hibernate.dialect.H2Dialect
-    hibernate:
-      ddl-auto: update
-server:
-  undertow:
-    max-parameters: 8888      
-#security:
-#    oauth2:
-#      client:
-#        registration:
-#          keycloak:
-#            client-id: account
-#            client-name: Keycloak
-#            authorization-grant-type: authorization_code
-#            redirect-uri: "http://localhost:8888/login/oauth2/code/{registrationId}"
-#            scope: openid, profile, email
-#            client-authentication-method: none  # Indicates a public client
-#        provider:
-#          keycloak:
-#            issuer-uri: http://localhost:8888/auth/realms/Halcyon
-        
-keycloak:
-  server:
-    context-path: /auth
-    username: admin
-    password: admin
-    context-redirect: true
-    address: 0.0.0.0
-
+    defer-datasource-initialization: true
+    properties:
+      hibernate:
+        transaction:
+          jta:
+            platform: org.hibernate.engine.transaction.jta.platform.internal.NoJtaPlatform
 logging:
   file:
     name: logs/halcyon.log
@@ -48,14 +30,9 @@ logging:
     max-history: 10
   level:
     root: ERROR
-    com.ebremer.halcyon: DEBUG
-    com.ebremer.beakgraph: ERROR
-    #org.apache.wicket.Application: ERROR
-    #org.keycloak.adapters: TRACE
-    #org.jgroups: TRACE
-    #org.infinispan: INFO
-    #org.keycloak: DEBUG
-    #org.keycloak.services.managers.DefaultBruteForceProtector: WARN
-    #org.keycloak.services.scheduled.ClusterAwareScheduledTaskRunner: ERROR
-    #org.keycloak.services.managers.UserSessionManager: ERROR
-    #org.keycloak.timer.basic: ERROR
+    #org.springframework.boot.context.logging.ClassLoader: DEBUG
+    #org.springframework.boot.context.logging.loader: DEBUG
+    #org.jboss: OFF
+    #com.ebremer.halcyon: ERROR
+    #com.ebremer.beakgraph: ERROR
+    

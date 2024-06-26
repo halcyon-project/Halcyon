@@ -1,25 +1,29 @@
 package com.ebremer.halcyon.server;
 
+import com.ebremer.halcyon.filesystem.HURI;
 import com.ebremer.halcyon.lib.OperatingSystemInfo;
 import com.ebremer.halcyon.lib.URITools;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import com.ebremer.ns.HAL;
+import com.ebremer.ns.LDP;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.imageio.ImageIO;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
+import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.riot.RDFFormat;
 import org.apache.jena.sys.JenaSystem;
 import org.apache.jena.vocabulary.RDF;
+import org.apache.jena.vocabulary.XSD;
 import org.springframework.core.io.ClassPathResource;
 
 /**
@@ -43,44 +47,50 @@ public class INIT {
         }
     }
     
-    public Model getDefaultSettings() {
+    public Resource getDefaultSettings() {
         Model m = ModelFactory.createDefaultModel();
         m.setNsPrefix("", HAL.NS);
-        m.createResource("http://localhost")
-                .addProperty(RDF.type, HAL.HalcyonSettingsFile)
-                .addProperty(HAL.RDFStoreLocation, "tdb2")
-                .addProperty(HAL.HostName, "http://localhost:"+HalcyonSettings.DEFAULTHTTPPORT)
-                .addProperty(HAL.HostIP, "0.0.0.0")  //not fully implemented yet
-                .addLiteral(HAL.HTTPPort, HalcyonSettings.DEFAULTHTTPPORT)
-                .addLiteral(HAL.HTTPSPort, HalcyonSettings.DEFAULTHTTPSPORT)
-                .addProperty(HAL.ProxyHostName, "http://localhost:"+HalcyonSettings.DEFAULTHTTPPORT)
-                .addLiteral(HAL.HTTPSenabled, false)
-                .addLiteral(HAL.SPARQLport, HalcyonSettings.DEFAULTSPARQLPORT);
-        return m;
+        m.setNsPrefix("ldp", LDP.NS);
+        m.setNsPrefix("xsd", XSD.NS);
+        Resource r = m.createResource("http://localhost")
+            .addProperty(RDF.type, HAL.HalcyonSettingsFile)
+            .addProperty(HAL.RDFStoreLocation, "tdb2")
+            .addProperty(HAL.HostName, "http://localhost:"+HalcyonSettings.DEFAULTHTTPPORT)
+            .addProperty(HAL.HostIP, "0.0.0.0")  //not fully implemented yet
+            .addLiteral(HAL.HTTPPort, HalcyonSettings.DEFAULTHTTPPORT)
+            .addLiteral(HAL.HTTPSPort, HalcyonSettings.DEFAULTHTTPSPORT)
+            .addProperty(HAL.ProxyHostName, "http://localhost:"+HalcyonSettings.DEFAULTHTTPPORT)
+            .addLiteral(HAL.HTTPS2enabled, false)
+            .addLiteral(HAL.SPARQLport, HalcyonSettings.DEFAULTSPARQLPORT);
+        return r;
     }
     
     public Model getDefaultWindowsSettings() {
-        Model m = getDefaultSettings();
-        m.createResource(URITools.fix(Paths.get("Storage").toUri()))
-                .addProperty(RDF.type, HAL.StorageLocation)
-                .addProperty(HAL.urlpathprefix, "/Storage");
-        return m;
+        Resource r = getDefaultSettings();
+        r
+            .addProperty(HAL.hasResourceHandler,
+                r.getModel().createResource()
+                    .addProperty(RDF.type, LDP.Container)
+                    .addProperty(HAL.resourceBase, r.getModel().createResource(HURI.of(Path.of("Storage")).toString()))
+                    .addProperty(HAL.urlPath, "/ldp")
+            );        
+        return r.getModel();
     }
     
     public Model getDefaultLinuxSettings() {
-        Model m = getDefaultSettings();
-        m.createResource(URITools.fix(Paths.get("Storage").toUri()))
+        Resource r = getDefaultSettings();
+        r.getModel().createResource(URITools.fix(Paths.get("Storage").toUri()))
                 .addProperty(RDF.type, HAL.StorageLocation)
                 .addProperty(HAL.urlpathprefix, "/Storage");
-        return m;
+        return r.getModel();
     }
     
     public Model getDefaultMacOSXSettings() {
-        Model m = getDefaultSettings();
-        m.createResource(URITools.fix(Paths.get("Storage").toUri()))
+        Resource r = getDefaultSettings();
+        r.getModel().createResource(URITools.fix(Paths.get("Storage").toUri()))
                 .addProperty(RDF.type, HAL.StorageLocation)
                 .addProperty(HAL.urlpathprefix, "/Storage");
-        return m;
+        return r.getModel();
     }
     
     public void CreateDefaultSettingsFile(File file, Model m) {
@@ -111,10 +121,8 @@ public class INIT {
                 spent.delete();
             }
         }
-        dump("keycloak.json");
-        
-        // OS Specific Settings
-        
+        dump("keycloak.json");        
+        // OS Specific Settings        
         File settings = new File("settings.ttl");
         switch (OperatingSystemInfo.getName()) {
                 case "Windows 11":
@@ -132,9 +140,9 @@ public class INIT {
         }
         
         // ensure all TiffReaders are loaded
-        ImageIO.getImageReadersByFormatName("tif").forEachRemaining(ir->{
-            System.out.println("loading reader --> "+ir.getClass().toGenericString());
-        });
+        //ImageIO.getImageReadersByFormatName("tif").forEachRemaining(ir->{
+          //  System.out.println("loading reader --> "+ir.getClass().toGenericString());
+        //});
     }
     
     public static void main(String[] args) {

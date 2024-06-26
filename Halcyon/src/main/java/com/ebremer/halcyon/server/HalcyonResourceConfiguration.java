@@ -1,8 +1,12 @@
 package com.ebremer.halcyon.server;
 
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -11,8 +15,11 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  * @author erich
  */
 @Configuration
-@Lazy(value = true)
+@Lazy(value = false)
+@Order(Ordered.HIGHEST_PRECEDENCE + 3)
 public class HalcyonResourceConfiguration implements WebMvcConfigurer {
+    private static final Logger logger = LoggerFactory.getLogger(HalcyonResourceConfiguration.class);
+    
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         String mv = HalcyonSettings.getSettings().getMultiewerLocation();
@@ -38,12 +45,14 @@ public class HalcyonResourceConfiguration implements WebMvcConfigurer {
             if (zephyr.startsWith("file:///")) {
                 zephyr = zephyr.replace("file:///", "file:/");
             }
-            System.out.println("Using Local Zephyr....");
+            logger.info("Using Local Zephyr <"+zephyr+">");
             registry.addResourceHandler("/zephyr/**").addResourceLocations(zephyr);
         } else {
             registry.addResourceHandler("/zephyr/**").addResourceLocations("classpath:/META-INF/public-web-resources/zephyr/");
         }
         registry.addResourceHandler("/threejs/**").addResourceLocations("classpath:/META-INF/public-web-resources/threejs/");
         registry.addResourceHandler("/images/**").addResourceLocations("classpath:/META-INF/public-web-resources/images/");
+        registry.addResourceHandler("/favicon.ico").addResourceLocations("classpath:/META-INF/public-web-resources/favicon.ico");
+        //registry.addResourceHandler("/HalcyonStorage/**").addResourceLocations("file:/D:/HalcyonStorage/");
     }
 }

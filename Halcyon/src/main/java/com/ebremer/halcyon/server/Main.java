@@ -1,86 +1,100 @@
 package com.ebremer.halcyon.server;
 
+import com.ebremer.halcyon.data.DataCore;
 import com.ebremer.halcyon.services.ServicesLoader;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
-import com.ebremer.halcyon.fuseki.HalcyonProxyServlet;
-import com.ebremer.halcyon.datum.SessionsManager;
 import com.ebremer.halcyon.filereaders.FileReaderFactoryProvider;
 import com.ebremer.halcyon.imagebox.ImageServer;
-import com.ebremer.halcyon.keycloak.HALKeycloakOIDCFilter;
-import com.ebremer.halcyon.server.keycloak.App;
 import com.ebremer.halcyon.server.keycloak.RequestFilter;
-import com.ebremer.halcyon.server.keycloak.ServerProperties;
 import com.ebremer.halcyon.server.keycloak.providers.SimplePlatformProvider;
-import io.undertow.UndertowOptions;
-import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.security.KeyStore;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import javax.naming.CompositeName;
-import javax.naming.InitialContext;
-import javax.naming.Name;
-import javax.naming.NameParser;
-import javax.naming.NamingException;
-import javax.naming.spi.NamingManager;
-import javax.net.ssl.KeyManager;
-import javax.net.ssl.KeyManagerFactory;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.TrustManagerFactory;
-import javax.sql.DataSource;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.jboss.resteasy.plugins.server.servlet.HttpServlet30Dispatcher;
 import org.jboss.resteasy.plugins.server.servlet.ResteasyContextParameters;
-import org.keycloak.adapters.servlet.KeycloakOIDCFilter;
-import org.keycloak.adapters.spi.SessionIdMapper;
 import org.keycloak.platform.Platform;
-import org.mitre.dsmiley.httpproxy.ProxyServlet;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.Banner.Mode;
 import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.boot.autoconfigure.liquibase.LiquibaseAutoConfiguration;
+import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.boot.web.embedded.undertow.UndertowServletWebServerFactory;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.boot.web.servlet.ServletRegistrationBean;
-import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.DependsOn;
+import org.springframework.context.annotation.Import;
 import org.springframework.core.Ordered;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.core.annotation.Order;
+import com.ebremer.halcyon.fuseki.HalcyonProxyServlet;
+import com.ebremer.halcyon.fuseki.SPARQLEndPoint;
+import com.ebremer.halcyon.lib.spatial.Spatial;
+import com.ebremer.halcyon.server.ldp.LDP;
+import jakarta.annotation.PostConstruct;
+import jakarta.servlet.Servlet;
+import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import javax.net.ssl.SSLSocketFactory;
+//import javax.sql.DataSource;
+import org.keycloak.federation.sssd.SSSDFederationProviderFactory;
+import org.mitre.dsmiley.httpproxy.ProxyServlet;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.liquibase.LiquibaseAutoConfiguration;
+import org.pac4j.oidc.client.KeycloakOidcClient;
+import org.pac4j.oidc.config.KeycloakOidcConfiguration;
+import org.slf4j.bridge.SLF4JBridgeHandler;
+import org.springframework.boot.builder.SpringApplicationBuilder;
+import org.springframework.context.ApplicationContextInitializer;
+import org.springframework.context.ConfigurableApplicationContext;
 
-@Slf4j
 @SpringBootApplication(exclude = LiquibaseAutoConfiguration.class)
-@EnableConfigurationProperties(ServerProperties.class)
-@RequiredArgsConstructor
+@Import( {KeycloakServer.class})
+@EnableConfigurationProperties(KeycloakServer.class)
+@ConfigurationPropertiesScan({ "com.ebremer.halcyon.server"})
 public class Main {
-    private static final SessionIdMapper sessionidmapper = SessionsManager.getSessionsManager().getSessionIdMapper();    
-    private final ServerProperties properties;
-    private final DataSource dataSource;
+    private static final Logger logger = LoggerFactory.getLogger(Main.class);
+    private final KeycloakServer properties;
+    
+    @Autowired
+    private KeycloakOidcConfiguration keycloakOidcConfiguration;
+        
+    @Autowired
+    public Main(KeycloakServer properties) {
+        this.properties = properties;
+        SSSDFederationProviderFactory ha;
+        KeycloakProperties.getInstance(properties.getContextPath(), properties.getUsername(), properties.getPassword());
+    }
 
+    //@Autowired
+    //private DataSource dataSource;
+    
+    @PostConstruct
+    public void init() {
+        // Remove existing handlers attached to j.u.l root logger
+        SLF4JBridgeHandler.removeHandlersForRootLogger();
+        // Add SLF4JBridgeHandler to j.u.l's root logger
+        SLF4JBridgeHandler.install();
+    }
     
     @Bean(name = "xapp")
     @Order(Ordered.HIGHEST_PRECEDENCE)
     @Lazy(false)
+    @DependsOn("keycloakServer")
     ServletRegistrationBean<HttpServlet30Dispatcher> keycloakJaxRsApplication() throws Exception {
-        System.out.println("Add Keycloak Server Filter...");
-        mockJndiEnvironment();
+        System.out.println("Add Keycloak Server Filter..."+properties);
         final var servlet = new ServletRegistrationBean<HttpServlet30Dispatcher>(new HttpServlet30Dispatcher());
-        servlet.addInitParameter("javax.ws.rs.Application", App.class.getName());
-        servlet.addInitParameter(ResteasyContextParameters.RESTEASY_SERVLET_MAPPING_PREFIX, properties.contextPath());
+        servlet.addInitParameter("jakarta.ws.rs.Application", App.class.getName());
+        servlet.addInitParameter(ResteasyContextParameters.RESTEASY_SERVLET_MAPPING_PREFIX, properties.getContextPath());
         servlet.addInitParameter(ResteasyContextParameters.RESTEASY_USE_CONTAINER_FORM_PARAMS, "true");
-        servlet.addUrlMappings(properties.contextPath() + "/*");
+        servlet.addUrlMappings(properties.getContextPath()+ "/*");
         servlet.setLoadOnStartup(0);
         servlet.setAsyncSupported(true);
         return servlet;
     }
-
+    
     @Bean(name = "keycloakSessionManagement")
     @Order(Ordered.HIGHEST_PRECEDENCE)	
     FilterRegistrationBean<RequestFilter> keycloakSessionManagement() {
@@ -89,41 +103,32 @@ public class Main {
         filter.setName("Keycloak Session Management");
         filter.setOrder(0);
         filter.setFilter(new RequestFilter());
-        filter.addUrlPatterns(properties.contextPath() + "/*");
+        filter.addUrlPatterns(properties.getContextPath() + "/*");
         return filter;
     }
-
-    private void mockJndiEnvironment() throws NamingException {
-        NamingManager.setInitialContextFactoryBuilder((env) -> (environment) -> new InitialContext() {
-            @Override
-            public Object lookup(Name name) {
-                return lookup(name.toString());
-            }
-                
-            @Override
-            public Object lookup(String name) {
-                if ("spring/datasource".equals(name)) {
-                    return dataSource;
-                } else if (name.startsWith("java:jboss/ee/concurrency/executor/")) {
-                    return fixedThreadPool();
-                }
-                return null;
-            }
-
-            @Override
-            public NameParser getNameParser(String name) {
-                return CompositeName::new;
-            }
-
-            @Override
-            public void close() {}
-        });
+    
+    @Bean
+    public KeycloakOidcConfiguration keycloakOidcConfiguration() {
+        KeycloakOidcConfiguration config = new KeycloakOidcConfiguration();
+        config.setClientId("account");
+        config.setRealm("Halcyon");
+        config.setBaseUri(HalcyonSettings.getSettings().getProxyHostName()+"/auth");  
+        if (HalcyonSettings.getSettings().isHTTPS2enabled()) {
+            SSLSocketFactory sf = SslConfig.getSslContext().getSocketFactory();
+            config.setSslSocketFactory(sf);
+        }
+        return config;
+    }
+    
+    @Bean
+    public KeycloakOidcClient keycloakOidcClient() {
+        return new KeycloakOidcClient(keycloakOidcConfiguration);
     }
 
     @Bean("fixedThreadPool")
     @Order(Ordered.HIGHEST_PRECEDENCE)	
     ExecutorService fixedThreadPool() {
-        return Executors.newFixedThreadPool(5);
+        return Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
     }
 
     @Bean
@@ -131,66 +136,30 @@ public class Main {
     @ConditionalOnMissingBean(name = "springBootPlatform")
     protected SimplePlatformProvider springBootPlatform() {
         return (SimplePlatformProvider) Platform.getPlatform();
-    }       
-
-    @Bean
-    @Order(Ordered.HIGHEST_PRECEDENCE)
-    public UndertowServletWebServerFactory embeddedServletContainerFactory() {
-        System.out.println("Configuring Undertow Web Engine...");
-        UndertowServletWebServerFactory factory = new UndertowServletWebServerFactory();
-        int cores = Runtime.getRuntime().availableProcessors();
-        int ioThreads = cores;
-        int taskThreads = 16*cores;
-        System.out.println("ioThreads   : "+ioThreads+"\ntaskThreads : "+taskThreads);
-        factory.setIoThreads(ioThreads);
-        HalcyonSettings settings = HalcyonSettings.getSettings();
-        factory.setPort(settings.GetHTTPPort());
-        if (settings.isHTTPSenabled()) {
-            factory.addBuilderCustomizers(builder -> {
-                SSLContext ssl;
-                try {
-                    ssl = getSSLContext();
-                    System.out.println("HTTPS PORT : "+settings.GetHTTPSPort());
-                    builder
-                        .addHttpsListener(settings.GetHTTPSPort(), settings.GetHostIP(), ssl)
-                        .setServerOption(UndertowOptions.ENABLE_HTTP2, true)
-                        .setServerOption(UndertowOptions.MAX_PARAMETERS, 100000)
-                        .setServerOption(UndertowOptions.MAX_CONCURRENT_REQUESTS_PER_CONNECTION, 100);
-                } catch (Exception ex) {
-                    log.error(ex.toString());
-                }
-            });
-        } else {
-            System.out.println("HTTPS not enabled.");
-        }
-        return factory;
     }
-        
+
     @Lazy(true)
     @Bean
     ServletRegistrationBean ImageServerRegistration () {
         ServletRegistrationBean srb = new ServletRegistrationBean();
         srb.setLoadOnStartup(3);
+        srb.setOrder(Ordered.HIGHEST_PRECEDENCE + 3);
         srb.setServlet(new ImageServer());
         srb.setUrlMappings(Arrays.asList("/iiif/*"));
         return srb;
     }
-        
     
+    @Lazy(true)
     @Bean
-    @Order(Ordered.HIGHEST_PRECEDENCE)
-    public FilterRegistrationBean<HALKeycloakOIDCFilter> KeycloakOIDCFilterFilterRegistration(){
-        FilterRegistrationBean<HALKeycloakOIDCFilter> registration = new FilterRegistrationBean<>();
-        registration.setName("keycloak");
-	registration.setFilter(new HALKeycloakOIDCFilter());
-	registration.addUrlPatterns("/*");
-        registration.setOrder(Ordered.HIGHEST_PRECEDENCE);
-        registration.addInitParameter(KeycloakOIDCFilter.CONFIG_FILE_PARAM, "keycloak.json");        
-        registration.addInitParameter(KeycloakOIDCFilter.SKIP_PATTERN_PARAM, "(^/h2.*|^/skunkworks/.*|^/puffin.*|^/threejs/.*|^/halcyon.*|^/zephyr/.*|^/rdf.*|^/talon/.*|/;jsessionid=.*|/gui/images/halcyon.png|^/wicket/resource/.*|^/multi-viewer.*|^/iiif.*|^/|^/about|^/ListImages.*|^/wicket/resource/com.*\\.css||^/auth/.*|^/favicon.ico)");
-        registration.setEnabled(true);
-        return registration;
+    ServletRegistrationBean RaptorServerRegistration () {
+        ServletRegistrationBean srb = new ServletRegistrationBean();
+        srb.setLoadOnStartup(3);
+        srb.setOrder(Ordered.HIGHEST_PRECEDENCE + 4);
+        srb.setServlet(new Raptor());
+        srb.setUrlMappings(Arrays.asList("/raptor/*"));
+        return srb;
     }
-
+    
     @Bean
     public ServletRegistrationBean proxyServletRegistrationBean() {
         HalcyonSettings settings = HalcyonSettings.getSettings();
@@ -201,55 +170,52 @@ public class Main {
         bean.setOrder(5);
         return bean;
     }
-   
-
-    private final String keyStorePassword = "changeit";
-    private final String serverKeystore = "cacerts";
-    private final String serverTruststore = "cacerts";
-    private final String trustStorePassword = "changeit";
     
-    public SSLContext getSSLContext() throws Exception {
-        return createSSLContext(loadKeyStore(serverKeystore,keyStorePassword), loadKeyStore(serverTruststore,trustStorePassword));
-    }
-
-    private SSLContext createSSLContext(final KeyStore keyStore, final KeyStore trustStore) throws Exception {
-        KeyManager[] keyManagers;
-        KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-        keyManagerFactory.init(keyStore, keyStorePassword.toCharArray());
-        keyManagers = keyManagerFactory.getKeyManagers();
-        TrustManager[] trustManagers;
-        TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-        trustManagerFactory.init(trustStore);
-        trustManagers = trustManagerFactory.getTrustManagers();
-        SSLContext sslContext;
-        sslContext = SSLContext.getInstance("TLS");
-        sslContext.init(keyManagers, trustManagers, null);
-        return sslContext;
-    }
-    
-    private static KeyStore loadKeyStore(final String storeLoc, final String storePw) throws Exception {
-        InputStream stream = Files.newInputStream(Paths.get(storeLoc));
-        if(stream == null) {
-            throw new IllegalArgumentException("Could not load keystore");
-        }
-        try (InputStream is = stream) {
-            KeyStore loadedKeystore = KeyStore.getInstance("JKS");
-            loadedKeystore.load(is, storePw.toCharArray());
-            return loadedKeystore;
-        }
+    @Bean
+    public FilterRegistrationBean<CustomFilter> KeycloakOIDCFilterFilterRegistration(){
+        FilterRegistrationBean<CustomFilter> registration = new FilterRegistrationBean<>();
+	registration.setFilter(new CustomFilter());
+        registration.addUrlPatterns("/ldp/*");
+        registration.setOrder(Ordered.HIGHEST_PRECEDENCE + 2);
+        return registration;
     }
 
     public static void main(String[] args) throws NoSuchAlgorithmException {
-        log.info("Starting Halcyon...");
+        logger.info("Starting Halcyon...");
+        INIT i = new INIT();
+        i.init();
+        DataCore.getInstance();
+        SPARQLEndPoint.getSPARQLEndPoint();
         ServicesLoader halcyonServiceLoader = new ServicesLoader();
         ClassLoader loader = Main.class.getClassLoader();
         FileReaderFactoryProvider frf = new FileReaderFactoryProvider(loader);
-        //FileReaderFactoryProvider.getReaderForFormat("svs");
-        INIT i = new INIT();
-        i.init();
-        SpringApplication app = new SpringApplication(Main.class);
+        Spatial.init();
+        SpringApplicationBuilder sab = new SpringApplicationBuilder(Main.class);
+        sab.initializers(new ServletInitializer());
+        SpringApplication app = sab.build();
+        //SpringApplication app = new SpringApplication(Main.class);        
+        app.setAdditionalProfiles("production");
         app.setBannerMode(Mode.CONSOLE);
-        ApplicationContext yay = app.run(args);
+        app.run(args);
         System.out.println("===================== Welcome to Halcyon!");
     }
+    
+    static class ServletInitializer implements ApplicationContextInitializer<ConfigurableApplicationContext> {
+        @Override
+        public void initialize(ConfigurableApplicationContext applicationContext) {
+            HalcyonSettings.getSettings().GetResourceHandlers().forEach(rh->{
+                ServletRegistrationBean<Servlet> srb = new ServletRegistrationBean();
+                srb.setLoadOnStartup(3);
+                String name = "LDP "+UUID.randomUUID().toString();
+                srb.setBeanName(name);
+                srb.setOrder(Ordered.HIGHEST_PRECEDENCE + 4);
+                srb.addInitParameter("resourceBase", rh.resourceBase().getPath().substring(1));
+                srb.addInitParameter("dirAllowed", "true");
+                System.out.println("Add Path --> "+rh.urlPath()+"  "+rh.resourceBase().getPath().substring(1));
+                srb.setServlet(new LDP());
+                srb.setUrlMappings(Arrays.asList(rh.urlPath()+"*"));
+                applicationContext.getBeanFactory().registerSingleton(name, srb);
+            });
+        }
+    }    
 }

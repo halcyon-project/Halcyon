@@ -55,7 +55,16 @@ public class HAL {
     public static final Resource ColorByCertainty = m.createResource(NS+"ColorByCertainty");
     public static final Resource ColorByClassID = m.createResource(NS+"ColorByClassID");
     public static final Resource ColorScheme = m.createResource(NS+"ColorScheme");
+    public static final Resource ResourceHandler = m.createResource(NS+"ResourceHandler");
     
+    public static final Property hasResourceHandler = m.createProperty(NS+"hasResourceHandler");
+    public static final Property urlPath = m.createProperty(NS+"urlPath");
+    public static final Property resourceBase = m.createProperty(NS+"resourceBase");
+    public static final Property fileLastModified = m.createProperty(NS+"fileLastModified");
+    public static final Property validFile = m.createProperty(NS+"validFile");
+    public static final Property halcyonVersion = m.createProperty(NS+"halcyonVersion");
+    public static final Property devmode = m.createProperty(NS+"devmode");
+    public static final Property filemetaversion = m.createProperty(NS+"filemetaversion");
     public static final Property min = m.createProperty(NS+"min");
     public static final Property max = m.createProperty(NS+"max");
     public static final Property asHilbert = m.createProperty(NS+"asHilbert");
@@ -112,7 +121,10 @@ public class HAL {
     public static final Property HTTPPort = m.createProperty(NS+"HTTPPort");
     public static final Property HTTPSPort = m.createProperty(NS+"HTTPSPort");
     public static final Property ProxyHostName = m.createProperty(NS+"ProxyHostName");
-    public static final Property HTTPSenabled = m.createProperty(NS+"HTTPSenabled");
+    public static final Property HTTPS2enabled = m.createProperty(NS+"HTTPS2enabled");
+    public static final Property HTTPS3enabled = m.createProperty(NS+"HTTPS3enabled");
     public static final Property SPARQLport = m.createProperty(NS+"SPARQLport");
     public static final Property urlpathprefix = m.createProperty(NS+"urlpathprefix");
+    public static final Property mppx = m.createProperty(NS+"mppx");
+    public static final Property mppy = m.createProperty(NS+"mppy");
 }

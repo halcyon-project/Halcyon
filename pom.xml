@@ -5,7 +5,7 @@
     <groupId>com.ebremer.HalcyonProject</groupId>
     <artifactId>HalcyonProject</artifactId>
     <packaging>pom</packaging>
-    <version>1.0.0</version>
+    <version>1.1.0</version>
     <description>A whole slide image annotation, management, and visualization system</description>
     
     <modules>
@@ -78,30 +78,63 @@
         <java.version>21</java.version>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
-        <jena.version>4.10.0</jena.version>
-        <wicket.ver>9.13.0</wicket.ver>
-        <hilbert.ver>0.2.2</hilbert.ver>
+        <exec.longClasspath>true</exec.longClasspath>
+        <springboot.version>3.3.1</springboot.version>
+        <keycloak.version>24.0.5</keycloak.version>        
+	<infinispan.version>15.0.5.Final</infinispan.version>
+	<resteasy.version>6.2.9.Final</resteasy.version>
+	<liquibase.version>4.27.0</liquibase.version>
+        <jetty.version>12.0.10</jetty.version>
+        <h2.version>2.2.224</h2.version>
+        <jena.version>5.0.0</jena.version>
+        <wicket.ver>10.1.0</wicket.ver>
+        <beakgraph.version>0.9.0</beakgraph.version>        
+        <hilbert.ver>0.2.3</hilbert.ver>
         <commons-pool2.ver>2.12.0</commons-pool2.ver>
         <jakarta.json.version>2.0.1</jakarta.json.version> 
-        <titanium-json-ld.ver>1.3.3</titanium-json-ld.ver>
-        <dcm4che.ver>5.29.2</dcm4che.ver>
-        <beakgraph.version>0.8.0</beakgraph.version>
-        <keycloak.version>21.1.1</keycloak.version>
-	<infinispan.version>14.0.8.Final</infinispan.version>
-	<resteasy.version>4.7.7.Final</resteasy.version>
-	<micrometer.version>1.10.3</micrometer.version>
-	<liquibase.version>4.20.0</liquibase.version>
-	<snakeyaml.version>2.0</snakeyaml.version>
-        <shiro.version>1.13.0</shiro.version>
+        <parrson.json.version>1.1.6</parrson.json.version>
+        <titanium-json-ld.ver>1.4.0</titanium-json-ld.ver>
+        <!--<dcm4che.ver>5.31.2</dcm4che.ver>-->
+        <shiro.version>2.0.1</shiro.version>
         <jts.version>1.19.0</jts.version>
         <twelvemonkeys.version>3.10.1</twelvemonkeys.version>
-        <springboot.version>2.7.17</springboot.version>
-        <log4j.version>2.21.1</log4j.version>
-        <jcommander.version>1.82</jcommander.version>
+        <jcommander.version>1.83</jcommander.version>
+        <maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
+        <maven-shade-plugin.version>3.6.0</maven-shade-plugin.version>
+        <maven-enforcer-plugin.version>3.5.0</maven-enforcer-plugin.version>
+        <maven-deploy-plugin.version>3.1.2</maven-deploy-plugin.version>
+        <maven-dependency-plugin.version>3.7.0</maven-dependency-plugin.version>
+        <native-maven-plugin.version>0.10.2</native-maven-plugin.version>
+        <jpackage-maven-plugin.version>1.6.0</jpackage-maven-plugin.version>
     </properties>
     
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>org.graalvm.buildtools</groupId>
+                <artifactId>native-maven-plugin</artifactId>
+                <version>${native-maven-plugin}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>${maven-enforcer-plugin.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>${maven-shade-plugin.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <version>${springboot.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>${maven-compiler-plugin}</version>
+            </dependency>
             <dependency>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-dependencies</artifactId>
@@ -132,12 +165,6 @@
                 <artifactId>jena-fuseki-main</artifactId>
                 <version>${jena.version}</version>
             </dependency>
-            <dependency>
-                <groupId>io.micrometer</groupId>
-                <artifactId>micrometer-registry-prometheus</artifactId>
-                <version>${micrometer.version}</version>
-            </dependency>
-            
             <dependency>
                 <groupId>com.github.ben-manes.caffeine</groupId>
                 <artifactId>caffeine</artifactId>
@@ -191,7 +218,7 @@
             <dependency>
                 <groupId>org.projectlombok</groupId>
                 <artifactId>lombok</artifactId>
-                <version>1.18.30</version>
+                <version>1.18.32</version>
                 <scope>provided</scope>
             </dependency>
             <dependency>
@@ -215,27 +242,6 @@
                 </exclusions>
             </dependency>
             <dependency>
-                <groupId>org.yaml</groupId>
-                <artifactId>snakeyaml</artifactId>
-                <version>${snakeyaml.version}</version>
-            </dependency>
-            
-            <dependency>
-                <groupId>org.apache.logging.log4j</groupId>
-                <artifactId>log4j-api</artifactId>
-                <version>${log4j.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.logging.log4j</groupId>
-                <artifactId>log4j-core</artifactId>
-                <version>${log4j.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.logging.log4j</groupId>
-                <artifactId>log4j-slf4j-impl</artifactId>
-                <version>${log4j.version}</version>
-            </dependency>
-            <dependency>
                 <groupId>com.apicatalog</groupId>
                 <artifactId>titanium-json-ld</artifactId>
                 <version>${titanium-json-ld.ver}</version>
@@ -257,36 +263,70 @@
                 <version>${jts.version}</version>
             </dependency>
              <dependency>
-                <groupId>com.beust</groupId>
+                <groupId>org.jcommander</groupId>
                 <artifactId>jcommander</artifactId>
                 <version>${jcommander.version}</version>
             </dependency>
+            <dependency>
+                <groupId>org.eclipse.jetty</groupId>
+                <artifactId>jetty-server</artifactId>
+                <version>${jetty.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.eclipse.jetty</groupId>
+                <artifactId>jetty-io</artifactId>
+                <version>${jetty.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.eclipse.jetty</groupId>
+                <artifactId>jetty-util</artifactId>
+                <version>${jetty.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.eclipse.jetty</groupId>
+                <artifactId>jetty-security</artifactId>
+                <version>${jetty.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.eclipse.jetty</groupId>
+                <artifactId>jetty-http</artifactId>
+                <version>${jetty.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.eclipse.jetty</groupId>
+                <artifactId>jetty-xml</artifactId>
+                <version>${jetty.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.eclipse.jetty</groupId>
+                <artifactId>jetty-client</artifactId>
+                <version>${jetty.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.eclipse.jetty</groupId>
+                <artifactId>jetty-alpn-client</artifactId>
+                <version>${jetty.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
-    
-    <pluginRepositories>
-        <pluginRepository>
-            <id>spring-release</id>
-            <name>Spring release</name>
-            <url>https://repo.spring.io/release</url>
-        </pluginRepository>
-    </pluginRepositories>
     <repositories>
         <repository>
           <id>halcyon</id>
             <name>Halcyon</name>
             <url>https://cursus.bmi.stonybrookmedicine.edu/releases</url>
         </repository>
-        <repository>
-            <id>spring-release</id>
-            <name>Spring release</name>
-            <url>https://repo.spring.io/release</url>
-        </repository>
+        <!--
         <repository>
             <id>dcm4che</id>
             <name>dcm4che</name>
             <url>https://www.dcm4che.org/maven2</url>
-        </repository>
+        </repository>-->
+        <!--
+        <repository>
+            <id>apache</id>
+            <name>apache</name>
+            <url>https://repository.apache.org/snapshots</url>
+        </repository>-->
     </repositories>
     <distributionManagement>
         <repository>

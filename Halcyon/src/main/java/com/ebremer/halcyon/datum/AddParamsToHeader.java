@@ -6,8 +6,8 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletRequestWrapper;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequestWrapper;
 
 /**
  *
@@ -28,7 +28,7 @@ public class AddParamsToHeader extends HttpServletRequestWrapper {
     @Override
     public String getHeader(String name) {
         if (HID.equals(name)) {
-            return HalcyonSession.get().getHalcyonPrincipal().getURNUUID();
+            return HalcyonSession.get().getHalcyonPrincipal().getUserURI();
         }
         /*
         if (list.containsKey(name)) {
@@ -55,7 +55,7 @@ public class AddParamsToHeader extends HttpServletRequestWrapper {
     public Enumeration getHeaders(String name) {
         if (HID.equals(name)) {
             List<String> values = new ArrayList<>(1);
-            values.add(HalcyonSession.get().getHalcyonPrincipal().getURNUUID());
+            values.add(HalcyonSession.get().getHalcyonPrincipal().getUserURI());
             return Collections.enumeration(values);
         }
         return super.getHeaders(name);

@@ -26,8 +26,8 @@ public class BeakGraphFileReader extends AbstractFileReader {
     }
 
     @Override
-    public Model getMeta() {
-        File file = new File(uri);
+    public Model getMeta(URI xuri) {
+        File file = new File(xuri);
         String fixb = URITools.fix(file);
         String fixe = URITools.fix(file)+"/";
         try (ROCrateReader roc = new ROCrateReader(uri)) {
@@ -61,6 +61,11 @@ public class BeakGraphFileReader extends AbstractFileReader {
             Logger.getLogger(BeakGraphFileReader.class.getName()).log(Level.SEVERE, null, ex);
         }
         return null;
+    }
+    
+    @Override
+    public Model getMeta() {                
+        return getMeta(uri);
     }
 
     @Override

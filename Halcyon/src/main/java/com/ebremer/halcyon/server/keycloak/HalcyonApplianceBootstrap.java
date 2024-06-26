@@ -1,6 +1,8 @@
 package com.ebremer.halcyon.server.keycloak;
 
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
+import java.util.HashMap;
+import java.util.Map;
 //import org.keycloak.models.AdminRoles;
 //import org.keycloak.models.GroupModel;
 import org.keycloak.models.KeycloakSession;
@@ -24,7 +26,19 @@ public class HalcyonApplianceBootstrap extends ApplianceBootstrap {
     
     public void createRealmUser(String username, String password) {
         RealmModel realm = session.realms().getRealmByName(HalcyonSettings.realm);
-        session.getContext().setRealm(realm);
+        Map<String, String> map = new HashMap<>();
+        session.users().searchForUserStream(realm, map).forEach(um->{
+            System.out.println(um.getUsername());
+            um.getGroupsStream().forEach(gm->{
+                System.out.println("memberOf : "+gm.getName());
+            });
+        });
+        session.groups().getGroupsStream(realm).forEach(gm->{
+            System.out.println(gm.getId()+"  "+gm.getName());
+            gm.getRealmRoleMappingsStream().forEach(rm->{
+                System.out.println("roleOf : "+rm.getName());
+            });
+        });
         if (session.users().getUsersCount(realm) > 0) {
             throw new IllegalStateException("Can't create initial user as users already exists");
         }
@@ -38,14 +52,10 @@ public class HalcyonApplianceBootstrap extends ApplianceBootstrap {
                 user.joinGroup(yay);
             }
         });
-        
-        
-        
-        
+    }    
+}
+
         //GroupModel group = realm.
         //user.joinGroup(group);
         //RoleModel adminRole = realm.getRole(AdminRoles.MANAGE_REALM);
         //user.grantRole(adminRole);
-    }
-    
-}

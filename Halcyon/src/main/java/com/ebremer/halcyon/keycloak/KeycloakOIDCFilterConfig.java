@@ -1,16 +1,16 @@
 package com.ebremer.halcyon.keycloak;
 
-import java.util.Collections;
-import java.util.Enumeration;
-import java.util.HashMap;
-import javax.servlet.FilterConfig;
-import javax.servlet.ServletContext;
+//import java.util.Collections;
+//import java.util.Enumeration;
+//import java.util.HashMap;
+//import javax.servlet.FilterConfig;
+//import javax.servlet.ServletContext;
 
 /**
  *
  * @author erich
  */
-public class KeycloakOIDCFilterConfig implements FilterConfig {
+public class KeycloakOIDCFilterConfig {/*implements FilterConfig {
     private final String name;
     private final HashMap<String,String> params;
     private ServletContext context;
@@ -51,5 +51,5 @@ public class KeycloakOIDCFilterConfig implements FilterConfig {
     @Override
     public Enumeration<String> getInitParameterNames() {
         return Collections.enumeration(params.keySet());
-    }   
+    }   */
 }

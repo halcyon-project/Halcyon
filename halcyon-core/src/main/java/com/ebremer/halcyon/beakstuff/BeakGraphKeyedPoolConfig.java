@@ -8,6 +8,8 @@ import org.apache.commons.pool2.impl.GenericKeyedObjectPoolConfig;
  * @param <T>
  */
 public class BeakGraphKeyedPoolConfig<T> extends GenericKeyedObjectPoolConfig<T> {
+    
+    /*
     private String base = "https://xdummy.com/";
     
     public void setBase(String base) {
@@ -17,5 +19,5 @@ public class BeakGraphKeyedPoolConfig<T> extends GenericKeyedObjectPoolConfig<T>
     public String getBase() {
         return base;
     }
-    
+    */
 }

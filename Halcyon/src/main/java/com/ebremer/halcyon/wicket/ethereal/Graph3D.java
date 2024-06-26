@@ -19,8 +19,6 @@ import jakarta.json.JsonWriterFactory;
 import jakarta.json.stream.JsonGenerator;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.util.Collections;
 import java.util.List;
 import java.util.logging.Level;
@@ -32,7 +30,6 @@ import org.apache.jena.query.QueryExecution;
 import org.apache.jena.query.QueryExecutionFactory;
 import org.apache.jena.query.ReadWrite;
 import org.apache.jena.rdf.model.Model;
-import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
@@ -43,9 +40,7 @@ import org.apache.jena.vocabulary.XSD;
 import org.apache.wicket.ajax.AjaxEventBehavior;
 import org.apache.wicket.ajax.AjaxRequestTarget;
 import org.apache.wicket.markup.head.IHeaderResponse;
-import org.apache.wicket.markup.head.JavaScriptHeaderItem;
 import org.apache.wicket.markup.html.form.Button;
-import org.apache.wicket.request.resource.PackageResourceReference;
 
 /**
  *
@@ -72,60 +67,20 @@ public class Graph3D extends BasePage {
     @Override
     public void renderHead(IHeaderResponse response) {
         super.renderHead(response);
-        response.render(JavaScriptHeaderItem.forReference(new PackageResourceReference(getClass(),"three.js")));
-        response.render(JavaScriptHeaderItem.forReference(new PackageResourceReference(getClass(),"CSS2DRenderer.js")));
-        response.render(JavaScriptHeaderItem.forReference(new PackageResourceReference(getClass(),"3d-force-graph.min.js")));
-        response.render(JavaScriptHeaderItem.forReference(new PackageResourceReference(getClass(),"three-spritetext.min.js")));
+        //response.render(JavaScriptHeaderItem.forReference(new PackageResourceReference(getClass(),"three-module.js")));
+        //response.render(JavaScriptHeaderItem.forReference(new PackageResourceReference(getClass(),"CSS2DRenderer.js")));
+        //response.render(JavaScriptHeaderItem.forReference(new PackageResourceReference(getClass(),"3d-force-graph.min.js")));
+        //response.render(JavaScriptHeaderItem.forReference(new PackageResourceReference(getClass(),"three-spritetext.mjs")));
     }
 
     public String getData(List<RDFNode> list) {
         try {
-            //Dataset xs = DataCore.getInstance().getDataset();
-            Dataset xs = DatasetFactory.create();
-            Model b = ModelFactory.createDefaultModel();
-            try {
-                RDFDataMgr.read(b, new FileInputStream("morph.ttl"), Lang.TURTLE);
-            } catch (FileNotFoundException ex) {
-                Logger.getLogger(Graph3D.class.getName()).log(Level.SEVERE, null, ex);
-            }
-            System.out.println("DATASET LOADED : "+b.size());
-            xs.getDefaultModel().add(b);
+            Dataset xs = DataCore.getInstance().getDataset();
             ParameterizedSparqlString pss;
-            /*
             pss = new ParameterizedSparqlString(
                 """
                 construct {
-                    res:graph3d
-                        a :GraphType;
-                          :hasNode ?s;
-                          :hasNode ?o;
-                          :hasLink ?link .
-                    ?s
-                        :id ?sString;
-                        :subject ?sString;
-                        :group 1 .
-                    ?o
-                        :id ?oString;
-                        :group 1;
-                        :value ?oString .
-                    ?link
-                        :source ?sString;
-                        :target ?oString;
-                        :predicate ?pString .
-                    } where {
-                        ?s ?p ?o #graph ?g {?s ?p ?o}
-                        values (?p) {?typelist}
-                        filter (!isLiteral(?o))
-                        bind(str(?s) as ?sString)
-                        bind(str(?p) as ?pString)
-                        bind(str(?o) as ?oString)
-                        bind(bnode() as ?link)
-                    } limit 500
-                """);*/
-            pss = new ParameterizedSparqlString(
-                """
-                construct {
-                    res:graph3d
+                    hal:graph3d
                         a :GraphType;
                           :hasNode ?s;
                           :hasNode ?o;
@@ -141,29 +96,82 @@ public class Graph3D extends BasePage {
                     ?link
                         :source ?sString;
                         :target ?oString;
-                        :predicate ?pString .
+                        :predicate ?pString
                     } where {
-                        ?s so:name ?sname; a ?type; ?p ?o .
-                        ?o so:name ?oname .
-                        optional{?o hal:group ?group}
-                        values (?p) {?typelist}
-                        bind(str(?sname) as ?sString)
-                        bind(substr(str(?p),20) as ?pString)
-                        bind(str(?oname) as ?oString)
-                        bind(bnode() as ?link)
-                    } limit 5000
+                        graph ?g {
+                            ?s a ?type; ?p ?o .
+                            optional{?o hal:group ?group; so:name ?oname}
+                            values (?p) {?typelist}
+                            bind(str(?s) as ?sString)
+                            bind(substr(str(?p),20) as ?pString)
+                            bind(str(?o) as ?oString)
+                            bind(bnode() as ?link)
+                            filter (!isLiteral(?o))
+                        }
+                    }
                 """);
-            pss.setNsPrefix("", "http://www.ebremer.com/ns/");
+            pss.setNsPrefix("", HAL.NS);
             pss.setNsPrefix("rdf", RDF.uri);
             pss.setNsPrefix("xsd", XSD.NS);
             pss.setNsPrefix("hal", HAL.NS);
             pss.setNsPrefix("so", SchemaDO.NS);
-            pss.setNsPrefix("res", "http://www.ebremer/com/resource/");
             pss.setValues("typelist", list);
             QueryExecution qe = QueryExecutionFactory.create(pss.toString(), xs);
-            //xs.begin(ReadWrite.READ);
+            xs.begin(ReadWrite.READ);
             Model m = qe.execConstruct();
-            //xs.end();
+            xs.end();
+            System.out.println("=================================================================================");
+            RDFDataMgr.write(System.out, m, Lang.TURTLE);
+            System.out.println("=================================================================================");
+            pss = new ParameterizedSparqlString(
+                """
+                construct {
+                    hal:graph3d
+                        a :GraphType;
+                          :hasNode ?s;
+                          :hasNode ?literal;
+                          :hasLink ?link .
+                    ?s
+                        :id ?sString;
+                        :subject ?sString;
+                        :group 0 .
+                    ?literal
+                        :id ?oString;
+                        :group ?group;
+                        :value ?o .
+                    ?link
+                        :source ?sString;
+                        :target ?oString;
+                        :predicate ?pString
+                    } where {
+                        graph ?g {
+                            ?s a ?type; ?p ?o .
+                            optional{?o hal:group ?group; so:name ?oname}
+                            values (?p) {?typelist}
+                            bind(str(?s) as ?sString)
+                            bind(substr(str(?p),20) as ?pString)
+                            bind(bnode() as ?link)
+                            bind(bnode() as ?literal)
+                            bind(str(?literal) as ?oString)
+                            filter (isLiteral(?o))
+                        }
+                    }
+                """);
+            pss.setNsPrefix("", HAL.NS);
+            pss.setNsPrefix("rdf", RDF.uri);
+            pss.setNsPrefix("xsd", XSD.NS);
+            pss.setNsPrefix("hal", HAL.NS);
+            pss.setNsPrefix("so", SchemaDO.NS);
+            pss.setValues("typelist", list);
+            System.out.println("SPARQL :\n"+pss.toString());
+            qe = QueryExecutionFactory.create(pss.toString(), xs);
+            xs.begin(ReadWrite.READ);
+            Model m2 = qe.execConstruct();       
+            System.out.println("=================================================================================");
+            RDFDataMgr.write(System.out, m2, Lang.TURTLE);
+            System.out.println("=================================================================================");
+            xs.end();
+            m.add(m2);
             Dataset ds = DatasetFactory.createGeneral();
             ds.getDefaultModel().add(m);
             RdfDataset rds = JenaTitanium.convert(ds.asDatasetGraph());
@@ -176,7 +184,7 @@ public class Graph3D extends BasePage {
                 """
                 {
                     "@context":{
-                        "hal":"http://www.ebremer.com/ns/",
+                        "hal":"https://halcyon.is/ns/",
                         "GraphType": "hal:GraphType",
                         "group": "hal:group",
                         "id": "hal:id",
@@ -184,7 +192,8 @@ public class Graph3D extends BasePage {
                         "target": "hal:target",
                         "nodes": "hal:hasNode",
                         "links": "hal:hasLink",
-                        "predicate": "hal:predicate"
+                        "predicate": "hal:predicate",
+                        "subject": "hal:subject"
                     },
                     "@omitDefault": true,
                     "@explicit": true,
@@ -210,46 +219,3 @@ public class Graph3D extends BasePage {
         }
     }
 }
-
-/*
-            String frame = """
-                           {
-                                "@context":{
-                                    "hal":"http://www.ebremer.com/ns/",
-                                    "GraphType": "hal:GraphType",
-                                    "group": "hal:group",
-                                    "id": "hal:id",
-                                    "source": "hal:source",
-                                    "target": "hal:target",
-                                    "nodes": "hal:hasNode",
-                                    "links": "hal:hasLink",
-                                    "predicate": "hal:predicate"
-                                },
-                                "@omitDefault": true,
-                                "@explicit": true,
-                                "@requireAll": true,
-                                "@embed": "@always",
-                                "@type": "GraphType",
-                                "nodes": {"@embed": "@always"},
-                                "links": {"@embed": "@always"}
-                           }
-                           """;
-            JsonLdOptions options = new JsonLdOptions();
-            options.setUseNativeTypes(true);
-            options.setProcessingMode(JsonLdVersion.V1_1);
-            Document contextDocument = JsonDocument.of(new ByteArrayInputStream(frame.getBytes()));
-            //JsonObject jo = JsonLd.compact(JsonDocument.of(ja), contextDocument).get();
-            JsonStructure js;
-            RdfToJsonld aa;
-            //js = JsonLd.flatten(JsonDocument.of(ja)).options(options).get();
-            //js = JsonLd.compact(JsonDocument.of(ja), contextDocument).options(options).get();
-            JsonObject jo = JsonLd.frame(JsonDocument.of(ja), contextDocument).options(options).get();
-            //JsonObject jo = JsonLd.frame(JsonDocument.of(js.asJsonArray()), contextDocument).options(options).get();
-            out.writeObject(jo);
-            //out.writeArray(js.asJsonArray());
-            //out.writeObject(jsrc.asJsonObject());
-            srcdata = new String(baos.toByteArray());
-            //System.out.println("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
-            //System.out.println(srcdata);
-            //System.out.println("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
-*/

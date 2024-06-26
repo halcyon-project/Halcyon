@@ -13,5 +13,4 @@ public class FileUtils {
         }
         return input.substring(lastDotIndex + 1);
     }
-    
 }

@@ -2,26 +2,23 @@ package com.ebremer.halcyon.fuseki;
 
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import com.ebremer.halcyon.data.DataCore;
-//import com.ebremer.halcyon.datum.SessionsManager;
-//import com.ebremer.halcyon.keycloak.HALKeycloakOIDCFilter;
-//import com.ebremer.halcyon.keycloak.KeycloakOIDCFilterConfig;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
-import javax.servlet.DispatcherType;
+
+import jakarta.servlet.DispatcherType;
 import org.apache.jena.fuseki.main.FusekiServer;
-//import org.keycloak.adapters.servlet.KeycloakOIDCFilter;
 import org.apache.shiro.web.env.EnvironmentLoaderListener;
 import org.apache.shiro.web.servlet.ShiroFilter;
+import org.eclipse.jetty.ee10.servlet.FilterHolder;
+import org.eclipse.jetty.ee10.servlet.FilterMapping;
+import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
+import org.eclipse.jetty.ee10.servlet.ServletHandler;
 import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.server.SessionIdManager;
-import org.eclipse.jetty.server.session.DefaultSessionIdManager;
-import org.eclipse.jetty.server.session.SessionHandler;
-import org.eclipse.jetty.servlet.FilterHolder;
-import org.eclipse.jetty.servlet.FilterMapping;
-import org.eclipse.jetty.servlet.ServletContextHandler;
-import org.eclipse.jetty.servlet.ServletHandler;
+import org.eclipse.jetty.session.DefaultSessionIdManager;
+import org.eclipse.jetty.session.SessionHandler;
+import org.eclipse.jetty.session.SessionIdManager;
 
 /**
  *
@@ -33,20 +30,13 @@ public class SPARQLEndPoint {
     
     private SPARQLEndPoint() {       
         System.out.println("Starting Fuseki...");
-        //KeycloakOIDCFilterConfig config = new KeycloakOIDCFilterConfig("keycloak");
-        //config.setInitParameter(KeycloakOIDCFilter.CONFIG_FILE_PARAM, "keycloak.json");
-        //HALKeycloakOIDCFilter filter = new HALKeycloakOIDCFilter();
-        //filter.setSessionIdMapper(SessionsManager.getSessionsManager().getSessionIdMapper());
-        //filter.setConfig(config);
-        server = FusekiServer.create()
+        server = FusekiServer.create()                
             //.add("/rdf", DataCore.getInstance().getSecuredDataset())
             .add("/rdf", DataCore.getInstance().getDataset())
-                
-                
+
            // .loopback(true)
-          //  .securityHandler(new HalcyonSecurityHandler())
-            
-            .enableCors(true)
+          //  .securityHandler(new HalcyonSecurityHandler())            
+            .enableCors(true, null)
             .port(HalcyonSettings.getSettings().GetSPARQLPort())
            // .addFilter("/*", filter)
             .build();
@@ -57,15 +47,13 @@ public class SPARQLEndPoint {
         //server.getJettyServer().setSessionIdManager(sim);
         
         Server jettyServer = server.getJettyServer();
-        ServletContextHandler servletContextHandler = (ServletContextHandler) jettyServer.getHandler();
-        
+        ServletContextHandler servletContextHandler = (ServletContextHandler) jettyServer.getHandler();        
         ServletHandler servletHandler = servletContextHandler.getServletHandler();
-        
         EnvironmentLoaderListener ell = new EnvironmentLoaderListener();
-        servletContextHandler.addEventListener(ell);
-        
+        servletContextHandler.addEventListener(ell);                
         List<FilterMapping> mappings = new ArrayList<>(Arrays.asList(servletHandler.getFilterMappings()));
         List<FilterHolder> holders = new ArrayList<>(Arrays.asList(servletHandler.getFilters()));
+        
         {
             FilterHolder holder1 = new FilterHolder();
             holder1.setName("halcyonfusekifilter");
@@ -101,40 +89,21 @@ public class SPARQLEndPoint {
         servletHandler.setFilters(holders3);
         servletHandler.setFilterMappings(mappings3);
         
-        SessionIdManager idmanager = new DefaultSessionIdManager(jettyServer);
-        jettyServer.setSessionIdManager(idmanager);
+        SessionIdManager idManager = new DefaultSessionIdManager(jettyServer);
+        jettyServer.addBean(idManager, true);
+        //jettyServer.setSessionIdManager(idmanager);
         
         SessionHandler sessionsHandler = new SessionHandler();
-        //sessionsHandler.setUsingCookies(false);
+        sessionsHandler.setUsingCookies(false);
         servletHandler.setHandler(sessionsHandler);
-        sessionsHandler.getSessionCookieConfig().setName("JETTYFUSEKISESSION");
+        //sessionsHandler.getSessionCookieConfig().setName("JETTYFUSEKISESSION");
                 
         server.start();
     }
     
-    public static FusekiServer getFusekiServer() {
+    public static FusekiServer getFusekiServer2() {
         return server;
     }
-    
-    /*
-    
-    private static void configureShiro() {
-        String iniConfig =
-            """
-            [users]
-            admin=admin,administrator
-            user=user,user
-            [roles]
-            administrator=admin:*,read:*,write:*,execute:*,create:*,delete:*
-            user=read:*,write:*,execute:*
-            """;
-        InputStream input = new ByteArrayInputStream(iniConfig.getBytes());
-        Ini ini = new Ini();
-        ini.load(input);
-        CustomShiroConfigurator shiroConfigurator = new CustomShiroConfigurator(ini);
-        SecurityManager securityManager = shiroConfigurator.getSecurityManager();
-        SecurityUtils.setSecurityManager(securityManager);
-    }*/
     
     public static SPARQLEndPoint getSPARQLEndPoint() {
         if (sep==null) {

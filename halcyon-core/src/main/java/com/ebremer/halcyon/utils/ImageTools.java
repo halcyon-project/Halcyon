@@ -54,18 +54,25 @@ public class ImageTools {
         return null;
     }
     
-    public static BufferedImage ScaleBufferedImage(BufferedImage bi, Rectangle preferredsize) {
-        double s = 1.0d/Math.max((double)bi.getWidth()/(double)preferredsize.width(),(double)bi.getHeight()/(double)preferredsize.height());
-        AffineTransform at = new AffineTransform();
-        at.scale(s,s);
-        AffineTransformOp scaleOp =  new AffineTransformOp(at, AffineTransformOp.TYPE_BILINEAR);
-        BufferedImage target;
-        if (bi.getType()==0) {
-            target = new BufferedImage(preferredsize.width(),preferredsize.height(),TYPE_3BYTE_BGR);
-        } else {
-            target = new BufferedImage(preferredsize.width(),preferredsize.height(),bi.getType());
+    public static BufferedImage ScaleBufferedImage(BufferedImage bi, Rectangle preferredsize, boolean aspectratio) {
+        AffineTransform at = new AffineTransform();        
+        double sx = (double)preferredsize.width()/(double)bi.getWidth();
+        double sy = (double)preferredsize.height()/(double)bi.getHeight();
+        int px = preferredsize.width();
+        int py = preferredsize.height();
+        if (aspectratio) {
+            if (sx<sy) {
+                sy=sx;
+                py=(int) (((double) bi.getHeight())*sy);
+            } else {
+                sx=sy;
+                px=(int) (((double) bi.getWidth())*sx);
+            }
         }
-        target.createGraphics().drawImage(bi, scaleOp, (preferredsize.width() - (int) Math.round(bi.getWidth() * s)) / 2, (preferredsize.height() - (int) Math.round(bi.getHeight() * s)) / 2);
+        at.scale(sx,sy);
+        AffineTransformOp scaleOp =  new AffineTransformOp(at, AffineTransformOp.TYPE_BILINEAR);
+        BufferedImage target = new BufferedImage(px,py,(bi.getType()==0)?TYPE_3BYTE_BGR:bi.getType());
+        target.createGraphics().drawImage(bi, scaleOp, (px - (int) Math.round(bi.getWidth() * sx)) / 2, (py - (int) Math.round(bi.getHeight() * sy)) / 2);
         return target;
     }
 

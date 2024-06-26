@@ -19,16 +19,24 @@ public class PathFinder {
             Logger.getLogger(PathFinder.class.getName()).log(Level.SEVERE, null, ex);
         }
         HalcyonSettings s = HalcyonSettings.getSettings();
-        for (StorageLocation sl : s.getStorageLocations()) {
-            //System.out.println("SL : "+sl.path.toUri().toString());
+        for (ResourceHandler sl : s.GetResourceHandlers()) {
             Path src = Path.of(uri);
-            if (src.startsWith(sl.path)) {
-                //System.out.println("MATCH : "+path);
-                return sl.urlpath+src.toUri().toString().substring(sl.path.toUri().toString().length());
+            if (src.startsWith(sl.urlPath())) {
+                return sl.urlPath()+src.toUri().toString().substring(sl.resourceBase().getPath().length());
             } else { 
                 System.out.println("NO MATCH : "+path);
             }
         }
         return null;
+    }
+    
+    public static String LocalPath2IIIFURL(String path) {
+        String host = HalcyonSettings.getSettings().getProxyHostName();
+        //return String.format("%s/iiif/?iiif=%s%s", host, host, PathFinder.Path2URL(path));
+        return String.format("%s/iiif/?iiif=%s", host, path);
+    }
+    
+    public static String LocalPath2IIIFInfoURL(String path) {
+        return String.format("%s/info.json", PathFinder.LocalPath2IIIFURL(path));
     }
 }

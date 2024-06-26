@@ -155,7 +155,7 @@ public class ROCrate {
                 RDFParserBuilder.create()
                         .base(base)
                         .source(inputStream)
-                        .lang(RDFLanguages.JSONLD10).build()
+                        .lang(RDFLanguages.JSONLD11).build()
                         .parse(m);
             } catch (IOException ex) {
                 Logger.getLogger(ROCrate.class.getName()).log(Level.SEVERE, null, ex);
