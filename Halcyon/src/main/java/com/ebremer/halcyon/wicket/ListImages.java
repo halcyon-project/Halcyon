@@ -17,6 +17,7 @@ import com.ebremer.halcyon.pools.AccessCachePool;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import com.ebremer.halcyon.server.utils.PathFinder;
 import com.ebremer.halcyon.wicket.ethereal.Zephyr2;
+import com.ebremer.halcyon.wicket.ethereal.Zephyr3;
 import com.ebremer.multiviewer.MultiViewer;
 import com.ebremer.ns.EXIF;
 import com.ebremer.ns.LDP;
@@ -228,6 +229,18 @@ public class ListImages extends BasePage implements IPanelChangeListener {
                 }
             };
             add(zephyr);
+            Link zephyr3 = new Link<Void>("zephyr3") {               
+                @Override
+                public void onClick() {
+                    Solution s = model.getObject();
+                    String g = s.getMap().get("s").getURI();
+                    System.out.println("RAH ---> "+PathFinder.LocalPath2IIIFURL(g));
+                    setResponsePage(new Zephyr3(PathFinder.LocalPath2IIIFURL(g)));
+                }
+            };
+            add(zephyr3);
+            
+            zephyr3.setVisible(HalcyonSettings.getSettings().isDevMode());
             zephyr.setVisible(HalcyonSettings.getSettings().isDevMode());
         }
     }

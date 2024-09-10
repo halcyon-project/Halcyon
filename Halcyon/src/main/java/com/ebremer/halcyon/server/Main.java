@@ -37,6 +37,7 @@ import java.util.Iterator;
 import java.util.UUID;
 import javax.imageio.ImageIO;
 import javax.sql.DataSource;
+import org.jboss.resteasy.core.ServerResponseWriter;
 import org.mitre.dsmiley.httpproxy.ProxyServlet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -99,6 +100,7 @@ public class Main {
     
     @Bean
     MultipartResolver multipartResolver() {
+        ServerResponseWriter ha;
         return new StandardServletMultipartResolver();
     }
     

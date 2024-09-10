@@ -40,12 +40,14 @@ public class ImageMeta {
         if (f1.exists()) {
             System.out.println("Loading : "+f1);
             RDFDataMgr.read(tcga, f1.toString(), Lang.TURTLE);
+            System.out.println("Loaded : "+tcga.size()+" triples.");
         } else {
             System.out.println(f1);
         }
         if (f2.exists()) {
             System.out.println("Loading : "+f2);
             RDFDataMgr.read(tcga, f2.toString(), Lang.TURTLE);
+            System.out.println("Loaded : "+tcga.size()+" triples.");
         } else {
             System.out.println(f2);
         }

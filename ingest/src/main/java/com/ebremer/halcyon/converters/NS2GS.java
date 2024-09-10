@@ -211,7 +211,7 @@ public class NS2GS {
                     Resource SpatialObject = m.createResource()
                             .addProperty(RDF.type, GEO.Feature);
                     Resource geometry = m.createResource()
-                            .addLiteral(GEO.asWKT, Polygon2WKT(p.polygon));
+                            .addLiteral(GEO.asWKT, m.createTypedLiteral(Polygon2WKT(p.polygon),GEO.NS+"wktLiteral"));
                     SpatialObject.addProperty(GEO.hasGeometry, geometry);                    
                     SpatialObjectCollection.addProperty(RDFS.member, SpatialObject);
                     Resource measurement = m.createResource().addLiteral(HAL.hasProbability,1.0f).addProperty(HAL.classification, SNO.NuclearMaterial);

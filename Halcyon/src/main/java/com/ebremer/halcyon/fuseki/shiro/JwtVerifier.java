@@ -14,8 +14,8 @@ public class JwtVerifier {
     }
 
     public Claims verify(String token) {
-        try {
-            JwtParser p = Jwts.parserBuilder()
+        try {            
+            JwtParser p = Jwts.parser()               
                 .setAllowedClockSkewSeconds(86400)
                 .setSigningKey(publicKey)
                 .build();

@@ -45,7 +45,8 @@ public class Cool {
         keyconfig.setClientId("account");
         keyconfig.setRealm("Halcyon");
         keyconfig.setConnectTimeout(10000);
-        keyconfig.setReadTimeout(10000);    
+        keyconfig.setReadTimeout(10000);
+        keyconfig.setScope("openid profile email offline_access");
         keyconfig.setBaseUri(HalcyonSettings.getSettings().getAuthServer()+"/auth");
         if (HalcyonSettings.getSettings().isHTTPS2enabled()) {
             keyconfig.setSslSocketFactory(defaultSslBundleRegistry.getBundle("server").createSslContext().getSocketFactory());
@@ -80,6 +81,8 @@ public class Cool {
         CallbackFilter callbackFilter = new CallbackFilter();
         callbackFilter.setConfig(pac4jConfig);
         callbackFilter.setDefaultUrl("/");
+        callbackFilter.setRenewSession(Boolean.TRUE);
+        //callbackFilter.
         return callbackFilter;
     }
     

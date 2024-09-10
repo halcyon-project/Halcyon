@@ -117,6 +117,7 @@ public final class HalcyonSession extends WebSession {
                     ResteasyWebTarget targetx = client.target(cmdx);
                     System.out.println("SERVER CLIENT ===> "+cmdx);
                     Invocation.Builder zamx = targetx.request();
+                    System.out.println("JWT:\n"+jwt);
                     zamx.header("Authorization", "Bearer "+jwt);
                     Response rr = zamx.get();
                     System.out.println(rr.getStatus());

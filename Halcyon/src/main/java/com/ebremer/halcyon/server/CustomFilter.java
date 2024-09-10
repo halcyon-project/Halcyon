@@ -1,4 +1,4 @@
-package com.ebremer.halcyon.server;
+    package com.ebremer.halcyon.server;
 
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;

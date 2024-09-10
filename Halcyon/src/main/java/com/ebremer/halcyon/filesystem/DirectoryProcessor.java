@@ -136,7 +136,7 @@ public class DirectoryProcessor {
                             }
                             m.addLiteral(r, HAL.validFile, true);
                         } catch (Exception ex) {
-                            logger.trace("WHAT?!?! {} {}", fx, ex.getMessage());
+                            logger.error("WHAT?!?! {} {}", fx, ex.getMessage());
                             m.addLiteral(r, HAL.validFile, false);
                             m.addLiteral(r, HAL.filemetaversion, filemetaversion);
                         }

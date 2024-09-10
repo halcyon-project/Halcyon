@@ -7,15 +7,15 @@ import org.slf4j.LoggerFactory;
 
 public class HalcyonSessionListener implements HttpSessionListener {
 
-    private  static final Logger logger = LoggerFactory.getLogger(HalcyonSessionListener.class);
+    private  static final Logger LOGGER = LoggerFactory.getLogger(HalcyonSessionListener.class);
 
     @Override
     public void sessionCreated(final HttpSessionEvent event) {
-        System.out.println("================================================== Session created");
+        System.out.println("================================================== Session created!");
     }
 
     @Override
     public void sessionDestroyed(HttpSessionEvent var1) {
-        System.out.println("================================================== Session destroyed");
+        System.out.println("================================================== Session destroyed!");
     }
 }
