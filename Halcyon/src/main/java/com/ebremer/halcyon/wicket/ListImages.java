@@ -17,6 +17,7 @@ import com.ebremer.halcyon.pools.AccessCachePool;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import com.ebremer.halcyon.server.utils.PathFinder;
 import com.ebremer.halcyon.wicket.ethereal.Zephyr2;
+import com.ebremer.halcyon.wicket.ethereal.Zephyr3;
 import com.ebremer.multiviewer.MultiViewer;
 import com.ebremer.ns.EXIF;
 import com.ebremer.ns.LDP;
@@ -58,26 +59,20 @@ import org.apache.wicket.request.resource.CssResourceReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * This class displays a list of images with their respective width and height, 
- * along with a view option, and allows for filtering based on selected features 
- * and collection.
- */
 public class ListImages extends BasePage implements IPanelChangeListener {
-
     private final ListFeatures lf;
     private final DropDownChoice<Node> ddc;
     private final SelectDataProvider rdfsdf;
     private final AjaxFallbackDefaultDataTable table;
     private String selected;
     private static final Logger logger = LoggerFactory.getLogger(ListImages.class);
-
+    
     public ListImages() {
         List<IColumn<Solution, String>> columns = new LinkedList<>();
-        columns.add(new NodeColumn<>(Model.of("File URI"), "s", "s"));
+        columns.add(new NodeColumn<>(Model.of("File URI"),"s","s"));
         //columns.add(new NodeColumn<>(Model.of("MD5"),"md5","md5"));
-        columns.add(new NodeColumn<>(Model.of("width"), "width", "width"));
-        columns.add(new NodeColumn<>(Model.of("height"), "height", "height"));
+        columns.add(new NodeColumn<>(Model.of("width"),"width","width"));
+        columns.add(new NodeColumn<>(Model.of("height"),"height","height"));
         //columns.add(new NodeColumn<>(Model.of("Collection"),"collection","collection"));
         columns.add(new AbstractColumn<Solution, String>(Model.of("View")) {
             @Override
@@ -107,73 +102,52 @@ public class ListImages extends BasePage implements IPanelChangeListener {
         pss.setIri("car", HAL.CollectionsAndResources.getURI());
         //Dataset ds = DatabaseLocator.getDatabase().getSecuredDataset(OPEN);
         Dataset ds = DatabaseLocator.getDatabase().getDataset();
-        rdfsdf = new SelectDataProvider(ds, pss.toString());
+        rdfsdf = new SelectDataProvider(ds,pss.toString());
         pss.setIri("collection", "urn:halcyon:nocollections");
         rdfsdf.SetSPARQL(pss.toString());
         table = new AjaxFallbackDefaultDataTable<>("table", columns, rdfsdf, 25);
         add(table);
         RDFDetachableModel rdg = new RDFDetachableModel(Patterns.getALLCollectionRDF());
         LDModel ldm = new LDModel(rdg);
-
-        ddc
-                = new DropDownChoice<>("collection", ldm,
+        ddc = 
+            new DropDownChoice<>("collection", ldm,
                     new LoadableDetachableModel<List<Node>>() {
-                    @Override
-                    protected List<Node> load() {
-                        org.apache.jena.rdf.model.Model ccc = ModelFactory.createDefaultModel();
-                        List<Node> collections = new LinkedList<>();
-                        // Add a placeholder item
-                        collections.add(NodeFactory.createLiteralByValue("-- Select one --", null));
-                        try {
-                            HalcyonPrincipal p = HalcyonSession.get().getHalcyonPrincipal();
-                            String uuid = p.getUserURI();
-                            AccessCache ac = AccessCachePool.getPool().borrowObject(uuid);
-                            AccessCachePool.getPool().returnObject(uuid, ac);
-                            if (ac.getCollections().size() == 0) {
-                                Dataset dsx = DataCore.getInstance().getSecuredDataset(OPEN);
-                                ac.getCollections().add(Patterns.getCollectionRDF2(dsx));
+                        @Override
+                        protected List<Node> load() {
+                            org.apache.jena.rdf.model.Model ccc = ModelFactory.createDefaultModel();
+                            try {
+                                HalcyonPrincipal p = HalcyonSession.get().getHalcyonPrincipal();
+                                String uuid = p.getUserURI();
+                                AccessCache ac = AccessCachePool.getPool().borrowObject(uuid);
+                                AccessCachePool.getPool().returnObject(uuid, ac);
+                                if (ac.getCollections().size()==0) {
+                                    Dataset dsx = DataCore.getInstance().getSecuredDataset(OPEN);
+                                    ac.getCollections().add(Patterns.getCollectionRDF2(dsx));  
+                                }
+                                ccc.add(ac.getCollections());                                
+                            } catch (Exception ex) {
+                                logger.error(ex.toString());
                             }
-                            ccc.add(ac.getCollections());
-                        } catch (Exception ex) {
-                            logger.error(ex.toString());
+                            return Patterns.getCollectionList45X(ccc);
                         }
-                        collections.addAll(Patterns.getCollectionList45X(ccc));
-                        return collections;
-                    }
-                },
-                        new RDFRenderer(rdg)
+                    },
+                    new RDFRenderer(rdg)
                 );
-
-        ddc.setNullValid(false); // Ensure no null/placeholder selection
-
+        Form<?> form = new Form("form");
+        add(form);
+        form.add(ddc);
         ddc.add(new AjaxFormComponentUpdatingBehavior("change") {
             @Override
             protected void onUpdate(AjaxRequestTarget target) {
-                Node selectedNode = ddc.getModelObject();
-
-                // Get the selected index
-                int selectedIndex = ddc.getChoices().indexOf(selectedNode);
-
-                // If the selected index is 0 (the placeholder), skip the processing
-                if (selectedIndex == 0) {
-                    return;
-                }
-
-                // Process the selected item
-                selected = selectedNode.toString();
+                selected = ddc.getModelObject().toString();
                 UpdateTHIS();
                 target.add(table);
             }
         });
-
-        Form<?> form = new Form("form");
-        add(form);
-        form.add(ddc);
-
         lf = new ListFeatures("boo", this);
         add(lf);
     }
-
+    
     private void UpdateTHIS() {
         HashSet<Node> features = lf.getSelectedFeatures();
         ParameterizedSparqlString pss = rdfsdf.getPSS();
@@ -191,12 +165,12 @@ public class ListImages extends BasePage implements IPanelChangeListener {
             vh.build();
             wh.addWhere(vh);
             logger.debug(q.toString());
-            rdfsdf.setQuery(q);
+            rdfsdf.setQuery(q);                  
         } else {
             rdfsdf.SetSPARQL(pss.toString());
         }
     }
-
+    
     @Override
     public void onChange(AjaxRequestTarget target) {
         UpdateTHIS();
@@ -208,54 +182,65 @@ public class ListImages extends BasePage implements IPanelChangeListener {
         super.renderHead(response);
         response.render(CssHeaderItem.forReference(new CssResourceReference(ListFeatures.class, "repeater.css")));
     }
-
+    
     private class ActionPanel extends Panel {
-
         public ActionPanel(String id, IModel<Solution> model) {
             super(id, model);
-            add(new Link<Void>("one") {
+            add(new Link<Void>("one") {               
                 @Override
                 public void onClick() {
-                    HashSet<String>[] ff = lf.getFeatures();
+                    HashSet<String>[] ff = lf.getFeatures();                    
                     Solution s = model.getObject();
                     String g = s.getMap().get("s").getURI();
-                    String mv = "var images = [" + FeatureManager.getFeatures(ff[0], g) + "]";
+                    String mv = "var images = ["+FeatureManager.getFeatures(ff[0],g)+"]";
                     HalcyonSession.get().SetMV(mv);
-                    setResponsePage(new MultiViewer(1, 1, 1600, 800));
+                    setResponsePage(new MultiViewer(1,1,1600,800));
                 }
             });
-            add(new Link<Void>("two") {
+            add(new Link<Void>("two") {               
                 @Override
                 public void onClick() {
-                    HashSet<String>[] ff = lf.getFeatures();
+                    HashSet<String>[] ff = lf.getFeatures();                    
                     Solution s = model.getObject();
                     String g = s.getMap().get("s").getURI();
-                    String mv = "var images = [" + FeatureManager.getFeatures(ff[0], g) + "," + FeatureManager.getFeatures(ff[0], g) + "]";
+                    String mv = "var images = ["+FeatureManager.getFeatures(ff[0],g)+","+FeatureManager.getFeatures(ff[0],g)+"]";
                     HalcyonSession.get().SetMV(mv);
-                    setResponsePage(new MultiViewer(1, 2, 750, 750));
+                    setResponsePage(new MultiViewer(1,2,750,750));
                 }
             });
-            add(new Link<Void>("four") {
+            add(new Link<Void>("four") {               
                 @Override
                 public void onClick() {
-                    HashSet<String>[] ff = lf.getFeatures();
+                    HashSet<String>[] ff = lf.getFeatures();                    
                     Solution s = model.getObject();
                     String g = s.getMap().get("s").getURI();
-                    String mv = "var images = [" + FeatureManager.getFeatures(ff[0], g) + "," + FeatureManager.getFeatures(ff[0], g) + "," + FeatureManager.getFeatures(ff[0], g) + "," + FeatureManager.getFeatures(ff[0], g) + "]";
+                    String mv = "var images = ["+FeatureManager.getFeatures(ff[0],g)+","+FeatureManager.getFeatures(ff[0],g)+","+FeatureManager.getFeatures(ff[0],g)+","+FeatureManager.getFeatures(ff[0],g)+"]";
                     HalcyonSession.get().SetMV(mv);
-                    setResponsePage(new MultiViewer(2, 2, 640, 480));
+                    setResponsePage(new MultiViewer(2,2,640,480));
                 }
             });
-            Link zephyr = new Link<Void>("zephyr") {
+            Link zephyr = new Link<Void>("zephyr") {               
                 @Override
                 public void onClick() {
                     Solution s = model.getObject();
                     String g = s.getMap().get("s").getURI();
-                    System.out.println("RAH ---> " + PathFinder.LocalPath2IIIFURL(g));
+                    System.out.println("RAH ---> "+PathFinder.LocalPath2IIIFURL(g));
                     setResponsePage(new Zephyr2(PathFinder.LocalPath2IIIFURL(g)));
                 }
             };
             add(zephyr);
+            Link zephyr3 = new Link<Void>("zephyr3") {               
+                @Override
+                public void onClick() {
+                    Solution s = model.getObject();
+                    String g = s.getMap().get("s").getURI();
+                    System.out.println("RAH ---> "+PathFinder.LocalPath2IIIFURL(g));
+                    setResponsePage(new Zephyr3(PathFinder.LocalPath2IIIFURL(g)));
+                }
+            };
+            add(zephyr3);
+            
+            zephyr3.setVisible(HalcyonSettings.getSettings().isDevMode());
             zephyr.setVisible(HalcyonSettings.getSettings().isDevMode());
         }
     }

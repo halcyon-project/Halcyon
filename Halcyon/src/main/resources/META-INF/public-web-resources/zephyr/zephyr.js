@@ -79,7 +79,7 @@ function Square(renderer, src, offset, name) {
     square.lineTo(1, 0);
     const geometry = new ShapeGeometry(square);
     geometry.center();
-    const textureMaterial = new MeshBasicMaterial({map: texture, depthWrite: false, side: DoubleSide});
+    const textureMaterial = new MeshBasicMaterial({map: texture, depthWrite: true, side: DoubleSide});
 
     /*
     var material;
@@ -130,6 +130,51 @@ function DrawAxis(scene) {
     const geometry2 = new BufferGeometry().setFromPoints(points2);
     const line2 = new Line(geometry2, material);
     scene.add(line2);
+}
+
+function getRandomNumberBetween(a, b) {
+    return Math.random() * (b - a) + a;
+}
+
+function CreateStackViewer(renderer, scene, urls, offset) {
+    console.log("CreateStackViewer : "+urls+" offset -> "+offset);
+    var group = new Group();
+    var off = offset;
+    urls.forEach((url) => {
+        console.log(url);        
+        AddImageViewer(group, url, off);
+        off = off + 2000;
+    });
+    scene.add(group);
+    group.position.x = 5000;
+    group.position.y = 5000;
+    group.position.z = 5000;
+}
+
+function AddImageViewer(group, url, offset) {
+  console.log("AddImageViewer Xc : "+url+" offset -> "+offset);
+  var target = url + "/info.json";
+  fetch(target)
+    .then(response => response.json())
+    .then(data => {
+      const x = 0;
+      const y = 0;
+      const w = data.width;
+      const h = data.height;
+      const tilex = data.tiles[0].width;
+      const tiley = data.tiles[0].height;
+      const lod = new ImageViewer(null, url, w, h, x, y, w, h, tilex, tiley, 0, data, 0, "ROOT", 0, 0);
+      lod.name = "ImageViewer";
+      lod.imageWidth = w;
+      lod.imageHeight = h;
+      lod.url = url;
+      lod.offset = offset;
+      lod.frustrumCulled = false;
+      lod.scale.x = w;
+      lod.scale.y = w;
+      group.add(lod);
+      lod.position.z = offset;
+    }).catch(error => console.error('Error fetching data:', error));
 }
 
 function CreateImageViewer(renderer, scene, url, offset) {
@@ -371,4 +416,4 @@ class FeatureViewer extends LOD {
     }
 }
 
-export { Square, CreateImageViewer, CreateFeatureViewer, createPolygon, DrawAxis };
+export { Square, CreateImageViewer, CreateStackViewer, CreateFeatureViewer, createPolygon, DrawAxis };
