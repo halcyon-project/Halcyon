@@ -7,6 +7,7 @@ import com.ebremer.halcyon.lib.XMP;
 import com.ebremer.halcyon.utils.ImageTools;
 import com.ebremer.ns.EXIF;
 import com.ebremer.ns.HAL;
+import com.twelvemonkeys.imageio.metadata.Entry;
 import com.twelvemonkeys.imageio.metadata.tiff.Rational;
 import com.twelvemonkeys.imageio.metadata.tiff.TIFF;
 import com.twelvemonkeys.imageio.plugins.tiff.TIFFImageMetadata;
@@ -42,6 +43,10 @@ public class TiffImageReader extends AbstractImageReader {
     public TiffImageReader(URI uri, URI base) throws IOException {
         this.uri = uri;
         File file = new File(uri);
+        System.out.println("TIFF READER FOR ====> "+file.toString());
+        if (file.toString().contains("Stack2")) {
+            int cc = 0;
+        }
         ImageInputStream input = ImageIO.createImageInputStream(file);
         Iterator<javax.imageio.ImageReader> readers = ImageIO.getImageReadersByFormatName("tif");
         readers.forEachRemaining(rr->{
@@ -124,24 +129,30 @@ public class TiffImageReader extends AbstractImageReader {
         TIFFImageMetadata td;
         try {
             td = (TIFFImageMetadata) rr.getImageMetadata(0);
-            Object xr = td.getTIFFField(TIFF.TAG_X_RESOLUTION).getValue();
-            Object yr = td.getTIFFField(TIFF.TAG_Y_RESOLUTION).getValue();
-            Object id = td.getTIFFField(TIFF.TAG_IMAGE_DESCRIPTION).getValue();
-            Object xmp = td.getTIFFField(TIFF.TAG_XMP).getValue();
-            String xml = new String((byte[]) xmp);
-            m.add(XMP.getXMP(root.getURI(), xml));
-            if (id instanceof String desc) {
-                if (!desc.trim().isEmpty()) {
-                    root.addLiteral(EXIF.imageDescription, desc.trim());
+            if (td.getTIFFField(TIFF.TAG_XMP)!=null) {
+                String xml = new String((byte[]) td.getTIFFField(TIFF.TAG_XMP).getValue());
+                m.add(XMP.getXMP(root.getURI(), xml));
+            }
+            if(td.getTIFFField(TIFF.TAG_IMAGE_DESCRIPTION)!=null) {
+                if (td.getTIFFField(TIFF.TAG_IMAGE_DESCRIPTION).getValue() instanceof String desc) {
+                    if (!desc.trim().isEmpty()) {
+                        root.addLiteral(EXIF.imageDescription, desc.trim());
+                    }
                 }
             }
-            if (xr instanceof Rational r) {               
-                root.addLiteral(EXIF.xResolution, r.longValue());
+            if (td.getTIFFField(TIFF.TAG_X_RESOLUTION)!=null) {
+                if (td.getTIFFField(TIFF.TAG_X_RESOLUTION).getValue() instanceof Rational r) {
+                    root.addLiteral(EXIF.xResolution, r.longValue());
+                }
             }
-            if (yr instanceof Rational r) {
-                root.addLiteral(EXIF.yResolution, r.longValue());
+            if (td.getTIFFField(TIFF.TAG_Y_RESOLUTION)!=null) {
+                if (td.getTIFFField(TIFF.TAG_Y_RESOLUTION).getValue() instanceof Rational r) {
+                    root.addLiteral(EXIF.yResolution, r.longValue());
+                }
             }
-            root.addLiteral(EXIF.resolutionUnit, Short.valueOf(td.getTIFFField(TIFF.TAG_RESOLUTION_UNIT).getValueAsString()));
+            if (td.getTIFFField(TIFF.TAG_RESOLUTION_UNIT)!=null) {
+                root.addLiteral(EXIF.resolutionUnit, Short.valueOf(td.getTIFFField(TIFF.TAG_RESOLUTION_UNIT).getValueAsString()));
+            }
         } catch (IOException ex) {
             Logger.getLogger(TiffImageReader.class.getName()).log(Level.SEVERE, null, ex);
         }        

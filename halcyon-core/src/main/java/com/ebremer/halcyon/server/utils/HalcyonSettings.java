@@ -89,14 +89,12 @@ public final class HalcyonSettings {
         ZEPHYRLOCATION = m.createProperty(HAL.NS + "ZephyrLocation");
         
         try {
-            Property modeProperty = m.createProperty(HAL.NS + "mode");
-
             // Get the settings resource
             Resource settingsResource = m.getResource(DEFAULTHOSTNAME);
 
             // Extract the mode
-            if (settingsResource.hasProperty(modeProperty)) {
-                Literal modeLiteral = settingsResource.getProperty(modeProperty).getLiteral();
+            if (settingsResource.hasProperty(HAL.mode)) {
+                Literal modeLiteral = settingsResource.getProperty(HAL.mode).getLiteral();
                 mode = modeLiteral.getString();
                 logger.info("Mode loaded from settings: " + mode);
             } else {
@@ -159,9 +157,6 @@ public final class HalcyonSettings {
 
     public boolean isDevMode() {
         return "dev".equalsIgnoreCase(mode);
-//        ParameterizedSparqlString pss = new ParameterizedSparqlString("ask where {?s :devmode true; a :HalcyonSettingsFile}");
-//        pss.setNsPrefix("", HAL.NS);
-//        return QueryExecutionFactory.create(pss.toString(), m).execAsk();
     }
 
     public long getMaxAgeReaderPool() {

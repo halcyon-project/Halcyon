@@ -65,7 +65,7 @@ public class HAL {
     public static final Property fileLastModified = m.createProperty(NS+"fileLastModified");
     public static final Property validFile = m.createProperty(NS+"validFile");
     public static final Property halcyonVersion = m.createProperty(NS+"halcyonVersion");
-    public static final Property devmode = m.createProperty(NS+"devmode");
+    public static final Property mode = m.createProperty(NS+"mode");
     public static final Property filemetaversion = m.createProperty(NS+"filemetaversion");
     public static final Property min = m.createProperty(NS+"min");
     public static final Property max = m.createProperty(NS+"max");

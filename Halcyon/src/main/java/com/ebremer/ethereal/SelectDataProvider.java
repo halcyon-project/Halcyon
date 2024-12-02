@@ -71,7 +71,7 @@ public class SelectDataProvider extends SortableDataProvider<Solution, String> {
         q.setLimit(count);
         q.setOffset(first);
         Dataset ds = dds.load();
-        ds.begin();
+        ds.begin(ReadWrite.READ);
         ResultSet resultset = QueryExecutionFactory.create(q, ds).execSelect().materialise();
         ds.end();
         resultset.forEachRemaining(qs->{

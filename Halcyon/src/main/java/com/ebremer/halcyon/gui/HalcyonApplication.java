@@ -4,6 +4,7 @@ import com.ebremer.halcyon.sparql.Sparql;
 import com.ebremer.halcyon.wicket.ListImages;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import com.ebremer.halcyon.data.DataCore;
+import com.ebremer.halcyon.filereaders.FileReaderFactoryProvider;
 import com.ebremer.halcyon.fuseki.SPARQLEndPoint;
 import com.ebremer.halcyon.puffin.Puffin;
 import com.ebremer.halcyon.puffin.ResourceConverter;
@@ -26,17 +27,11 @@ import org.apache.wicket.request.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Sets up a Wicket web application for the Halcyon UI, initializing various components 
- * such as a SPARQL endpoint, data core, and custom page mappings, while configuring 
- * settings for logging, resource handling, and development/deployment modes.
- */
 public class HalcyonApplication extends WebApplication {
-
     private final DataCore datacore;
     private final SPARQLEndPoint sep;
     private static final Logger logger = LoggerFactory.getLogger(HalcyonApplication.class);
-
+    
     public HalcyonApplication() {
         System.out.println("Starting Halcyon UI...");
         datacore = DataCore.getInstance();
@@ -45,28 +40,29 @@ public class HalcyonApplication extends WebApplication {
 
     public DataCore getDataCore() {
         return datacore;
-    }
+    }    
 
     @Override
     public Class<? extends WebPage> getHomePage() {
-        return HomePage.class;
+	return HomePage.class;
     }
-
+    
     @Override
-    public Session newSession(Request request, Response response) {
-        return new HalcyonSession(request, response);
+    public Session newSession(Request request, Response response) {     
+        return new HalcyonSession(request,response);
     }
-
+    
     @Override
     protected IConverterLocator newConverterLocator() {
         ConverterLocator converterLocator = new ConverterLocator();
-        converterLocator.set(Resource.class, new ResourceConverter());
+        converterLocator.set(Resource.class, new ResourceConverter());        
         return converterLocator;
     }
 
     @Override
     public void init() {
-        super.init();
+	super.init();
+        //FileReaderFactoryProvider.contains("yay");           
         this.getRequestLoggerSettings().setRequestLoggerEnabled(true);
         this.getRequestLoggerSettings().setRecordSessionSize(true);
         getCspSettings().blocking().disabled();
@@ -76,33 +72,34 @@ public class HalcyonApplication extends WebApplication {
         mountPage("/", HomePage.class);
         mountPage("/admin", AdminPage.class);
         mountPage("/user/account", AccountPage.class);
-        mountPage("/user/colorclasses", ColorClasses.class);
+        mountPage("/user/colorclasses", ColorClasses.class); 
         mountPage("/login", Login.class);
         mountPage("/ListImages", ListImages.class);
-        mountPage("/viewer", MultiViewer.class);
+        mountPage("/viewer", MultiViewer.class); 
         mountPage("/containers", Collections.class);
         mountPage("/upload", Upload.class);
         mountPage("/sparql", Sparql.class);
         mountPage("/about", About.class);
         mountPage("/threed", Graph3D.class);
         mountPage("/revisionhistory", RevisionHistory.class);
-        mountPage("/viewall", ViewAll.class);
-        mountPage("/testviewall", TestViewAll.class);
-        mountPage("/puffin", Puffin.class);
-        mountPage("/blank", Blank.class);
+        mountPage("/viewall", ViewAll.class); 
+        mountPage("/testviewall", TestViewAll.class); 
+        mountPage("/puffin", Puffin.class); 
+        mountPage("/blank", Blank.class); 
 
         mountPage("/zephyrx", Zephyr.class);
         mountPage("/zephyrx2", Zephyr2.class);
-
+        
         //mountPage("/login", LogHal.class);
         //mountPage("/gui/dicom", DICOM.class);
         //mountPage("/gui/dicom2", DCM.class);
     }
-
+        
     @Override
     public RuntimeConfigurationType getConfigurationType() {
-        String mode = HalcyonSettings.getSettings().isDevMode() ? "DEVELOPMENT" : "DEPLOYMENT";
-        logger.info("Current mode: " + mode);
-        return "DEVELOPMENT".equals(mode) ? RuntimeConfigurationType.DEVELOPMENT : RuntimeConfigurationType.DEPLOYMENT;
+        if (HalcyonSettings.getSettings().isDevMode()) {
+            return RuntimeConfigurationType.DEVELOPMENT;
+        }
+        return RuntimeConfigurationType.DEPLOYMENT;
     }
 }
