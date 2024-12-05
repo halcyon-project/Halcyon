@@ -3,8 +3,8 @@ package com.ebremer.halcyon.gui;
 import com.ebremer.halcyon.data.DataCore;
 import com.ebremer.halcyon.datum.HalcyonPrincipal;
 import com.ebremer.halcyon.fuseki.shiro.JwtToken;
-import com.ebremer.halcyon.puffin.Block;
-import com.ebremer.halcyon.puffin.UserSessionDataStorage;
+import com.ebremer.vandegraph.shacl.Block;
+import com.ebremer.vandegraph.shacl.UserSessionDataStorage;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import com.ebremer.ns.HAL;
 import jakarta.json.Json;
@@ -67,6 +67,7 @@ public final class HalcyonSession extends WebSession {
         if (profile.isPresent()) {
             OidcProfile oidcProfile = (OidcProfile) profile.get();
             String jwt = oidcProfile.getAccessToken().getValue();
+            System.out.println("JWT : "+jwt);
             JwtToken haha = new JwtToken(jwt);
             user = haha.getPrincipal().getPreferredUserName();
             userURI = haha.getPrincipal().getUserURI();
@@ -83,7 +84,7 @@ public final class HalcyonSession extends WebSession {
             ResteasyClientBuilder builder = (ResteasyClientBuilder) ClientBuilder.newBuilder();
             builder.disableTrustManager();
             ResteasyClient client = builder.build();
-            String cmd = s.getProxyHostName()+"/auth/admin/realms/"+HalcyonSettings.realm+"/users";
+            String cmd = s.getProxyHostName()+"/auth/admin/realms/"+HalcyonSettings.REALM+"/users";
             ResteasyWebTarget target = client.target(cmd);
             System.out.println("SERVER CLIENT ===> "+cmd);
             Invocation.Builder zam = target.request();
@@ -96,7 +97,7 @@ public final class HalcyonSession extends WebSession {
             } else {
                 System.out.println("not able to update/Parse users...");
             }            
-            cmd = s.getAuthServer()+"/auth/admin/realms/"+HalcyonSettings.realm+"/groups";
+            cmd = s.getAuthServer()+"/admin/realms/"+HalcyonSettings.REALM+"/groups";
             target = client.target(cmd);
             System.out.println("SERVER CLIENT ===> "+cmd);
             zam = target.request();
@@ -113,7 +114,7 @@ public final class HalcyonSession extends WebSession {
                     Resource gg = qs.getResource("s");                    
                     System.out.println(gg.getURI());
                     map.forEach((k,v)->{ System.out.println(k+"  "+v);});
-                    String cmdx = s.getAuthServer()+"/auth/admin/realms/"+HalcyonSettings.realm+"/groups/"+map.get(gg.getURI())+"/members";
+                    String cmdx = s.getAuthServer()+"/admin/realms/"+HalcyonSettings.REALM+"/groups/"+map.get(gg.getURI())+"/members";
                     ResteasyWebTarget targetx = client.target(cmdx);
                     System.out.println("SERVER CLIENT ===> "+cmdx);
                     Invocation.Builder zamx = targetx.request();
@@ -126,7 +127,6 @@ public final class HalcyonSession extends WebSession {
                         JsonReader jr = Json.createReader(new StringReader(json2));
                         JsonArray ja = jr.readArray();
                         ja.forEach(p->{
-                            //Resource pp = da.createResource("urn:uuid:"+p.asJsonObject().getString("id"));
                             Resource pp = da.createResource(HalcyonSettings.getSettings().getHostName()+"/user/"+p.asJsonObject().getString("username").replace(" ", "%20"));
                             da.add(gg,SchemaDO.member,pp);
                             da.add(pp,SchemaDO.memberOf,gg);
@@ -196,6 +196,11 @@ public final class HalcyonSession extends WebSession {
             m.add(m.createLiteralStatement(s, SchemaDO.email,jo.getString("email")));
         }
         m.add(s, RDF.type, SchemaDO.Person);
+        
+        //jo.keySet().forEach(k->{
+//            System.out.println(k+" ---------- "+jo.getString(k));
+  //      });
+        
         if (jo.containsKey("attributes")) {
             JsonObject attributes = jo.getJsonObject("attributes");
             if (attributes.containsKey("webid")) {

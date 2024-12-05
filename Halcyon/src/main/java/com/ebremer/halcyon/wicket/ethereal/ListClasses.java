@@ -1,8 +1,8 @@
 package com.ebremer.halcyon.wicket.ethereal;
 
-import com.ebremer.ethereal.NodeColumn;
-import com.ebremer.ethereal.SelectDataProvider;
-import com.ebremer.ethereal.Solution;
+import com.ebremer.vandegraph.NodeColumn;
+import com.ebremer.vandegraph.SelectDataProvider;
+import com.ebremer.vandegraph.Solution;
 import com.ebremer.halcyon.wicket.DatabaseLocator;
 import java.util.ArrayList;
 import java.util.HashSet;

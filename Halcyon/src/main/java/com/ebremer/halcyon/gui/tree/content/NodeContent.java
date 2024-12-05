@@ -1,6 +1,6 @@
 package com.ebremer.halcyon.gui.tree.content;
 
-import com.ebremer.ethereal.xNode;
+import com.ebremer.vandegraph.xNode;
 import org.apache.wicket.Component;
 import org.apache.wicket.extensions.markup.html.repeater.tree.AbstractTree;
 import org.apache.wicket.model.IDetachable;

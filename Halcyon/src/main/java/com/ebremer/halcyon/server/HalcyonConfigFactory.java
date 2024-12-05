@@ -9,11 +9,14 @@ import org.pac4j.core.config.Config;
 import org.pac4j.core.config.ConfigFactory;
 import org.pac4j.core.matching.matcher.PathMatcher;
 import org.pac4j.oidc.client.KeycloakOidcClient;
+import org.pac4j.oidc.config.KeycloakOidcConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.pac4j.oidc.exceptions.OidcTokenException;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Lazy;
 
 /**
  * Configures and builds security settings for the application.
@@ -24,7 +27,16 @@ public class HalcyonConfigFactory implements ConfigFactory {
     private static final Logger logger = LoggerFactory.getLogger(HalcyonConfigFactory.class);
 
     @Autowired
+    @Lazy
     KeycloakOidcClient keycloakclient;
+    
+    @Autowired
+    private KeycloakOidcConfiguration keycloakOidcConfiguration;
+    
+    @Bean
+    public KeycloakOidcClient keycloakOidcClient() {
+        return new KeycloakOidcClient(keycloakOidcConfiguration);
+    }
 
     @Override
     public Config build(final Object... parameters) {

@@ -17,6 +17,7 @@ public class JwtAuthenticatingFilter extends AuthenticatingFilter {
 
     @Override
     protected AuthenticationToken createToken(ServletRequest request, ServletResponse response) throws Exception {
+        System.out.println("createToken");
         HttpServletRequest httpRequest = (HttpServletRequest) request;
         String jwt = httpRequest.getHeader(HttpHeaders.AUTHORIZATION);
         try {
@@ -35,6 +36,7 @@ public class JwtAuthenticatingFilter extends AuthenticatingFilter {
 
     @Override
     protected boolean onAccessDenied(ServletRequest request, ServletResponse response) {
+        System.out.println("onAccessDenied");
         boolean loggedIn = false;
         try {
             loggedIn = executeLogin(request, response);
@@ -47,6 +49,7 @@ public class JwtAuthenticatingFilter extends AuthenticatingFilter {
     }
 
     private boolean sendChallenge(ServletResponse response) {
+        System.out.println("sendChallenge");
         HttpServletResponse httpResponse = WebUtils.toHttp(response);
         httpResponse.setStatus(HttpServletResponse.SC_UNAUTHORIZED); // Set status to 401
         return false; // Challenge was sent, return false

@@ -1,6 +1,7 @@
 package com.ebremer.halcyon.lib.spatial;
 
 import com.ebremer.halcyon.lib.GeometryTools;
+import com.ebremer.ns.GEO;
 import java.util.List;
 import org.apache.jena.sparql.expr.ExprList;
 import org.apache.jena.sparql.expr.NodeValue;
@@ -16,8 +17,11 @@ public class Scale2 extends FunctionBase {
     public NodeValue exec(List<NodeValue> args) {
         NodeValue nwkt = args.get(0);
         NodeValue scalenode = args.get(1);
-        if (!nwkt.isString()) {
-            throw new IllegalArgumentException("Intersects expects the WKT Polygon to be a String argument");
+        if (!nwkt.isLiteral()) {
+            throw new IllegalArgumentException("Scale expects a Literal "+nwkt.toString());
+        }
+        if (!nwkt.getDatatypeURI().equals(GEO.wktLiteral.getURI())) {
+            throw new IllegalArgumentException("Scale expects a WKT String argument "+nwkt.toString());
         }
         if (!scalenode.isDouble()) { throw new IllegalArgumentException("Scale expects the scale to a type double argument"); }
         String ppp = nwkt.getString();

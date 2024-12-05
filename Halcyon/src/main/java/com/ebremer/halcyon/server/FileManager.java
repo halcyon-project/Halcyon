@@ -55,7 +55,7 @@ public final class FileManager implements Service {
                 DirectoryProcessor dp = new DirectoryProcessor(ds,hs.GetNumberOfFileProcessorThreads());
                 List<ResourceHandler> list = HalcyonSettings.getSettings().GetResourceHandlers();
                 list.forEach(rh->{
-                    Path p = Path.of(rh.resourceBase());
+                    Path p = Path.of(rh.resourceBase());                    
                     dp.Traverse(p);                
                 });
                 ValidateData();

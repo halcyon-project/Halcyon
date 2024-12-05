@@ -1,7 +1,7 @@
 package com.ebremer.halcyon.gui.tree;
 
-import com.ebremer.ethereal.RDFDetachableModel;
-import com.ebremer.ethereal.xNode;
+import com.ebremer.vandegraph.RDFDetachableModel;
+import com.ebremer.vandegraph.xNode;
 import com.ebremer.halcyon.data.DataCore;
 import com.ebremer.ns.HAL;
 import java.util.ArrayList;

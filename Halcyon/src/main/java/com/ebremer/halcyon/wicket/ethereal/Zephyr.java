@@ -2,7 +2,6 @@ package com.ebremer.halcyon.wicket.ethereal;
 
 import com.ebremer.halcyon.wicket.BasePage;
 import org.apache.wicket.markup.head.IHeaderResponse;
-import org.apache.wicket.markup.html.WebPage;
 
 /**
  *

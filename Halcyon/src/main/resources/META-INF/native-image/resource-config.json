@@ -1,0 +1,9 @@
+{
+  "resources": {
+        "includes": [
+          { "pattern": "META-INF/spring/logback-pattern-rules" },
+          { "pattern": "META-INF/defaultapplication.yml" }   
+        ]
+  }
+}
+

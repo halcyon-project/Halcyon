@@ -1,0 +1,14 @@
+@prefix exif: <https://www.w3.org/2003/12/exif/ns#> .
+@prefix zeph: <https://halcyon.is/zephyr/ns/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+<>
+    a zeph:Stack ;
+    zeph:layers (
+        [ zeph:src <Stack0.tif> ]
+        [ zeph:src <Stack1.tif> ]
+        [ zeph:src <Stack2.tif> ]
+        [ zeph:src <Stack3.tif> ]
+        [ zeph:src <Stack4.tif> ]
+        [ zeph:src <Stack5.tif> ]
+        [ zeph:src <Stack6.tif> ]
+    ) .

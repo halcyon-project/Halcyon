@@ -1,13 +1,13 @@
 package com.ebremer.halcyon.gui;
 
-import com.ebremer.ethereal.LDModel;
-import com.ebremer.ethereal.NodeColumn;
-import com.ebremer.ethereal.RDFDetachableModel;
+import com.ebremer.vandegraph.LDModel;
+import com.ebremer.vandegraph.NodeColumn;
+import com.ebremer.vandegraph.RDFDetachableModel;
 import com.ebremer.halcyon.wicket.BasePage;
 import com.ebremer.halcyon.wicket.DatabaseLocator;
-import com.ebremer.ethereal.RDFTextField;
-import com.ebremer.ethereal.SelectDataProvider;
-import com.ebremer.ethereal.Solution;
+import com.ebremer.vandegraph.RDFTextField;
+import com.ebremer.vandegraph.SelectDataProvider;
+import com.ebremer.vandegraph.Solution;
 import com.ebremer.ns.HAL;
 import com.ebremer.ns.WAC;
 import java.util.ArrayList;

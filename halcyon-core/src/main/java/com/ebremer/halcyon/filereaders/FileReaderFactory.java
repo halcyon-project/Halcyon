@@ -1,5 +1,6 @@
 package com.ebremer.halcyon.filereaders;
 
+import com.ebremer.halcyon.server.utils.PathMapper;
 import java.net.URI;
 import java.nio.channels.SeekableByteChannel;
 import java.util.Set;

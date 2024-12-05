@@ -2,7 +2,7 @@ package com.ebremer.halcyon.server.utils;
 
 import com.ebremer.halcyon.lib.OperatingSystemInfo;
 import com.ebremer.ns.HAL;
-import com.ebremer.ns.LDP;
+import com.ebremer.ns.LWS;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -23,7 +23,6 @@ import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.Property;
 import org.apache.jena.rdf.model.Resource;
-import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.vocabulary.RDF;
@@ -39,7 +38,6 @@ import org.slf4j.LoggerFactory;
  * @author erich
  */
 public final class HalcyonSettings {
-
     private final String webfiles = "/ib";
     private final long MaxAgeReaderPool = 600;
     private final long ReaderPoolScanDelay = 600;
@@ -55,30 +53,28 @@ public final class HalcyonSettings {
     private final HashMap<String, String> http2fileMappings;
     private final HashMap<String, String> file2httpMappings;
     private final String Realm = "master";
-    public static final String realm = "Halcyon";
+    public static final String REALM = "Halcyon";
     public static final int DEFAULTHTTPPORT = 8888;
     public static final int DEFAULTHTTPSPORT = 9999;
     public static final int DEFAULTSPARQLPORT = 8887;
+    public static final int DEFAULTKEYCLOAKPORT = 8080;
     public static final int DEFAULTFILEPROCESSORTHREEADS = 4;
     public static final String DEFAULTHOSTNAME = "http://localhost";
     public static final String DEFAULTHOSTIP = "0.0.0.0";
     public static final String VERSION = "1.1.0";
-    public static Resource HALCYONAGENT = ResourceFactory.createResource(HAL.NS + "VERSION/" + VERSION);
     public static String HALCYONSOFTWARE = "Halcyon Version " + VERSION;
     private String mode;
     private static final Logger logger = LoggerFactory.getLogger(HalcyonSettings.class);
-
-    private HalcyonSettings() {
-        File f = new File(MasterSettingsLocation);
+    
+    private HalcyonSettings(File f) {
         http2fileMappings = new HashMap<>();
         file2httpMappings = new HashMap<>();
         if (!f.exists()) {
             System.out.println("no config file found!");
             GenerateDefaultSettings();
         } else {
-            System.out.println("loading configuration file : " + MasterSettingsLocation);
-            // Load the RDF model from the settings.ttl file
-            m = RDFDataMgr.loadModel(MasterSettingsLocation, Lang.TTL);
+            System.out.println("loading configuration file : " + f);
+            m = RDFDataMgr.loadModel(f.toString(), Lang.TTL);
             System.out.println("# of triples " + m.size());
             GetMasterID();
         }
@@ -106,6 +102,7 @@ public final class HalcyonSettings {
             logger.error("Error loading settings", e);
             mode = "release"; // Default to release if there's an error
         }
+        GetResourceHandlers();
     }
 
     public String getwebfiles() {
@@ -178,12 +175,20 @@ public final class HalcyonSettings {
     }
 
     public static HalcyonSettings getSettings() {
+        File file = new File(MasterSettingsLocation);
         if (settings == null) {
-            settings = new HalcyonSettings();
+            settings = new HalcyonSettings(file);
         }
         return settings;
     }
 
+    public static HalcyonSettings getSettings(File file) {
+        if (settings == null) {
+            settings = new HalcyonSettings(file);
+        }
+        return settings;
+    }    
+    
     public void GenerateDefaultSettings() {
         m = ModelFactory.createDefaultModel();
         Master = m.createResource(DEFAULTHOSTNAME);
@@ -252,12 +257,12 @@ public final class HalcyonSettings {
         ParameterizedSparqlString pss = new ParameterizedSparqlString(
                 """
                 select distinct ?resourceBase ?urlPath where {
-                    ?s :hasResourceHandler [ a ldp:Container; :resourceBase ?resourceBase ; :urlPath ?urlPath ]
+                    ?s :hasResourceHandler [ a lws:Container; :resourceBase ?resourceBase ; :urlPath ?urlPath ]
                 }
                 """
         );
         pss.setNsPrefix("", HAL.NS);
-        pss.setNsPrefix("ldp", LDP.NS);
+        pss.setNsPrefix("lws", LWS.NS);
         QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m);
         ResultSet results = qe.execSelect();
         ArrayList<ResourceHandler> list = new ArrayList<>();
@@ -285,12 +290,12 @@ public final class HalcyonSettings {
         ParameterizedSparqlString pss = new ParameterizedSparqlString(
                 """
                 select distinct ?urlPath where {
-                    ?s :hasResourceHandler [ a ldp:Container; :resourceBase ?resourceBase ; :urlPath ?urlPath ]
+                    ?s :hasResourceHandler [ a lws:Container; :resourceBase ?resourceBase ; :urlPath ?urlPath ]
                 } order by ?urlPath
                 """
         );
         pss.setNsPrefix("", HAL.NS);
-        pss.setNsPrefix("ldp", LDP.NS);
+        pss.setNsPrefix("lws", LWS.NS);
         QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m);
         ResultSet results = qe.execSelect().materialise();
         boolean ha = results.hasNext();

@@ -1,6 +1,6 @@
 package com.ebremer.halcyon.gui.tree.content;
 
-import com.ebremer.ethereal.xNode;
+import com.ebremer.vandegraph.xNode;
 import java.util.Optional;
 import org.apache.wicket.Component;
 import org.apache.wicket.ajax.AjaxRequestTarget;

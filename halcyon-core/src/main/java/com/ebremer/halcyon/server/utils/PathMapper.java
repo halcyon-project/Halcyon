@@ -1,6 +1,7 @@
 package com.ebremer.halcyon.server.utils;
 
 import com.ebremer.halcyon.lib.OperatingSystemInfo;
+import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
@@ -22,8 +23,7 @@ public class PathMapper {
     private final List<PathMap> sortByFile;
     private final String hostname;
     
-    private PathMapper() {
-        HalcyonSettings settings = HalcyonSettings.getSettings();
+    private PathMapper(HalcyonSettings settings) {        
         hostname = settings.getHostName();
         sortByHttp = settings.gethttp2fileMappings().entrySet().stream()
                       .sorted(Map.Entry.comparingByKey())
@@ -98,7 +98,7 @@ public class PathMapper {
         }
         return Optional.empty();
     }
-    
+        
     public Optional<URI> file2http(URI furi) {
         if (OperatingSystemInfo.ifWindows()) {
             return file2http(furi.getPath().substring(1));
@@ -107,9 +107,21 @@ public class PathMapper {
     }
     
     public static PathMapper getPathMapper() {
+        HalcyonSettings settings = HalcyonSettings.getSettings();
         if (pathmapper == null) {
-            pathmapper = new PathMapper();            
+            pathmapper = new PathMapper(settings);            
         }
         return pathmapper;
     }
+    
+    public static PathMapper getPathMapper(HalcyonSettings settings) {        
+        if (pathmapper == null) {
+            pathmapper = new PathMapper(settings);            
+        }
+        
+        pathmapper.sortByFile.forEach(p->System.out.println("by file ---> "+p));
+        pathmapper.sortByHttp.forEach(p->System.out.println("by http ---> "+p));
+        
+        return pathmapper;
+    }    
 }

@@ -44,6 +44,42 @@
         </executions>
       </plugin>
       <plugin>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <version>${maven-enforcer-plugin.version}</version>
+        <executions>
+          <execution>
+            <id>enforce</id>
+            <goals>
+              <goal>enforce</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <banDuplicatePomDependencyVersions />
+              </rules>
+            </configuration>
+          </execution>
+          <execution>
+            <id>ban-log4j-slf4j-impl</id>
+            <goals>
+              <goal>enforce</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <bannedDependencies>
+                  <searchTransitive>true</searchTransitive>
+                  <excludes>
+                    <exclude>org.apache.logging.log4j:log4j-slf4j-impl</exclude>
+                    <exclude>org.apache.logging.log4j:log4j-slf4j2-impl</exclude>
+                  </excludes>
+                  <message>Found Log4j2 SLF4J binding! This conflicts with Logback. Add exclusions to remove it.</message>
+                </bannedDependencies>
+              </rules>
+              <fail>true</fail>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
         <artifactId>maven-deploy-plugin</artifactId>
         <version>${maven-deploy-plugin.version}</version>
         <configuration>
@@ -56,14 +92,12 @@
     <dependency>
       <groupId>org.apache.jena</groupId>
       <artifactId>apache-jena-libs</artifactId>
-      <version>5.2.0</version>
+      <version>5.6.0</version>
       <type>pom</type>
       <scope>compile</scope>
     </dependency>
   </dependencies>
   <properties>
     <exec.mainClass>com.ebremer.halcyon.core.HalcyonCore</exec.mainClass>
-    <maven.compiler.target>21</maven.compiler.target>
-    <maven.compiler.source>21</maven.compiler.source>
   </properties>
 </project>

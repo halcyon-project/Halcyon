@@ -7,15 +7,19 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author erich
  */
 public class TiffImageReaderFactory implements FileReaderFactory {
+    
+    private static final org.slf4j.Logger logger = LoggerFactory.getLogger(TiffImageReaderFactory.class);
 
     @Override
     public FileReader create(URI uri, URI base) {
+        logger.info("create {} {}", uri, base);
         try {
             return new TiffImageReader(uri, base);
         } catch (IOException ex) {
@@ -26,6 +30,7 @@ public class TiffImageReaderFactory implements FileReaderFactory {
     
     @Override
     public FileReader create(SeekableByteChannel src, URI base) {
+        logger.info("create(SeekableByteChannel src, URI base) {} {}", src, base);
         throw new UnsupportedOperationException("Not supported yet.");
     }
 

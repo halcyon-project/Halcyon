@@ -13,9 +13,10 @@ import org.springframework.context.annotation.Configuration;
  *
  * @author erich
  */
-@Configuration
+//@Configuration
 public class DisableSniHostCheckConfiguration {
 
+    /*
     @Bean
     WebServerFactoryCustomizer<JettyServletWebServerFactory> disableSniHostCheck() {
         return (factory) -> {
@@ -34,5 +35,5 @@ public class DisableSniHostCheckConfiguration {
                 }
             });
         };
-    }
+    }*/
 }

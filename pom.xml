@@ -11,7 +11,6 @@
     <modules>
         <module>halcyon-core</module>
         <module>Halcyon</module>
-        <module>ingest</module>
     </modules>
     
     <licenses>
@@ -43,7 +42,9 @@
           <id>tdiprima</id>
           <name>Tammy DiPrima</name>
           <email>tammy.diprima@stonybrook.edu</email>
-          <roles><role>developer</role></roles>
+          <roles>
+              <role>developer</role>
+          </roles>
           <timezone>America/New_York</timezone>
           <url>https://bmi.stonybrookmedicine.edu/people/Tammy_DiPrima</url>
           <organization>Stony Brook University - Biomedical Informatics</organization>
@@ -52,7 +53,9 @@
           <id>jbalsamo</id>
           <name>Joseph Balsamo</name>
           <email>joseph.balsamo@stonybrook.edu</email>
-          <roles><role>developer</role></roles>
+          <roles>
+              <role>developer</role>
+          </roles>
           <timezone>America/New_York</timezone>
           <organization>Stony Brook University - Biomedical Informatics</organization>
         </developer>
@@ -60,7 +63,9 @@
           <id>fwang</id>
           <name>Feiqiao Wang</name>
           <email>feiqiao.wang@stonybrook.edu</email>
-          <roles><role>developer</role></roles>
+          <roles>
+              <role>developer</role>
+          </roles>
           <timezone>America/New_York</timezone>
           <organization>Stony Brook University - Biomedical Informatics</organization>
         </developer>
@@ -75,41 +80,55 @@
     
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <java.version>21</java.version>
-        <maven.compiler.release>21</maven.compiler.release>
+        <java.version>25</java.version>
+        <maven.compiler.release>25</maven.compiler.release>
         <exec.longClasspath>true</exec.longClasspath>
-        <springboot.version>3.3.1</springboot.version>
-        <keycloak.version>24.0.5</keycloak.version>        
-	<infinispan.version>15.0.5.Final</infinispan.version>
-	<resteasy.version>6.2.9.Final</resteasy.version>
-	<liquibase.version>4.27.0</liquibase.version>
-        <micrometer.version>1.13.1</micrometer.version>  <!--1.10.-->
-        <jetty.version>12.0.10</jetty.version>
-        <h2.version>2.2.224</h2.version>
-        <jena.version>5.2.0</jena.version>
-        <wicket.ver>10.2.0</wicket.ver>
-        <beakgraph.version>0.9.0</beakgraph.version>        
+        <springboot.version>3.5.12</springboot.version>
+	<resteasy.version>6.2.15.Final</resteasy.version>
+        <jetty.version>12.0.33</jetty.version>
+        <jena.version>5.6.0</jena.version>
+        <wicket.ver>10.8.0</wicket.ver>
+        <beakgraph.version>0.13.0</beakgraph.version>        
         <hilbert.ver>0.2.3</hilbert.ver>
-        <commons-pool2.ver>2.12.0</commons-pool2.ver>
-        <jakarta.json.version>2.0.1</jakarta.json.version> 
-        <parrson.json.version>1.1.6</parrson.json.version>
-        <titanium-json-ld.ver>1.4.0</titanium-json-ld.ver>
+        <commons-pool2.ver>2.12.1</commons-pool2.ver>
+        <jakarta.json.version>2.1.3</jakarta.json.version> 
+        <parrson.json.version>1.1.7</parrson.json.version>
+        <titanium-json-ld.ver>1.7.0</titanium-json-ld.ver>
         <!--<dcm4che.ver>5.31.2</dcm4che.ver>-->
         <shiro.version>2.0.1</shiro.version>
-        <jts.version>1.19.0</jts.version>
-        <twelvemonkeys.version>3.12.0</twelvemonkeys.version>
-        <jcommander.version>1.83</jcommander.version>
-        <maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
-        <maven-shade-plugin.version>3.6.0</maven-shade-plugin.version>
-        <maven-enforcer-plugin.version>3.5.0</maven-enforcer-plugin.version>
-        <maven-deploy-plugin.version>3.1.2</maven-deploy-plugin.version>
+        <jts.version>1.20.0</jts.version>
+        <twelvemonkeys.version>3.13.1</twelvemonkeys.version>
+        <maven-compiler-plugin.version>3.15.0</maven-compiler-plugin.version>
+        <maven-shade-plugin.version>3.6.1</maven-shade-plugin.version>
+        <maven-enforcer-plugin.version>3.6.2</maven-enforcer-plugin.version>
+        <maven-deploy-plugin.version>3.1.4</maven-deploy-plugin.version>
         <maven-dependency-plugin.version>3.7.0</maven-dependency-plugin.version>
-        <native-maven-plugin.version>0.10.2</native-maven-plugin.version>
-        <jpackage-maven-plugin.version>1.6.0</jpackage-maven-plugin.version>
+        <native-maven-plugin.version>0.11.4</native-maven-plugin.version>
+        <jpackage-maven-plugin.version>1.7.4</jpackage-maven-plugin.version>
     </properties>
     
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>org.apache.logging.log4j</groupId>
+                <artifactId>log4j-api</artifactId>
+                <version>2.25.3</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-pool2</artifactId>
+                <version>2.13.1</version>
+            </dependency>
+            <dependency>
+                <groupId>jakarta.json</groupId>
+                <artifactId>jakarta.json-api</artifactId>
+                <version>2.1.3</version>
+            </dependency>
+            <dependency>
+                <groupId>org.eclipse.parsson</groupId>
+                <artifactId>parsson</artifactId>
+                <version>${parrson.json.version}</version>
+            </dependency>            
             <dependency>
                 <groupId>org.graalvm.buildtools</groupId>
                 <artifactId>native-maven-plugin</artifactId>
@@ -143,6 +162,11 @@
                 <scope>import</scope>
             </dependency>
             <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-lang3</artifactId>
+                <version>3.20.0</version>
+            </dependency>            
+            <dependency>
                 <groupId>org.apache.jena</groupId>
                 <artifactId>apache-jena-libs</artifactId>
                 <version>${jena.version}</version>
@@ -166,64 +190,14 @@
                 <version>${jena.version}</version>
             </dependency>
             <dependency>
-                <groupId>io.micrometer</groupId>
-                <artifactId>micrometer-registry-prometheus</artifactId>
-                <version>${micrometer.version}</version>
-            </dependency>            
-            <dependency>
                 <groupId>com.github.ben-manes.caffeine</groupId>
                 <artifactId>caffeine</artifactId>
                 <version>3.1.8</version>
             </dependency>
             <dependency>
-                <groupId>org.infinispan</groupId>
-                <artifactId>infinispan-core</artifactId>
-                <version>${infinispan.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.infinispan</groupId>
-                <artifactId>infinispan-api</artifactId>
-                <version>${infinispan.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.infinispan</groupId>
-                <artifactId>infinispan-cachestore-remote</artifactId>
-                <version>${infinispan.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.infinispan</groupId>
-                <artifactId>infinispan-client-hotrod</artifactId>
-                <version>${infinispan.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.infinispan</groupId>
-                <artifactId>infinispan-commons</artifactId>
-                <version>${infinispan.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.infinispan</groupId>
-                <artifactId>infinispan-jboss-marshalling</artifactId>
-                <version>${infinispan.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.infinispan</groupId>
-                <artifactId>infinispan-multimap</artifactId>
-                <version>${infinispan.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.infinispan</groupId>
-                <artifactId>infinispan-query-dsl</artifactId>
-                <version>${infinispan.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.infinispan</groupId>
-                <artifactId>infinispan-remote-query-client</artifactId>
-                <version>${infinispan.version}</version>
-            </dependency>
-            <dependency>
                 <groupId>org.projectlombok</groupId>
                 <artifactId>lombok</artifactId>
-                <version>1.18.32</version>
+                <version>1.18.40</version>
                 <scope>provided</scope>
             </dependency>
             <dependency>
@@ -232,19 +206,9 @@
                 <version>${twelvemonkeys.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.liquibase</groupId>
-                <artifactId>liquibase-core</artifactId>
-                <version>${liquibase.version}</version>
-                <exclusions>
-                    <exclusion>
-                        <groupId>org.yaml</groupId>
-                        <artifactId>snakeyaml</artifactId>
-                    </exclusion>
-                    <exclusion>
-                        <groupId>org.apache.commons</groupId>
-                        <artifactId>commons-text</artifactId>
-                    </exclusion>
-                </exclusions>
+                <groupId>com.twelvemonkeys.imageio</groupId>
+                <artifactId>imageio-psd</artifactId>
+                <version>${twelvemonkeys.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.apicatalog</groupId>
@@ -271,7 +235,7 @@
                 <groupId>org.jcommander</groupId>
                 <artifactId>jcommander</artifactId>
                 <version>${jcommander.version}</version>
-            </dependency>
+            </dependency>            
             <dependency>
                 <groupId>org.eclipse.jetty</groupId>
                 <artifactId>jetty-server</artifactId>
@@ -320,18 +284,6 @@
             <name>Halcyon</name>
             <url>https://cursus.bmi.stonybrookmedicine.edu/releases</url>
         </repository>
-        <!--
-        <repository>
-            <id>dcm4che</id>
-            <name>dcm4che</name>
-            <url>https://www.dcm4che.org/maven2</url>
-        </repository>-->
-        <!--
-        <repository>
-            <id>apache</id>
-            <name>apache</name>
-            <url>https://repository.apache.org/snapshots</url>
-        </repository>-->
     </repositories>
     <distributionManagement>
         <repository>
@@ -339,4 +291,61 @@
             <url>https://cursus.bmi.stonybrookmedicine.edu/releases</url>
         </repository>
     </distributionManagement>
+        <build>
+        <!--<finalName>library-${project.version}</finalName>-->
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>${maven-compiler-plugin.version}</version>
+                <configuration>
+                    <compilerArgs>
+                        <arg>--enable-preview</arg>
+                    </compilerArgs>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>${maven-shade-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>libraryshade</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"></transformer>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <manifestEntries>
+                                        <Multi-Release>true</Multi-Release>
+                                    </manifestEntries>
+                                </transformer>
+                            </transformers>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-deploy-plugin</artifactId>
+                <configuration>
+                    <skip>false</skip>
+                </configuration>
+                <version>${maven-deploy-plugin.version}</version>
+            </plugin>
+        </plugins>
+    </build>
 </project>

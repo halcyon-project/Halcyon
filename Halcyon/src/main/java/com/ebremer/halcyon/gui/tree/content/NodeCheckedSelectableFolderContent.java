@@ -1,6 +1,6 @@
 package com.ebremer.halcyon.gui.tree.content;
 
-import com.ebremer.ethereal.xNode;
+import com.ebremer.vandegraph.xNode;
 import com.ebremer.halcyon.gui.tree.TreexNodePropertyModel;
 import com.ebremer.ns.HAL;
 import java.util.Optional;

@@ -3,6 +3,7 @@ package com.ebremer.halcyon.wicket.ethereal;
 import com.ebremer.halcyon.datum.HalcyonPrincipal;
 import com.ebremer.halcyon.gui.HalcyonSession;
 import com.ebremer.halcyon.wicket.BasePage;
+import com.ebremer.vandegraph.dev.Stack;
 import org.apache.wicket.markup.head.IHeaderResponse;
 import org.apache.wicket.markup.head.JavaScriptHeaderItem;
 
@@ -24,7 +25,7 @@ public class Zephyr3 extends BasePage {
         response.render(JavaScriptHeaderItem.forScript(options, "options"));
         HalcyonSession hs = HalcyonSession.get();
         HalcyonPrincipal hp = hs.getHalcyonPrincipal();        
-        response.render(JavaScriptHeaderItem.forScript("var token = '"+hp.getToken()+"'; var useriri = '"+hp.getUserURI()+"'; var userName = '"+hp.getPreferredUserName()+"';", "token"));
+        response.render(JavaScriptHeaderItem.forScript("var token = '"+hp.getToken()+"'; var useriri = '"+hp.getUserURI()+"'; var userName = '"+hp.getPreferredUserName()+"';", "token"));        
         response.render(JavaScriptHeaderItem.forScript(
             """
             var config = {
@@ -53,5 +54,16 @@ public class Zephyr3 extends BasePage {
             """
             , "config")
         );
+        //DataCore dc = DataCore.getInstance();
+        //Dataset ds = dc.getDataset();        
+        //Model m = ModelFactory.createDefaultModel();
+        //ds.begin(ReadWrite.READ);
+        //m.add(ds.getNamedModel("https://localhost:8888/stack"));
+        //ds.end();
+        Stack stack = new Stack();
+        //System.out.println("==================================== START ===============================================");
+        //System.out.println(EthTool.serialize(m, "https://localhost:8888/ldp/utah/HnE/Stack2/"));
+        //System.out.println("====================================  END  ===============================================");
+        response.render(JavaScriptHeaderItem.forScript("var scenegraph = `\n"+EthTool.serialize(stack.getModel(), "https://localhost:8888/ldp/utah/HnE/Stack2/")+"\n`;", "scenegraph"));
     }
 }

@@ -1,11 +1,11 @@
 package com.ebremer.halcyon.wicket;
 
-import com.ebremer.ethereal.LDModel;
-import com.ebremer.ethereal.Solution;
-import com.ebremer.ethereal.NodeColumn;
-import com.ebremer.ethereal.RDFDetachableModel;
-import com.ebremer.ethereal.RDFRenderer;
-import com.ebremer.ethereal.SelectDataProvider;
+import com.ebremer.vandegraph.LDModel;
+import com.ebremer.vandegraph.Solution;
+import com.ebremer.vandegraph.NodeColumn;
+import com.ebremer.vandegraph.RDFDetachableModel;
+import com.ebremer.vandegraph.RDFRenderer;
+import com.ebremer.vandegraph.SelectDataProvider;
 import com.ebremer.halcyon.data.DataCore;
 import static com.ebremer.halcyon.data.DataCore.Level.OPEN;
 import com.ebremer.halcyon.datum.HalcyonPrincipal;
@@ -16,7 +16,7 @@ import com.ebremer.halcyon.pools.AccessCachePool;
 import com.ebremer.ns.EXIF;
 import com.ebremer.ns.GEO;
 import com.ebremer.ns.HAL;
-import com.ebremer.ns.LDP;
+import com.ebremer.ns.LWS;
 import com.ebremer.ns.PROVO;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -31,7 +31,6 @@ import org.apache.jena.query.ResultSet;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.vocabulary.DCTerms;
 import org.apache.jena.vocabulary.OWL;
-import org.apache.jena.vocabulary.SchemaDO;
 import org.apache.wicket.MarkupContainer;
 import org.apache.wicket.ajax.AjaxRequestTarget;
 import org.apache.wicket.ajax.form.AjaxFormComponentUpdatingBehavior;
@@ -83,7 +82,7 @@ public class ListFeatures extends Panel {
             """
             select distinct ?name ?creator
             where {
-                graph ?car {?collection ldp:contains ?s}
+                graph ?car {?collection lws:contains ?s}
               	graph ?s {?fc a geo:FeatureCollection; dct:title ?name ; prov:wasGeneratedBy/prov:wasAssociatedWith ?creator}
             }
             """
@@ -91,7 +90,7 @@ public class ListFeatures extends Panel {
         pss.setNsPrefix("owl", OWL.NS);
         pss.setNsPrefix("geo", GEO.NS);
         pss.setNsPrefix("hal", HAL.NS);
-        pss.setNsPrefix("ldp", LDP.NS);
+        pss.setNsPrefix("lws", LWS.NS);
         pss.setNsPrefix("dct", DCTerms.NS);
         pss.setNsPrefix("exif", EXIF.NS);
         pss.setNsPrefix("prov", PROVO.NS);

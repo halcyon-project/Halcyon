@@ -7,7 +7,7 @@ import com.ebremer.halcyon.lib.XMP;
 import com.ebremer.halcyon.utils.ImageTools;
 import com.ebremer.ns.EXIF;
 import com.ebremer.ns.HAL;
-import com.twelvemonkeys.imageio.metadata.Entry;
+import com.ebremer.ns.LWS;
 import com.twelvemonkeys.imageio.metadata.tiff.Rational;
 import com.twelvemonkeys.imageio.metadata.tiff.TIFF;
 import com.twelvemonkeys.imageio.plugins.tiff.TIFFImageMetadata;
@@ -33,39 +33,37 @@ import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.SchemaDO;
 import org.apache.jena.vocabulary.XSD;
+import org.slf4j.LoggerFactory;
 
 public class TiffImageReader extends AbstractImageReader {
+    private static final org.slf4j.Logger logger = LoggerFactory.getLogger(TiffImageReader.class);
     private javax.imageio.ImageReader reader;
     private final ImageMeta meta;
     private final URI uri;
+    private final URI base;
     private static final int METAVERSION = 0;
+    private long sizeInBytes;
 
     public TiffImageReader(URI uri, URI base) throws IOException {
+        logger.info("TiffImageReader(URI uri, URI base) {} {}", uri, base);
         this.uri = uri;
+        this.base = base;
         File file = new File(uri);
-        System.out.println("TIFF READER FOR ====> "+file.toString());
-        if (file.toString().contains("Stack2")) {
-            int cc = 0;
-        }
+        sizeInBytes = file.length();
         ImageInputStream input = ImageIO.createImageInputStream(file);
         Iterator<javax.imageio.ImageReader> readers = ImageIO.getImageReadersByFormatName("tif");
-        readers.forEachRemaining(rr->{
-            System.out.println("TIF READERS : "+rr.getClass().toGenericString());
-        });
-        readers = ImageIO.getImageReadersByFormatName("tif");
         javax.imageio.ImageReader ir = null;
-        while (readers.hasNext()) {
+        while (readers.hasNext()) {            
             ir = readers.next();
-            System.out.println("IMAGE CLASS --> "+ir.getClass().getCanonicalName());
+            logger.info("Reader --> {}",ir, ir.getClass().toGenericString());
             if ("com.twelvemonkeys.imageio.plugins.tiff.TIFFImageReader".equals(ir.getClass().getCanonicalName())) {
-                System.out.println("YES! : "+ir.getClass().getCanonicalName());
                 reader = ir;
             }
         }
         if (ir==null) {
+            logger.error("No reader for: {}", file);
             throw new IllegalArgumentException("No reader for: " + file);
         }
-        System.out.println("READER IS ---> "+reader.getClass().getCanonicalName());
         reader.setInput(input);            
         ImageMeta.Builder builder = ImageMeta.Builder.getBuilder(0, reader.getWidth(0), reader.getHeight(0))
             .setTileSizeX(reader.getTileWidth(0))
@@ -120,11 +118,17 @@ public class TiffImageReader extends AbstractImageReader {
         m.setNsPrefix("sdo", SchemaDO.NS);
         m.setNsPrefix("hal", HAL.NS);
         m.setNsPrefix("xsd", XSD.getURI());
-        Resource root = m.createResource(URITools.fix(xuri))                
-            .addLiteral(HAL.filemetaversion, (Integer) METAVERSION)
-            .addLiteral(EXIF.width, meta.getWidth())
-            .addLiteral(EXIF.height, meta.getHeight())
-            .addProperty(RDF.type, SchemaDO.ImageObject);        
+        Resource bnode = m.createResource();
+        Resource root = m.createResource(URITools.fix(base))              
+            .addProperty(LWS.representation, bnode)
+            .addLiteral(HAL.filemetaversion, m.createTypedLiteral( METAVERSION, XSD.integer.getURI()))
+            .addLiteral(EXIF.width, m.createTypedLiteral(meta.getWidth(), XSD.integer.getURI()))
+            .addLiteral(EXIF.height, m.createTypedLiteral(meta.getHeight(), XSD.integer.getURI()))
+            .addProperty(RDF.type, LWS.DataResource)
+            .addProperty(RDF.type, SchemaDO.ImageObject);
+        bnode
+            .addProperty(LWS.mediaType, "image/tiff")
+            .addLiteral(LWS.sizeInBytes, sizeInBytes);
         TIFFImageReader rr = (TIFFImageReader) reader;        
         TIFFImageMetadata td;
         try {

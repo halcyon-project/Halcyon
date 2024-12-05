@@ -14,6 +14,7 @@ public class JwtRealm extends AuthorizingRealm {
 
     @Override
     public boolean supports(AuthenticationToken token) {
+        System.out.println("supports");
         return token instanceof JwtToken;
     }
 
@@ -25,6 +26,7 @@ public class JwtRealm extends AuthorizingRealm {
 
     @Override
     protected AuthenticationInfo doGetAuthenticationInfo(AuthenticationToken token) {
+        System.out.println("doGetAuthenticationInfo");
         JwtToken jwtToken = (JwtToken) token;
         String jwt = jwtToken.getJwt();
         try {

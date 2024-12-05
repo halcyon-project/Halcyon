@@ -11,6 +11,7 @@ public class FileUtils {
         if (lastDotIndex == -1 || lastDotIndex == input.length() - 1) {
             return "";
         }
-        return input.substring(lastDotIndex + 1);
+        String haha = input.substring(lastDotIndex + 1);
+        return haha;
     }
 }

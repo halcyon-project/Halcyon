@@ -80,12 +80,12 @@ public class TileEngine implements AutoCloseable {
         BackgroundDetector.Dump(bimask, Path.of("/dump/mask.png"));        
         this.mask = BackgroundDetector.getBooleanMask(thumb, tolerance);
         ImageReaderPool.getPool().returnObject(uri, ir);
-        tre = new TileRequestEngine(uri);
+        tre = TileRequestEngine.getInstance();
     }
     
     @Override
     public void close() throws Exception {
-        tre.close();
+        tre.shutdown();
     }
     
     private Stream<Pair> streamPairs(Polygon[] polygons, Options options) {
@@ -110,9 +110,10 @@ public class TileEngine implements AutoCloseable {
     }
     
     private Stream<Tile> Pairs2Tiles(Stream<Pair> pairs) {
-        return pairs.parallel()
-                .map(pair -> tre.getTile(new ImageRegion(pair.x(),pair.y(),tileSizeX,tileSizeY), new Rectangle(tileSizeX,tileSizeY), cache, true))
-                .filter(tile -> (tile!=null));
+       // return pairs.parallel()
+         //       .map(pair -> tre.getTile(new ImageRegion(pair.x(),pair.y(),tileSizeX,tileSizeY), new Rectangle(tileSizeX,tileSizeY), cache, true))
+           //     .filter(tile -> (tile!=null));
+        return null;
     }
     
     public Stream<Tile> stream(Polygon[] polygons, Options options) {
@@ -183,7 +184,8 @@ public class TileEngine implements AutoCloseable {
             });
             if (!as.isEmpty()) {
                 //System.out.println("COOL == " +as);
-                Tile tile = tre.getTile(new ImageRegion(pair.x(),pair.y(),tileSizeX,tileSizeY), new Rectangle(tileSizeX,tileSizeY), cache, true);
+                //Tile tile = tre.getTile(new ImageRegion(pair.x(),pair.y(),tileSizeX,tileSizeY), new Rectangle(tileSizeX,tileSizeY), cache, true);
+                Tile tile = null;
                 final BufferedImage bi = new BufferedImage(tileSizeX, tileSizeY, BufferedImage.TYPE_INT_RGB);
                 //final BufferedImage bi = GeometryTools.copyBufferedImage(tile.getBufferedImage());
                 Graphics2D g = bi.createGraphics();               

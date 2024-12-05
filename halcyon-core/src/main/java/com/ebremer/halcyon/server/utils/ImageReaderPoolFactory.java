@@ -27,7 +27,7 @@ public class ImageReaderPoolFactory<K, V> extends BaseKeyedPooledObjectFactory<U
     
     @Override
     public ImageReader create(URI uri) throws Exception {
-        logger.debug("creating "+uri);
+        logger.trace("creating {}", uri);
         String getthis;
         Optional<URI> x = PathMapper.getPathMapper().http2file(uri);
         if (x.isPresent()) {
@@ -40,15 +40,16 @@ public class ImageReaderPoolFactory<K, V> extends BaseKeyedPooledObjectFactory<U
             getthis = uri.toString();
         }
         URI xuri = (new File(getthis)).toURI();
-        logger.debug("translated "+xuri);
+        logger.trace("translated "+xuri);
         switch (xuri.getScheme()) {
-            case "file":
-                String ext = FileUtils.getExtension(getthis);
+            case "file" -> {
+                String ext = FileUtils.getExtension(getthis.replace("/", ""));
                 if (FileReaderFactoryProvider.contains(ext)) {
                     return (ImageReader) FileReaderFactoryProvider.getReaderForFormat(ext).create(xuri, uri);
                 }
                 throw new Error("Don't know how to handle extensions with : "+ext);
-            default: throw new Error("don't know how to handle --> "+uri.getScheme());
+            }
+            default -> throw new Error("don't know how to handle --> "+uri.getScheme());
         }
     }
 
@@ -59,9 +60,9 @@ public class ImageReaderPoolFactory<K, V> extends BaseKeyedPooledObjectFactory<U
     
    @Override
     public void destroyObject(URI key, PooledObject p, DestroyMode mode) throws Exception {
+        logger.debug("destroyObject {}", key);
         ImageReader nt = (ImageReader) p.getObject();
         nt.close();
         super.destroyObject(key, p, mode);
     }  
 }
-

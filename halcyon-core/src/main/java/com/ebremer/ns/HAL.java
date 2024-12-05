@@ -62,7 +62,6 @@ public class HAL {
     public static final Property hasResourceHandler = m.createProperty(NS+"hasResourceHandler");
     public static final Property urlPath = m.createProperty(NS+"urlPath");
     public static final Property resourceBase = m.createProperty(NS+"resourceBase");
-    public static final Property fileLastModified = m.createProperty(NS+"fileLastModified");
     public static final Property validFile = m.createProperty(NS+"validFile");
     public static final Property halcyonVersion = m.createProperty(NS+"halcyonVersion");
     public static final Property mode = m.createProperty(NS+"mode");

@@ -1,6 +1,6 @@
 package com.ebremer.halcyon.gui.tree;
 
-import com.ebremer.ethereal.xNode;
+import com.ebremer.vandegraph.xNode;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.HashSet;

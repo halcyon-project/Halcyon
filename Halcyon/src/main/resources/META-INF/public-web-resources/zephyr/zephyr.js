@@ -18,6 +18,9 @@ import {
     FileLoader,
     LinearFilter,
     Box3,
+    Sprite,
+    SpriteMaterial,
+    CanvasTexture,    
     Texture,
     ShaderMaterial,
     Color,
@@ -26,24 +29,25 @@ import {
     NearestFilter
 } from 'three';
 
+export const TileSize = 512;
+
 function srcurl(src, x, y, w, h, tilex, tiley, scale, name) {
-    // if (name.startsWith("ROOT/SE/")) console.log("      Image( "+name+" "+x+" "+y+" "+w+" "+h+" "+tilex+" "+tiley+" "+scale+" )");
     const a = Math.trunc(w);
     const b = Math.trunc(h);
     const m = Math.trunc(Math.round(w * scale));
     const n = Math.trunc(Math.round(h * scale));
     if ((w < 1) || (h < 1)) {
         const canvas = document.createElement('canvas');
-        canvas.width = canvas.height = 256;
+        canvas.width = canvas.height = TileSize;
         const ctx = canvas.getContext('2d');
         ctx.fillStyle = 'green';
-        ctx.fillRect(0, 0, 256, 256);
-        ctx.clearRect(0, 0, 256, 256);
+        ctx.fillRect(0, 0, TileSize, TileSize);
+        ctx.clearRect(0, 0, TileSize, TileSize);
         const newTexture = new Texture(canvas);
         newTexture.needsUpdate = true;
         return newTexture;
     } else {
-        const ha = `${src}/${x},${y},${a},${b}/!${m},${n}/0/default.png`;
+        const ha = `/iiif/?iiif=${src}/${x},${y},${a},${b}/!${m},${n}/0/default.png`;
         return new TextureLoader().load(ha,
             (texture) => {
                 // if ( texture.image.width !== texture.image.height ) {
@@ -56,7 +60,6 @@ function srcurl(src, x, y, w, h, tilex, tiley, scale, name) {
                 texture.needsUpdate = true;
                 const wratio = tilex / texture.image.width;
                 const hratio = tiley / texture.image.height;
-                //  console.log("RATIO : "+wratio+" "+hratio+"      "+texture.image.width+" "+texture.image.height+" "+tilex+" "+tiley+"  "+scale);
                 texture.repeat.set(wratio, hratio);
                 texture.offset.set(0, 1 - hratio);
                 //}
@@ -138,22 +141,22 @@ function getRandomNumberBetween(a, b) {
 
 function CreateStackViewer(renderer, scene, urls, offset) {
     console.log("CreateStackViewer : "+urls+" offset -> "+offset);
-    var group = new Group();
+    var stackviewer = new StackViewer();
     var off = offset;
     urls.forEach((url) => {
         console.log(url);        
-        AddImageViewer(group, url, off);
+        AddImageViewer(stackviewer, url, off);
         off = off + 2000;
     });
-    scene.add(group);
-    group.position.x = 5000;
-    group.position.y = 5000;
-    group.position.z = 5000;
+    scene.add(stackviewer);
+    stackviewer.position.x = 5000;
+    stackviewer.position.y = 5000;
+    stackviewer.position.z = 5000;
 }
 
-function AddImageViewer(group, url, offset) {
+function AddImageViewer(stackviewer, url, offset) {
   console.log("AddImageViewer Xc : "+url+" offset -> "+offset);
-  var target = url + "/info.json";
+  var target = "/iiif/?iiif=" + url + "/info.json";
   fetch(target)
     .then(response => response.json())
     .then(data => {
@@ -172,13 +175,19 @@ function AddImageViewer(group, url, offset) {
       lod.frustrumCulled = false;
       lod.scale.x = w;
       lod.scale.y = w;
-      group.add(lod);
+      
+      lod.onBeforeRender = function (renderer, scene, camera, geometry, material, group) {
+            console.log('Object is about to be rendered');
+            material.color.set(Math.random() * 0xffffff);
+      };
+      
+      stackviewer.addLayer(lod);
       lod.position.z = offset;
     }).catch(error => console.error('Error fetching data:', error));
 }
 
 function CreateImageViewer(renderer, scene, url, offset) {
-    var target = url + "/info.json";
+    var target = "/iiif/?iiif=" + url + "/info.json";
     fetch(target)
         .then(response => response.json())
         .then(data => {
@@ -287,35 +296,6 @@ class ImageViewer extends LOD {
     }
 }
 
-function CreateFeatureViewer(renderer, scene, url, offset) {
-    //   console.log("Running CreateFeatureViewer");
-    /*
-    Cache.enabled = true;
-    var target = url + "/info.json";
-    fetch(target)
-        .then(response => response.json())
-        .then(data => {
-            const x = 0;
-            const y = 0;
-            const w = data.width;
-            const h = data.height;
-            const offset = 0;
-            const tilex = data.tiles[0].width;
-            const tiley = data.tiles[0].height;
-            const lod = new FeatureViewer(renderer, scene, url, x, y, w, h, tilex, tiley, offset, data, 0);
-            lod.name = "FeatureViewer";
-            lod.imageWidth = w;
-            lod.imageHeight = h;
-            lod.url = url;
-            lod.frustrumCulled = false;
-            scene.add(lod);
-            // lod.position.x = 100;
-            // lod.position.y = 100;
-            lod.position.z = 1;
-        }).catch(error => console.error('Error fetching data:', error));
-     */
-}
-
 class FeatureViewer extends LOD {
     constructor(renderer, scene, url, x, y, w, h, tilex, tiley, offset, info, level) {
         super();
@@ -416,4 +396,123 @@ class FeatureViewer extends LOD {
     }
 }
 
-export { Square, CreateImageViewer, CreateStackViewer, CreateFeatureViewer, createPolygon, DrawAxis };
+function addXAxis() {
+    const points = [
+        new Vector3(-100000, 0, 0),
+        new Vector3(100000, 0, 0)
+    ];    
+    const geometry = new BufferGeometry().setFromPoints(points);
+    const material = new LineBasicMaterial({ color: 0x00ff00 });
+    const line = new Line(geometry, material);
+    const label = MakeText("X");   
+    label.position.x = 20000;    
+    line.add(label);
+    return line;
+}
+
+function addYAxis() {
+    const points = [
+        new Vector3(0, -100000, 0),
+        new Vector3(0, 100000, 0)
+    ];    
+    const geometry = new BufferGeometry().setFromPoints(points);
+    const material = new LineBasicMaterial({ color: 0x00ff00 });
+    const line = new Line(geometry, material);
+    const label = MakeText("Y");   
+    label.position.y = 20000;    
+    line.add(label);    
+    return line;
+}
+
+function addZAxis() {
+    const points = [
+        new Vector3(0, 0, -100000),
+        new Vector3(0, 0, 100000)
+    ];    
+    const geometry = new BufferGeometry().setFromPoints(points);
+    const material = new LineBasicMaterial({ color: 0x00ff00 });
+    const line = new Line(geometry, material);
+    const label = MakeText("Z");
+    label.position.z = 20000;    
+    line.add(label);
+    return line;
+}
+
+function MakeText(text) {
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    context.font = 'Bold 48px Arial';
+    context.fillStyle = 'white';
+    context.fillText(text, 50, 50);
+    const texture = new CanvasTexture(canvas);
+    const material = new SpriteMaterial({ map: texture });
+    const sprite = new Sprite(material);
+    sprite.scale.set(10000, 10000, 10000); // Adjust size
+    return sprite;
+}
+
+class Stack extends Object3D {
+    
+    elayers = [];
+    
+    createUX() {
+        let myDiv = document.createElement("div");
+        myDiv.style.width = '100%';
+        myDiv.style.color = 'lightblue';
+        myDiv.style.margin = '0';
+        let canvas = document.querySelector('canvas');
+        document.body.insertBefore(myDiv, canvas);                
+        let slider = document.createElement("input");
+        slider.id = "slider123";
+        slider.type = "range";
+        slider.min = "1";
+        slider.value = 10;
+        slider.max = "100";
+        this.offset = 0;
+        slider.classList.add("annotationBtn");
+        slider.addEventListener('input', (event) => {
+            console.log(`Final value selected: ${event.target.value}`);
+            this.scale.z = (event.target.value / 10);
+        });    
+        myDiv.appendChild(slider);
+        console.log("StackViewer ID : "+this.id);
+    }
+    
+    constructor(we, statement) {
+        super();
+        this.store = we.getStore();        
+        this.type = 'StackViewer';
+        this.spacing = 1.0;        
+        this.createUX();
+        this.add(addXAxis());
+        this.add(addYAxis());
+        this.add(addZAxis());
+        //this.add(MakeText('XYZ'));        
+        this.ListImages(statement.subject);
+    }
+    
+    setSpacing( value ) {
+        this.spacing = value;
+    }
+    
+    addLayer( object ) {
+        this.elayers.push( object );
+        this.add( object );
+    }
+
+    ListImages(subject) {
+        console.log("LIST IMAGES ==========================");
+        const zeph = $rdf.Namespace('https://halcyon.is/zephyr/ns/');
+        const layers = this.store.match(subject, zeph('layers'), null);
+        const layerList = layers[0].object.elements;
+        layerList.forEach(layerName => {
+            const image = this.store.match(layerName, zeph('src'), null);
+            const ii = image[0].object.value;
+            console.log("Image : "+ ii);
+            AddImageViewer(this, ii, this.offset);
+            this.offset = this.offset + 2000;
+        });
+    }
+}
+
+export { Square, CreateImageViewer, CreateStackViewer, createPolygon, DrawAxis, Stack };

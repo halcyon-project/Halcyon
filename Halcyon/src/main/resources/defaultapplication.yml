@@ -50,9 +50,14 @@ spring:
             password: "password"
             type: "JKS"            
 logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    
   file:
     name: logs/halcyon.log
     max-size: 100MB
     max-history: 10
   level:
-    root: ERROR
+    root: OFF
+    com.ebremer.halcyon.filesystem: OFF

@@ -1,3 +1,5 @@
 com.ebremer.halcyon.filereaders.TiffImageReaderFactory
-com.ebremer.halcyon.filereaders.BeakGraphReaderFactory
-com.ebremer.halcyon.filereaders.ROCImageReaderFactory
+com.ebremer.halcyon.filereaders.BeakGraphImageReaderFactory
+com.ebremer.halcyon.filereaders.RDFFileReaderFactory
+com.ebremer.halcyon.filereaders.RDFImageReaderFactory
+com.ebremer.halcyon.filereaders.PSBImageReaderFactory

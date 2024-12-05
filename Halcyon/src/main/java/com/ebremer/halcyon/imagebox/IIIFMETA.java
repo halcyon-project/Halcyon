@@ -7,12 +7,9 @@ import com.apicatalog.jsonld.JsonLdVersion;
 import com.apicatalog.jsonld.document.Document;
 import com.apicatalog.jsonld.document.JsonDocument;
 import com.apicatalog.jsonld.document.RdfDocument;
-import com.ebremer.halcyon.filereaders.ROCImageReader;
 import static com.ebremer.halcyon.imagebox.IIIFUtils.IIIFAdjust;
 import com.ebremer.halcyon.lib.ImageMeta;
 import com.ebremer.halcyon.lib.ImageMeta.ImageScale;
-import com.ebremer.halcyon.filereaders.ImageReader;
-import com.ebremer.halcyon.wicket.ListImages;
 import com.ebremer.ns.EXIF;
 import com.ebremer.ns.GEO;
 import com.ebremer.ns.IIIF;
@@ -142,8 +139,8 @@ public class IIIFMETA {
     public static void main(String[] args) throws Exception {
         File file2 = new File("/HalcyonStorage/nuclearsegmentation2019/coad/TCGA-CM-5348-01Z-00-DX1.2ad0b8f6-684a-41a7-b568-26e97675cce9.zip");
         URI uri = file2.toURI();
-        ImageReader ir = new ROCImageReader(uri,null);
-        ImageMeta meta = ir.getImageMeta();
-        System.out.println(GetImageInfo(new URI("https://beak.bmi.stonybrook.edu/iiif/?iiif=https://beak.bmi.stonybrook.edu/Storage/images/tcga_data/ov/TCGA-04-1342-01A-01-TS1.66421418-fc94-4215-9ab1-6398f710f6ca.svs"),meta));
+//        ImageReader ir = new ROCImageReader(uri,null);
+  //      ImageMeta meta = ir.getImageMeta();
+    //    System.out.println(GetImageInfo(new URI("https://beak.bmi.stonybrook.edu/iiif/?iiif=https://beak.bmi.stonybrook.edu/Storage/images/tcga_data/ov/TCGA-04-1342-01A-01-TS1.66421418-fc94-4215-9ab1-6398f710f6ca.svs"),meta));
     }
 }

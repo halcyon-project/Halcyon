@@ -12,8 +12,6 @@
 
     <properties>
         <exec.mainClass>com.ebremer.halcyon.core.HalcyonCore</exec.mainClass>
-        <maven.compiler.source>21</maven.compiler.source>
-        <maven.compiler.target>21</maven.compiler.target>
     </properties>
     <dependencies>
         <dependency>
@@ -25,6 +23,16 @@
             <groupId>org.apache.jena</groupId>
             <artifactId>jena-querybuilder</artifactId>
             <type>jar</type>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>jcl-over-slf4j</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-api</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.apache.jena</groupId>
@@ -34,7 +42,7 @@
         <dependency>
             <groupId>org.apache.jena</groupId>
             <artifactId>jena-fuseki-main</artifactId>
-        </dependency>
+        </dependency>                
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-pool2</artifactId>
@@ -65,25 +73,20 @@
         <dependency>
             <groupId>com.twelvemonkeys.imageio</groupId>
             <artifactId>imageio-tiff</artifactId>
-        </dependency>
+        </dependency>        
         <dependency>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-api</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-core</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-slf4j-impl</artifactId>
-        </dependency>
+            <groupId>com.twelvemonkeys.imageio</groupId>
+            <artifactId>imageio-psd</artifactId>
+        </dependency>  
         <dependency>
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-registry-prometheus</artifactId>
         </dependency>
-
-    </dependencies>
+        <dependency>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>jackson-dataformat-yaml</artifactId>
+        </dependency>      
+    </dependencies>    
     <build>
         <!--<finalName>library-${project.version}</finalName>-->
         <plugins>
@@ -121,6 +124,43 @@
                     </execution>
                 </executions>
             </plugin>
+<plugin>
+    <groupId>org.apache.maven.plugins</groupId>
+    <artifactId>maven-enforcer-plugin</artifactId>
+    <version>${maven-enforcer-plugin.version}</version>
+    <executions>
+        <execution>
+            <id>enforce</id>
+            <goals>
+                <goal>enforce</goal>
+            </goals>
+            <configuration>
+                <rules>
+                    <banDuplicatePomDependencyVersions/>
+                </rules>
+            </configuration>
+        </execution>
+        <execution>
+            <id>ban-log4j-slf4j-impl</id>
+            <goals>
+                <goal>enforce</goal>
+            </goals>
+            <configuration>
+                <rules>
+                    <bannedDependencies>
+                        <searchTransitive>true</searchTransitive>
+                        <excludes>
+                            <exclude>org.apache.logging.log4j:log4j-slf4j-impl</exclude>
+                            <exclude>org.apache.logging.log4j:log4j-slf4j2-impl</exclude>
+                        </excludes>
+                        <message>Found Log4j2 SLF4J binding! This conflicts with Logback. Add exclusions to remove it.</message>
+                    </bannedDependencies>
+                </rules>
+                <fail>true</fail>
+            </configuration>
+        </execution>
+    </executions>
+</plugin>      
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-deploy-plugin</artifactId>

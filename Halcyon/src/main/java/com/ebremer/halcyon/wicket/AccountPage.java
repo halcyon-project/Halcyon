@@ -15,7 +15,7 @@ public class AccountPage extends BasePage {
             @Override
             public void onComponentTag(ComponentTag tag) {
                 super.onComponentTag(tag);
-                tag.put("src", "/auth/realms/"+HalcyonSettings.realm+"/account");
+                tag.put("src", "/auth/realms/"+HalcyonSettings.REALM+"/account");
             }
         }); 
         

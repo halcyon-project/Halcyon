@@ -52,6 +52,7 @@ public class HalcyonResourceConfiguration implements WebMvcConfigurer {
         }
         registry.addResourceHandler("/threejs/**").addResourceLocations("classpath:/META-INF/public-web-resources/threejs/");
         registry.addResourceHandler("/images/**").addResourceLocations("classpath:/META-INF/public-web-resources/images/");
+        registry.addResourceHandler("/rdflib/**").addResourceLocations("classpath:/META-INF/public-web-resources/rdflib/");
         registry.addResourceHandler("/favicon.ico").addResourceLocations("classpath:/META-INF/public-web-resources/favicon.ico");
         //registry.addResourceHandler("/HalcyonStorage/**").addResourceLocations("file:/D:/HalcyonStorage/");
     }

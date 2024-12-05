@@ -38,7 +38,7 @@ public class Cool {
     public HalcyonSessionListener httpSessionListener() {
         return new HalcyonSessionListener();
     }
-    
+   
     @Bean
     public Config config() {
         final KeycloakOidcConfiguration keyconfig = new KeycloakOidcConfiguration();
@@ -46,7 +46,7 @@ public class Cool {
         keyconfig.setRealm("Halcyon");
         keyconfig.setConnectTimeout(10000);
         keyconfig.setReadTimeout(10000);    
-        keyconfig.setBaseUri(HalcyonSettings.getSettings().getAuthServer()+"/auth");
+        keyconfig.setBaseUri(HalcyonSettings.getSettings().getAuthServer());
         if (HalcyonSettings.getSettings().isHTTPS2enabled()) {
             keyconfig.setSslSocketFactory(defaultSslBundleRegistry.getBundle("server").createSslContext().getSocketFactory());
         }

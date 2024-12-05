@@ -9,7 +9,7 @@ import org.apache.wicket.request.cycle.RequestCycle;
 import org.apache.wicket.request.mapper.parameter.PageParameters;
 import org.apache.wicket.util.resource.IResourceStream;
 import org.apache.wicket.util.resource.StringResourceStream;
-import org.keycloak.KeycloakSecurityContext;
+//import org.keycloak.KeycloakSecurityContext;
 
 /**
  *

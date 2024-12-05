@@ -1,6 +1,6 @@
 package com.ebremer.halcyon.gui.tree;
 
-import com.ebremer.ethereal.xNode;
+import com.ebremer.vandegraph.xNode;
 import com.ebremer.halcyon.data.DataCore;
 import com.ebremer.halcyon.datum.Patterns;
 import com.ebremer.halcyon.gui.Collections;

@@ -10,7 +10,6 @@ import com.apicatalog.jsonld.JsonLdEmbed;
 import com.apicatalog.jsonld.JsonLdError;
 import com.apicatalog.jsonld.JsonLdOptions;
 import com.apicatalog.jsonld.JsonLdVersion;
-import com.apicatalog.jsonld.api.CompactionApi;
 import com.apicatalog.jsonld.api.FramingApi;
 import com.apicatalog.jsonld.document.Document;
 import com.apicatalog.jsonld.document.JsonDocument;
@@ -26,27 +25,15 @@ import jakarta.json.JsonWriter;
 import jakarta.json.JsonWriterFactory;
 import jakarta.json.stream.JsonGenerator;
 import java.io.FileInputStream;
-import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.util.Map;
-import java.util.zip.GZIPInputStream;
-import org.apache.jena.atlas.json.JsonObject;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.DatasetFactory;
 //import org.apache.jena.riot.JsonLDWriteContext;
 import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
-import org.apache.jena.riot.RDFFormat;
-import org.apache.jena.riot.RDFWriter;
-import org.apache.jena.riot.RDFWriterBuilder;
 import org.apache.jena.riot.system.JenaTitanium;
-import org.apache.jena.riot.system.PrefixMap;
-import org.apache.jena.riot.writer.JsonLD11Writer;
 import org.apache.jena.sparql.core.DatasetGraph;
-import org.apache.jena.sparql.util.Context;
-import org.apache.jena.vocabulary.SchemaDO;
 import org.apache.jena.vocabulary.XSD;
-import org.slf4j.LoggerFactory;
 
 /**
  *

@@ -1,17 +1,12 @@
 package com.ebremer.halcyon.filereaders;
 
 import com.ebremer.halcyon.lib.URITools;
-import com.ebremer.rocrate4j.ROCrateReader;
 import java.io.File;
-import java.io.IOException;
 import java.net.URI;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import org.apache.jena.query.ParameterizedSparqlString;
 import org.apache.jena.rdf.model.Model;
-import org.apache.jena.update.UpdateAction;
 import org.apache.jena.update.UpdateFactory;
 import org.apache.jena.update.UpdateRequest;
 
@@ -30,9 +25,9 @@ public class BeakGraphFileReader extends AbstractFileReader {
         File file = new File(xuri);
         String fixb = URITools.fix(file);
         String fixe = URITools.fix(file)+"/";
-        try (ROCrateReader roc = new ROCrateReader(uri)) {
-            if (roc.hasManifest()) {
-                Model z = roc.getManifest();
+    //    try (ROCrateReader roc = new ROCrateReader(uri)) {
+         //   if (roc.hasManifest()) {
+           //     Model z = roc.getManifest();
                 UpdateRequest update = UpdateFactory.create();
                 ParameterizedSparqlString pss = new ParameterizedSparqlString("""
                     delete {?s ?p ?o}
@@ -54,12 +49,12 @@ public class BeakGraphFileReader extends AbstractFileReader {
                 pss.setIri("o", fixe);
                 pss.setIri("neo", fixb);
                 update.add(pss.toString());
-                UpdateAction.execute(update, z);
-                return z;
-            }
-        } catch (IOException ex) {
-            Logger.getLogger(BeakGraphFileReader.class.getName()).log(Level.SEVERE, null, ex);
-        }
+             //   UpdateAction.execute(update, z);
+               // return z;
+         //   }
+   //     } catch (IOException ex) {
+   //         Logger.getLogger(BeakGraphFileReader.class.getName()).log(Level.SEVERE, null, ex);
+//        }
         return null;
     }
     
@@ -70,13 +65,13 @@ public class BeakGraphFileReader extends AbstractFileReader {
 
     @Override
     public String getFormat() {
-        return "zip";
+        return "Xh5";
     }
 
     @Override
     public Set<String> getSupportedFormats() {
         Set<String> set = new HashSet<>();
-        set.add("zip");
+        set.add("Xh5");
         return set;
     }
 

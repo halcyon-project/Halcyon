@@ -45,7 +45,8 @@ public class URLControl {
             "/talon/",
             "/threejs/",
             "/rdf/",
-            "/zephyr/"
+            "/zephyr/",
+            "/rdflib/"
         };        
         return String.join(",", src);
     }

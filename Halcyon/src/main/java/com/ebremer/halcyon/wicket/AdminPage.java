@@ -15,7 +15,7 @@ public class AdminPage extends BasePage {
             @Override
             public void onComponentTag(ComponentTag tag) {
                 super.onComponentTag(tag);
-                tag.put("src", "/auth/admin/"+HalcyonSettings.realm+"/console/?response_type#/Halcyon/users");
+                tag.put("src", "/auth/admin/"+HalcyonSettings.REALM+"/console/?response_type#/Halcyon/users");
             }
         });
     }

@@ -27,13 +27,14 @@ public class HalcyonPrincipal implements Principal, Serializable {
     private String lastname;
     private String firstname;
     private String preferred_username;
-    private ArrayList<String> groups;
+    private final ArrayList<String> groups;
 
     public HalcyonPrincipal(KeycloakOidcProfile profile) {
         this(profile.getIdTokenString(),false);
     }
     
     public HalcyonPrincipal(String webid) {
+        groups = new ArrayList<>();
         useruri = webid;
         URNuuid = "ajjaja";
         uuid = "ddsds";
@@ -50,6 +51,7 @@ public class HalcyonPrincipal implements Principal, Serializable {
     }
     
     public HalcyonPrincipal(JwtToken jwttoken, boolean anonymous) {
+        groups = new ArrayList<>();
         this.token = (String) jwttoken.getCredentials();
         Claims claims = getClaims(token);
         URNuuid = "urn:uuid:"+claims.get("sub");
@@ -75,10 +77,14 @@ public class HalcyonPrincipal implements Principal, Serializable {
             preferred_username = "";
         }
         this.useruri = HalcyonSettings.getSettings().getHostName()+"/user/"+preferred_username;
-        if (claims.keySet().contains("HalcyonGroups")) {
-            groups = (ArrayList) claims.get("HalcyonGroups");
+        if (claims.keySet().contains("groups")) {
+            System.out.println("GROUPS DETECTED!!!");
+            ArrayList<String> ha = (ArrayList) claims.get("groups");
+            ha.forEach(g->System.out.println(g));
+            groups.addAll(ha);
         } else {
             firstname = "";
+            System.out.println("NNOOOOOOOOOOOOOOOOOOOOOOOO GROUPS DETECTED!!!");
         }
         if (!anonymous) {
             name = firstname+" "+lastname;
@@ -116,7 +122,7 @@ public class HalcyonPrincipal implements Principal, Serializable {
         return preferred_username;
     }
     
-    public ArrayList getGroups() {
+    public ArrayList<String> getGroups() {
         return groups;
     }
 

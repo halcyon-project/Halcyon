@@ -14,7 +14,6 @@ public class URITools {
         if (!f.startsWith("file://")) {
             f = "file:///"+ f.substring("file:/".length());
         }
-        //System.out.println("FIX furi --> "+furi+" ---> "+f);
         return f;
     } 
 

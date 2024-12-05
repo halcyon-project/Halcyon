@@ -1,13 +1,13 @@
 package com.ebremer.halcyon.wicket;
 
-import com.ebremer.ethereal.LDModel;
-import com.ebremer.ethereal.RDFDetachableModel;
-import com.ebremer.ethereal.RDFRenderer;
-import com.ebremer.ethereal.SelectDataProvider;
-import com.ebremer.ethereal.Solution;
+import com.ebremer.vandegraph.LDModel;
+import com.ebremer.vandegraph.RDFDetachableModel;
+import com.ebremer.vandegraph.RDFRenderer;
+import com.ebremer.vandegraph.SelectDataProvider;
+import com.ebremer.vandegraph.Solution;
 import com.ebremer.halcyon.datum.Patterns;
 import com.ebremer.ns.HAL;
-import com.ebremer.ethereal.NodeColumn;
+import com.ebremer.vandegraph.NodeColumn;
 import com.ebremer.halcyon.data.DataCore;
 import static com.ebremer.halcyon.data.DataCore.Level.OPEN;
 import com.ebremer.halcyon.datum.HalcyonPrincipal;
@@ -20,7 +20,7 @@ import com.ebremer.halcyon.wicket.ethereal.Zephyr2;
 import com.ebremer.halcyon.wicket.ethereal.Zephyr3;
 import com.ebremer.multiviewer.MultiViewer;
 import com.ebremer.ns.EXIF;
-import com.ebremer.ns.LDP;
+import com.ebremer.ns.LWS;
 import com.ebremer.ns.PROVO;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -84,7 +84,7 @@ public class ListImages extends BasePage implements IPanelChangeListener {
             """
             select distinct ?s ?width ?height #?md5
             where {
-                graph ?car {?collection ldp:contains ?s}
+                graph ?car {?collection lws:contains ?s}
                 graph ?s {?s a so:ImageObject;
                             owl:sameAs ?md5;
                             exif:width ?width;
@@ -96,7 +96,7 @@ public class ListImages extends BasePage implements IPanelChangeListener {
         selected = "urn:halcyon:nocollections";
         pss.setNsPrefix("owl", OWL.NS);
         pss.setNsPrefix("hal", HAL.NS);
-        pss.setNsPrefix("ldp", LDP.NS);
+        pss.setNsPrefix("lws", LWS.NS);
         pss.setNsPrefix("so", SchemaDO.NS);
         pss.setNsPrefix("exif", EXIF.NS);
         pss.setIri("car", HAL.CollectionsAndResources.getURI());
@@ -224,8 +224,9 @@ public class ListImages extends BasePage implements IPanelChangeListener {
                 public void onClick() {
                     Solution s = model.getObject();
                     String g = s.getMap().get("s").getURI();
-                    System.out.println("RAH ---> "+PathFinder.LocalPath2IIIFURL(g));
-                    setResponsePage(new Zephyr2(PathFinder.LocalPath2IIIFURL(g)));
+                    //System.out.println("RAH ---> "+PathFinder.LocalPath2IIIFURL(g));
+                    setResponsePage(new Zephyr2(g));
+                    //setResponsePage(new Zephyr2(PathFinder.LocalPath2IIIFURL(g)));
                 }
             };
             add(zephyr);
