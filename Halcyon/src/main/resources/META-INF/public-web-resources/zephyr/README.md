@@ -99,7 +99,7 @@ To add a new item (tool) to the toolbar, follow these steps:
 
 ## Usage
 
-### 1. Testing in testing.html
+### 1. Testing in demo.html
 
 - Open `demo.html` in a web browser.
 - The toolbar should load with the tools defined in the config.
