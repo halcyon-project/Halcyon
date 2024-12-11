@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<wicket:head>
+  <style>
+    body {
+      margin: 0;
+    }
+  </style>
+  <link href="/zephyr/fontawesome-free-6.6.0-web/css/all.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="/zephyr/css/main.css">
+  <script src="/zephyr/js/jsts.min.js"></script>
+</wicket:head>
+<body>
+  <wicket:extend>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "/threejs/build/three.module.js",
+                "three/addons/": "/threejs/examples/jsm/",
+                "zephyr": "/zephyr/zephyr.js"
+            }
+        }
+    </script>
+    <script type="module">
+      import * as THREE from 'three';
+      import Stats from 'three/addons/libs/stats.module.js';
+      import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+      import { TrackballControls } from 'three/addons/controls/TrackballControls.js';
+      import * as ZEPHYR from 'zephyr';
+      import { toolbar } from '/zephyr/toolbar.js';
+
+      function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        camera.updateProjectionMatrix();
+      }
+
+      THREE.Cache.enabled = true;
+      const scene = new THREE.Scene();
+
+      const camera = window._camera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 1, 80000);
+      camera.position.z = 71000;
+
+      const originalZ = camera.position.z;
+      camera.lookAt(new THREE.Vector3(0, 0, 0));
+      scene.add(camera);
+      const renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        preserveDrawingBuffer: true // Preserve the drawing buffer to capture the image later
+      });  //335.74
+      renderer.setPixelRatio(window.devicePixelRatio);
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      document.body.appendChild(renderer.domElement);
+      window.addEventListener('resize', onWindowResize);
+      let controls = new TrackballControls(camera, renderer.domElement);
+      controls.dynamicDampingFactor = 0.2; // To offer a smooth yet responsive control feel
+      // ZEPHYR.DrawAxis(scene);
+      ZEPHYR.CreateImageViewer(renderer, scene, "https://beak.bmi.stonybrook.edu/iiif/?iiif=https://beak.bmi.stonybrook.edu/ldp/Storage/images/tcga_data/brca/TCGA-A8-A08T-01Z-00-DX1.ABA1ABF2-DDB1-4E31-89DC-0F7821311D11.svs", 0);
+
+      // Example JSON config, in practice this would be fetched from the server
+      const config = {
+        toolbarEnabled: true,
+        tools: {
+          colorPalette: { enabled: true },
+          freeDrawing: { enabled: true },
+          rectangle: { enabled: true },
+          rectangleAlt: { enabled: false },
+          ellipse: { enabled: true },
+          polygon: { enabled: true },
+          hollowBrush: { enabled: true },
+          grid: { enabled: true },
+          edit: { enabled: true },
+          label: { enabled: true },
+          ruler: { enabled: true },
+          screenCapture: { enabled: true },
+          crosshairs: { enabled: true },
+          save: { enabled: true },
+          fetchAnnotations: { enabled: true },
+          zoomControl: { enabled: true },
+          brightContrast: { enabled: true },
+          getImageName: { enabled: true }
+        }
+      };
+
+      // Initialize toolbar with config
+      toolbar(scene, camera, renderer, controls, originalZ, config);
+
+      const raycaster = new THREE.Raycaster();
+      const mouse = new THREE.Vector2();
+
+      function animate() {
+        controls.update();
+        renderer.render(scene, camera);
+        requestAnimationFrame(animate);
+      }
+      animate();
+    </script>
+  </wicket:extend>
+</body>
+</html>
