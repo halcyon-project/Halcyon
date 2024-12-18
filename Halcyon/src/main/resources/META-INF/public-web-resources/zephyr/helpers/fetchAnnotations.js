@@ -1,3 +1,6 @@
+// This script exports a function to fetch, display, and manage annotations (including 
+// drag, show, hide, rename operations) for a given scene from a provided URL, with the 
+// results encapsulated in a draggable UI pop-up window.
 import { createButton } from "./elements.js";
 import { getUrl } from "./conversions.js";
 import { deserializeScene } from "./save.js";

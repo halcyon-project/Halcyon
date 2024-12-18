@@ -1,3 +1,7 @@
+// This script creates a color palette as a dropdown menu, fetches user-specific color 
+// classes if possible, and allows the user to select a colored category for cancer types, 
+// with the current selection's value and name stored in global variables. The script also 
+// includes a function to return the currently selected color and cancer type.
 export function colorPalette() {
   // Create the container for the custom dropdown
   let paletteContainer = document.createElement('div');

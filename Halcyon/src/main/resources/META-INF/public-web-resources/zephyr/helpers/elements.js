@@ -1,3 +1,5 @@
+// This code contains various functions for creating HTML elements (buttons, sliders, popups), 
+// handling user interactions, and performing operations on WebGL objects.
 export function createButton(options) {
   let myButton = document.createElement("button");
   myButton.id = options.id;

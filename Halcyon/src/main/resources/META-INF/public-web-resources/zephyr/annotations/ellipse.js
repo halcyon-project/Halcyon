@@ -1,3 +1,5 @@
+// This script draws an ellipse on a THREE.js canvas by clicking and dragging the mouse, and stops 
+// the drawing process by releasing the mouse button or switching to another annotation tool.
 import * as THREE from 'three';
 import { createButton, turnOtherButtonsOff } from "../helpers/elements.js";
 import { getMousePosition } from "../helpers/mouse.js";

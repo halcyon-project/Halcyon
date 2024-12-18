@@ -1,4 +1,6 @@
-// Conversions and calculations
+// This script includes utilities for converting coordinates between Three.js world and 2D image spaces,
+// pixel length to microns and micrometers, calculating areas and perimeters of polygons in pixels, and 
+// improving raycasting by converting a line loop to a regular line.
 import * as THREE from 'three';
 
 /**

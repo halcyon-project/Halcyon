@@ -1,3 +1,5 @@
+// This script allows for the creation and modification of rectangles in a 3D scene on user input, 
+// either through mouse events or touch events, with the option to select a region for analysis.
 import * as THREE from 'three';
 import { createButton, removeObject, turnOtherButtonsOff } from "../helpers/elements.js";
 import { getMousePosition } from "../helpers/mouse.js";

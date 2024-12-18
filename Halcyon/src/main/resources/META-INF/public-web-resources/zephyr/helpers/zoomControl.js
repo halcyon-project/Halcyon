@@ -1,3 +1,6 @@
+// This script implements functions to control an interactive 3D camera view by providing 
+// zoom functionality with a dropdown menu, a lock/unlock rotation feature, and a reset 
+// button that resets the camera view to its original position.
 import { createButton } from "./elements.js";
 
 export function zoomControl(camera, controls, originalZ) {

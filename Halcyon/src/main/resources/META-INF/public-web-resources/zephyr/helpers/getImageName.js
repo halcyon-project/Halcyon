@@ -1,3 +1,6 @@
+// Once the DOM is loaded, it attempts (up to 10 times, every 1.5 seconds) to get a URL 
+// for a specific scene, split it to extract the image name, and then displays this image 
+// name in a newly created div element, which is inserted into the body before the canvas element.
 import { getUrl } from "./conversions.js";
 
 export function getImageName(scene) {

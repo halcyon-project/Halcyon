@@ -1,6 +1,5 @@
-/**
- * Allows user to draw on an image.
- */
+// This script enables a user to freely draw closed polygons on a 3D scene using either 
+// mouse or touch events, and calculate and display the area and perimeter of these polygons.
 import * as THREE from 'three';
 import { getColorAndType } from "../helpers/colorPalette.js";
 import { createButton, turnOtherButtonsOff, displayAreaAndPerimeter } from "../helpers/elements.js";

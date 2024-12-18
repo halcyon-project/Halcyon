@@ -1,3 +1,6 @@
+// This script initializes, configures, and manages a toolbar of various annotation and helper tools that interact 
+// with a rendering scene, as well as allows user to enable/disable tools and remove the elements associated with the 
+// tools from the webpage.
 window.cancerColor = '';
 window.cancerType = '';
 

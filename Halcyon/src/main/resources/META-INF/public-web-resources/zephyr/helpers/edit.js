@@ -1,3 +1,6 @@
+// This script provides functionality for editing 3D objects within a scene by selecting 
+// them and adding edit handles, as well as deleting these objects and dynamically adjusting 
+// UI components based on user interactions.
 import * as THREE from "three";
 import { createButton, turnOtherButtonsOff } from "./elements.js";
 import { DragControls } from "three/addons/controls/DragControls.js";

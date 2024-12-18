@@ -1,3 +1,5 @@
+// This script creates a toggle button to add or remove a pair of crosshairs from a 3D scene, 
+// which can be displayed at a desired location in front of the camera's current position.
 import * as THREE from 'three';
 import { createButton } from "./elements.js";
 

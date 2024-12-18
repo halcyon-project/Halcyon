@@ -1,3 +1,6 @@
+// This script creates a user interface for adjusting the brightness and contrast of 
+// a 3D scene's objects using sliders, and applies the adjustments via a custom shader 
+// material, with an option to reset the adjustments.
 import * as THREE from 'three';
 import { createSlider, createButton, findObjectsByName } from "./elements.js";
 

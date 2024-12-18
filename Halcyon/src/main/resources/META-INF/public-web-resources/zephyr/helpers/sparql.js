@@ -1,4 +1,5 @@
-// Helper function to execute SPARQL queries
+// This code provides functionality to set and retrieve RDF annotation labels using 
+// SPARQL queries, and to get user credentials and authentication token.
 async function executeSparqlQuery(query, token, isUpdate = false) {
   const endpoint = `${window.location.origin}/rdf`;
 
