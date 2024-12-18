@@ -1,3 +1,6 @@
+// This code defines a module that adds an interactive grid overlay to a 3D scene, 
+// allowing the user to colorize squares with different colors and types, toggle the 
+// grid on and off, and remove colors from squares, used for marking areas in the visualization.
 import * as THREE from 'three';
 import { createButton, turnOtherButtonsOff } from "../helpers/elements.js";
 import { getColorAndType } from "../helpers/colorPalette.js";

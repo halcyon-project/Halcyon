@@ -1,3 +1,7 @@
+// This script creates a UI interface and event handlers for a hollow brush tool which 
+// allows the user to draw, track and render transparent circle shapes onto the scene, 
+// with the ability to adjust brush size dynamically using a slider, where the drawn circles 
+// are then combined into a single outline rendering a hollow annotation in a chosen color and cancer type.
 import * as THREE from 'three';
 import { createButton, turnOtherButtonsOff } from "../helpers/elements.js";
 import { getMousePosition } from "../helpers/mouse.js";

@@ -1,3 +1,5 @@
+// This code calculates the intersection point of a ray, originating from the camera 
+// through normalized mouse coordinates, with the plane perpendicular to the z-axis.
 import * as THREE from 'three';
 
 export function getMousePosition(clientX, clientY, canvas, camera) {

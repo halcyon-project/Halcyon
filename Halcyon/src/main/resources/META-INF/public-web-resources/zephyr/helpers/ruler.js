@@ -1,3 +1,6 @@
+// The code allows the user to interactively draw, measure and label a line using a ruler,
+// with mouse and touch support, and can dispose of the drawn line, label and measuring circle 
+// when drawing mode is turned off.
 import * as THREE from "three";
 import { FontLoader } from "three/addons/loaders/FontLoader.js";
 import { TextGeometry } from "three/addons/geometries/TextGeometry.js";

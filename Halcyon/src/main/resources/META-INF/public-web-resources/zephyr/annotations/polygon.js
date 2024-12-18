@@ -1,3 +1,4 @@
+// This function allows the user to draw polygons with their mouse or touch.
 import * as THREE from 'three';
 import { createButton, turnOtherButtonsOff } from "../helpers/elements.js";
 import { getMousePosition } from "../helpers/mouse.js";

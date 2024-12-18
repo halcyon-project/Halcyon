@@ -1,4 +1,7 @@
-// Export JSON, import JSON
+// `save` creates a button that, when clicked, serializes the scene and its annotations 
+// either to an existing file or to a new file with a label provided by the user.
+// `deserializeScene` takes an array of serialized Three.js objects, deserializes them, 
+// and adds them to a given scene.
 import * as THREE from 'three';
 import { createButton } from "./elements.js";
 import { getUrl } from "./conversions.js"
