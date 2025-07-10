@@ -1,10 +1,10 @@
 // This script draws an ellipse on a THREE.js canvas by clicking and dragging the mouse, and stops 
 // the drawing process by releasing the mouse button or switching to another annotation tool.
 import * as THREE from 'three';
-import { createButton, turnOtherButtonsOff } from "../helpers/elements.js";
-import { getMousePosition } from "../helpers/mouse.js";
-import { getColorAndType } from "../helpers/colorPalette.js";
-import { convertLineLoopToLine } from "../helpers/conversions.js";
+import { createButton, turnOtherButtonsOff } from "../../measurement/elements.js";
+import { getMousePosition } from "../../helpers/utils/mouse.js";
+import { getColorAndType } from "../../helpers/ui/colorPalette.js";
+import { convertLineLoopToLine } from "../../helpers/utils/conversions.js";
 
 export function ellipse(scene, camera, renderer, controls) {
   const canvas = renderer.domElement;

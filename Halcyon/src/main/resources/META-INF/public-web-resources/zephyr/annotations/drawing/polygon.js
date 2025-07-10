@@ -1,9 +1,9 @@
 // This function allows the user to draw polygons with their mouse or touch.
 import * as THREE from 'three';
-import { createButton, turnOtherButtonsOff } from "../helpers/elements.js";
-import { getMousePosition } from "../helpers/mouse.js";
-import { getColorAndType } from "../helpers/colorPalette.js";
-import { convertLineLoopToLine } from "../helpers/conversions.js";
+import { createButton, turnOtherButtonsOff } from "../../measurement/elements.js";
+import { getMousePosition } from "../../helpers/utils/mouse.js";
+import { getColorAndType } from "../../helpers/ui/colorPalette.js";
+import { convertLineLoopToLine } from "../../helpers/utils/conversions.js";
 
 export function polygon(scene, camera, renderer, controls) {
   const canvas = renderer.domElement;

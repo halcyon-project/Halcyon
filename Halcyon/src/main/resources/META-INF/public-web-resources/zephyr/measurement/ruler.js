@@ -5,7 +5,7 @@ import * as THREE from "three";
 import { FontLoader } from "three/addons/loaders/FontLoader.js";
 import { TextGeometry } from "three/addons/geometries/TextGeometry.js";
 import { createButton } from "./elements.js";
-import { getMousePosition } from "./mouse.js";
+import { getMousePosition } from "../helpers/utils/mouse.js";
 // import { pixelsToMicrons } from "./conversions.js";
 
 export function ruler(scene, camera, renderer, controls) {

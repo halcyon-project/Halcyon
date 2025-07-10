@@ -1,8 +1,8 @@
 // This script exports a function that allows the user to either label 3D objects in the 
 // scene, or calculate and display their area and perimeter when a certain button is clicked.
 import * as THREE from "three";
-import { createButton, textInputPopup, turnOtherButtonsOff, displayAreaAndPerimeter } from "./elements.js";
-import { calculatePolygonArea, calculatePolygonPerimeter } from "./conversions.js"
+import { createButton, textInputPopup, turnOtherButtonsOff, displayAreaAndPerimeter } from "../../measurement/elements.js";
+import { calculatePolygonArea, calculatePolygonPerimeter } from "../utils/conversions.js"
 
 // Label or area and perimeter
 export function label(scene, camera, renderer, controls, originalZ, type) {
