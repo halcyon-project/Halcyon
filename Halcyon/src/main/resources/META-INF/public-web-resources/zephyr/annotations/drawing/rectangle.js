@@ -70,14 +70,14 @@ export function rectangle(scene, camera, renderer, controls, options) {
     if (isDrawing) {
       setMaterial();
       mouseIsPressed = true;
-      startPoint = getMousePosition(event.clientX, event.clientY, canvas, camera);
+      startPoint = getMousePosition(event.clientX, event.clientY, canvas, camera, scene).point;
       currentRectangle = createRectangle();
     }
   }
 
   function onMouseMove(event) {
     if (isDrawing && mouseIsPressed) {
-      endPoint = getMousePosition(event.clientX, event.clientY, canvas, camera);
+      endPoint = getMousePosition(event.clientX, event.clientY, canvas, camera, scene).point;
       updateRectangle();
     }
   }
@@ -85,7 +85,7 @@ export function rectangle(scene, camera, renderer, controls, options) {
   function onMouseUp(event) {
     if (isDrawing) {
       mouseIsPressed = false;
-      endPoint = getMousePosition(event.clientX, event.clientY, canvas, camera);
+      endPoint = getMousePosition(event.clientX, event.clientY, canvas, camera, scene).point;
       updateRectangle();
 
       if (options.select) {
@@ -105,7 +105,7 @@ export function rectangle(scene, camera, renderer, controls, options) {
       setMaterial();
       mouseIsPressed = true;
       let touch = event.touches[0];
-      startPoint = getMousePosition(touch.clientX, touch.clientY, canvas, camera);
+      startPoint = getMousePosition(touch.clientX, touch.clientY, canvas, camera, scene).point;
       currentRectangle = createRectangle();
     }
   }
@@ -113,7 +113,7 @@ export function rectangle(scene, camera, renderer, controls, options) {
   function onTouchMove(event) {
     if (isDrawing && mouseIsPressed) {
       let touch = event.touches[0];
-      endPoint = getMousePosition(touch.clientX, touch.clientY, canvas, camera);
+      endPoint = getMousePosition(touch.clientX, touch.clientY, canvas, camera, scene).point;
       updateRectangle();
     }
   }
@@ -122,7 +122,7 @@ export function rectangle(scene, camera, renderer, controls, options) {
     if (isDrawing) {
       mouseIsPressed = false;
       let touch = event.changedTouches[0];
-      endPoint = getMousePosition(touch.clientX, touch.clientY, canvas, camera);
+      endPoint = getMousePosition(touch.clientX, touch.clientY, canvas, camera, scene).point;
       updateRectangle();
 
       if (options.select) {

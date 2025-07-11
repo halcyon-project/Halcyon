@@ -120,7 +120,7 @@ export function hollowBrush(scene, camera, renderer, controls) {
   // Function to draw the brush shape
   function onMouseMove(event) {
     if (isDrawing && mouseIsPressed) {
-      const point = getMousePosition(event.clientX, event.clientY, canvas, camera);
+      const point = getMousePosition(event.clientX, event.clientY, canvas, camera, scene).point;
       if (point === null) return;
 
       // Create a Three.js circle at the intersection point
@@ -171,7 +171,7 @@ export function hollowBrush(scene, camera, renderer, controls) {
   function onTouchMove(event) {
     if (isDrawing && mouseIsPressed) {
       const touch = event.touches[0];
-      const point = getMousePosition(touch.clientX, touch.clientY, canvas, camera);
+      const point = getMousePosition(touch.clientX, touch.clientY, canvas, camera, scene).point;
       if (point === null) return;
 
       // Create a Three.js circle at the intersection point

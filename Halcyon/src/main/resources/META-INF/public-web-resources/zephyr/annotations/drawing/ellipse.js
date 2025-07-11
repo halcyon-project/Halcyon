@@ -65,14 +65,14 @@ export function ellipse(scene, camera, renderer, controls) {
     if (isDrawing) {
       setMaterial();
       mouseIsPressed = true;
-      startPoint = getMousePosition(event.clientX, event.clientY, canvas, camera);
+      startPoint = getMousePosition(event.clientX, event.clientY, canvas, camera, scene).point;
       currentEllipse = createEllipse();
     }
   }
 
   function onMouseMove(event) {
     if (isDrawing && mouseIsPressed) {
-      endPoint = getMousePosition(event.clientX, event.clientY, canvas, camera);
+      endPoint = getMousePosition(event.clientX, event.clientY, canvas, camera, scene).point;
       updateEllipse();
     }
   }
@@ -80,7 +80,7 @@ export function ellipse(scene, camera, renderer, controls) {
   function onMouseUp(event) {
     if (isDrawing) {
       mouseIsPressed = false;
-      endPoint = getMousePosition(event.clientX, event.clientY, canvas, camera);
+      endPoint = getMousePosition(event.clientX, event.clientY, canvas, camera, scene).point;
       updateEllipse();
       const line = convertLineLoopToLine(currentEllipse, "ellipse", type);
       scene.add(line);
@@ -94,7 +94,7 @@ export function ellipse(scene, camera, renderer, controls) {
       setMaterial();
       mouseIsPressed = true;
       let touch = event.touches[0];
-      startPoint = getMousePosition(touch.clientX, touch.clientY, canvas, camera);
+      startPoint = getMousePosition(touch.clientX, touch.clientY, canvas, camera, scene).point;
       currentEllipse = createEllipse();
     }
   }
@@ -102,7 +102,7 @@ export function ellipse(scene, camera, renderer, controls) {
   function onTouchMove(event) {
     if (isDrawing && mouseIsPressed) {
       let touch = event.touches[0];
-      endPoint = getMousePosition(touch.clientX, touch.clientY, canvas, camera);
+      endPoint = getMousePosition(touch.clientX, touch.clientY, canvas, camera, scene).point;
       updateEllipse();
     }
   }
@@ -111,7 +111,7 @@ export function ellipse(scene, camera, renderer, controls) {
     if (isDrawing) {
       mouseIsPressed = false;
       let touch = event.changedTouches[0];
-      endPoint = getMousePosition(touch.clientX, touch.clientY, canvas, camera);
+      endPoint = getMousePosition(touch.clientX, touch.clientY, canvas, camera, scene).point;
       updateEllipse();
       const line = convertLineLoopToLine(currentEllipse, "ellipse", type);
       scene.add(line);

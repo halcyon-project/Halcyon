@@ -88,7 +88,7 @@ export function enableDrawing(scene, camera, renderer, controls) {
 
   function onMouseMove(event) {
     if (isDrawing && mouseIsPressed) {
-      let point = getMousePosition(event.clientX, event.clientY, canvas, camera);
+      let point = getMousePosition(event.clientX, event.clientY, canvas, camera, scene).point;
 
       // Check if it's the first vertex of the current polygon
       const isFirstVertex = currentPolygonPositions.length === 0;
@@ -168,7 +168,7 @@ export function enableDrawing(scene, camera, renderer, controls) {
   function onTouchMove(event) {
     if (isDrawing && mouseIsPressed) {
       let touch = event.touches[0];
-      let point = getMousePosition(touch.clientX, touch.clientY, canvas, camera);
+      let point = getMousePosition(touch.clientX, touch.clientY, canvas, camera, scene).point;
 
       // Check if it's the first vertex of the current polygon
       const isFirstVertex = currentPolygonPositions.length === 0;
