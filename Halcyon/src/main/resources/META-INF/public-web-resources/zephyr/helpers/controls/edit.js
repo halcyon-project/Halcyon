@@ -143,14 +143,10 @@ export function edit(scene, camera, renderer, controls, originalZ) {
 
     raycaster.setFromCamera(mouse, camera);
 
-    const intersects = [];
-    for (let i = 0; i < intersectableObjects.length; i++) {
-      const mesh = intersectableObjects[i];
+    const intersects = intersectableObjects.filter(mesh => {
       const expandedBox = expandBoundingBox(mesh, 0.1); // Increase tolerance by 0.1
-      if (raycaster.ray.intersectsBox(expandedBox)) {
-        intersects.push(mesh);
-      }
-    }
+      return raycaster.ray.intersectsBox(expandedBox);
+    });
 
     if (intersects.length > 0) {
       const selectedMesh = intersects[0];

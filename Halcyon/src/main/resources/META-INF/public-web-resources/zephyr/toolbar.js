@@ -151,11 +151,11 @@ export function toolbar(scene, camera, renderer, controls, originalZ, config) {
     tools: tools,
     initialize() {
       if (this.enabled) {
-        for (let tool in this.tools) {
+        Object.entries(this.tools).forEach(([tool, toolObj]) => {
           if (config.tools[tool] && config.tools[tool].enabled) {
-            this.tools[tool].initialize();
+            toolObj.initialize();
           }
-        }
+        });
       }
     },
     applyConfig(config) {
@@ -167,11 +167,11 @@ export function toolbar(scene, camera, renderer, controls, originalZ, config) {
       }
     },
     clearTools() {
-      for (let tool in this.tools) {
-        if (typeof this.tools[tool].destroy === "function") {
-          this.tools[tool].destroy();
+      Object.values(this.tools).forEach(toolObj => {
+        if (typeof toolObj.destroy === "function") {
+          toolObj.destroy();
         }
-      }
+      });
     }
   };
 
