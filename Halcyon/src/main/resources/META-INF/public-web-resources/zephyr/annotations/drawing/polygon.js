@@ -1,9 +1,9 @@
 // This function allows the user to draw polygons with their mouse or touch.
 import * as THREE from 'three';
-import { createButton, turnOtherButtonsOff } from "../helpers/elements.js";
-import { getMousePosition } from "../helpers/mouse.js";
-import { getColorAndType } from "../helpers/colorPalette.js";
-import { convertLineLoopToLine } from "../helpers/conversions.js";
+import { createButton, turnOtherButtonsOff } from "../../measurement/elements.js";
+import { getMousePosition } from "../../helpers/utils/mouse.js";
+import { getColorAndType } from "../../helpers/ui/colorPalette.js";
+import { convertLineLoopToLine } from "../../helpers/utils/conversions.js";
 
 export function polygon(scene, camera, renderer, controls) {
   const canvas = renderer.domElement;
@@ -65,7 +65,7 @@ export function polygon(scene, camera, renderer, controls) {
       setMaterial();
       mouseIsPressed = true;
       points = []; // Reset points for a new polygon
-      let point = getMousePosition(event.clientX, event.clientY, canvas, camera);
+      let point = getMousePosition(event.clientX, event.clientY, canvas, camera, scene).point;
       points.push(point);
       if (!currentPolygon) {
         currentPolygon = createPolygon();
@@ -75,7 +75,7 @@ export function polygon(scene, camera, renderer, controls) {
 
   function onMouseMove(event) {
     if (isDrawing && mouseIsPressed) {
-      let point = getMousePosition(event.clientX, event.clientY, canvas, camera);
+      let point = getMousePosition(event.clientX, event.clientY, canvas, camera, scene).point;
       points[points.length - 1] = point;
       updatePolygon();
     }
@@ -83,7 +83,7 @@ export function polygon(scene, camera, renderer, controls) {
 
   function onMouseUp(event) {
     if (isDrawing) {
-      let point = getMousePosition(event.clientX, event.clientY, canvas, camera);
+      let point = getMousePosition(event.clientX, event.clientY, canvas, camera, scene).point;
       points.push(point);
       updatePolygon();
     }
@@ -111,7 +111,7 @@ export function polygon(scene, camera, renderer, controls) {
 
       mouseIsPressed = true;
       let touch = event.touches[0];
-      let point = getMousePosition(touch.clientX, touch.clientY, canvas, camera);
+      let point = getMousePosition(touch.clientX, touch.clientY, canvas, camera, scene).point;
       points.push(point);
       if (!currentPolygon) {
         currentPolygon = createPolygon();
@@ -124,7 +124,7 @@ export function polygon(scene, camera, renderer, controls) {
     if (isDrawing) {
       mouseIsPressed = false;
       let touch = event.changedTouches[0];
-      let point = getMousePosition(touch.clientX, touch.clientY, canvas, camera);
+      let point = getMousePosition(touch.clientX, touch.clientY, canvas, camera, scene).point;
       points.push(point);
       updatePolygon();
       event.preventDefault();

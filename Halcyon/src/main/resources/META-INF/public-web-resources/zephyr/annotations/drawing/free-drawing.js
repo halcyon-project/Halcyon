@@ -1,10 +1,10 @@
 // This script enables a user to freely draw closed polygons on a 3D scene using either 
 // mouse or touch events, and calculate and display the area and perimeter of these polygons.
 import * as THREE from 'three';
-import { getColorAndType } from "../helpers/colorPalette.js";
-import { createButton, turnOtherButtonsOff, displayAreaAndPerimeter } from "../helpers/elements.js";
-import { getMousePosition } from "../helpers/mouse.js";
-import { worldToImageCoordinates, imageToWorldCoordinates, calculatePolygonArea, calculatePolygonPerimeter } from "../helpers/conversions.js";
+import { getColorAndType } from "../../helpers/ui/colorPalette.js";
+import { createButton, turnOtherButtonsOff, displayAreaAndPerimeter } from "../../measurement/elements.js";
+import { getMousePosition } from "../../helpers/utils/mouse.js";
+import { worldToImageCoordinates, imageToWorldCoordinates, calculatePolygonArea, calculatePolygonPerimeter } from "../../helpers/utils/conversions.js";
 
 export function enableDrawing(scene, camera, renderer, controls) {
   let isDrawing = false;
@@ -88,7 +88,7 @@ export function enableDrawing(scene, camera, renderer, controls) {
 
   function onMouseMove(event) {
     if (isDrawing && mouseIsPressed) {
-      let point = getMousePosition(event.clientX, event.clientY, canvas, camera);
+      let point = getMousePosition(event.clientX, event.clientY, canvas, camera, scene).point;
 
       // Check if it's the first vertex of the current polygon
       const isFirstVertex = currentPolygonPositions.length === 0;
@@ -168,7 +168,7 @@ export function enableDrawing(scene, camera, renderer, controls) {
   function onTouchMove(event) {
     if (isDrawing && mouseIsPressed) {
       let touch = event.touches[0];
-      let point = getMousePosition(touch.clientX, touch.clientY, canvas, camera);
+      let point = getMousePosition(touch.clientX, touch.clientY, canvas, camera, scene).point;
 
       // Check if it's the first vertex of the current polygon
       const isFirstVertex = currentPolygonPositions.length === 0;

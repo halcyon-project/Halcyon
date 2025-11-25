@@ -2,7 +2,7 @@
 // them and adding edit handles, as well as deleting these objects and dynamically adjusting 
 // UI components based on user interactions.
 import * as THREE from "three";
-import { createButton, turnOtherButtonsOff } from "./elements.js";
+import { createButton, turnOtherButtonsOff } from "../../measurement/elements.js";
 import { DragControls } from "three/addons/controls/DragControls.js";
 
 /**
@@ -143,14 +143,10 @@ export function edit(scene, camera, renderer, controls, originalZ) {
 
     raycaster.setFromCamera(mouse, camera);
 
-    const intersects = [];
-    for (let i = 0; i < intersectableObjects.length; i++) {
-      const mesh = intersectableObjects[i];
+    const intersects = intersectableObjects.filter(mesh => {
       const expandedBox = expandBoundingBox(mesh, 0.1); // Increase tolerance by 0.1
-      if (raycaster.ray.intersectsBox(expandedBox)) {
-        intersects.push(mesh);
-      }
-    }
+      return raycaster.ray.intersectsBox(expandedBox);
+    });
 
     if (intersects.length > 0) {
       const selectedMesh = intersects[0];

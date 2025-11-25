@@ -3,8 +3,8 @@
 // `deserializeScene` takes an array of serialized Three.js objects, deserializes them, 
 // and adds them to a given scene.
 import * as THREE from 'three';
-import { createButton } from "./elements.js";
-import { getUrl } from "./conversions.js"
+import { createButton } from "../../measurement/elements.js";
+import { getUrl } from "../utils/conversions.js"
 import { setAnnotationLabel } from "./sparql.js";
 
 /**

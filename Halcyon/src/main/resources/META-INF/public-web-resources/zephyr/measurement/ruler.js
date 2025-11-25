@@ -5,7 +5,7 @@ import * as THREE from "three";
 import { FontLoader } from "three/addons/loaders/FontLoader.js";
 import { TextGeometry } from "three/addons/geometries/TextGeometry.js";
 import { createButton } from "./elements.js";
-import { getMousePosition } from "./mouse.js";
+import { getMousePosition } from "../helpers/utils/mouse.js";
 // import { pixelsToMicrons } from "./conversions.js";
 
 export function ruler(scene, camera, renderer, controls) {
@@ -123,7 +123,7 @@ export function ruler(scene, camera, renderer, controls) {
     function onMouseDown(event) {
       if (isDrawing) {
         mouseIsPressed = true;
-        startPoint = getMousePosition(event.clientX, event.clientY, canvas, camera);
+        startPoint = getMousePosition(event.clientX, event.clientY, canvas, camera, scene).point;
         startVector = new THREE.Vector3(startPoint.x, startPoint.y, 0);
 
         lineGeometry.setFromPoints([startVector, startVector]);
@@ -141,7 +141,7 @@ export function ruler(scene, camera, renderer, controls) {
 
     function onMouseMove(event) {
       if (isDrawing && mouseIsPressed) {
-        endPoint = getMousePosition(event.clientX, event.clientY, canvas, camera);
+        endPoint = getMousePosition(event.clientX, event.clientY, canvas, camera, scene).point;
         endVector = new THREE.Vector3(endPoint.x, endPoint.y, 0);
 
         line.geometry.setFromPoints([startVector, endVector]);
@@ -214,7 +214,7 @@ export function ruler(scene, camera, renderer, controls) {
       if (isDrawing) {
         mouseIsPressed = true;
         const touch = event.touches[0];
-        startPoint = getMousePosition(touch.clientX, touch.clientY, canvas, camera);
+        startPoint = getMousePosition(touch.clientX, touch.clientY, canvas, camera, scene).point;
         startVector = new THREE.Vector3(startPoint.x, startPoint.y, 0);
 
         lineGeometry.setFromPoints([startVector, startVector]);
@@ -232,7 +232,7 @@ export function ruler(scene, camera, renderer, controls) {
     function onTouchMove(event) {
       if (isDrawing && mouseIsPressed) {
         const touch = event.touches[0];
-        endPoint = getMousePosition(touch.clientX, touch.clientY, canvas, camera);
+        endPoint = getMousePosition(touch.clientX, touch.clientY, canvas, camera, scene).point;
         endVector = new THREE.Vector3(endPoint.x, endPoint.y, 0);
 
         line.geometry.setFromPoints([startVector, endVector]);

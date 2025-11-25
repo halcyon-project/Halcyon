@@ -4,23 +4,23 @@
 window.cancerColor = '';
 window.cancerType = '';
 
-import { enableDrawing } from './annotations/free-drawing.js';
-import { rectangle } from './annotations/rectangle.js';
-import { ellipse } from './annotations/ellipse.js';
-import { polygon } from './annotations/polygon.js';
-import { ruler } from './helpers/ruler.js';
-import { grid } from './annotations/grid.js';
-import { hollowBrush } from "./annotations/hollow-brush.js";
-import { edit } from "./helpers/edit.js";
-import { label } from "./helpers/labels.js";
-import { crosshairs } from "./helpers/crosshairs.js";
-import { save } from "./helpers/save.js";
-import { fetchAnnotations } from "./helpers/fetchAnnotations.js";
-import { zoomControl, lockRotation, resetCamera } from "./helpers/zoomControl.js";
-import { screenCapture } from "./helpers/elements.js";
-import { colorPalette } from "./helpers/colorPalette.js";
-import { brightContrast } from "./helpers/brightContrast.js";
-import { getImageName } from "./helpers/getImageName.js";
+import { enableDrawing } from './annotations/drawing/free-drawing.js';
+import { rectangle } from './annotations/drawing/rectangle.js';
+import { ellipse } from './annotations/drawing/ellipse.js';
+import { polygon } from './annotations/drawing/polygon.js';
+import { ruler } from './measurement/ruler.js';
+import { grid } from './annotations/tools/grid.js';
+import { hollowBrush } from "./annotations/tools/hollow-brush.js";
+import { edit } from "./helpers/controls/edit.js";
+import { label } from "./helpers/controls/labels.js";
+import { crosshairs } from "./helpers/ui/crosshairs.js";
+import { save } from "./helpers/data/save.js";
+import { fetchAnnotations } from "./helpers/data/fetchAnnotations.js";
+import { zoomControl, lockRotation, resetCamera } from "./helpers/controls/zoomControl.js";
+import { screenCapture } from "./measurement/elements.js";
+import { colorPalette } from "./helpers/ui/colorPalette.js";
+import { brightContrast } from "./helpers/ui/brightContrast.js";
+import { getImageName } from "./helpers/utils/getImageName.js";
 
 export function toolbar(scene, camera, renderer, controls, originalZ, config) {
   const tools = {
@@ -151,11 +151,11 @@ export function toolbar(scene, camera, renderer, controls, originalZ, config) {
     tools: tools,
     initialize() {
       if (this.enabled) {
-        for (let tool in this.tools) {
+        Object.entries(this.tools).forEach(([tool, toolObj]) => {
           if (config.tools[tool] && config.tools[tool].enabled) {
-            this.tools[tool].initialize();
+            toolObj.initialize();
           }
-        }
+        });
       }
     },
     applyConfig(config) {
@@ -167,11 +167,11 @@ export function toolbar(scene, camera, renderer, controls, originalZ, config) {
       }
     },
     clearTools() {
-      for (let tool in this.tools) {
-        if (typeof this.tools[tool].destroy === "function") {
-          this.tools[tool].destroy();
+      Object.values(this.tools).forEach(toolObj => {
+        if (typeof toolObj.destroy === "function") {
+          toolObj.destroy();
         }
-      }
+      });
     }
   };
 

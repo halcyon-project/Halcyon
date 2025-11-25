@@ -2,8 +2,8 @@
 // allowing the user to colorize squares with different colors and types, toggle the 
 // grid on and off, and remove colors from squares, used for marking areas in the visualization.
 import * as THREE from 'three';
-import { createButton, turnOtherButtonsOff } from "../helpers/elements.js";
-import { getColorAndType } from "../helpers/colorPalette.js";
+import { createButton, turnOtherButtonsOff } from "../../measurement/elements.js";
+import { getColorAndType } from "../../helpers/ui/colorPalette.js";
 
 export function grid(scene, camera, renderer, controls) {
   const canvas = renderer.domElement;
