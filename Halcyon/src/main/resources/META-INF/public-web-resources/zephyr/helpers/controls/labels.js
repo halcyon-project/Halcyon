@@ -11,7 +11,7 @@ export function label(scene, camera, renderer, controls, originalZ, type) {
   if (type === "label") {
     button = createButton({
       id: "label",
-      innerHtml: "<i class=\"fas fa-tag\"></i>",
+      iconClass: "fas fa-tag",
       title: "Label"
     });
   } else {
@@ -19,7 +19,7 @@ export function label(scene, camera, renderer, controls, originalZ, type) {
       id: "area",
       // innerHtml: "<i class=\"fa fa-area-chart\"></i>",
       // innerHtml: "<i class=\"fa fa-square\"></i>",
-      innerHtml: "<i class=\"fa fa-ruler-combined\"></i>",
+      iconClass: "fa fa-ruler-combined",
       title: "Area and Perimeter"
     });
   }

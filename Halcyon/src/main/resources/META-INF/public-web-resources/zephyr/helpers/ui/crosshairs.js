@@ -6,7 +6,7 @@ import { createButton } from "../../measurement/elements.js";
 export function crosshairs(scene, camera) {
   let crossButton = createButton({
     id: "crosshairs",
-    innerHtml: "<i class=\"fas fa-crosshairs\"></i>",
+    iconClass: "fas fa-crosshairs",
     title: "Crosshairs"
   });
 

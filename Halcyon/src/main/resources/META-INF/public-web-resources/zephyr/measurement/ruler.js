@@ -16,7 +16,7 @@ export function ruler(scene, camera, renderer, controls) {
 
   let rulerButton = createButton({
     id: "ruler",
-    innerHtml: "<i class=\"fas fa-ruler\"></i>",
+    iconClass: "fas fa-ruler",
     title: "Ruler"
   });
 

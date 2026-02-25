@@ -1,5 +1,9 @@
-// This code provides functionality to set and retrieve RDF annotation labels using 
+// This code provides functionality to set and retrieve RDF annotation labels using
 // SPARQL queries, and to get user credentials and authentication token.
+
+// Module-scoped token — not accessible from window, prevents XSS token theft.
+let _token = null;
+
 async function executeSparqlQuery(query, token, isUpdate = false) {
   const endpoint = `${window.location.origin}/rdf`;
 
@@ -34,7 +38,7 @@ async function executeSparqlQuery(query, token, isUpdate = false) {
 
 // Function to set the annotation label
 export function setAnnotationLabel(rdfSubject, newName) {
-  const token = window.token;
+  const token = _token;
 
   const sparqlQuery = `
 PREFIX sdo: <https://schema.org/>
@@ -67,7 +71,7 @@ WHERE {
 
 // Function to get the annotation label
 export function getAnnotationLabel(rdfSubject) {
-  const token = window.token;
+  const token = _token;
 
   const sparqlQuery = `
 PREFIX sdo: <https://schema.org/>
@@ -138,8 +142,8 @@ async function getToken() {
     if (response.ok) {
       const data = await response.json();
 
-      // Store the token in the window object
-      window.token = data.access_token;
+      // Store the token in module scope only — not on window.
+      _token = data.access_token;
 
       return data.access_token;
     } else {

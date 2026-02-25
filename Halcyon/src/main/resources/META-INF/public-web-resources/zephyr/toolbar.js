@@ -37,13 +37,13 @@ export function toolbar(scene, camera, renderer, controls, originalZ, config) {
       }
     },
     rectangle: {
-      initialize: () => rectangle(scene, camera, renderer, controls, { button: "<i class=\"fa-regular fa-square\"></i>", color: 0x0000ff, select: false }),
+      initialize: () => rectangle(scene, camera, renderer, controls, { iconClass: "fa-regular fa-square", color: 0x0000ff, select: false }),
       destroy: () => {
         removeElement("rectangle");
       }
     },
     rectangleAlt: {
-      initialize: () => rectangle(scene, camera, renderer, controls, { button: "<i class=\"fas fa-crop-alt\"></i>", color: "#ff7900", select: true }),
+      initialize: () => rectangle(scene, camera, renderer, controls, { iconClass: "fas fa-crop-alt", color: "#ff7900", select: true }),
       destroy: () => {
         removeElement("selection");
       }

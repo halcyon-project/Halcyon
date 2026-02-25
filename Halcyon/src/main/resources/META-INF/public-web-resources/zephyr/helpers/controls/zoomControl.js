@@ -62,7 +62,7 @@ export function zoomControl(camera, controls, originalZ) {
 export function lockRotation(controls) {
   let lockButton = createButton({
     id: "lockRotation",
-    innerHtml: "<i class=\"fa-solid fa-rotate\"></i>",
+    iconClass: "fa-solid fa-rotate",
     title: "Lock Rotation"
   });
 
@@ -88,7 +88,7 @@ export function resetCamera(controls) {
   // Reset the camera position
   let button = createButton({
     id: "resetCamera",
-    innerHtml: "<i class=\"fa-solid fa-compass\"></i>",
+    iconClass: "fa-solid fa-compass",
     title: "Reset View"
   });
 

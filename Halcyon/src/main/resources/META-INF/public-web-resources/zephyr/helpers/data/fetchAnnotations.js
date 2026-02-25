@@ -9,7 +9,7 @@ import { getAnnotationLabel, setAnnotationLabel } from "./sparql.js";
 export function fetchAnnotations(scene) {
   const button = createButton({
     id: "fetchAnnotations",
-    innerHtml: "<i class=\"fas fa-comment-alt\"></i>",
+    iconClass: "fas fa-comment-alt",
     title: "Fetch Annotations"
   });
 

@@ -14,7 +14,7 @@ export function save(scene) {
 
   createButton({
     id: "save",
-    innerHtml: "<i class=\"fas fa-save\"></i>",
+    iconClass: "fas fa-save",
     title: "Save"
   }).addEventListener("click", function () {
     const annotationsDiv = document.getElementById("annotations-div");

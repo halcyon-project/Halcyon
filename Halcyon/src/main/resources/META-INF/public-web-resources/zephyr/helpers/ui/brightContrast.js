@@ -10,7 +10,8 @@ import { createSlider, createButton, findObjectsByName } from "../../measurement
 export function brightContrast(scene) {
   let contrastSlider = createSlider({
     id: "contrast",
-    title: "<i class=\"fa fa-adjust\" aria-hidden=\"true\" title=\"Contrast\"></i>",
+    iconClass: "fa fa-adjust",
+    iconLabel: "Contrast",
     min: 0,
     max: 4,
     step: 0.01,
@@ -19,7 +20,8 @@ export function brightContrast(scene) {
 
   let brightnessSlider = createSlider({
     id: "brightness",
-    title: "<i class=\"fa fa-sun\" aria-hidden=\"true\" title=\"Brightness\"></i>",
+    iconClass: "fa fa-sun",
+    iconLabel: "Brightness",
     min: -1,
     max: 1,
     step: 0.01,
@@ -28,7 +30,7 @@ export function brightContrast(scene) {
 
   let resetButton = createButton({
     id: "reset",
-    innerHtml: "<i class=\"fa fa-undo\"></i>",
+    iconClass: "fa fa-undo",
     title: "Reset Brightness and Contrast"
   });
 

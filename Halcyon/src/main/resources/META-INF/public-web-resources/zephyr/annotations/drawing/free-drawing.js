@@ -19,7 +19,7 @@ export function enableDrawing(scene, camera, renderer, controls) {
 
   let btnDraw = createButton({
     id: "freeDrawing",
-    innerHtml: "<i class=\"fas fa-pencil-alt\"></i>",
+    iconClass: "fas fa-pencil-alt",
     title: "Free Drawing"
   });
 
