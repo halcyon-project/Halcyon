@@ -20,11 +20,8 @@ async function executeSparqlQuery(query, token, isUpdate = false) {
     body: query
   };
 
-  // console.log("SPARQL Query:", query);
-
   return fetch(endpoint, options)
     .then(response => {
-      // console.log("Response Headers:", response.headers);
       if (!response.ok) {
         throw new Error(`SPARQL query failed: ${response.statusText}`);
       }
@@ -61,9 +58,6 @@ WHERE {
 }`;
 
   return executeSparqlQuery(sparqlQuery, token, true)
-    .then(result => {
-      console.log('Annotation label set successfully:', newName);
-    })
     .catch(error => {
       console.error('Error setting annotation label:', error);
     });
@@ -84,8 +78,6 @@ SELECT ?name WHERE {
 
   return executeSparqlQuery(sparqlQuery, token)
     .then(result => {
-      // console.log("Raw SPARQL Query Result:", result);
-      // Parse the result as JSON
       let data;
       try {
         data = JSON.parse(result);
@@ -94,14 +86,10 @@ SELECT ?name WHERE {
         throw new Error('Failed to parse SPARQL result as JSON.');
       }
 
-      // Extract the "name" value from the JSON response
       const bindings = data.results.bindings;
       if (bindings.length > 0 && bindings[0].name) {
-        const name = bindings[0].name.value;
-        console.log('Retrieved annotation label:', name);
-        return name;
+        return bindings[0].name.value;
       } else {
-        console.log('No annotation label found.');
         return null;
       }
     })

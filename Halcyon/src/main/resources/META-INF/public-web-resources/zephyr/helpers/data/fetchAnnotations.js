@@ -62,7 +62,6 @@ export function fetchAnnotations(scene) {
       }
 
       const responseText = await response.text();
-      // console.log('Raw response text:', responseText);
 
       // If response text is empty, alert the user and print the URL
       if (!responseText) {
@@ -82,7 +81,6 @@ export function fetchAnnotations(scene) {
       }
 
       if (!data.annotation) {
-        // console.log('No annotations:', JSON.stringify(data));
         alert('No annotations yet. Please create, then save.');
         return [];
       }

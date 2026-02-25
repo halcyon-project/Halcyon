@@ -94,9 +94,7 @@ export function save(scene) {
         body: JSON.stringify(serializedObjects)
       });
 
-      if (response.ok) {
-        console.log('File created successfully.', response);
-      } else {
+      if (!response.ok) {
         console.error('Error creating file:', response.status, response.statusText);
         return;  // Stop execution if the file creation fails
       }
@@ -114,7 +112,6 @@ export function save(scene) {
       }
     }
 
-    console.log(serializedObjects);
     alert('Annotations saved successfully.');
   }
 }
@@ -132,8 +129,6 @@ export function deserializeScene(scene, serializedObjects) {
     if (Object.keys(serializedData).length === 2 &&
       serializedData.hasOwnProperty('image') &&
       serializedData.hasOwnProperty('type')) {
-      // Skip this object as it only contains "image" and "type"
-      // console.log('Skipping object with only image and type fields:', serializedData);
       return;
     }
 

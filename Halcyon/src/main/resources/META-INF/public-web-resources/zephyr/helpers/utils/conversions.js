@@ -11,7 +11,6 @@ export function worldToImageCoordinates(positionArray, scene) {
   let dims = getDims(scene);
   let imageWidth = dims.imageWidth;
   let imageHeight = dims.imageHeight;
-  // console.log(imageWidth, imageHeight);
 
   const imageCoordinates = [];
   if (imageWidth && imageHeight) {
@@ -77,7 +76,6 @@ export function imageToWorldCoordinates(imageCoordinates, scene) {
   let dims = getDims(scene);
   let imageWidth = dims.imageWidth;
   let imageHeight = dims.imageHeight;
-  // console.log(imageWidth, imageHeight);
 
   const threeJSCoordinates = [];
   if (imageWidth && imageHeight) {

@@ -141,7 +141,6 @@ export function enableDrawing(scene, camera, renderer, controls) {
       // toImageCoords(currentPolygonPositions, scene);
       // deleteIcon(event, line, scene);
       // textInputPopup(event, line);
-      // console.log("line:", line);
 
       currentPolygonPositions = []; // Clear the current polygon's array for the next drawing
     }
@@ -223,10 +222,7 @@ export function enableDrawing(scene, camera, renderer, controls) {
   }
 
   function toImageCoords(currentPolygonPositions) {
-    console.log("line geometry positions:\n", currentPolygonPositions);
     const imgCoords = worldToImageCoordinates(currentPolygonPositions, scene);
-    let threeCoords = imageToWorldCoordinates(imgCoords, scene);
-    console.log("Image coordinates:", imgCoords);
-    console.log("threeCoords:", threeCoords);
+    imageToWorldCoordinates(imgCoords, scene);
   }
 }

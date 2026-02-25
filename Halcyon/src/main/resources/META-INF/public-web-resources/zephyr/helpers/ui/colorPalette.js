@@ -47,7 +47,6 @@ function buildColorPalette(paletteContainer, data) {
   let options;
   if (data) {
     options = [];
-    // console.log("data:", JSON.stringify(data));
 
     // Add data-based options
     data.hasAnnotationClass.forEach(annotationClass => {

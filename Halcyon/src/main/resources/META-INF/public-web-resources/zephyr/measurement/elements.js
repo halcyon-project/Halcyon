@@ -218,7 +218,6 @@ export function displayAreaAndPerimeter(area, perimeter) {
   div.innerHTML = `Area: ${area.toFixed(2)} pixels²<br>Perimeter: ${perimeter.toFixed(2)} pixels`;
   div.appendChild(closeButton);
   document.body.appendChild(div);
-  // console.log(area.toFixed(2), perimeter.toFixed(2));
 }
 
 export function findObjectsByName(object, name) {

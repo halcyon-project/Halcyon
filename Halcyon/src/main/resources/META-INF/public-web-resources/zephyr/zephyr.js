@@ -27,7 +27,6 @@ import {
 } from 'three';
 
 function srcurl(src, x, y, w, h, tilex, tiley, scale, name) {
-    // if (name.startsWith("ROOT/SE/")) console.log("      Image( "+name+" "+x+" "+y+" "+w+" "+h+" "+tilex+" "+tiley+" "+scale+" )");
     const a = Math.trunc(w);
     const b = Math.trunc(h);
     const m = Math.trunc(Math.round(w * scale));
@@ -56,7 +55,6 @@ function srcurl(src, x, y, w, h, tilex, tiley, scale, name) {
                 texture.needsUpdate = true;
                 const wratio = tilex / texture.image.width;
                 const hratio = tiley / texture.image.height;
-                //  console.log("RATIO : "+wratio+" "+hratio+"      "+texture.image.width+" "+texture.image.height+" "+tilex+" "+tiley+"  "+scale);
                 texture.repeat.set(wratio, hratio);
                 texture.offset.set(0, 1 - hratio);
                 //}
@@ -109,7 +107,6 @@ function createPolygon(wkt, x, y) {
     }
     const coordinates = geom.getCoordinates();
     const points = coordinates.map(coord => new Vector3(coord.x - x, coord.y - y, 0));
-    console.log(points);
     const shape = new Shape(points);
     const geometry = new ShapeGeometry(shape);
     const material = new MeshBasicMaterial({ color: 0xffff00, side: DoubleSide });
@@ -137,11 +134,9 @@ function getRandomNumberBetween(a, b) {
 }
 
 function CreateStackViewer(renderer, scene, urls, offset) {
-    console.log("CreateStackViewer : "+urls+" offset -> "+offset);
     var group = new Group();
     var off = offset;
     urls.forEach((url) => {
-        console.log(url);        
         AddImageViewer(group, url, off);
         off = off + 2000;
     });
@@ -152,7 +147,6 @@ function CreateStackViewer(renderer, scene, urls, offset) {
 }
 
 function AddImageViewer(group, url, offset) {
-  console.log("AddImageViewer Xc : "+url+" offset -> "+offset);
   var target = url + "/info.json";
   fetch(target)
     .then(response => response.json())
@@ -203,7 +197,6 @@ function CreateImageViewer(renderer, scene, url, offset) {
 class ImageViewer extends LOD {
     constructor(renderer, url, width, height, x, y, w, h, tilex, tiley, offset, info, level, name, a, b) {
         super();
-        //if (name.startsWith("ROOT/SE/")) console.log("ImageViewer( "+name +" "+width+" "+height+" "+tilex+" "+tiley+" "+offset+" "+level+" "+a+" "+b+")");
         this.isImageViewer = true;
         this.type = 'ImageViewer';
         this.name = 'ImageViewer';
@@ -261,11 +254,9 @@ class ImageViewer extends LOD {
                 if (ts <= 2 * tilex) {
                     this.addLevel(high, 0);
                     this.bottom = true;
-                    //console.log("ADD LEVEL : ZERO");
                 } else {
                     const sigh = 0.25 * this.edistance;
                     this.addLevel(high, sigh);
-                    // console.log("ADD LEVEL : "+sigh);
                 }
             }
         };
@@ -279,16 +270,10 @@ class ImageViewer extends LOD {
                 currentLevelIndex = index;
             }
         });
-        if (currentLevelIndex !== -1) {
-            //  console.log(this.level+ ` Current LOD level: ${currentLevelIndex}`);
-        } else {
-            //  console.log(this.level+ "No LOD level is currently visible.");
-        }
     }
 }
 
 function CreateFeatureViewer(renderer, scene, url, offset) {
-    //   console.log("Running CreateFeatureViewer");
     /*
     Cache.enabled = true;
     var target = url + "/info.json";
@@ -319,7 +304,6 @@ function CreateFeatureViewer(renderer, scene, url, offset) {
 class FeatureViewer extends LOD {
     constructor(renderer, scene, url, x, y, w, h, tilex, tiley, offset, info, level) {
         super();
-        console.log("FeatureViewer( " + x + " " + y + " " + w + " " + h + "                " + tilex + " " + tiley + " " + offset + " " + level + " )");
         this.isImageViewer = true;
         this.type = 'FeatureViewer';
         this.booted = false;
@@ -347,7 +331,6 @@ class FeatureViewer extends LOD {
             const low = Square(renderer, x, y, w, h, srcurl(url, x, y, w, h, tilex, tiley), offset);
             low.name = "Square";
             low.frustumCulled = true;
-            console.log("addLevel : " + this.edistance);
             this.addLevel(low, this.edistance);
             low.onBeforeRender = () => {
                 //if (this.level < 1) {
@@ -362,36 +345,29 @@ class FeatureViewer extends LOD {
                     const nw = new FeatureViewer(renderer, scene, url, x, y, Math.min(offm, w), Math.min(offm, h), tilex, tiley, offset, info, nextlevel);
                     nw.position.set(-Math.min(offm, w) / 2, Math.min(offm, h) / 2, 0);
                     high.add(nw);
-                    console.log("FNW : " + x + " " + y + " " + offm + " " + offm);
                     const ww = x + offm;
                     const hh = y + offm;
                     if (ww <= w) {
                         const ne = new FeatureViewer(renderer, scene, url, x + offm, y, w - ww, Math.min(offm, h), tilex, tiley, offset, info, nextlevel);
                         ne.position.set((w - ww) / 2, Math.min(offm, h) / 2, 0);
                         high.add(ne);
-                        console.log("FNE : " + (x + offm) + " " + y + " " + (w - offm) + " " + offm);
                     }
                     if (hh <= h) {
                         const sw = new FeatureViewer(renderer, scene, url, x, y + offm, Math.min(offm, w), h - hh, tilex, tiley, offset, info, nextlevel);
                         sw.position.set(-Math.min(offm, w) / 2, -(h - hh) / 2, 0);
                         high.add(sw);
-                        console.log("FSW : " + x + " " + (y + offm) + " " + offm + " " + (h - offm));
                     }
                     if ((ww <= w) && (hh <= h)) {
                         const se = new FeatureViewer(renderer, scene, url, x + offm, y + offm, w - ww, h - hh, tilex, tiley, offset, info, nextlevel);
                         se.position.set((w - ww) / 2, -(h - hh) / 2, 0);
                         high.add(se);
-                        console.log("FSE : " + (x + offm) + " " + (y + offm) + " " + (w - offm) + " " + (h - offm));
                     }
                     high.frustumCulled = true;
-                    //console.log("sub render : "+w+" "+h+" "+offx+" "+offy+" ===> "+(this.edistance/2));
                     if (w <= tilex) {
-                        //    console.log("addSubLevel : ZERO");
                         this.addLevel(high, 0);
                         this.bottom = true;
                     } else {
                         const sigh = (0.25 * this.edistance);
-                        //console.log("addSubLevel : "+sigh);
                         this.addLevel(high, sigh);
                     }
                 }
@@ -408,11 +384,6 @@ class FeatureViewer extends LOD {
                 currentLevelIndex = index;
             }
         });
-        if (currentLevelIndex !== -1) {
-            //  console.log(this.level+ ` Current LOD level: ${currentLevelIndex}`);
-        } else {
-            //  console.log(this.level+ "No LOD level is currently visible.");
-        }
     }
 }
 
