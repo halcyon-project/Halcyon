@@ -100,15 +100,85 @@ SELECT ?name WHERE {
 }
 
 // This scenario shouldn't happen; handling just in case:
-async function getCredentials() {
-  const username = prompt("Please enter your username:");
-  const password = prompt("Please enter your password:");
+function getCredentials() {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = [
+      'position:fixed', 'inset:0', 'background:rgba(0,0,0,0.5)',
+      'z-index:10000', 'display:flex', 'align-items:center', 'justify-content:center'
+    ].join(';');
 
-  return { username, password };
+    const modal = document.createElement('div');
+    modal.style.cssText = [
+      'background:#fff', 'padding:24px', 'border-radius:6px',
+      'display:flex', 'flex-direction:column', 'gap:12px',
+      'min-width:300px', 'box-shadow:0 4px 24px rgba(0,0,0,0.3)'
+    ].join(';');
+
+    const heading = document.createElement('h3');
+    heading.textContent = 'Sign In';
+    heading.style.cssText = 'margin:0 0 4px 0;font-size:16px;';
+
+    const inputStyle = 'padding:8px;border:1px solid #ccc;border-radius:4px;font-size:14px;';
+
+    const usernameInput = document.createElement('input');
+    usernameInput.type = 'text';
+    usernameInput.placeholder = 'Username';
+    usernameInput.autocomplete = 'username';
+    usernameInput.style.cssText = inputStyle;
+
+    const passwordInput = document.createElement('input');
+    passwordInput.type = 'password';
+    passwordInput.placeholder = 'Password';
+    passwordInput.autocomplete = 'current-password';
+    passwordInput.style.cssText = inputStyle;
+
+    const btnRow = document.createElement('div');
+    btnRow.style.cssText = 'display:flex;gap:8px;justify-content:flex-end;margin-top:4px;';
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.style.cssText = 'padding:8px 16px;border:1px solid #ccc;background:#fff;border-radius:4px;cursor:pointer;font-size:14px;';
+
+    const submitBtn = document.createElement('button');
+    submitBtn.type = 'button';
+    submitBtn.textContent = 'Sign In';
+    submitBtn.style.cssText = 'padding:8px 16px;background:#0066cc;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:14px;';
+
+    function dismiss() {
+      document.body.removeChild(overlay);
+      resolve({ username: null, password: null });
+    }
+
+    function submit() {
+      const username = usernameInput.value.trim();
+      const password = passwordInput.value;
+      if (!username || !password) return;
+      document.body.removeChild(overlay);
+      resolve({ username, password });
+    }
+
+    cancelBtn.addEventListener('click', dismiss);
+    submitBtn.addEventListener('click', submit);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) dismiss(); });
+    modal.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') submit();
+      if (e.key === 'Escape') dismiss();
+    });
+
+    btnRow.append(cancelBtn, submitBtn);
+    modal.append(heading, usernameInput, passwordInput, btnRow);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    usernameInput.focus();
+  });
 }
 
 async function getToken() {
   const { username, password } = await getCredentials();
+
+  if (!username || !password) return null;
 
   const authEndpoint = `${window.location.origin}/auth/realms/Halcyon/protocol/openid-connect/token`;
   const authData = new URLSearchParams({
