@@ -15,7 +15,8 @@ export function colorPalette() {
   if (!window.useriri) {
     buildColorPalette(paletteContainer);
   } else {
-    const url = `${window.useriri.replace("user", "users")}/colorclasses`;
+    let iriCopy = window.useriri;
+    const url = `${iriCopy.replace("user", "users")}/colorclasses`;
     fetch(url, {
       method: 'GET',
       headers: {
