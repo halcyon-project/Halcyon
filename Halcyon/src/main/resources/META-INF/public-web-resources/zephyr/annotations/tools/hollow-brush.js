@@ -19,7 +19,7 @@ export function hollowBrush(scene, camera, renderer, controls) {
 
   let brushButton = createButton({
     id: "hollowBrush",
-    innerHtml: "<i class=\"fa-solid fa-broom\"></i>",
+    iconClass: "fa-solid fa-broom",
     title: "Brush Outline"
   });
 

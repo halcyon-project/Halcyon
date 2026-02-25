@@ -1,5 +1,9 @@
-// This code provides functionality to set and retrieve RDF annotation labels using 
+// This code provides functionality to set and retrieve RDF annotation labels using
 // SPARQL queries, and to get user credentials and authentication token.
+
+// Module-scoped token — not accessible from window, prevents XSS token theft.
+let _token = null;
+
 async function executeSparqlQuery(query, token, isUpdate = false) {
   const endpoint = `${window.location.origin}/rdf`;
 
@@ -16,11 +20,8 @@ async function executeSparqlQuery(query, token, isUpdate = false) {
     body: query
   };
 
-  // console.log("SPARQL Query:", query);
-
   return fetch(endpoint, options)
     .then(response => {
-      // console.log("Response Headers:", response.headers);
       if (!response.ok) {
         throw new Error(`SPARQL query failed: ${response.statusText}`);
       }
@@ -34,7 +35,7 @@ async function executeSparqlQuery(query, token, isUpdate = false) {
 
 // Function to set the annotation label
 export function setAnnotationLabel(rdfSubject, newName) {
-  const token = window.token;
+  const token = _token;
 
   const sparqlQuery = `
 PREFIX sdo: <https://schema.org/>
@@ -57,9 +58,6 @@ WHERE {
 }`;
 
   return executeSparqlQuery(sparqlQuery, token, true)
-    .then(result => {
-      console.log('Annotation label set successfully:', newName);
-    })
     .catch(error => {
       console.error('Error setting annotation label:', error);
     });
@@ -67,7 +65,7 @@ WHERE {
 
 // Function to get the annotation label
 export function getAnnotationLabel(rdfSubject) {
-  const token = window.token;
+  const token = _token;
 
   const sparqlQuery = `
 PREFIX sdo: <https://schema.org/>
@@ -80,8 +78,6 @@ SELECT ?name WHERE {
 
   return executeSparqlQuery(sparqlQuery, token)
     .then(result => {
-      // console.log("Raw SPARQL Query Result:", result);
-      // Parse the result as JSON
       let data;
       try {
         data = JSON.parse(result);
@@ -90,14 +86,10 @@ SELECT ?name WHERE {
         throw new Error('Failed to parse SPARQL result as JSON.');
       }
 
-      // Extract the "name" value from the JSON response
       const bindings = data.results.bindings;
       if (bindings.length > 0 && bindings[0].name) {
-        const name = bindings[0].name.value;
-        console.log('Retrieved annotation label:', name);
-        return name;
+        return bindings[0].name.value;
       } else {
-        console.log('No annotation label found.');
         return null;
       }
     })
@@ -138,8 +130,8 @@ async function getToken() {
     if (response.ok) {
       const data = await response.json();
 
-      // Store the token in the window object
-      window.token = data.access_token;
+      // Store the token in module scope only — not on window.
+      _token = data.access_token;
 
       return data.access_token;
     } else {

@@ -23,7 +23,7 @@ export function rectangle(scene, camera, renderer, controls, options) {
 
   let rectangleButton = createButton({
     id: options.select ? "selection" : "rectangle",
-    innerHtml: options.button,
+    iconClass: options.iconClass,
     title: options.select ? "Select for Algorithm" : "Rectangle"
   });
 

@@ -17,7 +17,7 @@ export function edit(scene, camera, renderer, controls, originalZ) {
 
   let editButton = createButton({
     id: "edit",
-    innerHtml: "<i class=\"fas fa-edit\"></i>",
+    iconClass: "fas fa-edit",
     title: "Edit"
   });
 

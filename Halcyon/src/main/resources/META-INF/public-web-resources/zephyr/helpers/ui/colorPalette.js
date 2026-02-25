@@ -11,6 +11,7 @@ export function colorPalette() {
   // Insert the container before the canvas element
   document.body.insertBefore(paletteContainer, document.querySelector('canvas'));
 
+  // window.useriri is set by the backend (server-side injection).
   if (!window.useriri) {
     buildColorPalette(paletteContainer);
   } else {
@@ -46,7 +47,6 @@ function buildColorPalette(paletteContainer, data) {
   let options;
   if (data) {
     options = [];
-    // console.log("data:", JSON.stringify(data));
 
     // Add data-based options
     data.hasAnnotationClass.forEach(annotationClass => {

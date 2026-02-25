@@ -21,7 +21,7 @@ export function ellipse(scene, camera, renderer, controls) {
 
   let ellipseButton = createButton({
     id: "ellipse",
-    innerHtml: "<i class=\"fa-regular fa-circle\"></i>",
+    iconClass: "fa-regular fa-circle",
     title: "Ellipse"
   });
 

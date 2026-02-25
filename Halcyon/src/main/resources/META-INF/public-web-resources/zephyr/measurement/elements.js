@@ -3,7 +3,11 @@
 export function createButton(options) {
   let myButton = document.createElement("button");
   myButton.id = options.id;
-  myButton.innerHTML = options.innerHtml;
+  if (options.iconClass) {
+    const icon = document.createElement('i');
+    icon.className = options.iconClass;
+    myButton.appendChild(icon);
+  }
   myButton.title = options.title;
   myButton.classList.add("annotationBtn");
   // myButton.style.padding = "10px 20px";
@@ -14,14 +18,20 @@ export function createButton(options) {
   return myButton;
 }
 
-export function createSlider({ id, title, min, max, step, value }) {
+export function createSlider({ id, iconClass, iconLabel, min, max, step, value }) {
   const sliderContainer = document.createElement('div');
   const sliderLabel = document.createElement('label');
   const slider = document.createElement('input');
 
   sliderContainer.className = 'slider-container';
   sliderLabel.htmlFor = id;
-  sliderLabel.innerHTML = title;
+  if (iconClass) {
+    const icon = document.createElement('i');
+    icon.className = iconClass;
+    icon.setAttribute('aria-hidden', 'true');
+    if (iconLabel) icon.setAttribute('title', iconLabel);
+    sliderLabel.appendChild(icon);
+  }
   slider.type = 'range';
   slider.id = id;
   slider.min = min;
@@ -135,7 +145,7 @@ function timeStamp() {
 export function screenCapture(renderer) {
   let downloadButton = createButton({
     id: "screenCapture",
-    innerHtml: "<i class=\"fas fa-camera\"></i>",
+    iconClass: "fas fa-camera",
     title: "Screen Capture"
   });
 
@@ -208,7 +218,6 @@ export function displayAreaAndPerimeter(area, perimeter) {
   div.innerHTML = `Area: ${area.toFixed(2)} pixels²<br>Perimeter: ${perimeter.toFixed(2)} pixels`;
   div.appendChild(closeButton);
   document.body.appendChild(div);
-  // console.log(area.toFixed(2), perimeter.toFixed(2));
 }
 
 export function findObjectsByName(object, name) {

@@ -16,7 +16,7 @@ export function ruler(scene, camera, renderer, controls) {
 
   let rulerButton = createButton({
     id: "ruler",
-    innerHtml: "<i class=\"fas fa-ruler\"></i>",
+    iconClass: "fas fa-ruler",
     title: "Ruler"
   });
 
@@ -135,7 +135,6 @@ export function ruler(scene, camera, renderer, controls) {
         circle.position.copy(startVector);
         circle.scale.set(0, 0, 0);
         circle.visible = true;
-        // console.log("Circle added at start position", circle.position);
       }
     }
 
@@ -199,7 +198,6 @@ export function ruler(scene, camera, renderer, controls) {
         circle.scale.set(distance / 2, distance / 2, distance / 2);
         circle.position.copy(startVector.clone().add(endVector).multiplyScalar(0.5));
         circle.visible = true;
-        // console.log("Circle updated: ", circle.position, circle.scale);
 
         renderer.render(scene, camera);
       }
@@ -326,7 +324,6 @@ export function ruler(scene, camera, renderer, controls) {
     // Calculate the scale factor
     const screenHeight = renderer.domElement.clientHeight;
     const scaleFactor = screenHeight / planeHeightAtDistance;
-    // console.log("scaleFactor", scaleFactor);
 
     return scaleFactor;
   }
