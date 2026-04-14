@@ -1,4 +1,4 @@
-package com.ebremer.halycon.jumbf;
+package com.ebremer.halcyon.jumbf;
 
 import com.twelvemonkeys.imageio.metadata.jpeg.JPEG;
 import com.twelvemonkeys.imageio.metadata.jpeg.JPEGSegment;

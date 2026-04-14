@@ -1,4 +1,4 @@
-package com.ebremer.halycon.jumbf;
+package com.ebremer.halcyon.jumbf;
 
 import java.io.File;
 import java.io.IOException;
