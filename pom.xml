@@ -88,9 +88,9 @@
         <jetty.version>12.0.33</jetty.version>
         <jena.version>5.6.0</jena.version>
         <wicket.ver>10.8.0</wicket.ver>
-        <beakgraph.version>0.13.0</beakgraph.version>
+        <beakgraph.version>0.14.0</beakgraph.version>
         <hilbert.ver>0.2.3</hilbert.ver>
-        <commons-pool2.ver>2.12.1</commons-pool2.ver>
+        <commons-pool2.ver>2.13.1</commons-pool2.ver>
         <jakarta.json.version>2.1.3</jakarta.json.version> 
         <parrson.json.version>1.1.7</parrson.json.version>
         <titanium-json-ld.ver>1.7.0</titanium-json-ld.ver>
@@ -106,6 +106,10 @@
         <native-maven-plugin.version>1.0.0</native-maven-plugin.version>
         <jpackage-maven-plugin.version>1.7.4</jpackage-maven-plugin.version>
         <jcommander.version>3.0</jcommander.version>
+        <log4j-api.version>2.25.4</log4j-api.version>
+        <commons-lang3.version>3.20.0</commons-lang3.version>
+        <lombok.version>1.18.40</lombok.version>
+        <caffeine.version>3.1.8</caffeine.version>
     </properties>
     
     <dependencyManagement>
@@ -113,17 +117,17 @@
             <dependency>
                 <groupId>org.apache.logging.log4j</groupId>
                 <artifactId>log4j-api</artifactId>
-                <version>2.25.3</version>
+                <version>${log4j-api.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.commons</groupId>
                 <artifactId>commons-pool2</artifactId>
-                <version>2.13.1</version>
+                <version>${commons-pool2.ver}</version>
             </dependency>
             <dependency>
                 <groupId>jakarta.json</groupId>
                 <artifactId>jakarta.json-api</artifactId>
-                <version>2.1.3</version>
+                <version>${jakarta.json.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.eclipse.parsson</groupId>
@@ -165,7 +169,7 @@
             <dependency>
                 <groupId>org.apache.commons</groupId>
                 <artifactId>commons-lang3</artifactId>
-                <version>3.20.0</version>
+                <version>${commons-lang3.version}</version>
             </dependency>            
             <dependency>
                 <groupId>org.apache.jena</groupId>
@@ -193,12 +197,12 @@
             <dependency>
                 <groupId>com.github.ben-manes.caffeine</groupId>
                 <artifactId>caffeine</artifactId>
-                <version>3.1.8</version>
+                <version>${caffeine.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.projectlombok</groupId>
                 <artifactId>lombok</artifactId>
-                <version>1.18.40</version>
+                <version>${lombok.version}</version>
                 <scope>provided</scope>
             </dependency>
             <dependency>
