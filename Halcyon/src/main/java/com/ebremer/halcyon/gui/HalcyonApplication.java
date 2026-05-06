@@ -4,7 +4,6 @@ import com.ebremer.halcyon.sparql.Sparql;
 import com.ebremer.halcyon.wicket.ListImages;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import com.ebremer.halcyon.data.DataCore;
-import com.ebremer.halcyon.filereaders.FileReaderFactoryProvider;
 import com.ebremer.halcyon.fuseki.SPARQLEndPoint;
 import com.ebremer.vandegraph.shacl.Puffin;
 import com.ebremer.vandegraph.shacl.ResourceConverter;
@@ -12,9 +11,6 @@ import com.ebremer.halcyon.wicket.AccountPage;
 import com.ebremer.halcyon.wicket.AdminPage;
 import com.ebremer.halcyon.wicket.Upload;
 import com.ebremer.halcyon.wicket.ethereal.Graph3D;
-import com.ebremer.halcyon.wicket.ethereal.Graph3DRPI;
-import com.ebremer.halcyon.wicket.ethereal.Zephyr;
-import com.ebremer.halcyon.wicket.ethereal.Zephyr2;
 import com.ebremer.multiviewer.MultiViewer;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.wicket.ConverterLocator;
@@ -81,15 +77,11 @@ public class HalcyonApplication extends WebApplication {
         mountPage("/sparql", Sparql.class);
         mountPage("/about", About.class);
         mountPage("/threed", Graph3D.class);
-        mountPage("/rpi", Graph3DRPI.class);
         mountPage("/revisionhistory", RevisionHistory.class);
         mountPage("/viewall", ViewAll.class); 
         mountPage("/testviewall", TestViewAll.class); 
         mountPage("/puffin", Puffin.class); 
         mountPage("/blank", Blank.class); 
-
-        mountPage("/zephyrx", Zephyr.class);
-        mountPage("/zephyrx2", Zephyr2.class);
         
         //mountPage("/login", LogHal.class);
         //mountPage("/gui/dicom", DICOM.class);
