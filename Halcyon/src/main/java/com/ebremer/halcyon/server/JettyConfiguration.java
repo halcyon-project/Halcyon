@@ -4,13 +4,13 @@ import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import jakarta.servlet.MultipartConfigElement;
 import java.util.Collection;
 import org.eclipse.jetty.server.*;
-import org.springframework.boot.web.embedded.jetty.JettyServletWebServerFactory;
+import org.springframework.boot.jetty.servlet.JettyServletWebServerFactory;
 import org.springframework.boot.web.server.WebServerFactoryCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import java.util.List;
-import org.springframework.boot.web.embedded.jetty.JettyServerCustomizer;
+import org.springframework.boot.jetty.JettyServerCustomizer;
 
 @Configuration
 public class JettyConfiguration implements WebServerFactoryCustomizer<JettyServletWebServerFactory> {
@@ -60,8 +60,8 @@ import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import jakarta.servlet.MultipartConfigElement;
 import org.eclipse.jetty.server.SecureRequestCustomizer;
 import org.eclipse.jetty.server.Server;
-import org.springframework.boot.web.embedded.jetty.JettyServerCustomizer;
-import org.springframework.boot.web.embedded.jetty.JettyServletWebServerFactory;
+import org.springframework.boot.jetty.JettyServerCustomizer;
+import org.springframework.boot.jetty.servlet.JettyServletWebServerFactory;
 import org.springframework.boot.web.server.WebServerFactoryCustomizer;
 import org.springframework.context.annotation.Configuration;
 import org.eclipse.jetty.server.Connector;

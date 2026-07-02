@@ -30,13 +30,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.pac4j.oidc.config.KeycloakOidcConfiguration;
 import org.slf4j.bridge.SLF4JBridgeHandler;
-import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
-import org.springframework.boot.autoconfigure.liquibase.LiquibaseAutoConfiguration;
-import org.springframework.boot.autoconfigure.websocket.servlet.WebSocketServletAutoConfiguration;
+import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.ssl.DefaultSslBundleRegistry;
 
-@SpringBootApplication(exclude = { WebSocketServletAutoConfiguration.class, LiquibaseAutoConfiguration.class, DataSourceAutoConfiguration.class })
+@SpringBootApplication(exclude = { DataSourceAutoConfiguration.class })
 @ConfigurationPropertiesScan({"com.ebremer.halcyon.server"})
 public class Main {
 
