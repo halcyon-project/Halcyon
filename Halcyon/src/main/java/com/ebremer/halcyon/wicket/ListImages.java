@@ -224,9 +224,11 @@ public class ListImages extends BasePage implements IPanelChangeListener {
                 public void onClick() {
                     Solution s = model.getObject();
                     String g = s.getMap().get("s").getURI();
-                    //System.out.println("RAH ---> "+PathFinder.LocalPath2IIIFURL(g));
+                    // Pass the bare image identifier. Zephyr's CreateImageViewer
+                    // prepends the /iiif/?iiif= service prefix itself (matching
+                    // FeatureManager.getFeatures). Do NOT wrap g with
+                    // PathFinder.LocalPath2IIIFURL here or the URL double-wraps.
                     setResponsePage(new Zephyr2(g));
-                    //setResponsePage(new Zephyr2(PathFinder.LocalPath2IIIFURL(g)));
                 }
             };
             add(zephyr);
@@ -241,8 +243,8 @@ public class ListImages extends BasePage implements IPanelChangeListener {
             };
             add(zephyr3);
             
+            // Zephyr3 (experimental RDF stack viewer) stays dev-only; Zephyr2 ships to all authenticated users.
             zephyr3.setVisible(HalcyonSettings.getSettings().isDevMode());
-            zephyr.setVisible(HalcyonSettings.getSettings().isDevMode());
         }
     }
 }

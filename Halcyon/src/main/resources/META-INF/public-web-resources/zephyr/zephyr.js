@@ -3,7 +3,6 @@ import {
     Object3D,
     LOD,
     Group,
-    TextureLoader,
     Shape,
     ShapeGeometry,
     MeshBasicMaterial,
@@ -15,7 +14,6 @@ import {
     EdgesGeometry,
     LineSegments,
     Vector3,
-    FileLoader,
     LinearFilter,
     Box3,
     Sprite,
@@ -29,7 +27,31 @@ import {
     NearestFilter
 } from 'three';
 
+import { tileLoader } from './TileLoader.js';
+
 export const TileSize = 512;
+
+function isValidImageInfo(data) {
+    return data
+        && Number.isFinite(data.width) && data.width > 0
+        && Number.isFinite(data.height) && data.height > 0
+        && Array.isArray(data.tiles) && data.tiles[0]
+        && Number.isFinite(data.tiles[0].width) && Number.isFinite(data.tiles[0].height);
+}
+
+function showViewerError(message) {
+    console.error(message);
+    let div = document.getElementById('zephyr-error');
+    if (!div) {
+        div = document.createElement('div');
+        div.id = 'zephyr-error';
+        div.style.cssText = 'position:fixed;top:10px;left:50%;transform:translateX(-50%);'
+            + 'z-index:1000;background:#b00020;color:#fff;padding:10px 16px;border-radius:4px;'
+            + 'font:14px sans-serif;max-width:80%;box-shadow:0 2px 8px rgba(0,0,0,0.4);';
+        document.body.appendChild(div);
+    }
+    div.textContent = message;
+}
 
 function srcurl(src, x, y, w, h, tilex, tiley, scale, name) {
     const a = Math.trunc(w);
@@ -48,22 +70,19 @@ function srcurl(src, x, y, w, h, tilex, tiley, scale, name) {
         return newTexture;
     } else {
         const ha = `/iiif/?iiif=${src}/${x},${y},${a},${b}/!${m},${n}/0/default.png`;
-        return new TextureLoader().load(ha,
-            (texture) => {
-                // if ( texture.image.width !== texture.image.height ) {
-                texture.wrapS = ClampToEdgeWrapping;
-                texture.wrapT = ClampToEdgeWrapping;
-                texture.minFilter = NearestFilter;
-                texture.magFilter = NearestFilter;
-                texture.colorSpace = SRGBColorSpace;
-                texture.generateMipmaps = false;
-                texture.needsUpdate = true;
-                const wratio = tilex / texture.image.width;
-                const hratio = tiley / texture.image.height;
-                texture.repeat.set(wratio, hratio);
-                texture.offset.set(0, 1 - hratio);
-                //}
-            });
+        return tileLoader.load(ha, (texture) => {
+            texture.wrapS = ClampToEdgeWrapping;
+            texture.wrapT = ClampToEdgeWrapping;
+            texture.minFilter = NearestFilter;
+            texture.magFilter = NearestFilter;
+            texture.colorSpace = SRGBColorSpace;
+            texture.generateMipmaps = false;
+            const wratio = tilex / texture.image.width;
+            const hratio = tiley / texture.image.height;
+            texture.repeat.set(wratio, hratio);
+            texture.offset.set(0, 1 - hratio);
+            texture.needsUpdate = true;
+        });
     }
 }
 
@@ -101,22 +120,6 @@ function Square(renderer, src, offset, name) {
     X.frustumCulled = false;
     X.position.set(0, 0, offset);
     return X;
-}
-
-function createPolygon(wkt, x, y) {
-    const reader = new jsts.io.WKTReader();
-    const geom = reader.read(wkt);
-    if (geom.getGeometryType() !== "Polygon") {
-        console.error("The provided WKT is not a polygon");
-        return;
-    }
-    const coordinates = geom.getCoordinates();
-    const points = coordinates.map(coord => new Vector3(coord.x - x, coord.y - y, 0));
-    console.log(points);
-    const shape = new Shape(points);
-    const geometry = new ShapeGeometry(shape);
-    const material = new MeshBasicMaterial({ color: 0xffff00, side: DoubleSide });
-    return new Mesh(geometry, material);
 }
 
 function DrawAxis(scene) {
@@ -172,41 +175,51 @@ function AddImageViewer(stackviewer, url, offset) {
       lod.imageHeight = h;
       lod.url = url;
       lod.offset = offset;
-      lod.frustrumCulled = false;
+      lod.frustumCulled = false;
       lod.scale.x = w;
-      lod.scale.y = w;
-      
-      lod.onBeforeRender = function (renderer, scene, camera, geometry, material, group) {
-            console.log('Object is about to be rendered');
-            material.color.set(Math.random() * 0xffffff);
-      };
-      
+      lod.scale.y = h;
       stackviewer.addLayer(lod);
       lod.position.z = offset;
     }).catch(error => console.error('Error fetching data:', error));
 }
 
+/**
+ * Renders a single IIIF image as a tiled level-of-detail pyramid.
+ * `url` must be a BARE IIIF identifier (e.g. the image subject URI): this
+ * function prepends the `/iiif/?iiif=` service prefix itself, matching how
+ * FeatureManager builds `/iiif/?iiif={id}/info.json`. Do NOT pass an already
+ * service-wrapped URL (e.g. PathFinder.LocalPath2IIIFURL) — that double-wraps.
+ */
 function CreateImageViewer(renderer, scene, url, offset) {
-    var target = "/iiif/?iiif=" + url + "/info.json";
+    const target = "/iiif/?iiif=" + url + "/info.json";
     fetch(target)
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`IIIF info request failed (${response.status})`);
+            }
+            return response.json();
+        })
         .then(data => {
+            if (!isValidImageInfo(data)) {
+                showViewerError(`Image metadata is missing or malformed for ${url}`);
+                return;
+            }
             const x = 0;
             const y = 0;
             const w = data.width;
             const h = data.height;
-            const offset = 0;
             const tilex = data.tiles[0].width;
             const tiley = data.tiles[0].height;
             const lod = new ImageViewer(renderer, url, w, h, x, y, w, h, tilex, tiley, offset, data, 0, "ROOT", 0, 0);
             lod.imageWidth = w;
             lod.imageHeight = h;
             lod.url = url;
-            lod.frustrumCulled = false;
+            lod.frustumCulled = false;
             lod.scale.x = w;
-            lod.scale.y = w;
+            lod.scale.y = h;
             scene.add(lod);
-        }).catch(error => console.error('Error fetching data:', error));
+        })
+        .catch(error => showViewerError(`Error loading image ${url}: ${error.message}`));
 }
 
 class ImageViewer extends LOD {
@@ -278,106 +291,6 @@ class ImageViewer extends LOD {
                 }
             }
         };
-    }
-
-    update(camera) {
-        super.update(camera);
-        let currentLevelIndex = -1;
-        this.levels.forEach((level, index) => {
-            if (level.object.visible) {
-                currentLevelIndex = index;
-            }
-        });
-        if (currentLevelIndex !== -1) {
-            //  console.log(this.level+ ` Current LOD level: ${currentLevelIndex}`);
-        } else {
-            //  console.log(this.level+ "No LOD level is currently visible.");
-        }
-    }
-}
-
-class FeatureViewer extends LOD {
-    constructor(renderer, scene, url, x, y, w, h, tilex, tiley, offset, info, level) {
-        super();
-        console.log("FeatureViewer( " + x + " " + y + " " + w + " " + h + "                " + tilex + " " + tiley + " " + offset + " " + level + " )");
-        this.isImageViewer = true;
-        this.type = 'FeatureViewer';
-        this.booted = false;
-        this.level = level;
-        this.edistance = 0.50 * w;
-        if (this.level < 1) {
-            //if (w<=tilex) {
-            const loader = new FileLoader();
-            const xsrc = url + "/" + x + "," + y + "," + w + "," + h + "/" + tilex + ",/0/default.json";
-            loader.load(
-                xsrc,
-                (data) => {
-                    const json = JSON.parse(data)["@graph"];
-                    const group = new Group();
-                    json.forEach(yyy => {
-                        group.add(createPolygon(yyy["hasGeometry"]["asWKT"], x, y));
-                    });
-                    this.addLevel(group, this.edistance);
-                }, null,
-                function (error) {
-                    console.error('An error happened', error);
-                }
-            );
-        } else {
-            const low = Square(renderer, x, y, w, h, srcurl(url, x, y, w, h, tilex, tiley), offset);
-            low.name = "Square";
-            low.frustumCulled = true;
-            console.log("addLevel : " + this.edistance);
-            this.addLevel(low, this.edistance);
-            low.onBeforeRender = () => {
-                //if (this.level < 1) {
-                //if (w<0) {
-                if (!this.booted) {
-                    this.booted = true;
-                    const offx = Math.ceil(w / tilex) / 2 * tilex;
-                    const offy = Math.ceil(h / tiley) / 2 * tiley;
-                    const offm = Math.max(offx, offy);
-                    const nextlevel = level + 1;
-                    const high = new Group();
-                    const nw = new FeatureViewer(renderer, scene, url, x, y, Math.min(offm, w), Math.min(offm, h), tilex, tiley, offset, info, nextlevel);
-                    nw.position.set(-Math.min(offm, w) / 2, Math.min(offm, h) / 2, 0);
-                    high.add(nw);
-                    console.log("FNW : " + x + " " + y + " " + offm + " " + offm);
-                    const ww = x + offm;
-                    const hh = y + offm;
-                    if (ww <= w) {
-                        const ne = new FeatureViewer(renderer, scene, url, x + offm, y, w - ww, Math.min(offm, h), tilex, tiley, offset, info, nextlevel);
-                        ne.position.set((w - ww) / 2, Math.min(offm, h) / 2, 0);
-                        high.add(ne);
-                        console.log("FNE : " + (x + offm) + " " + y + " " + (w - offm) + " " + offm);
-                    }
-                    if (hh <= h) {
-                        const sw = new FeatureViewer(renderer, scene, url, x, y + offm, Math.min(offm, w), h - hh, tilex, tiley, offset, info, nextlevel);
-                        sw.position.set(-Math.min(offm, w) / 2, -(h - hh) / 2, 0);
-                        high.add(sw);
-                        console.log("FSW : " + x + " " + (y + offm) + " " + offm + " " + (h - offm));
-                    }
-                    if ((ww <= w) && (hh <= h)) {
-                        const se = new FeatureViewer(renderer, scene, url, x + offm, y + offm, w - ww, h - hh, tilex, tiley, offset, info, nextlevel);
-                        se.position.set((w - ww) / 2, -(h - hh) / 2, 0);
-                        high.add(se);
-                        console.log("FSE : " + (x + offm) + " " + (y + offm) + " " + (w - offm) + " " + (h - offm));
-                    }
-                    high.frustumCulled = true;
-                    //console.log("sub render : "+w+" "+h+" "+offx+" "+offy+" ===> "+(this.edistance/2));
-                    if (w <= tilex) {
-                        //    console.log("addSubLevel : ZERO");
-                        this.addLevel(high, 0);
-                        this.bottom = true;
-                    } else {
-                        const sigh = (0.25 * this.edistance);
-                        //console.log("addSubLevel : "+sigh);
-                        this.addLevel(high, sigh);
-                    }
-                }
-            };
-        }
-
     }
 
     update(camera) {
@@ -515,4 +428,4 @@ class Stack extends Object3D {
     }
 }
 
-export { Square, CreateImageViewer, CreateStackViewer, createPolygon, DrawAxis, Stack };
+export { Square, CreateImageViewer, CreateStackViewer, DrawAxis, Stack };
