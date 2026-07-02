@@ -88,7 +88,7 @@
 	<resteasy.version>6.2.15.Final</resteasy.version>
         <jetty.version>12.1.10</jetty.version>
         <jena.version>6.1.0</jena.version>
-        <wicket.ver>10.8.0</wicket.ver>
+        <wicket.ver>10.9.1</wicket.ver>
         <beakgraph.version>0.17.0</beakgraph.version>
         <hilbert.ver>0.2.3</hilbert.ver>
         <commons-pool2.ver>2.13.1</commons-pool2.ver>
