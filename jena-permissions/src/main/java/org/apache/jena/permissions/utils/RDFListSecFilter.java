@@ -33,7 +33,6 @@ import org.apache.jena.vocabulary.RDF;
  *
  * @param <T>
  */
-@SuppressWarnings("removal")
 public class RDFListSecFilter<T extends RDFList> implements Predicate<T> {
     private final SecuredItem securedItem;
     private final Set<Action> perms;

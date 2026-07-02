@@ -23,7 +23,6 @@ import org.apache.jena.graph.Node;
 import org.apache.jena.graph.Triple;
 import org.apache.jena.rdf.model.Model;
 
-@SuppressWarnings("removal")
 public class ModelBasedSecurityEvaluator implements SecurityEvaluator {
 
     // private Model model;

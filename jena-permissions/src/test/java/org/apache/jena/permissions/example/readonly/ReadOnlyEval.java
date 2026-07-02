@@ -32,7 +32,6 @@ import org.apache.jena.shared.AuthenticationRequiredException;
  * are denied.
  *
  */
-@SuppressWarnings("removal")
 public class ReadOnlyEval implements SecurityEvaluator {
 
     @Override

@@ -42,7 +42,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-@SuppressWarnings("removal")
 @RunWith(value = SecurityEvaluatorParameters.class)
 public class SecuredModelTest {
     protected final MockSecurityEvaluator securityEvaluator;
@@ -1608,6 +1607,7 @@ public class SecuredModelTest {
     }
 
     @Test
+    @SuppressWarnings("removal") // exercises Model.write, deprecated-for-removal upstream
     public void testWrite_stream() throws Exception {
         __testWrite(() -> securedModel.write(new ByteArrayOutputStream()));
     }

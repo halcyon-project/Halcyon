@@ -36,7 +36,6 @@ import org.slf4j.LoggerFactory;
  * are from or to the principal.
  *
  */
-@SuppressWarnings("removal")
 public class ShiroExampleEvaluator implements SecurityEvaluator {
 
     private static final Logger LOG = LoggerFactory.getLogger(ShiroExampleEvaluator.class);

@@ -30,7 +30,6 @@ import org.apache.jena.shared.AuthenticationRequiredException;
 import org.apache.jena.shared.ReadDeniedException;
 import org.apache.jena.util.iterator.ExtendedIterator;
 
-@SuppressWarnings("removal")
 public interface SecuredRDFList extends RDFList, SecuredResource {
 
     /**

@@ -23,8 +23,6 @@ import org.apache.jena.rdf.model.*;
  * The interface for secured StatementTerm instances.
  *
  * Use a secured Model to create instances.
- * @deprecated To be removed.
  */
-@Deprecated(forRemoval = true)
 public interface SecuredStatementTerm extends StatementTerm, SecuredRDFNode {
 }

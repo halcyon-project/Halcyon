@@ -25,7 +25,6 @@ import org.junit.Before;
 import org.junit.runner.RunWith;
 
 @RunWith(value = SecurityEvaluatorParameters.class)
-@SuppressWarnings("removal")
 public class SecuredBagTest extends SecuredContainerTest {
 
     public SecuredBagTest(final MockSecurityEvaluator securityEvaluator) {

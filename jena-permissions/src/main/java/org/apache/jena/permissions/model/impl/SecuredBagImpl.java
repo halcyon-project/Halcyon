@@ -25,9 +25,7 @@ import org.apache.jena.rdf.model.Bag;
 
 /**
  * Implementation of SecuredBag to be used by a SecuredItemInvoker proxy.
- * @deprecated To be removed.
  */
-@Deprecated(forRemoval = true)
 public class SecuredBagImpl extends SecuredContainerImpl implements SecuredBag {
     /**
      * Get an instance of SecuredBag

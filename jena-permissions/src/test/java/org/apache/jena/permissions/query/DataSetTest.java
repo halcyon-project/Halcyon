@@ -31,7 +31,6 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-@SuppressWarnings("removal")
 public class DataSetTest {
     private Dataset dataset;
     private Model baseModel;

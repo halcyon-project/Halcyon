@@ -29,7 +29,6 @@ import org.apache.jena.rdf.model.ResIterator;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.util.iterator.ExtendedIterator;
 
-@SuppressWarnings("removal")
 public class SecuredResIterator implements ResIterator {
 
     /**

@@ -38,7 +38,6 @@ import org.junit.runner.RunWith;
  * Verifies that messages are properly filtered when sent to listeners.
  *
  */
-@SuppressWarnings("removal")
 @RunWith(value = SecurityEvaluatorParameters.class)
 public class GraphEventManagerTest {
     private final GraphEventManager manager;

@@ -35,7 +35,6 @@ import org.apache.jena.util.iterator.ExtendedIterator;
 /**
  * A secured StatementIterator implementation
  */
-@SuppressWarnings("removal")
 public class SecuredStatementIterator implements StmtIterator {
 
     private class PermStatementMap implements Function<Statement, Statement> {

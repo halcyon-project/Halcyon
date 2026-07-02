@@ -104,7 +104,6 @@ import org.apache.jena.rdf.model.Seq;
  * @see SecuredAssembler
  *
  */
-@SuppressWarnings("removal")
 public class SecurityEvaluatorAssembler extends AssemblerBase implements Assembler, AssemblerConstants {
     // initialization and registration is performed by SecuredAssembler
 

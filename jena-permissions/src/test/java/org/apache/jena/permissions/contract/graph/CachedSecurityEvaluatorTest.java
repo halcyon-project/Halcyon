@@ -27,7 +27,6 @@ import org.junit.Test;
 
 import static org.junit.Assert.*;
 
-@SuppressWarnings("removal")
 public class CachedSecurityEvaluatorTest {
 
     private StaticSecurityEvaluator securityEvaluator;

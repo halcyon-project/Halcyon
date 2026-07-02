@@ -30,7 +30,6 @@ import org.apache.jena.sparql.expr.*;
 import org.apache.jena.sparql.function.FunctionEnv;
 import org.apache.jena.sparql.graph.NodeTransform;
 
-@SuppressWarnings("removal")
 public class SecuredFunction extends ExprFunctionN {
     private final SecurityEvaluator securityEvaluator;
     private final List<Node> variables;

@@ -28,7 +28,6 @@ import org.apache.jena.permissions.SecuredItem;
  * A generic InvocationHandler that handles the general invocation of the
  * security methods.
  */
-@SuppressWarnings("removal")
 public class SecuredItemInvoker implements InvocationHandler {
     // the equals() method
     private static Method EQUALS;

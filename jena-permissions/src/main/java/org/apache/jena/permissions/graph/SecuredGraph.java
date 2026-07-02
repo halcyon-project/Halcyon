@@ -27,9 +27,7 @@ import org.apache.jena.permissions.SecuredItem;
  *
  *
  * {@link org.apache.jena.permissions.graph.impl.SecuredGraphImpl} for javadocs
- * @deprecated To be removed.
  */
-@Deprecated(forRemoval = true)
 public interface SecuredGraph extends Graph, SecuredItem {
 
 }

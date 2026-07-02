@@ -23,8 +23,6 @@ import org.apache.jena.rdf.model.Bag;
  * The interface for secured Bag instances.
  *
  * Use the SecuredBag.Factory to create instances
- * @deprecated To be removed.
  */
-@Deprecated(forRemoval = true)
 public interface SecuredBag extends Bag, SecuredContainer {
 }

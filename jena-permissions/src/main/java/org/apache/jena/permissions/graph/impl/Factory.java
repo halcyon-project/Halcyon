@@ -25,7 +25,6 @@ import org.apache.jena.permissions.impl.ItemHolder;
 import org.apache.jena.permissions.impl.SecuredItemInvoker;
 import org.apache.jena.shared.PrefixMapping;
 
-@SuppressWarnings("removal")
 public class Factory {
 
     /**

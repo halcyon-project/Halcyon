@@ -75,7 +75,7 @@ import org.apache.jena.vocabulary.RDF;
 /**
  * Implementation of SecuredModel to be used by a SecuredItemInvoker proxy.
  */
-@SuppressWarnings({"deprecation", "removal"})
+@SuppressWarnings("deprecation")
 public class SecuredModelImpl extends SecuredItemImpl implements SecuredModel {
 
     /**
@@ -3098,6 +3098,9 @@ public class SecuredModelImpl extends SecuredItemImpl implements SecuredModel {
      * @throws AuthenticationRequiredException if user is not authenticated and is
      *                                         required to be.
      */
+    // Mirrors Model.write(...), deprecated-for-removal upstream; the
+    // secured wrapper must implement it while the interface has it.
+    @SuppressWarnings("removal")
     @Override
     public SecuredModel write(final OutputStream out) throws ReadDeniedException, AuthenticationRequiredException {
         if (checkSoftRead()) {
@@ -3171,6 +3174,9 @@ public class SecuredModelImpl extends SecuredItemImpl implements SecuredModel {
      * @throws AuthenticationRequiredException if user is not authenticated and is
      *                                         required to be.
      */
+    // Mirrors Model.write(...), deprecated-for-removal upstream; the
+    // secured wrapper must implement it while the interface has it.
+    @SuppressWarnings("removal")
     @Override
     public SecuredModel write(final Writer writer) throws ReadDeniedException, AuthenticationRequiredException {
         if (checkSoftRead()) {

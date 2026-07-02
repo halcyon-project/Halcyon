@@ -40,7 +40,6 @@ import org.apache.jena.util.iterator.ExtendedIterator;
 /**
  * Implementation of SecuredGraph to be used by a SecuredItemInvoker proxy.
  */
-@SuppressWarnings("removal")
 public class SecuredGraphImpl extends SecuredItemImpl implements SecuredGraph {
 
     // the prefixMapping for this graph.

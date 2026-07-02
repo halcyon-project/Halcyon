@@ -54,7 +54,6 @@ import org.apache.jena.util.iterator.NiceIterator;
 import org.apache.jena.util.iterator.WrappedIterator;
 import org.apache.jena.vocabulary.RDF;
 
-@SuppressWarnings("removal")
 public class SecuredRDFListImpl extends SecuredResourceImpl implements SecuredRDFList {
 
     /**

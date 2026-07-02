@@ -34,7 +34,6 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-@SuppressWarnings("removal")
 public class OpRewriterTest {
     private OpRewriter rewriter;
     private Triple[] triples;

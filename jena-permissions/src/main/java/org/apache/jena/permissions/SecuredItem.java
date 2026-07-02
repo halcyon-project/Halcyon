@@ -26,9 +26,7 @@ import org.apache.jena.shared.AuthenticationRequiredException;
  * The secured item interface is mixed into instances of secured objects by the
  * proxy. It provides the security context for the security checks as well as
  * several useful shorthand methods for common checks.
- * @deprecated To be removed
  */
-@Deprecated(forRemoval = true)
 public interface SecuredItem {
 
     /**

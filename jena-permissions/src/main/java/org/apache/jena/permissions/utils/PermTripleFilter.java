@@ -32,7 +32,6 @@ import org.apache.jena.shared.AuthenticationRequiredException;
  * A filter for to filter ExtendedIterators on Triples. This filter removes any
  * triple that the user can not perform all the actions on.
  */
-@SuppressWarnings("removal")
 public class PermTripleFilter implements Predicate<Triple> {
     private final SecurityEvaluator evaluator;
     private final Node modelNode;

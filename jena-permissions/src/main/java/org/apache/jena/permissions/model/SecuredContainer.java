@@ -24,8 +24,6 @@ import org.apache.jena.rdf.model.Container;
  *
  * Use one of the SecuredContainer derived class Factory methods to create
  * instances
- * @deprecated To be removed.
  */
-@Deprecated(forRemoval = true)
 public interface SecuredContainer extends Container, SecuredResource {
 }

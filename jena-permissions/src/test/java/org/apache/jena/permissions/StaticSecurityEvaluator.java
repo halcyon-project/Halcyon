@@ -23,7 +23,6 @@ import org.apache.jena.graph.Node;
 import org.apache.jena.graph.NodeFactory;
 import org.apache.jena.graph.Triple;
 
-@SuppressWarnings("removal")
 public class StaticSecurityEvaluator implements SecurityEvaluator {
 
     private Node user;

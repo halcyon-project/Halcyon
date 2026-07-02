@@ -30,7 +30,6 @@ import org.apache.jena.sparql.engine.QueryEngineRegistry;
 import org.apache.jena.sparql.engine.binding.Binding;
 import org.apache.jena.sparql.util.Context;
 
-@SuppressWarnings("removal")
 public class SecuredQueryEngineFactory implements QueryEngineFactory {
     private boolean silentService = true;
     private SecuredQueryEngineConfig cfgResource;

@@ -93,7 +93,7 @@
         <hilbert.ver>0.2.3</hilbert.ver>
         <commons-pool2.ver>2.13.1</commons-pool2.ver>
         <jakarta.json.version>2.1.3</jakarta.json.version> 
-        <parrson.json.version>1.1.7</parrson.json.version>
+        <parrson.json.version>1.1.9</parrson.json.version>
         <titanium-json-ld.ver>1.7.0</titanium-json-ld.ver>
         <!--<dcm4che.ver>5.31.2</dcm4che.ver>-->
         <shiro.version>2.1.0</shiro.version>
@@ -101,10 +101,10 @@
         <twelvemonkeys.version>3.13.1</twelvemonkeys.version>
         <maven-compiler-plugin.version>3.15.0</maven-compiler-plugin.version>
         <maven-shade-plugin.version>3.6.2</maven-shade-plugin.version>
-        <maven-enforcer-plugin.version>3.6.2</maven-enforcer-plugin.version>
+        <maven-enforcer-plugin.version>3.6.3</maven-enforcer-plugin.version>
         <maven-deploy-plugin.version>3.1.4</maven-deploy-plugin.version>
         <maven-dependency-plugin.version>3.7.0</maven-dependency-plugin.version>
-        <native-maven-plugin.version>1.0.0</native-maven-plugin.version>
+        <native-maven-plugin.version>1.1.2</native-maven-plugin.version>
         <jpackage-maven-plugin.version>1.7.4</jpackage-maven-plugin.version>
         <jcommander.version>3.0</jcommander.version>
         <log4j-api.version>2.26.0</log4j-api.version>

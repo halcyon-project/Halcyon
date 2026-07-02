@@ -23,9 +23,7 @@ import org.apache.jena.rdf.model.Property;
  * The interface for secured Property instances.
  *
  * Use the SecuredProperty.Factory to create instances
- * @deprecated To be removed.
  */
-@Deprecated(forRemoval = true)
 public interface SecuredProperty extends SecuredResource, Property {
 
 }

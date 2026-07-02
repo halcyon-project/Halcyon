@@ -25,7 +25,6 @@ import org.apache.jena.graph.Node;
 import org.apache.jena.graph.Triple;
 import org.apache.jena.rdf.model.Resource;
 
-@SuppressWarnings("removal")
 public class MockSecurityEvaluator implements SecurityEvaluator {
 
     private final boolean loggedIn;

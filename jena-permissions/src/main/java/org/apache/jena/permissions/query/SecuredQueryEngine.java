@@ -36,7 +36,6 @@ import org.apache.jena.sparql.util.Context;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@SuppressWarnings("removal")
 public class SecuredQueryEngine extends QueryEngineMain {
     private static Logger LOG = LoggerFactory.getLogger(SecuredQueryEngine.class);
 

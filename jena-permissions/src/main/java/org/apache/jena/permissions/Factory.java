@@ -39,9 +39,7 @@ public class Factory {
      * @param graphIRI          The IRI for the graph.
      * @param graph             The graph that we are wrapping.
      * @return the graph secured under the name graphIRI
-     * @deprecated jena-permissions will be retired
      */
-    @Deprecated(forRemoval = true)
     public static SecuredGraph getInstance(final SecurityEvaluator securityEvaluator, final String graphIRI,
             final Graph graph) {
 
@@ -56,9 +54,7 @@ public class Factory {
      *                          against.
      * @param model             The model to secure.
      * @return the model secured under the name modelIRI
-     * @deprecated jena-permissions will be retired
      */
-    @Deprecated(forRemoval = true)
     public static SecuredModel getInstance(final SecurityEvaluator securityEvaluator, final String modelIRI,
             final Model model) {
         return org.apache.jena.permissions.model.impl.SecuredModelImpl.getInstance(securityEvaluator, modelIRI, model);

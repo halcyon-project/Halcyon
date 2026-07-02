@@ -32,9 +32,7 @@ import org.apache.jena.util.iterator.ExtendedIterator;
 
 /**
  * A secured RDFNode iterator implementation
- * @deprecated To be removed.
  */
-@Deprecated(forRemoval = true)
 public class SecuredNodeIterator<T extends RDFNode> implements NodeIterator {
     private class PermNodeMap<N extends RDFNode> implements Function<N, RDFNode> {
         private final SecuredModel securedModel;
