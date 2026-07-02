@@ -28,9 +28,9 @@ public class CollectionActionPanel extends Panel {
         public CollectionActionPanel(String id, IModel<Solution> model, String item) {
             super(id, model);
             Solution s = model.getObject();
-            int numRead = (int) s.getMap().get("numRead").getLiteralValue();
-            int numWrite = (int) s.getMap().get("numWrite").getLiteralValue();
-            String agent = s.getMap().get("s").getURI();
+            int numRead = (int) s.get("numRead").getLiteralValue();
+            int numWrite = (int) s.get("numWrite").getLiteralValue();
+            String agent = s.get("s").getURI();
             Link ReadLink = new Link<Void>("Add") {
                 @Override
                 public void onClick() {

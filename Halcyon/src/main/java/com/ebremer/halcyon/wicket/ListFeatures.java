@@ -1,10 +1,9 @@
 package com.ebremer.halcyon.wicket;
 
-import com.ebremer.vandegraph.LDModel;
 import com.ebremer.vandegraph.Solution;
-import com.ebremer.vandegraph.NodeColumn;
-import com.ebremer.vandegraph.RDFDetachableModel;
-import com.ebremer.vandegraph.RDFRenderer;
+import com.ebremer.vandegraph.SparqlVarColumn;
+import com.ebremer.vandegraph.SessionScopedModel;
+import com.ebremer.vandegraph.NodeLabelRenderer;
 import com.ebremer.vandegraph.SelectDataProvider;
 import com.ebremer.halcyon.data.DataCore;
 import static com.ebremer.halcyon.data.DataCore.Level.OPEN;
@@ -77,7 +76,7 @@ public class ListFeatures extends Panel {
                 cellItem.add(new ActionPanel(componentId, model));
             }
         });
-        columns.add(new NodeColumn<>(Model.of("Feature Collection"), "name", "name"));
+        columns.add(new SparqlVarColumn(Model.of("Feature Collection"), "name"));
         ParameterizedSparqlString pss = new ParameterizedSparqlString(
             """
             select distinct ?name ?creator
@@ -101,15 +100,14 @@ public class ListFeatures extends Panel {
         rdfsdf = new SelectDataProvider(ds, pss.toString());
         ParameterizedSparqlString pss2 = rdfsdf.getPSS();
         pss2.setIri("collection", "urn:halcyon:nothing");
-        rdfsdf.SetSPARQL(pss2.toString());
+        rdfsdf.setQuery(pss2.toString());
         AjaxFallbackDefaultDataTable table = new AjaxFallbackDefaultDataTable<>("table", columns, rdfsdf, 25);
         add(table);
         Form<?> form = new Form("form");
         add(form);
-        RDFDetachableModel rdg = new RDFDetachableModel(Patterns.getALLCollectionRDF());
-        LDModel ldm = new LDModel(rdg);
+        SessionScopedModel rdg = new SessionScopedModel(Patterns.getALLCollectionRDF());
         DropDownChoice<Node> ddc
-                = new DropDownChoice<>("collection", ldm,
+                = new DropDownChoice<>("collection", new Model<>(),
                         new LoadableDetachableModel<List<Node>>() {
                     @Override
                     protected List<Node> load() {
@@ -135,7 +133,11 @@ public class ListFeatures extends Panel {
                         return list;
                     }
                 },
-                        new RDFRenderer(rdg)
+                        new NodeLabelRenderer(rdg, n -> switch (n.toString()) {
+                            case "urn:halcyon:nocollections" -> "not specified";
+                            case "urn:halcyon:allcollections" -> "All";
+                            default -> n.toString();
+                        })
                 );
 
         form.add(ddc);
@@ -155,7 +157,7 @@ public class ListFeatures extends Panel {
                     clearSelectedFeatures();
                 }
                 logger.debug(pss.toString());
-                rdfsdf.SetSPARQL(pss.toString());
+                rdfsdf.setQuery(pss.toString());
                 if (ListFeatures.this.changeListener != null) {
                     ListFeatures.this.changeListener.onChange(target);
                 }
@@ -200,7 +202,7 @@ public class ListFeatures extends Panel {
 
         public ActionPanel(String id, IModel<Solution> model) {
             super(id, model);
-            String key = model.getObject().getMap().get("creator").toString();
+            String key = model.getObject().get("creator").toString();
             CheckBox ds1 = new CheckBox("checkbox1", Model.of(selected1.contains(key)));
             ds1.add(new OnChangeAjaxBehavior() {
                 @Override

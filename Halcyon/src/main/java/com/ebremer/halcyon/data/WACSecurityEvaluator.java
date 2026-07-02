@@ -38,7 +38,7 @@ public final class WACSecurityEvaluator implements SecurityEvaluator {
             return false;
         }
         if (level == OPEN) {
-            if (node.matches(HAL.CollectionsAndResources.asNode())) {
+            if (node.equals(HAL.CollectionsAndResources.asNode())) {
                 return true;
             }
         }

@@ -6,13 +6,10 @@ import com.apicatalog.jsonld.JsonLdOptions;
 import com.apicatalog.jsonld.api.FramingApi;
 import com.apicatalog.jsonld.document.Document;
 import com.apicatalog.jsonld.document.JsonDocument;
-import com.apicatalog.jsonld.document.RdfDocument;
 import com.apicatalog.jsonld.lang.Keywords;
-import com.apicatalog.jsonld.processor.FromRdfProcessor;
-import com.apicatalog.rdf.RdfDataset;
 import com.ebremer.halcyon.data.DataCore;
 import com.ebremer.halcyon.lib.OperatingSystemInfo;
-import com.ebremer.vandegraph.shacl.HShapesSPARQL;
+import com.ebremer.halcyon.server.lws.ShapeSparqlTemplates;
 import com.ebremer.halcyon.server.utils.PathMapper;
 import com.ebremer.halcyon.utils.HalJsonLD;
 import com.ebremer.ns.HAL;
@@ -64,7 +61,7 @@ import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
-import org.apache.jena.riot.system.JenaTitanium;
+import org.apache.jena.riot.system.jsonld.JenaToTitanium;
 import org.apache.jena.sparql.core.DatasetGraph;
 import org.apache.jena.vocabulary.DCTerms;
 import org.apache.jena.vocabulary.RDF;
@@ -224,7 +221,7 @@ public class Tools {
         ParameterizedSparqlString pss = null;
         if (prefer.isPresent()) {
             String shape = (prefer.get().shacl().isEmpty())?null:prefer.get().shacl().get(0).getURI();
-            pss = HShapesSPARQL.getInstance().getPSS(shape);            
+            pss = ShapeSparqlTemplates.getInstance().getPSS(shape);            
         }
         if (pss==null) {
             if (prefer.isEmpty()) {
@@ -292,13 +289,11 @@ public class Tools {
                     .add(Keywords.ID, "hal:hasClass")
                     .add(Keywords.TYPE, Keywords.ID)
             );
-            RdfDataset ds = JenaTitanium.convert(dsg);
-            Document doc = RdfDocument.of(ds);
             JsonLdOptions options = new JsonLdOptions();
             options.setOrdered(false);
             options.setUseNativeTypes(true);
             options.setOmitGraph(true);
-            JsonArray array = FromRdfProcessor.fromRdf(doc, options);
+            JsonArray array = JenaToTitanium.convert(dsg, options);
             JsonObject frame = Json.createObjectBuilder()
                     .add(Keywords.CONTEXT, cxt)
                     .add(Keywords.EMBED, Keywords.ALWAYS)
@@ -334,13 +329,11 @@ public class Tools {
                     .add(Keywords.CONTAINER, Keywords.SET)
                     .add(Keywords.TYPE, Keywords.ID)
             );
-            RdfDataset ds = JenaTitanium.convert(dsg);
-            Document doc = RdfDocument.of(ds);
             JsonLdOptions options = new JsonLdOptions();
             options.setOrdered(false);
             options.setUseNativeTypes(true);
             options.setOmitGraph(true);
-            JsonArray array = FromRdfProcessor.fromRdf(doc, options);
+            JsonArray array = JenaToTitanium.convert(dsg, options);
             JsonObject frame = Json.createObjectBuilder()
                     .add(Keywords.CONTEXT, cxt)
                     .add(Keywords.EMBED, Keywords.ALWAYS)

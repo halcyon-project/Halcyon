@@ -1,6 +1,6 @@
 package com.ebremer.halcyon.wicket.ethereal;
 
-import com.ebremer.vandegraph.NodeColumn;
+import com.ebremer.vandegraph.SparqlVarColumn;
 import com.ebremer.vandegraph.SelectDataProvider;
 import com.ebremer.vandegraph.Solution;
 import com.ebremer.halcyon.wicket.DatabaseLocator;
@@ -52,7 +52,7 @@ public class ListClasses extends Panel {
                 cellItem.add(new ActionPanel(componentId, model));
             }
         });
-        columns.add(new NodeColumn<>(Model.of("Predicate"),"p","p"));
+        columns.add(new SparqlVarColumn(Model.of("Predicate"), "p"));
         ParameterizedSparqlString pss = new ParameterizedSparqlString(
             """
             select distinct ?p
@@ -67,7 +67,7 @@ public class ListClasses extends Panel {
         ResultSetFormatter.out(System.out,qe.execSelect());
         ds.end();
         rdfsdf = new SelectDataProvider(ds,pss.toString());
-        rdfsdf.SetSPARQL(pss.toString());        
+        rdfsdf.setQuery(pss.toString());        
         AjaxFallbackDefaultDataTable table = new AjaxFallbackDefaultDataTable<>("table", columns, rdfsdf, 35);
         add(table);
     }
@@ -90,7 +90,7 @@ public class ListClasses extends Panel {
 
         public ActionPanel(String id, IModel<Solution> model) {
             super(id, model);
-            String key = model.getObject().getMap().get("p").toString();
+            String key = model.getObject().get("p").toString();
             CheckBox ds1 = new CheckBox("checkbox", Model.of(selected.contains(key)));
             ds1.add(new OnChangeAjaxBehavior() {
                 @Override

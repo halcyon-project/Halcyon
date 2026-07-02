@@ -1,6 +1,6 @@
 package com.ebremer.halcyon.gui.tree;
 
-import com.ebremer.vandegraph.xNode;
+import com.ebremer.vandegraph.GraphNode;
 import com.ebremer.halcyon.data.DataCore;
 import com.ebremer.halcyon.datum.Patterns;
 import com.ebremer.halcyon.gui.Collections;
@@ -35,7 +35,7 @@ import org.apache.wicket.request.resource.CssResourceReference;
 public abstract class NodeAdvancedTreePage extends BasePage {
     private static final long serialVersionUID = 1L;
     private Behavior theme = new WindowsTheme();
-    private final AbstractTree<xNode> tree;
+    private final AbstractTree<GraphNode> tree;
     private final NodeProvider provider;
     private final NodeContent content;
     private final String collection;
@@ -133,15 +133,15 @@ public abstract class NodeAdvancedTreePage extends BasePage {
         );
     }
 
-    protected abstract AbstractTree<xNode> createTree(NodeProvider provider, IModel<Set<xNode>> state);
+    protected abstract AbstractTree<GraphNode> createTree(NodeProvider provider, IModel<Set<GraphNode>> state);
 
-    protected Component newContentComponent(String id, IModel<xNode> model) {
+    protected Component newContentComponent(String id, IModel<GraphNode> model) {
         return content.newContentComponent(id, tree, model);
     }
 
-    private class NodeExpansionModel implements IModel<Set<xNode>> {
+    private class NodeExpansionModel implements IModel<Set<GraphNode>> {
         @Override
-        public Set<xNode> getObject() {
+        public Set<GraphNode> getObject() {
             return NodeExpansion.get();
         }
     }

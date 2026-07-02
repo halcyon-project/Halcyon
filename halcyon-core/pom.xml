@@ -35,7 +35,7 @@
             </exclusions>
         </dependency>
         <dependency>
-            <groupId>org.apache.jena</groupId>
+            <groupId>com.ebremer.HalcyonProject</groupId>
             <artifactId>jena-permissions</artifactId>
             <type>jar</type>
         </dependency>

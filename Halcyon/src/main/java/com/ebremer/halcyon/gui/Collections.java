@@ -5,7 +5,7 @@ import com.ebremer.halcyon.wicket.BasePage;
 import com.ebremer.halcyon.wicket.ListFeatures;
 import com.ebremer.vandegraph.Solution;
 import com.ebremer.halcyon.wicket.DatabaseLocator;
-import com.ebremer.vandegraph.NodeColumn;
+import com.ebremer.vandegraph.SparqlVarColumn;
 import com.ebremer.halcyon.data.DataCore;
 import com.ebremer.halcyon.datum.HalcyonFactory;
 import com.ebremer.halcyon.wicket.Upload;
@@ -59,11 +59,11 @@ public class Collections extends BasePage {
             @Override
             public void populateItem(Item<ICellPopulator<Solution>> cellItem, String componentId, IModel<Solution> model) {
                 Solution s = model.getObject();
-                cellItem.add(new ActionPanel(componentId, model, s.getMap().get("s").getURI()));
+                cellItem.add(new ActionPanel(componentId, model, s.get("s").getURI()));
             }
         });
-        columns.add(new NodeColumn<>(Model.of("Container Name"),"ContainerName","ContainerName"));
-        columns.add(new NodeColumn<>(Model.of("URI"),"s","s"));       
+        columns.add(new SparqlVarColumn(Model.of("Container Name"), "ContainerName"));
+        columns.add(new SparqlVarColumn(Model.of("URI"), "s"));       
         ParameterizedSparqlString pss = new ParameterizedSparqlString();
         pss.setCommandText("""
             select ?ContainerName ?s
@@ -78,7 +78,7 @@ public class Collections extends BasePage {
         pss.setIri("car", HAL.CollectionsAndResources.getURI());
         Dataset ds = DatabaseLocator.getDatabase().getDataset();
         SelectDataProvider rdfsdf = new SelectDataProvider(ds,pss.toString());
-        rdfsdf.SetSPARQL(pss.toString());
+        rdfsdf.setQuery(pss.toString());
         add(new AjaxFallbackDefaultDataTable<>("table", columns, rdfsdf,35)); 
         
         Button button = new Button("newCollection");

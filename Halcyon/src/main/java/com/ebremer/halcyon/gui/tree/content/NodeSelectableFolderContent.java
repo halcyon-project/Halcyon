@@ -1,6 +1,6 @@
 package com.ebremer.halcyon.gui.tree.content;
 
-import com.ebremer.vandegraph.xNode;
+import com.ebremer.vandegraph.GraphNode;
 import java.util.Optional;
 import org.apache.wicket.Component;
 import org.apache.wicket.ajax.AjaxRequestTarget;
@@ -14,10 +14,10 @@ import org.apache.wicket.model.IModel;
  */
 public class NodeSelectableFolderContent extends NodeContent {
     private static final long serialVersionUID = 1L;
-    private final ITreeProvider<xNode> provider;
-    private IModel<xNode> selected;
+    private final ITreeProvider<GraphNode> provider;
+    private IModel<GraphNode> selected;
 
-    public NodeSelectableFolderContent(ITreeProvider<xNode> provider) {
+    public NodeSelectableFolderContent(ITreeProvider<GraphNode> provider) {
 	this.provider = provider;
     }
 
@@ -28,8 +28,8 @@ public class NodeSelectableFolderContent extends NodeContent {
 	}
     }
 
-    protected boolean isSelected(xNode foo) {
-	IModel<xNode> model = provider.model(foo);
+    protected boolean isSelected(GraphNode foo) {
+	IModel<GraphNode> model = provider.model(foo);
 	try {
             boolean isSelected = selected != null && selected.equals(model);
             return isSelected;
@@ -38,7 +38,7 @@ public class NodeSelectableFolderContent extends NodeContent {
 	}
     }
 
-    protected void select(xNode foo, AbstractTree<xNode> tree, final Optional<AjaxRequestTarget> targetOptional) {
+    protected void select(GraphNode foo, AbstractTree<GraphNode> tree, final Optional<AjaxRequestTarget> targetOptional) {
         if (selected != null) {
             targetOptional.ifPresent(target -> tree.updateNode(selected.getObject(), target));
             selected.detach();
@@ -49,8 +49,8 @@ public class NodeSelectableFolderContent extends NodeContent {
     }
 
     @Override
-    public Component newContentComponent(String id, final AbstractTree<xNode> tree, IModel<xNode> model) {
-	return new Folder<xNode>(id, tree, model) {
+    public Component newContentComponent(String id, final AbstractTree<GraphNode> tree, IModel<GraphNode> model) {
+	return new Folder<GraphNode>(id, tree, model) {
             private static final long serialVersionUID = 1L;
 		@Override
 		protected boolean isClickable() {

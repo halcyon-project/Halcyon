@@ -1,7 +1,7 @@
 package com.ebremer.halcyon.datum;
 
 import com.ebremer.halcyon.data.DataCore;
-import com.ebremer.vandegraph.MakeList;
+import com.ebremer.vandegraph.Solution;
 import com.ebremer.ns.HAL;
 import com.ebremer.ns.LWS;
 import java.util.List;
@@ -32,7 +32,7 @@ public class Patterns {
         QueryExecution qe = QueryExecutionFactory.create(pss.toString(), ds);
         ds.begin(ReadWrite.READ);
         ResultSet rs = qe.execSelect().materialise();
-        List<Node> list = MakeList.Of(rs, "s");
+        List<Node> list = Solution.nodes(rs, "s");
         ds.end();
         return list;
     }*/
@@ -87,7 +87,7 @@ public class Patterns {
         pss.setNsPrefix("dct", DCTerms.NS);
         QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m);
         ResultSet rs = qe.execSelect();
-        List<Node> list = MakeList.Of(rs, "s");
+        List<Node> list = Solution.nodes(rs, "s");
         return list;
     }
 }

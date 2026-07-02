@@ -48,3 +48,4 @@ Thumbs.db
 
 # Maven build scratch
 dependency-reduced-pom.xml
+/jena-permissions/target/

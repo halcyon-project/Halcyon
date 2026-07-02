@@ -3,7 +3,6 @@ package com.ebremer.halcyon.wicket.ethereal;
 import com.ebremer.halcyon.datum.HalcyonPrincipal;
 import com.ebremer.halcyon.gui.HalcyonSession;
 import com.ebremer.halcyon.wicket.BasePage;
-import com.ebremer.vandegraph.dev.Stack;
 import org.apache.wicket.markup.head.IHeaderResponse;
 import org.apache.wicket.markup.head.JavaScriptHeaderItem;
 

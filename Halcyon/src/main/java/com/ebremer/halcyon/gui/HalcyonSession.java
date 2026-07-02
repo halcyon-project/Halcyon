@@ -3,8 +3,7 @@ package com.ebremer.halcyon.gui;
 import com.ebremer.halcyon.data.DataCore;
 import com.ebremer.halcyon.datum.HalcyonPrincipal;
 import com.ebremer.halcyon.fuseki.shiro.JwtToken;
-import com.ebremer.vandegraph.shacl.Block;
-import com.ebremer.vandegraph.shacl.UserSessionDataStorage;
+import com.ebremer.vandegraph.VandegraphSession;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import com.ebremer.ns.HAL;
 import jakarta.json.Json;
@@ -44,7 +43,7 @@ import org.pac4j.jee.context.JEEContext;
 import org.pac4j.jee.context.session.JEESessionStore;
 import org.pac4j.oidc.profile.OidcProfile;
 
-public final class HalcyonSession extends WebSession {
+public final class HalcyonSession extends VandegraphSession {
     private String user;
     private String mv;
     private final String userURI;
@@ -77,7 +76,6 @@ public final class HalcyonSession extends WebSession {
             userURI = "urn:uuid:"+UUID.randomUUID().toString();
             principal = new HalcyonPrincipal(userURI, true);
         }
-        UserSessionDataStorage.getInstance().put(userURI, new Block());
         if (profile.isPresent()) {
             OidcProfile oidcProfile = (OidcProfile) profile.get();
             String jwt = oidcProfile.getAccessToken().getValue();
@@ -149,17 +147,6 @@ public final class HalcyonSession extends WebSession {
             }
         }
         System.out.println("Creating Session...Done.");
-    }
-    
-    public Block getBlock() {
-        return UserSessionDataStorage.getInstance().get(userURI);
-    }
-    
-    @Override
-    public void onInvalidate() {
-        super.onInvalidate();
-        System.out.println("Invalidating session --> "+userURI);
-        UserSessionDataStorage.getInstance().remove(userURI);
     }
     
     public Model ParseLab(JsonObject jo, HashMap<String,String> map) {

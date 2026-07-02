@@ -38,7 +38,7 @@ import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.rdf.model.Resource;
-import org.apache.jena.riot.system.JenaTitanium;
+import org.apache.jena.riot.system.jsonld.JenaToTitanium;
 import org.apache.jena.vocabulary.DCTerms;
 import org.apache.jena.vocabulary.OWL;
 import org.apache.jena.vocabulary.RDF;
@@ -240,12 +240,12 @@ public class FeatureManager {
         }
         Dataset dss = DatasetFactory.createGeneral();
         dss.getDefaultModel().add(m);
-        RdfDataset rds = JenaTitanium.convert(dss.asDatasetGraph());
-        RdfToJsonld rtj = RdfToJsonld.with(rds);
         JsonArray ja;
         String hold = null;
         try {
-            ja = rtj.useNativeTypes(true).build();
+            JsonLdOptions fromRdfOptions = new JsonLdOptions();
+            fromRdfOptions.setUseNativeTypes(true);
+            ja = JenaToTitanium.convert(dss.asDatasetGraph(), fromRdfOptions);
             JsonWriterFactory writerFactory = Json.createWriterFactory(Collections.singletonMap(JsonGenerator.PRETTY_PRINTING, true));
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             JsonWriter out = writerFactory.createWriter(baos);

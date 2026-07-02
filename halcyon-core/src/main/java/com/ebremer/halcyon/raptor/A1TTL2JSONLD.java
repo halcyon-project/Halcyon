@@ -13,10 +13,7 @@ import com.apicatalog.jsonld.JsonLdVersion;
 import com.apicatalog.jsonld.api.FramingApi;
 import com.apicatalog.jsonld.document.Document;
 import com.apicatalog.jsonld.document.JsonDocument;
-import com.apicatalog.jsonld.document.RdfDocument;
 import com.apicatalog.jsonld.lang.Keywords;
-import com.apicatalog.jsonld.processor.FromRdfProcessor;
-import com.apicatalog.rdf.RdfDataset;
 import jakarta.json.Json;
 import jakarta.json.JsonArray;
 import jakarta.json.JsonObjectBuilder;
@@ -31,7 +28,7 @@ import org.apache.jena.query.DatasetFactory;
 //import org.apache.jena.riot.JsonLDWriteContext;
 import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
-import org.apache.jena.riot.system.JenaTitanium;
+import org.apache.jena.riot.system.jsonld.JenaToTitanium;
 import org.apache.jena.sparql.core.DatasetGraph;
 import org.apache.jena.vocabulary.XSD;
 
@@ -89,8 +86,6 @@ public class A1TTL2JSONLD {
         dsx.getPrefixMapping().setNsPrefix("hasProbability", "hal:hasProbability");
         dsx.getPrefixMapping().setNsPrefix("classification", "hal:classification");
         DatasetGraph dsg = dsx.asDatasetGraph();
-        RdfDataset ds = JenaTitanium.convert(dsg);
-        Document doc = RdfDocument.of(ds);
         JsonLdOptions options = new JsonLdOptions();
             options.setOrdered(false);
             options.setUseNativeTypes(true);
@@ -98,7 +93,7 @@ public class A1TTL2JSONLD {
             options.setExplicit(true);
             options.setRequiredAll(false);
             options.setEmbed(JsonLdEmbed.ALWAYS);
-        JsonArray ja = FromRdfProcessor.fromRdf(doc, options);
+        JsonArray ja = JenaToTitanium.convert(dsg, options);
         jakarta.json.JsonObject writeRdf = Json.createObjectBuilder()
                 .add(Keywords.GRAPH, ja)
                 .build();

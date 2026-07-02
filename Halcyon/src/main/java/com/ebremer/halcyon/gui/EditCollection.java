@@ -1,11 +1,9 @@
 package com.ebremer.halcyon.gui;
 
-import com.ebremer.vandegraph.LDModel;
-import com.ebremer.vandegraph.NodeColumn;
-import com.ebremer.vandegraph.RDFDetachableModel;
+import com.ebremer.vandegraph.SparqlVarColumn;
+import com.ebremer.vandegraph.SessionScopedModel;
 import com.ebremer.halcyon.wicket.BasePage;
 import com.ebremer.halcyon.wicket.DatabaseLocator;
-import com.ebremer.vandegraph.RDFTextField;
 import com.ebremer.vandegraph.SelectDataProvider;
 import com.ebremer.vandegraph.Solution;
 import com.ebremer.ns.HAL;
@@ -28,6 +26,8 @@ import org.apache.wicket.extensions.markup.html.repeater.data.table.IColumn;
 import org.apache.wicket.markup.html.basic.Label;
 import org.apache.wicket.markup.html.form.Button;
 import org.apache.wicket.markup.html.form.Form;
+import org.apache.wicket.markup.html.form.TextField;
+import com.ebremer.vandegraph.PropertyValueModel;
 import org.apache.wicket.markup.repeater.Item;
 import org.apache.wicket.model.IModel;
 import org.apache.wicket.request.mapper.parameter.PageParameters;
@@ -43,7 +43,7 @@ import org.apache.jena.rdf.model.Literal;
  */
 public class EditCollection extends BasePage {
 
-    private RDFDetachableModel mod;
+    private SessionScopedModel mod;
 
     public EditCollection(final PageParameters parameters) {
         String uuid = parameters.get("container").toString();
@@ -62,25 +62,21 @@ public class EditCollection extends BasePage {
         }
         ds.end();
 
-        mod = new RDFDetachableModel(mmm);
-        LDModel ldm = new LDModel(mod);
+        mod = new SessionScopedModel(mmm);
 
-        Form form = new Form("yayaya", ldm);
-        form.add(new RDFTextField<String>("ContainerName", container, DCTerms.title));
+        Form<Void> form = new Form<>("yayaya");
+        form.add(new TextField<>("ContainerName", PropertyValueModel.of(mod, container, DCTerms.title)));
         form.add(new Button("saveButton2") {
             @Override
             public void onSubmit() {
                 Dataset ds = DatabaseLocator.getDatabase().getDataset();
                 ds.begin(ReadWrite.WRITE);
                 try {
-                    Model original = mod.loadOriginal();
-                    Model updated = mod.load();
-                    if (original == null || updated == null) {
-                        System.out.println("Original or updated model is null");
-                    } else {
-                        ds.getNamedModel(HAL.CollectionsAndResources).remove(original);
-                        ds.getNamedModel(HAL.CollectionsAndResources).add(updated);
-                    }
+                    // The working model holds this container's title; replace
+                    // the stored title triples with whatever it now says.
+                    Model car = ds.getNamedModel(HAL.CollectionsAndResources);
+                    car.removeAll(container, DCTerms.title, null);
+                    car.add(mod.getObject());
                     ds.commit();
                 } catch (Exception e) {
                     ds.abort();
@@ -106,8 +102,8 @@ public class EditCollection extends BasePage {
             @Override
             public void populateItem(Item<ICellPopulator<Solution>> cellItem, String componentId, IModel<Solution> model) {
                 Solution s = model.getObject();
-                int numRead = (int) s.getMap().get("numRead").getLiteralValue();
-                int numWrite = (int) s.getMap().get("numWrite").getLiteralValue();
+                int numRead = (int) s.get("numRead").getLiteralValue();
+                int numWrite = (int) s.get("numWrite").getLiteralValue();
                 String d = (numRead > 0) ? "R" : "";
                 d = d + ((numWrite > 0) ? "W" : "");
                 cellItem.add(new Label(componentId, d));
@@ -119,7 +115,7 @@ public class EditCollection extends BasePage {
                 cellItem.add(new CollectionActionPanel(componentId, model, uuid));
             }
         });
-        columns.add(new NodeColumn<>(org.apache.wicket.model.Model.of("Name"), "name", "name"));
+        columns.add(new SparqlVarColumn(org.apache.wicket.model.Model.of("Name"), "name"));
 
         ParameterizedSparqlString pss = new ParameterizedSparqlString(
             """
@@ -146,7 +142,7 @@ public class EditCollection extends BasePage {
         System.out.println(pss.toString());
 
         SelectDataProvider rdfsdf = new SelectDataProvider(ds, pss.toString());
-        rdfsdf.SetSPARQL(pss.toString());
+        rdfsdf.setQuery(pss.toString());
 
         AjaxFallbackDefaultDataTable table = new AjaxFallbackDefaultDataTable<>("table", columns, rdfsdf, 35);
         add(table);

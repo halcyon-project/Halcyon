@@ -1,10 +1,11 @@
-@prefix dash: <https://datashapes.org/dash#> .
+@prefix dash: <http://datashapes.org/dash#> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix so: <https://schema.org/> .
 @prefix sh: <http://www.w3.org/ns/shacl#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 @prefix hal: <https://halcyon.is/ns/> .
+@prefix vg: <urn:vandegraph:ns:> .
 
 hal:AnnotationClassListShape a sh:NodeShape ;
     sh:targetClass hal:AnnotationClassList ;
@@ -41,8 +42,8 @@ hal:AnnotationClassShape a sh:NodeShape ;
         sh:order 0;
         sh:minCount 1;
         sh:maxCount 1;
-        dash:viewer hal:SNOMEDEditor;
-        dash:editor hal:SNOMEDEditor;
+        dash:viewer vg:SNOMEDEditor;
+        dash:editor vg:SNOMEDEditor;
         sh:defaultValue <http://mydomain.edu/ns/dummyclass>;
         sh:message "must have one and only one class specified"@en
     ] ;
@@ -56,7 +57,7 @@ hal:AnnotationClassShape a sh:NodeShape ;
         sh:defaultValue "#ffffff";
         sh:minCount 1;
         sh:maxCount 1;
-        dash:viewer hal:ColorViewer;
-        dash:editor hal:ColorEditor;
+        dash:viewer vg:ColorViewer;
+        dash:editor vg:ColorEditor;
         sh:message "Problem with your color"@en
     ] .
