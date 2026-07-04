@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { createButton, removeObject, turnOtherButtonsOff } from "../helpers/elements.js";
-import { getMousePosition } from "../helpers/mouse.js";
+import { pickActiveLayer as getMousePosition, addAnnotation, removeAnnotation, activeImageUrl } from "../helpers/annotationTarget.js";
 import { worldToImageCoordinates, getUrl, convertLineLoopToLine } from "../helpers/conversions.js";
 import { getColorAndType } from "../helpers/colorPalette.js";
 
@@ -91,8 +91,8 @@ export function rectangle(scene, camera, renderer, controls, options) {
         removeObject(currentRectangle, scene);
       } else {
         const line = convertLineLoopToLine(currentRectangle, "rectangle", type);
-        scene.add(line);
-        scene.remove(currentRectangle);
+        addAnnotation(scene, line);
+        removeAnnotation(scene, currentRectangle);
         currentRectangle = null;
       }
     }
@@ -128,8 +128,8 @@ export function rectangle(scene, camera, renderer, controls, options) {
         removeObject(currentRectangle, scene);
       } else {
         const line = convertLineLoopToLine(currentRectangle, "rectangle", type);
-        scene.add(line);
-        scene.remove(currentRectangle);
+        addAnnotation(scene, line);
+        removeAnnotation(scene, currentRectangle);
         currentRectangle = null;
       }
     }
@@ -144,7 +144,7 @@ export function rectangle(scene, camera, renderer, controls, options) {
     // LineLoop: A continuous line that connects back to the start.
     let rect = new THREE.LineLoop(geometry, material);
     rect.renderOrder = 999;
-    scene.add(rect);
+    addAnnotation(scene, rect);
 
     return rect;
   }
@@ -195,9 +195,9 @@ export function rectangle(scene, camera, renderer, controls, options) {
     const width = maxX - minX;
     const height = maxY - minY;
 
-    let url = getUrl(scene);
-    if (url) {
-      const newUrl = `${url}/${Math.round(minX)},${Math.round(minY)},${Math.round(width)},${Math.round(height)}/512,/0/default.png`;
+    const id = activeImageUrl() || getUrl(scene);
+    if (id) {
+      const newUrl = `/iiif/?iiif=${id}/${Math.round(minX)},${Math.round(minY)},${Math.round(width)},${Math.round(height)}/512,/0/default.png`;
       window.open(newUrl, "_blank");
     } else {
       console.warn("Unable to get URL");

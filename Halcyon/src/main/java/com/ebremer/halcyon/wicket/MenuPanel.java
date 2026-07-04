@@ -26,6 +26,7 @@ public class MenuPanel extends Panel {
         add(new ExternalLink("images", host+"/ListImages","Images"));
         add(new ExternalLink("about", host+"/about","About"));
         ExternalLink security = new ExternalLink("security", host+"/admin","Security");
+        ExternalLink stacks = new ExternalLink("stacks", host+"/stacks","Stacks");
         ExternalLink sparql = new ExternalLink("sparql", host+"/sparql","SPARQL");
         ExternalLink account = new ExternalLink("account", host+"/user/account","Account");
         ExternalLink colorclasses = new ExternalLink("colorclasses", host+"/user/colorclasses","Color Classes");
@@ -45,6 +46,7 @@ public class MenuPanel extends Panel {
         add(colorclasses);
         add(security);
         add(sparql);
+        add(stacks);
         add(containers);
         add(threed);
         add(logout);
@@ -56,6 +58,7 @@ public class MenuPanel extends Panel {
         colorclasses.setVisible(false);
         containers.setVisible(false);
         sparql.setVisible(false);
+        stacks.setVisible(false);
         logout.setVisible(false);
         login.setVisible(false);
         revisionhistory.setVisible(false);
@@ -67,6 +70,7 @@ public class MenuPanel extends Panel {
             logout.setVisible(true);
             //account.setVisible(true);
             sparql.setVisible(true);
+            stacks.setVisible(true);
             hp.getGroups().forEach(k->{
                 System.out.println("GROUP : "+k);
             });

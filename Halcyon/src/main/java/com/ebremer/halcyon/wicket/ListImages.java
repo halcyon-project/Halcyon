@@ -14,7 +14,6 @@ import com.ebremer.halcyon.gui.HalcyonSession;
 import com.ebremer.halcyon.pools.AccessCache;
 import com.ebremer.halcyon.pools.AccessCachePool;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
-import com.ebremer.halcyon.server.utils.PathFinder;
 import com.ebremer.halcyon.wicket.ethereal.Zephyr2;
 import com.ebremer.halcyon.wicket.ethereal.Zephyr3;
 import com.ebremer.multiviewer.MultiViewer;
@@ -234,13 +233,15 @@ public class ListImages extends BasePage implements IPanelChangeListener {
                 }
             };
             add(zephyr);
-            Link zephyr3 = new Link<Void>("zephyr3") {               
+            Link zephyr3 = new Link<Void>("zephyr3") {
                 @Override
                 public void onClick() {
                     Solution s = model.getObject();
                     String g = s.get("s").getURI();
-                    System.out.println("RAH ---> "+PathFinder.LocalPath2IIIFURL(g));
-                    setResponsePage(new Zephyr3(PathFinder.LocalPath2IIIFURL(g)));
+                    // Create a new stack seeded with this image as layer 0.
+                    // Zephyr3 mints the stack URI and the viewer lets the user
+                    // add layers and Save it to its own named graph.
+                    setResponsePage(new Zephyr3(g));
                 }
             };
             add(zephyr3);

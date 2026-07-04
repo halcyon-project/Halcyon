@@ -1,0 +1,24 @@
+<html>
+<body>
+<wicket:extend>
+    <style>
+        body { font-family: Arial, sans-serif; color: #333; background-color: #f4f4f9; }
+        h3 { margin: 20px 10px; color: #0000ab; }
+        table { font-size: 14px; margin: 10px; border-collapse: collapse; min-width: 60%; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { color: #0000ab; background-color: #f9f9f9; }
+        td a { color: #0000ab; text-decoration: none; }
+        td a:hover { text-decoration: underline; }
+        .uri { color: #888; font-size: 12px; }
+    </style>
+    <h3>Stacks</h3>
+    <table>
+        <tr><th>Name</th><th>Graph URI</th></tr>
+        <tr wicket:id="rows">
+            <td><a wicket:id="view"><span wicket:id="name">stack name</span></a></td>
+            <td class="uri"><span wicket:id="uri">uri</span></td>
+        </tr>
+    </table>
+</wicket:extend>
+</body>
+</html>

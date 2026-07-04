@@ -1,5 +1,6 @@
 // Conversions and calculations
 import * as THREE from 'three';
+import { getActiveEntry } from "./annotationTarget.js";
 
 /**
  * Convert three.js coordinates to image coordinates
@@ -35,36 +36,38 @@ export function worldToImageCoordinates(positionArray, scene) {
 }
 
 /**
- * Get dimensions of image
+ * Find the first tiled ImageViewer (THREE.LOD) anywhere under `object`. Unlike
+ * the old direct-children scan this recurses, because in a stack the LODs are
+ * nested inside layer groups rather than being direct children of the scene.
  */
-function getDims(scene) {
-  let imageWidth, imageHeight;
-  let children = scene.children;
-  for (let i = 0; i < children.length; i++) {
-    const child = children[i];
-    if (child instanceof THREE.LOD) {
-      imageWidth = child.imageWidth;
-      imageHeight = child.imageHeight;
-      break;
-    }
-  }
-  return { imageWidth, imageHeight }
+function findLOD(object) {
+  let found = null;
+  object.traverse(o => { if (!found && o instanceof THREE.LOD && o.url) found = o; });
+  return found;
 }
 
 /**
- * Get image URL
+ * Get dimensions of the active image (the layer annotations target), falling
+ * back to the first LOD in the scene for the single-image / pre-selection case.
+ */
+function getDims(scene) {
+  const e = getActiveEntry();
+  if (e && e.imageWidth && e.imageHeight) {
+    return { imageWidth: e.imageWidth, imageHeight: e.imageHeight };
+  }
+  const lod = findLOD(scene);
+  return lod ? { imageWidth: lod.imageWidth, imageHeight: lod.imageHeight } : {};
+}
+
+/**
+ * Get the active image's IIIF identifier (bare id), falling back to the first
+ * LOD in the scene.
  */
 export function getUrl(scene) {
-  let url;
-  let children = scene.children;
-  for (let i = 0; i < children.length; i++) {
-    const child = children[i];
-    if (child instanceof THREE.LOD) {
-      url = child.url;
-      break;
-    }
-  }
-  return url;
+  const e = getActiveEntry();
+  if (e && e.src) return e.src;
+  const lod = findLOD(scene);
+  return lod ? lod.url : undefined;
 }
 
 /**

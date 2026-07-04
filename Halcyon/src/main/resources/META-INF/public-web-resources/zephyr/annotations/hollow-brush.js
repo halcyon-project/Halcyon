@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { createButton, turnOtherButtonsOff } from "../helpers/elements.js";
-import { getMousePosition } from "../helpers/mouse.js";
+import { pickActiveLayer as getMousePosition, addAnnotation, removeAnnotation } from "../helpers/annotationTarget.js";
 import { getColorAndType } from "../helpers/colorPalette.js";
 
 export function hollowBrush(scene, camera, renderer, controls) {
@@ -57,17 +57,17 @@ export function hollowBrush(scene, camera, renderer, controls) {
   let tempCircle = null;
   function updateTempCircle() {
     if (tempCircle) {
-      scene.remove(tempCircle);
+      removeAnnotation(scene, tempCircle);
     }
     let geometry = new THREE.CircleGeometry(brushSize, 32);
     let material = new THREE.MeshBasicMaterial({ color: 0x00ff00, opacity: 0.5, transparent: true });
     tempCircle = new THREE.Mesh(geometry, material);
-    scene.add(tempCircle);
+    addAnnotation(scene, tempCircle);
   }
 
   function removeTempCircle() {
     if (tempCircle) {
-      scene.remove(tempCircle);
+      removeAnnotation(scene, tempCircle);
       tempCircle.geometry.dispose();
       tempCircle.material.dispose();
       tempCircle = null;
@@ -109,7 +109,7 @@ export function hollowBrush(scene, camera, renderer, controls) {
       ({ color, type } = getColorAndType());
       mouseIsPressed = true;
       brushShapeGroup = new THREE.Group();
-      scene.add(brushShapeGroup);
+      addAnnotation(scene, brushShapeGroup);
     }
   }
 
@@ -160,7 +160,7 @@ export function hollowBrush(scene, camera, renderer, controls) {
       ({ color, type } = getColorAndType());
       mouseIsPressed = true;
       brushShapeGroup = new THREE.Group();
-      scene.add(brushShapeGroup);
+      addAnnotation(scene, brushShapeGroup);
     }
   }
 
@@ -255,6 +255,6 @@ export function hollowBrush(scene, camera, renderer, controls) {
     if (type.length > 0) {
       line.userData.cancerType = type;
     }
-    scene.add(line);
+    addAnnotation(scene, line);
   }
 }

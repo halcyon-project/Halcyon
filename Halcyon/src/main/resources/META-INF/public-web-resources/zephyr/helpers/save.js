@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { createButton } from "./elements.js";
 import { getUrl } from "./conversions.js"
 import { setAnnotationLabel } from "./sparql.js";
+import { activeImageUrl, getActiveGroup } from "./annotationTarget.js";
 
 /**
  * Save annotations
@@ -36,49 +37,35 @@ export function save(scene) {
 
   async function serializeScene(scene, label, postUrl) {
     let serializedObjects = [];
-    let processedObjects = new Set(); // To track processed objects
 
-    function serializeObjectWithChildren(obj) {
-      let serializedObj = obj.toJSON();
-      // Mark all children as processed to avoid double serialization
-      obj.traverse(child => {
-        if (child.name.includes("annotation")) {
-          processedObjects.add(child.id); // Use unique object ID for tracking
-        }
-      });
-      return serializedObj;
-    }
-
-    scene.traverse(obj => {
-      // Skip if this object has already been processed
-      if (processedObjects.has(obj.id)) return;
-
-      if (obj.type === 'Group') {
-        let hasRelevantChildren = obj.children.some(child => child.name.includes("annotation"));
-        if (hasRelevantChildren) {
-          // Serialize the group and mark its relevant children as processed
-          serializedObjects.push(serializeObjectWithChildren(obj));
-        }
-      } else if (obj.name.includes("annotation")) {
-        // Serialize individual objects not yet processed
-        serializedObjects.push(serializeObjectWithChildren(obj));
+    // Collect annotations from the ACTIVE layer's group (falling back to the
+    // whole scene for the single-image case). Each named "*annotation*" object
+    // is serialized on its own; its coordinates are in the layer's
+    // pixels-from-centre local space and round-trip via fetchAnnotations.
+    const root = getActiveGroup() || scene;
+    root.traverse(obj => {
+      if (obj.name && obj.name.includes("annotation")) {
+        serializedObjects.push(obj.toJSON());
       }
     });
 
-    // Add object with "image" and "type" for LDP
-    const url = getUrl(scene);
-    const parts = url.split("?iiif=");
-    let myObject = {
-      image: parts[1],
-      type: "hal:Annotation"
-    };
-    serializedObjects.push(myObject);
+    if (serializedObjects.length === 0) {
+      alert('No annotations on the selected layer to save.');
+      return;
+    }
 
-    // Determine the URL for POST
+    // Associate the set with the active layer's image and store it as a sibling
+    // LDP resource in that image's container.
+    const imageId = activeImageUrl() || getUrl(scene);
+    if (!imageId) {
+      alert('No active image layer to associate annotations with.');
+      return;
+    }
+    serializedObjects.push({ image: imageId, type: "hal:Annotation" });
+
     if (!postUrl) {
-      let sections = parts[1].split("/");
-      sections.pop(); // remove the svs
-      postUrl = `${sections.join("/")}/${crypto.randomUUID()}.json`; // add uuid
+      const container = imageId.substring(0, imageId.lastIndexOf('/') + 1);
+      postUrl = `${container}${crypto.randomUUID()}.json`;
     }
 
     // First save the serialized objects
@@ -137,8 +124,9 @@ export function deserializeScene(scene, serializedObjects) {
     // Deserialize the object
     const object = loader.parse(serializedData);
 
-    // Add the deserialized object to the scene and objects array
-    scene.add(object);
+    // Add to the active layer's annotation group (falling back to the scene),
+    // so a re-loaded set lands on the currently-selected layer.
+    (getActiveGroup() || scene).add(object);
     objects.push(object);
   });
 

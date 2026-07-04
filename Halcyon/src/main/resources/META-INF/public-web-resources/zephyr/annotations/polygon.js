@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { createButton, turnOtherButtonsOff } from "../helpers/elements.js";
-import { getMousePosition } from "../helpers/mouse.js";
+import { pickActiveLayer as getMousePosition, addAnnotation, removeAnnotation } from "../helpers/annotationTarget.js";
 import { getColorAndType } from "../helpers/colorPalette.js";
 import { convertLineLoopToLine } from "../helpers/conversions.js";
 
@@ -134,8 +134,8 @@ export function polygon(scene, camera, renderer, controls) {
     updatePolygon();
     if (currentPolygon) {
       const line = convertLineLoopToLine(currentPolygon, "polygon", type);
-      scene.add(line);
-      scene.remove(currentPolygon);
+      addAnnotation(scene, line);
+      removeAnnotation(scene, currentPolygon);
     }
     resetDrawingState();
   }
@@ -144,7 +144,7 @@ export function polygon(scene, camera, renderer, controls) {
     let geometry = new THREE.BufferGeometry();
     let polygon = new THREE.LineLoop(geometry, material);
     polygon.renderOrder = 999;
-    scene.add(polygon);
+    addAnnotation(scene, polygon);
     return polygon;
   }
 

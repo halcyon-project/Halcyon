@@ -63,15 +63,23 @@ class WE {
     }
     
     add( statement ) {
-        console.log("WE.add()");
-        console.log(statement);
         switch(statement.object.value) {
-            case this.zeph('Stack').value:
-                console.log("ADDING A STACK");
+            case this.zeph('Stack').value: {
+                // Build only ROOT stacks here; a nested zeph:Stack is the object
+                // of some zeph:src and is built recursively by its parent, so
+                // skip it to avoid constructing the subtree twice.
+                const subject = statement.subject;
+                const nested = this.store.match(null, this.zeph('src'), subject).length > 0;
+                if (nested) {
+                    return;
+                }
+                console.log("Zephyr: building root stack " + subject.value);
                 this.scene.add(new Stack(this, statement));
                 break;
+            }
             default:
-                console.log("NOT ADDING UNKNOWN");
+                // Other typed nodes (FeatureLayer/ImageLayer/etc.) are handled
+                // as members while building their parent stack.
         }
     }
 }

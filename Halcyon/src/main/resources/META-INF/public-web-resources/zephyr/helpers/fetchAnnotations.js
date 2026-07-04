@@ -2,6 +2,7 @@ import { createButton } from "./elements.js";
 import { getUrl } from "./conversions.js";
 import { deserializeScene } from "./save.js";
 import { getAnnotationLabel, setAnnotationLabel } from "./sparql.js";
+import { activeImageUrl } from "./annotationTarget.js";
 
 export function fetchAnnotations(scene) {
   const button = createButton({
@@ -23,19 +24,17 @@ export function fetchAnnotations(scene) {
         annotationsDiv.style.display = "none";
       }
     } else {
-      // Create and show the div
-      const url = getUrl(scene);
-      if (url) {
-        const parts = url.split("?iiif=");
-        const annotationUrl = parts[1];
-
-        fetchA(annotationUrl).then(annotationArray => {
+      // Create and show the div. Fetch the annotation sets attached to the
+      // active layer's image (the layer selected in the Layers panel).
+      const imageId = activeImageUrl() || getUrl(scene);
+      if (imageId) {
+        fetchA(imageId).then(annotationArray => {
           if (annotationArray && annotationArray.length > 0) {
             displayPopup(annotationArray);
           }
         });
       } else {
-        alert('Please wait for image to load. Then try again.');
+        alert('Please select a layer (or wait for the image to load), then try again.');
       }
     }
   });

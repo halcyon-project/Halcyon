@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import { getColorAndType } from "../helpers/colorPalette.js";
 import { createButton, turnOtherButtonsOff, displayAreaAndPerimeter } from "../helpers/elements.js";
-import { getMousePosition } from "../helpers/mouse.js";
+import { pickActiveLayer as getMousePosition, addAnnotation } from "../helpers/annotationTarget.js";
 import { worldToImageCoordinates, imageToWorldCoordinates, calculatePolygonArea, calculatePolygonPerimeter } from "../helpers/conversions.js";
 
 export function enableDrawing(scene, camera, renderer, controls) {
@@ -81,7 +81,7 @@ export function enableDrawing(scene, camera, renderer, controls) {
       if (type.length > 0) {
         line.userData.cancerType = type;
       }
-      scene.add(line);
+      addAnnotation(scene, line);
 
       currentPolygonPositions = []; // Start a new array for the current polygon's positions
     }
@@ -160,7 +160,7 @@ export function enableDrawing(scene, camera, renderer, controls) {
       if (type.length > 0) {
         line.userData.cancerType = type;
       }
-      scene.add(line);
+      addAnnotation(scene, line);
 
       currentPolygonPositions = []; // Start a new array for the current polygon's positions
     }

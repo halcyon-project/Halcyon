@@ -2,6 +2,7 @@ package com.ebremer.halcyon.gui;
 
 import com.ebremer.halcyon.sparql.Sparql;
 import com.ebremer.halcyon.wicket.ListImages;
+import com.ebremer.halcyon.wicket.Stacks;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import com.ebremer.halcyon.data.DataCore;
 import com.ebremer.halcyon.fuseki.SPARQLEndPoint;
@@ -73,6 +74,7 @@ public class HalcyonApplication extends VandegraphApplication {
         mountPage("/user/colorclasses", ColorClasses.class);
         mountPage("/login", Login.class);
         mountPage("/ListImages", ListImages.class);
+        mountPage("/stacks", Stacks.class);
         mountPage("/viewer", MultiViewer.class);
         mountPage("/containers", Collections.class);
         mountPage("/upload", Upload.class);

@@ -43,7 +43,7 @@
     const fetcher = new $rdf.Fetcher(store);
     const timeout = 5000; // 5 seconds timeout
     const endpoint = 'https://localhost:8888/sparql';
-    const baseURI = 'https://localhost:8888/ldp/utah/HnE/Stack2/';
+    const baseURI = window.baseURI || 'https://localhost:8888/lws/utah/HnE/Stack2/';
         
     window.onload = function() {
         ZEPHRDF.ParseTTL(scenegraph, store, baseURI);
@@ -81,6 +81,29 @@
     controls.dynamicDampingFactor = 0.2; // To offer a smooth yet responsive control feel
     ZEPHYR.DrawAxis(scene);
     console.log(options);
+
+    // Frame the camera to the stack once every layer has loaded and been placed.
+    // Layer world extents depend on image pixel dimensions (only known after
+    // info.json resolves), so the fixed camera above is just a placeholder.
+    document.addEventListener('zephyr:stackready', (e) => {
+      let box = e.detail && e.detail.bounds;
+      if (!box || box.isEmpty()) {
+        box = new THREE.Box3().setFromObject(scene);
+      }
+      if (box.isEmpty()) return;
+      const size = box.getSize(new THREE.Vector3());
+      const center = box.getCenter(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y) || 1000;
+      const dist = maxDim * 1.2 + size.z;
+      camera.near = Math.max(1, dist / 2000);
+      camera.far = (dist + size.z) * 8 + maxDim * 4;
+      camera.position.set(center.x, center.y, center.z + dist);
+      camera.up.set(0, 1, 0);
+      camera.lookAt(center);
+      camera.updateProjectionMatrix();
+      if (controls.target) controls.target.copy(center);
+      controls.update();
+    });
     
     // Initialize toolbar with config
     toolbar(scene, camera, renderer, controls, originalZ, config);

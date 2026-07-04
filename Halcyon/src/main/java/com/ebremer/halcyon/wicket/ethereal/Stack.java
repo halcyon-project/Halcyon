@@ -15,7 +15,7 @@ import org.springframework.core.io.ClassPathResource;
  */
 public class Stack {
     private static final String STACK_RESOURCE = "stack.jsonld";
-    private static final String BASE_URI = "https://localhost:8888/ldp/utah/HnE/Stack2/";
+    private static final String BASE_URI = "https://localhost:8888/lws/utah/HnE/Stack2/";
     private static final Logger logger = LoggerFactory.getLogger(Stack.class);
 
     private final Model stack = ModelFactory.createDefaultModel();
