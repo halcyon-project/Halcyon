@@ -74,8 +74,14 @@ public class EditCollection extends BasePage {
                 try {
                     // The working model holds this container's title; replace
                     // the stored title triples with whatever it now says.
+                    // Rebuild the subject from the (serializable) uuid rather
+                    // than closing over the Jena Resource `container`: a
+                    // captured Resource is a non-serializable val$ field that
+                    // makes the whole page fail page-store serialization,
+                    // silently killing every stateful control on it (this
+                    // form's save AND the access-toggle links in the table).
                     Model car = ds.getNamedModel(HAL.CollectionsAndResources);
-                    car.removeAll(container, DCTerms.title, null);
+                    car.removeAll(car.createResource(uuid), DCTerms.title, null);
                     car.add(mod.getObject());
                     ds.commit();
                 } catch (Exception e) {
