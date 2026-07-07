@@ -80,6 +80,10 @@
                     <destination>dist</destination>
                     <javaOptions>
                         <option>-Dfile.encoding=UTF-8</option>
+                        <!-- dcm4che's OpenCV codec (DICOMImageReader) reflects into JDK
+                             internals to read frames directly off the file. -->
+                        <option>--add-opens=java.base/java.io=ALL-UNNAMED</option>
+                        <option>--add-opens=java.desktop/javax.imageio.stream=ALL-UNNAMED</option>
                     </javaOptions>
                 </configuration>
                 <executions>

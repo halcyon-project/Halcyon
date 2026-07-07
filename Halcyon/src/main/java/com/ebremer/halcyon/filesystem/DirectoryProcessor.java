@@ -120,7 +120,7 @@ public class DirectoryProcessor {
                             Model m = ModelFactory.createDefaultModel();
                             Resource r = m.createResource(httpuri.toString());
                             r.addProperty(OWL.sameAs, m.createResource(HURI.of(fx).toString()));
-                            File file = fx.toFile();
+                           // File file = fx.toFile();
                             FileReaderFactory frf = FileReaderFactoryProvider.getReaderForFormat(r);
                             logger.info("Reader {}", frf);
                             try (FileReader fr = frf.create(fx.toUri(), httpuri)){
