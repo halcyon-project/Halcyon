@@ -27,6 +27,13 @@ export function buildStackGraph(registry, stackUri, name) {
     if (name) {
         g.add($rdf.sym(stackUri), $rdf.sym('https://schema.org/name'), $rdf.literal(name));
     }
+    // Record the saver as the stack's creator, in the stack's OWN graph (never
+    // the security graph — clients must not mint ACLs). The Stacks page treats
+    // schema:creator == you as write access, so you can delete stacks you save.
+    const creator = (typeof window !== 'undefined') && window.useriri;
+    if (creator) {
+        g.add($rdf.sym(stackUri), $rdf.sym('https://schema.org/creator'), $rdf.sym(creator));
+    }
     return g;
 }
 
