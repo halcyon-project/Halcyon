@@ -192,7 +192,7 @@ function addImageLayer(registry, stack, zStep) {
         z = topZ(parentGroup) + zStep;
     }
 
-    makeImageViewer(stack.we ? stack.we.renderer : null, src, 1)
+    makeImageViewer(stack.we ? stack.we.renderer : null, src, 1, entry.type === 'feature')
         .then((lod) => {
             lod.scale.x = lod.imageWidth;
             lod.scale.y = lod.imageHeight;

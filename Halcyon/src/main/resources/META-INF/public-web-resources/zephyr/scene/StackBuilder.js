@@ -119,7 +119,7 @@ function buildGroup(ctx, subject, parentEntry, depth) {
 /** Async: fetch the leaf's info.json, size/position it, register the object. */
 function placeLeaf(ctx, entry, srcNode, meta, zpos, opacity, group) {
     const src = termValue(srcNode);
-    const p = makeImageViewer(ctx.renderer, src, opacity)
+    const p = makeImageViewer(ctx.renderer, src, opacity, entry.type === 'feature')
         .then((lod) => {
             lod.scale.x = lod.imageWidth * meta.sx;
             lod.scale.y = lod.imageHeight * meta.sy;
@@ -149,7 +149,25 @@ function listElements(store, subject, pred) {
     if (!stmt.length) return [];
     const obj = stmt[0].object;
     if (obj && Array.isArray(obj.elements)) return obj.elements;   // rdflib Collection
-    return [];
+    // Fallback: walk an explicit rdf:first/rdf:rest chain. rdflib only exposes
+    // `.elements` for a `( )` collection terminated by rdf:nil; a list stored as
+    // raw first/rest triples — including older saves whose terminator is the
+    // malformed rdf:nill (the bundled rdflib's Collection serializer writes
+    // `nill`; see stackPersistence) — arrives as a plain blank node, so gather
+    // the members by hand. Stop at any non-blank node (rdf:nil OR rdf:nill).
+    const RDF = $rdf.Namespace('http://www.w3.org/1999/02/22-rdf-syntax-ns#');
+    const out = [];
+    const seen = new Set();
+    let node = obj;
+    while (node && node.termType === 'BlankNode' && !seen.has(node.value)) {
+        seen.add(node.value);
+        const first = store.match(node, RDF('first'), null);
+        if (!first.length) break;
+        out.push(first[0].object);
+        const rest = store.match(node, RDF('rest'), null);
+        node = rest.length ? rest[0].object : null;
+    }
+    return out;
 }
 
 function isStack(ctx, node) {

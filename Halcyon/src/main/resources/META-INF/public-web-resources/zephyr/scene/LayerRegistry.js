@@ -121,15 +121,19 @@ export class LayerRegistry {
 /**
  * Set opacity on every tile material under an object, toggling transparency and
  * depth writes so a layer can be faded to reveal the layers beneath it.
+ *
+ * A material tagged `userData.hasAlpha` (feature-layer tiles, set in Square)
+ * stays transparent even at full opacity, so its per-texel alpha keeps blending
+ * instead of compositing the tile's transparent background as opaque black.
  */
 export function applyOpacity(object3d, opacity) {
-    const transparent = opacity < 1;
     object3d.traverse(child => {
         const mat = child.material;
         if (!mat) return;
         const mats = Array.isArray(mat) ? mat : [mat];
         mats.forEach(m => {
             if (m.map || m.isMeshBasicMaterial) {
+                const transparent = (m.userData && m.userData.hasAlpha) || opacity < 1;
                 m.opacity = opacity;
                 m.transparent = transparent;
                 m.depthWrite = !transparent;

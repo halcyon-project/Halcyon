@@ -89,10 +89,14 @@ function srcurl(src, x, y, w, h, tilex, tiley, scale, name) {
 
 /**
  * A unit quad (centered at origin, spanning -0.5..0.5) textured with one tile.
- * `opacity` < 1 makes the material transparent and stops it writing depth, so
- * lower layers in a stack remain visible through it.
+ * The material blends (and stops writing depth, so lower layers show through)
+ * when EITHER the layer is uniformly faded (`opacity` < 1) OR its tiles carry a
+ * per-texel alpha channel (`hasAlpha`, true for server-rasterized feature
+ * layers). Without the latter a feature tile's transparent background — RGB 0
+ * where alpha is 0 — is composited as opaque black instead of revealing the
+ * layers beneath, even at full opacity.
  */
-function Square(renderer, src, offset, name, opacity = 1) {
+function Square(renderer, src, offset, name, opacity = 1, hasAlpha = false) {
     var texture = src;
     texture.colorSpace = SRGBColorSpace;
     const square = new Shape();
@@ -102,7 +106,7 @@ function Square(renderer, src, offset, name, opacity = 1) {
     square.lineTo(1, 0);
     const geometry = new ShapeGeometry(square);
     geometry.center();
-    const transparent = opacity < 1;
+    const transparent = hasAlpha || opacity < 1;
     const textureMaterial = new MeshBasicMaterial({
         map: texture,
         transparent: transparent,
@@ -110,6 +114,9 @@ function Square(renderer, src, offset, name, opacity = 1) {
         depthWrite: !transparent,
         side: DoubleSide
     });
+    // Record why this material blends so a later opacity change (applyOpacity)
+    // keeps feature tiles transparent even when faded back up to full opacity.
+    textureMaterial.userData.hasAlpha = hasAlpha;
     const X = new Mesh(geometry, textureMaterial);
     X.frustumCulled = false;
     X.position.set(0, 0, offset);
@@ -126,7 +133,7 @@ function Square(renderer, src, offset, name, opacity = 1) {
  * child quadrants.
  */
 export class ImageViewer extends LOD {
-    constructor(renderer, url, width, height, x, y, w, h, tilex, tiley, offset, info, level, name, a, b, opacity = 1) {
+    constructor(renderer, url, width, height, x, y, w, h, tilex, tiley, offset, info, level, name, a, b, opacity = 1, hasAlpha = false) {
         super();
         this.isImageViewer = true;
         this.type = 'ImageViewer';
@@ -134,6 +141,7 @@ export class ImageViewer extends LOD {
         this.booted = false;
         this.level = level;
         this.opacity = opacity;
+        this.hasAlpha = hasAlpha;
         this.a = a;
         this.b = b;
         const numtilesx = Math.pow(2, level);
@@ -144,7 +152,7 @@ export class ImageViewer extends LOD {
         this.shrink = tilex / ts;
         const ttw = ((a * ts + ts) > width) ? ts - ((a * ts + ts) - width) : ts;
         const tth = ((b * ts + ts) > height) ? ts - ((b * ts + ts) - height) : ts;
-        const low = Square(renderer, srcurl(url, a * ts, b * ts, ttw, tth, tilex, tiley, this.shrink, name), offset, name, opacity);
+        const low = Square(renderer, srcurl(url, a * ts, b * ts, ttw, tth, tilex, tiley, this.shrink, name), offset, name, opacity, hasAlpha);
         low.name = "Square";
         low.frustumCulled = true;
         this.edistance = width / Math.pow(2, level);
@@ -154,27 +162,27 @@ export class ImageViewer extends LOD {
                 this.booted = true;
                 const nextlevel = level + 1;
                 const high = new Group();
-                const nw = new ImageViewer(renderer, url, width, height, 0, 0, 0, 0, tilex, tiley, offset, info, nextlevel, name + "/NW", 2 * this.a, 2 * this.b, opacity);
+                const nw = new ImageViewer(renderer, url, width, height, 0, 0, 0, 0, tilex, tiley, offset, info, nextlevel, name + "/NW", 2 * this.a, 2 * this.b, opacity, hasAlpha);
                 nw.position.set(-0.25, 0.25, 0);
                 nw.scale.x = 0.5;
                 nw.scale.y = 0.5;
                 high.add(nw);
                 if (ttw / 2 > 1) {
-                    const ne = new ImageViewer(renderer, url, width, height, 0, 0, 0, 0, tilex, tiley, offset, info, nextlevel, name + "/NE", 2 * this.a + 1, 2 * this.b, opacity);
+                    const ne = new ImageViewer(renderer, url, width, height, 0, 0, 0, 0, tilex, tiley, offset, info, nextlevel, name + "/NE", 2 * this.a + 1, 2 * this.b, opacity, hasAlpha);
                     ne.position.set(0.25, 0.25, 0);
                     ne.scale.x = 0.5;
                     ne.scale.y = 0.5;
                     high.add(ne);
                 }
                 if (tth / 2 > 1) {
-                    const sw = new ImageViewer(renderer, url, width, height, 0, 0, 0, 0, tilex, tiley, offset, info, nextlevel, name + "/SW", 2 * this.a, 2 * this.b + 1, opacity);
+                    const sw = new ImageViewer(renderer, url, width, height, 0, 0, 0, 0, tilex, tiley, offset, info, nextlevel, name + "/SW", 2 * this.a, 2 * this.b + 1, opacity, hasAlpha);
                     sw.position.set(-0.25, -0.25, 0);
                     sw.scale.x = 0.5;
                     sw.scale.y = 0.5;
                     high.add(sw);
                 }
                 if ((ttw / 2 > 1) && (tth / 2 > 1)) {
-                    const se = new ImageViewer(renderer, url, width, height, 0, 0, 0, 0, tilex, tiley, offset, info, nextlevel, name + "/SE", 2 * this.a + 1, 2 * this.b + 1, opacity);
+                    const se = new ImageViewer(renderer, url, width, height, 0, 0, 0, 0, tilex, tiley, offset, info, nextlevel, name + "/SE", 2 * this.a + 1, 2 * this.b + 1, opacity, hasAlpha);
                     se.position.set(0.25, -0.25, 0);
                     se.scale.x = 0.5;
                     se.scale.y = 0.5;
@@ -204,11 +212,15 @@ export class ImageViewer extends LOD {
  * this prepends the `/iiif/?iiif=` service prefix itself. Do NOT pass an
  * already service-wrapped URL.
  *
+ * Pass `hasAlpha = true` for sources whose tiles carry a meaningful alpha
+ * channel (server-rasterized feature layers): their materials then blend at any
+ * opacity, so transparent regions reveal the layers beneath instead of black.
+ *
  * Resolves to the ImageViewer (its `.scale` is set to the source's pixel
  * dimensions; the caller may override scale/position for registration), or
  * rejects on a bad/missing info.json.
  */
-export function makeImageViewer(renderer, url, opacity = 1) {
+export function makeImageViewer(renderer, url, opacity = 1, hasAlpha = false) {
     const target = "/iiif/?iiif=" + url + "/info.json";
     return fetch(target)
         .then(response => {
@@ -225,7 +237,7 @@ export function makeImageViewer(renderer, url, opacity = 1) {
             const h = data.height;
             const tilex = data.tiles[0].width;
             const tiley = data.tiles[0].height;
-            const lod = new ImageViewer(renderer, url, w, h, 0, 0, w, h, tilex, tiley, 0, data, 0, "ROOT", 0, 0, opacity);
+            const lod = new ImageViewer(renderer, url, w, h, 0, 0, w, h, tilex, tiley, 0, data, 0, "ROOT", 0, 0, opacity, hasAlpha);
             lod.imageWidth = w;
             lod.imageHeight = h;
             lod.url = url;

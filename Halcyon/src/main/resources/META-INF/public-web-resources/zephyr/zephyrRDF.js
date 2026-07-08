@@ -15,10 +15,14 @@ function ParseTTL(turtleData, store, baseURI) {
 }
 
 function DumpTTL(store, baseURI) {
-    let serializedGraph = '';
-    serializedGraph = $rdf.serialize(null, store, baseURI, 'text/turtle');
-    console.log("--- Serialized Turtle Output ---");
-    console.log(serializedGraph);
+    // Debug-only: must never throw into the caller's build sequence.
+    try {
+        const serializedGraph = $rdf.serialize(null, store, baseURI, 'text/turtle');
+        console.log("--- Serialized Turtle Output ---");
+        console.log(serializedGraph);
+    } catch (err) {
+        console.warn('DumpTTL (debug) skipped:', err);
+    }
 }
 
 function ListElements(store, baseURI) {
@@ -34,16 +38,25 @@ function ListElements(store, baseURI) {
 }
 
 function ListImages(store, baseURI) {
-    const zeph = $rdf.Namespace('https://halcyon.is/zephyr/ns/');
-    const stacks = store.match(null, $rdf.sym('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'), zeph('Stack'));
-    stacks.forEach(stack => {
-        const layers = store.match(stack.subject, zeph('layers'), null);
-        const layerList = layers[0].object.elements;
-        layerList.forEach(layerName => {
-            const image = store.match(layerName, zeph('src'), null);
-            console.log("Image : "+ image[0].object.value);     
+    // Debug-only listing. Every dereference is guarded: a stack with no
+    // zeph:layers, a list that rdflib didn't parse into a Collection (no
+    // `.elements`), or a member with no zeph:src must NOT throw, because this
+    // runs before the build loop in the viewer and a throw would abort it.
+    try {
+        const zeph = $rdf.Namespace('https://halcyon.is/zephyr/ns/');
+        const stacks = store.match(null, $rdf.sym('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'), zeph('Stack'));
+        stacks.forEach(stack => {
+            const layers = store.match(stack.subject, zeph('layers'), null);
+            const layerList = layers[0] && layers[0].object && layers[0].object.elements;
+            if (!Array.isArray(layerList)) return;
+            layerList.forEach(layerName => {
+                const image = store.match(layerName, zeph('src'), null);
+                if (image[0]) console.log("Image : " + image[0].object.value);
+            });
         });
-    });
+    } catch (err) {
+        console.warn('ListImages (debug) skipped:', err);
+    }
 }
 
 class WE {

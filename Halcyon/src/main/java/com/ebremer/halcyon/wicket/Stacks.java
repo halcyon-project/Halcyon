@@ -3,6 +3,7 @@ package com.ebremer.halcyon.wicket;
 import com.ebremer.halcyon.data.DataCore;
 import com.ebremer.halcyon.wicket.ethereal.Zephyr3;
 import com.ebremer.ns.ZEPH;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.jena.query.Dataset;
@@ -81,5 +82,5 @@ public class Stacks extends BasePage {
         return (i >= 0 && i < uri.length() - 1) ? uri.substring(i + 1) : uri;
     }
 
-    public record StackRow(String subject, String graph, String label) {}
+    public record StackRow(String subject, String graph, String label) implements Serializable {}
 }

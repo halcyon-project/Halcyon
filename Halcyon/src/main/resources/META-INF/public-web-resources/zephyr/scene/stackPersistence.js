@@ -50,7 +50,19 @@ function emitStack(g, ZEPH, subject, stackEntry) {
         addTransform(g, ZEPH, member, child);
         members.push(member);
     });
-    g.add(subject, ZEPH('layers'), new $rdf.Collection(members));
+    // Emit the rdf:List explicitly with the correct rdf:nil terminator. The
+    // bundled rdflib's Collection serializer writes rdf:nill (a typo), which
+    // stops the list round-tripping — Jena won't recognise a collection and the
+    // reader gets no `.elements` — so build first/rest/nil ourselves.
+    const RDF = $rdf.Namespace('http://www.w3.org/1999/02/22-rdf-syntax-ns#');
+    let list = RDF('nil');
+    for (let i = members.length - 1; i >= 0; i--) {
+        const cell = $rdf.blankNode();
+        g.add(cell, RDF('first'), members[i]);
+        g.add(cell, RDF('rest'), list);
+        list = cell;
+    }
+    g.add(subject, ZEPH('layers'), list);
 }
 
 /** Persist the layer's live placement (only non-default values). */
