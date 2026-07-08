@@ -7,7 +7,8 @@ import { saveStack, serializeStackTurtle } from './stackPersistence.js';
  *
  * Renders the LayerRegistry as an indented tree (mirroring the RDF nesting),
  * with per-layer visibility, opacity, active-layer selection (the layer that
- * annotation tools target), z reordering, and an "add image at z" action. It is
+ * annotation tools target), z reordering, x/y offset (registration), and an
+ * "add image at z" action. It is
  * a pure view over the registry: it mutates the registry / scene-graph and
  * re-renders from registry events, so it stays in sync with anything else that
  * changes layers.
@@ -95,20 +96,22 @@ function renderList(listDiv, registry, stack, zStep) {
         if (entry.type === 'stack' && entry.depth === 0) return; // root: implicit
 
         const row = document.createElement('div');
-        row.style.display = 'flex';
-        row.style.alignItems = 'center';
-        row.style.gap = '4px';
         row.style.padding = '2px 2px';
         row.style.marginLeft = `${Math.max(0, entry.depth - 1) * 14}px`;
         row.style.borderRadius = '4px';
         if (entry.id === activeId) row.style.background = '#d7e1ec';
+
+        const main = document.createElement('div');
+        main.style.display = 'flex';
+        main.style.alignItems = 'center';
+        main.style.gap = '4px';
 
         const vis = document.createElement('input');
         vis.type = 'checkbox';
         vis.checked = entry.visible;
         vis.title = 'Visible';
         vis.addEventListener('change', () => registry.setVisible(entry.id, vis.checked));
-        row.appendChild(vis);
+        main.appendChild(vis);
 
         const icon = document.createElement('i');
         icon.className = entry.type === 'stack' ? 'fa-solid fa-layer-group'
@@ -117,7 +120,7 @@ function renderList(listDiv, registry, stack, zStep) {
         icon.style.width = '16px';
         icon.style.color = entry.error ? '#b00020' : '#537895';
         icon.title = entry.error ? ('load error: ' + entry.error) : entry.type;
-        row.appendChild(icon);
+        main.appendChild(icon);
 
         const label = document.createElement('span');
         label.textContent = entry.name;
@@ -130,7 +133,7 @@ function renderList(listDiv, registry, stack, zStep) {
             label.title = 'Select as active layer (annotations target this layer)';
             label.addEventListener('click', () => registry.setActive(entry.id));
         }
-        row.appendChild(label);
+        main.appendChild(label);
 
         if (entry.type !== 'stack') {
             const op = document.createElement('input');
@@ -140,17 +143,73 @@ function renderList(listDiv, registry, stack, zStep) {
             op.title = 'Opacity';
             op.style.width = '56px';
             op.addEventListener('input', () => registry.setOpacity(entry.id, Number(op.value)));
-            row.appendChild(op);
+            main.appendChild(op);
         }
 
         // z reorder for spatial layers (sections / bases)
         if (entry.role === 'base' && entry.object3d) {
-            row.appendChild(zButton('▲', 'Move up in z', () => nudgeZ(registry, entry, +zStep)));
-            row.appendChild(zButton('▼', 'Move down in z', () => nudgeZ(registry, entry, -zStep)));
+            main.appendChild(zButton('▲', 'Move up in z', () => nudgeZ(registry, entry, +zStep)));
+            main.appendChild(zButton('▼', 'Move down in z', () => nudgeZ(registry, entry, -zStep)));
+        }
+
+        row.appendChild(main);
+
+        // x/y offset for any placed layer — the main use is registering an
+        // overlay (feature/IHC raster) onto its base. position.x/.y are the
+        // offsets in image pixels and are what Save writes as zeph:offsetx/y.
+        if (entry.object3d) {
+            row.appendChild(offsetLine(registry, entry));
         }
 
         listDiv.appendChild(row);
     });
+}
+
+/** A compact "offset x [ ] y [ ]" editor bound to a layer's object3d position. */
+function offsetLine(registry, entry) {
+    const line = document.createElement('div');
+    line.style.display = 'flex';
+    line.style.alignItems = 'center';
+    line.style.gap = '4px';
+    line.style.marginLeft = '20px';
+    line.style.marginTop = '2px';
+    line.style.fontSize = '11px';
+    line.style.color = '#537895';
+
+    const tag = document.createElement('span');
+    tag.textContent = 'offset';
+    line.appendChild(tag);
+
+    const xIn = offsetField(entry.object3d.position.x, 'Offset X in image pixels (+ = right)');
+    const yIn = offsetField(entry.object3d.position.y, 'Offset Y in image pixels (+ = up)');
+
+    const apply = () => {
+        if (!entry.object3d) return;
+        const x = parseFloat(xIn.value);
+        const y = parseFloat(yIn.value);
+        if (Number.isFinite(x)) entry.object3d.position.x = x;
+        if (Number.isFinite(y)) entry.object3d.position.y = y;
+        // Mark the stack edited so Save picks it up, but do NOT emit a registry
+        // 'change' — that rebuilds this row and would steal input focus.
+        document.dispatchEvent(new CustomEvent('zephyr:stackedited', { detail: { registry } }));
+    };
+    xIn.addEventListener('input', apply);
+    yIn.addEventListener('input', apply);
+
+    line.appendChild(document.createTextNode('x'));
+    line.appendChild(xIn);
+    line.appendChild(document.createTextNode('y'));
+    line.appendChild(yIn);
+    return line;
+}
+
+function offsetField(value, title) {
+    const inp = document.createElement('input');
+    inp.type = 'number';
+    inp.title = title;
+    inp.style.width = '68px';
+    inp.value = String(Math.round(Number.isFinite(value) ? value : 0));
+    return inp;
 }
 
 function zButton(glyph, title, onClick) {
