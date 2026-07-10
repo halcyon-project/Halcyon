@@ -561,7 +561,10 @@ public class SecuredRDFListTest extends SecuredResourceTest {
     public void testRemove() {
         try {
             getSecuredRDFList().remove(resource2);
-            if (!securityEvaluator.evaluate(Action.Update) || !securityEvaluator.evaluate(Action.Delete)) {
+            // Removing a non-head element relinks the predecessor's rdf:rest (a
+            // delete + create), so it additionally requires Create.
+            if (!securityEvaluator.evaluate(Action.Update) || !securityEvaluator.evaluate(Action.Delete)
+                    || !securityEvaluator.evaluate(Action.Create)) {
                 fail("Should have thrown AccessDeniedException");
             }
             Iterator<RDFNode> iter = getBaseRDFNode().as(RDFList.class).asJavaList().iterator();
@@ -570,7 +573,8 @@ public class SecuredRDFListTest extends SecuredResourceTest {
             assertEquals(resource4, iter.next());
             assertFalse(iter.hasNext());
         } catch (final AccessDeniedException e) {
-            if (securityEvaluator.evaluate(Action.Update) && securityEvaluator.evaluate(Action.Delete)) {
+            if (securityEvaluator.evaluate(Action.Update) && securityEvaluator.evaluate(Action.Delete)
+                    && securityEvaluator.evaluate(Action.Create)) {
                 fail("Should not have thrown AccessDeniedException");
             }
         }

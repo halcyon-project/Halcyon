@@ -41,6 +41,7 @@ import org.apache.jena.rdf.model.EmptyListUpdateException;
 import org.apache.jena.rdf.model.InvalidListException;
 import org.apache.jena.rdf.model.ListIndexException;
 import org.apache.jena.rdf.model.RDFList;
+import org.apache.jena.rdf.model.StmtIterator;
 import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.Statement;
@@ -262,6 +263,46 @@ public class SecuredRDFListImpl extends SecuredResourceImpl implements SecuredRD
 
         // not found
         return this;
+    }
+
+    /**
+     * Authorize every triple that {@link #baseRemove(RDFList)} will change when
+     * removing {@code cell}: the predecessor's {@code rdf:rest} relink
+     * ({@code prev.setTail(tail)} deletes {@code (prev, rdf:rest, cell)} and
+     * creates {@code (prev, rdf:rest, tail)}) and every triple of the cell
+     * itself ({@code cell.removeProperties()} — {@code rdf:first},
+     * {@code rdf:rest} and any others). Without this the wrapper only checked
+     * the cell's {@code rdf:first}, leaving the structural links unauthorized.
+     *
+     * @param cell the list cell that will be removed.
+     * @throws DeleteDeniedException           if a deleted triple is not permitted.
+     * @throws AddDeniedException              if the relink's created triple is not permitted.
+     * @throws AuthenticationRequiredException if user is not authenticated and is
+     *                                         required to be.
+     */
+    private void checkBaseRemoveDelta(final RDFList cell)
+            throws DeleteDeniedException, AddDeniedException, AuthenticationRequiredException {
+        // Locate the predecessor whose rdf:rest points at cell (null if cell is the head).
+        RDFList prev = null;
+        RDFList c = holder.getBaseItem();
+        while (!c.isEmpty() && !c.equals(cell)) {
+            prev = c;
+            c = c.getTail();
+        }
+        if (prev != null) {
+            final RDFList tail = cell.getTail();
+            checkDelete(Triple.create(prev.asNode(), RDF.rest.asNode(), cell.asNode()));
+            checkCreate(Triple.create(prev.asNode(), RDF.rest.asNode(), tail.asNode()));
+        }
+        // cell.removeProperties() deletes every triple with the cell as subject.
+        final StmtIterator si = cell.listProperties();
+        try {
+            while (si.hasNext()) {
+                checkDelete(si.next().asTriple());
+            }
+        } finally {
+            si.close();
+        }
     }
 
     private void checkCreateNewList(final RDFNode value, final Resource tail)
@@ -729,23 +770,33 @@ public class SecuredRDFListImpl extends SecuredResourceImpl implements SecuredRD
      *                                         required to be.
      */
     @Override
-    public RDFList remove(final RDFNode val)
-            throws UpdateDeniedException, DeleteDeniedException, AuthenticationRequiredException {
+    public RDFList remove(final RDFNode val) throws UpdateDeniedException, DeleteDeniedException, AddDeniedException,
+            AuthenticationRequiredException {
         checkUpdate();
 
         if (!canDelete(Triple.create(Node.ANY, RDF.first.asNode(), val.asNode()))) {
-            RDFList cell = null;
             final ExtendedIterator<RDFList> iter = getFilteredRDFListIterator(Action.Delete);
             while (iter.hasNext()) {
-                cell = iter.next();
+                final RDFList cell = iter.next();
                 if (val.equals(valueMapper.apply(cell))) {
+                    checkBaseRemoveDelta(cell);
                     return SecuredRDFListImpl.getInstance(getModel(), baseRemove(cell));
                 }
             }
             throw new DeleteDeniedException(SecuredItem.Util.triplePermissionMsg(getModelNode()));
         }
-        return SecuredRDFListImpl.getInstance(getModel(), holder.getBaseItem().remove(val));
-
+        // Blanket delete on (?, rdf:first, val) still leaves the structural
+        // rewrites of the removed cell (predecessor rdf:rest relink, cell
+        // rdf:rest) to authorize, so locate the cell and check its full delta.
+        RDFList cell = holder.getBaseItem();
+        while (!cell.isEmpty()) {
+            if (val.equals(valueMapper.apply(cell))) {
+                checkBaseRemoveDelta(cell);
+                return SecuredRDFListImpl.getInstance(getModel(), baseRemove(cell));
+            }
+            cell = cell.getTail();
+        }
+        return SecuredRDFListImpl.getInstance(getModel(), holder.getBaseItem());
     }
 
     /**
@@ -769,8 +820,7 @@ public class SecuredRDFListImpl extends SecuredResourceImpl implements SecuredRD
                 throw new EmptyListException("Attempted to delete the head of a nil list");
             }
             final RDFList cell = iter.next();
-            final Statement s = cell.getRequiredProperty(RDF.first);
-            checkDelete(s);
+            checkBaseRemoveDelta(cell);
             return SecuredRDFListImpl.getInstance(getModel(), baseRemove(cell));
         } finally {
             iter.close();
