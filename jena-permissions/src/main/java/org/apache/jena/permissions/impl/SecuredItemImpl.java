@@ -54,6 +54,12 @@ public abstract class SecuredItemImpl implements SecuredItem {
         private final Node mNode;
         private final Triple from;
         private final Triple to;
+        // The evaluator identity is part of the key: the cache is a static
+        // ThreadLocal shared across all secured items on the thread, so two
+        // items wrapping the same graphIRI with different evaluators/principals
+        // (e.g. an isomorphism check, or a run-as CachedSecurityEvaluator) must
+        // not share cached decisions.
+        private final SecurityEvaluator evaluator;
         private Integer hashCode;
 
         public CacheKey(final Action action, final Node modelNode) {
@@ -69,6 +75,7 @@ public abstract class SecuredItemImpl implements SecuredItem {
             this.mNode = modelNode;
             this.to = to;
             this.from = from;
+            this.evaluator = securityEvaluator;
         }
 
         private int compare(Node n1, Node n2) {
@@ -122,7 +129,8 @@ public abstract class SecuredItemImpl implements SecuredItem {
         @Override
         public boolean equals(final Object o) {
             if (o instanceof CacheKey) {
-                return this.compareTo((CacheKey) o) == 0;
+                final CacheKey ck = (CacheKey) o;
+                return this.evaluator == ck.evaluator && this.compareTo(ck) == 0;
             }
             return false;
         }
@@ -130,7 +138,8 @@ public abstract class SecuredItemImpl implements SecuredItem {
         @Override
         public int hashCode() {
             if (hashCode == null) {
-                hashCode = new HashCodeBuilder().append(action).append(mNode).append(from).append(to).toHashCode();
+                hashCode = new HashCodeBuilder().append(action).append(mNode).append(from).append(to)
+                        .append(System.identityHashCode(evaluator)).toHashCode();
             }
             return hashCode;
         }

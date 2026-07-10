@@ -260,7 +260,8 @@ public class SecuredModelImpl extends SecuredItemImpl implements SecuredModel {
     // The secured graph that this securedModel contains.
     private final SecuredGraph graph;
 
-    private Map<ModelChangedListener, SecuredModelChangedListener> listeners = new HashMap<>();
+    private Map<ModelChangedListener, SecuredModelChangedListener> listeners = java.util.Collections
+            .synchronizedMap(new HashMap<>());
 
     /**
      * Constructor.
@@ -670,7 +671,9 @@ public class SecuredModelImpl extends SecuredItemImpl implements SecuredModel {
         if (checkSoftRead()) {
             ExtendedIterator<Statement> iter = supplier.get();
             try {
-                return iter.filterKeep(stmt -> canRead(stmt)).hasNext();
+                // A statement overlaps only if it is actually present in the base
+                // model AND the user may read it.
+                return iter.filterKeep(stmt -> holder.getBaseItem().contains(stmt) && canRead(stmt)).hasNext();
             } finally {
                 iter.close();
             }
@@ -861,9 +864,9 @@ public class SecuredModelImpl extends SecuredItemImpl implements SecuredModel {
     public boolean containsAny(final Model model) throws ReadDeniedException, AuthenticationRequiredException {
         if (checkSoftRead()) {
             if (canRead(Triple.ANY)) {
-                return holder.getBaseItem().containsAll(model);
+                return holder.getBaseItem().containsAny(model);
             }
-            containsAny(() -> model.listStatements());
+            return containsAny(() -> model.listStatements());
         }
         return false;
     }
@@ -882,7 +885,7 @@ public class SecuredModelImpl extends SecuredItemImpl implements SecuredModel {
             if (canRead(Triple.ANY)) {
                 return holder.getBaseItem().containsAny(iter);
             }
-            containsAny(() -> iter);
+            return containsAny(() -> iter);
         }
         return false;
     }
@@ -2201,7 +2204,7 @@ public class SecuredModelImpl extends SecuredItemImpl implements SecuredModel {
     @Override
     public SecuredNodeIterator<RDFNode> listObjectsOfProperty(final Resource s, final Property p)
             throws ReadDeniedException, AuthenticationRequiredException {
-        return nodeIterator(() -> holder.getBaseItem().listObjectsOfProperty(s, p), new ObjectFilter(p));
+        return nodeIterator(() -> holder.getBaseItem().listObjectsOfProperty(s, p), new ObjectFilter(s, p));
     }
 
     /**

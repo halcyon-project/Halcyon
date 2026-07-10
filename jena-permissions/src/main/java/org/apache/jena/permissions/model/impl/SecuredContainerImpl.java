@@ -231,7 +231,8 @@ public class SecuredContainerImpl extends SecuredResourceImpl implements Secured
     public SecuredContainer add(final RDFNode o)
             throws AddDeniedException, UpdateDeniedException, AuthenticationRequiredException {
         checkUpdate();
-        final int pos = holder.getBaseItem().size();
+        // ContainerImpl.add appends at rdf:_(size()+1); authorize that same slot.
+        final int pos = holder.getBaseItem().size() + 1;
         checkAdd(pos, o.asNode());
         holder.getBaseItem().add(o);
         return holder.getSecuredItem();
@@ -552,7 +553,7 @@ public class SecuredContainerImpl extends SecuredResourceImpl implements Secured
         checkRead();
         final Set<Action> permsCopy = new HashSet<>(perms);
         permsCopy.add(Action.Read);
-        final ExtendedIterator<RDFNode> ni = getStatementIterator(perms).mapWith(o -> o.getObject());
+        final ExtendedIterator<RDFNode> ni = getStatementIterator(permsCopy).mapWith(o -> o.getObject());
         return new SecuredNodeIterator<>(getModel(), ni);
 
     }

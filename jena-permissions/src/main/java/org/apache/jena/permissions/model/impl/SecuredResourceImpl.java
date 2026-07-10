@@ -740,6 +740,9 @@ public class SecuredResourceImpl extends SecuredRDFNodeImpl implements SecuredRe
     @Override
     public Resource inModel(final Model m) {
         checkRead();
+        if (m instanceof SecuredModel) {
+            return SecuredResourceImpl.getInstance((SecuredModel) m, holder.getBaseItem().inModel(m));
+        }
         return holder.getBaseItem().inModel(m);
     }
 

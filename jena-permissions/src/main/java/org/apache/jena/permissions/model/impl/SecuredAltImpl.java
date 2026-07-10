@@ -33,6 +33,7 @@ import org.apache.jena.rdf.model.Alt;
 import org.apache.jena.rdf.model.AltHasNoDefaultException;
 import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.rdf.model.Statement;
+import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.shared.AddDeniedException;
 import org.apache.jena.shared.AuthenticationRequiredException;
 import org.apache.jena.shared.ReadDeniedException;
@@ -339,15 +340,12 @@ public class SecuredAltImpl extends SecuredContainerImpl implements SecuredAlt {
      */
     private Statement getDefaultStatement() throws ReadDeniedException, AuthenticationRequiredException {
         if (checkSoftRead()) {
-            ExtendedIterator<Statement> iter = getStatementIterator(Action.Read);
-            try {
-                if (iter.hasNext()) {
-                    return iter.next();
-                }
-            } finally {
-                iter.close();
+            // The default is rdf:_1 (as in the base Alt), not merely the first
+            // readable member; return it only if the user may read it.
+            final Statement stmt = holder.getBaseItem().getProperty(RDF.li(1));
+            if (stmt != null && checkRead(stmt.asTriple())) {
+                return stmt;
             }
-
         }
         throw new AltHasNoDefaultException(this);
     }
@@ -472,21 +470,17 @@ public class SecuredAltImpl extends SecuredContainerImpl implements SecuredAlt {
     @Override
     public SecuredAlt setDefault(final RDFNode o) throws UpdateDeniedException, AuthenticationRequiredException {
         checkUpdate();
-        ExtendedIterator<Statement> iter = getStatementIterator(Action.Read);
-        try {
-            if (iter.hasNext()) {
-                final Statement stmt = iter.next();
-                final Triple t = stmt.asTriple();
-                final Triple t2 = Triple.create(t.getSubject(), t.getPredicate(), o.asNode());
-                checkUpdate(t, t2);
-                stmt.changeObject(o);
-                return holder.getSecuredItem();
-            }
+        // The default is rdf:_1 (as in the base Alt), not the first readable member.
+        final Statement stmt = holder.getBaseItem().getProperty(RDF.li(1));
+        if (stmt != null) {
+            final Triple t = stmt.asTriple();
+            final Triple t2 = Triple.create(t.getSubject(), t.getPredicate(), o.asNode());
+            checkUpdate(t, t2);
+            stmt.changeObject(o);
+        } else {
             add(o);
-            return holder.getSecuredItem();
-        } finally {
-            iter.close();
         }
+        return holder.getSecuredItem();
     }
 
     /**

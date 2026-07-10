@@ -52,7 +52,13 @@ public class SecuredLiteralImpl extends SecuredRDFNodeImpl implements SecuredLit
         // check that literal has a securedModel.
         Literal goodLiteral = literal;
         if (goodLiteral.getModel() == null) {
-            goodLiteral = securedModel.createTypedLiteral(literal.getLexicalForm(), literal.getDatatype());
+            // Preserve the language tag when reattaching a model-less literal;
+            // createTypedLiteral(lex, datatype) would drop it.
+            if (literal.getLanguage() != null && !literal.getLanguage().isEmpty()) {
+                goodLiteral = securedModel.createLiteral(literal.getLexicalForm(), literal.getLanguage());
+            } else {
+                goodLiteral = securedModel.createTypedLiteral(literal.getLexicalForm(), literal.getDatatype());
+            }
         }
 
         final ItemHolder<Literal, SecuredLiteral> holder = new ItemHolder<>(goodLiteral);

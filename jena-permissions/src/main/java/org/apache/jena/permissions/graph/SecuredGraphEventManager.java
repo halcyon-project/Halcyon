@@ -353,7 +353,6 @@ public class SecuredGraphEventManager implements GraphEventManager {
     @Override
     public void notifyAddIterator(final Graph g, final Iterator<Triple> it) throws AuthenticationRequiredException {
         notifyAddIterator(g, WrappedIterator.create(it).toList());
-        baseGraph.equals(g);
     }
 
     @Override

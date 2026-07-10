@@ -47,7 +47,7 @@ public class SecuredStatementTermImpl extends SecuredRDFNodeImpl implements Secu
         // if we are going to create a duplicate proxy, just return this
         // one.
         if (stmtTerm instanceof SecuredStatementTerm) {
-            if (checker.isEquivalent((SecuredStatement) stmtTerm)) {
+            if (checker.isEquivalent((SecuredStatementTerm) stmtTerm)) {
                 return (SecuredStatementTerm) stmtTerm;
             }
         }
