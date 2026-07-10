@@ -22,6 +22,7 @@ import java.util.Set;
 import java.util.function.Predicate;
 
 import org.apache.jena.graph.Node;
+import org.apache.jena.graph.Triple;
 import org.apache.jena.permissions.SecuredItem;
 import org.apache.jena.permissions.SecurityEvaluator;
 import org.apache.jena.permissions.SecurityEvaluator.Action;
@@ -129,7 +130,11 @@ public class PermStatementFilter implements Predicate<Statement> {
 
     @Override
     public boolean test(final Statement s) throws AuthenticationRequiredException {
-        return evaluator.evaluateAny(principal, actions, modelNode, s.asTriple());
+        // Keep the statement only if the user may perform ALL the requested
+        // actions on it (as this filter is documented to do); evaluateAny would
+        // admit a statement the user has only one of the actions for.
+        final Triple triple = s.asTriple();
+        return actions.stream().allMatch(action -> evaluator.evaluate(principal, action, modelNode, triple));
     }
 
 }

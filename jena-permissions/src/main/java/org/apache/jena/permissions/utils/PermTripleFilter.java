@@ -128,7 +128,11 @@ public class PermTripleFilter implements Predicate<Triple> {
 
     @Override
     public boolean test(final Triple triple) throws AuthenticationRequiredException {
-        return evaluator.evaluateAny(principal, actions, modelNode, triple);
+        // Keep the triple only if the user may perform ALL the requested actions
+        // on it (as this filter is documented to do). Using evaluateAny here would
+        // keep a triple the user has only one action for — e.g. leaking a
+        // Delete-but-not-Read triple to a delete-event listener.
+        return actions.stream().allMatch(action -> evaluator.evaluate(principal, action, modelNode, triple));
     }
 
 }
