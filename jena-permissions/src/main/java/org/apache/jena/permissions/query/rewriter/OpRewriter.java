@@ -32,6 +32,9 @@ import org.apache.jena.sparql.algebra.Op;
 import org.apache.jena.sparql.algebra.OpVisitor;
 import org.apache.jena.sparql.algebra.op.*;
 import org.apache.jena.sparql.core.BasicPattern;
+import org.apache.jena.sparql.expr.Expr;
+import org.apache.jena.sparql.expr.ExprFunctionOp;
+import org.apache.jena.sparql.expr.ExprList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -100,22 +103,6 @@ public class OpRewriter implements OpVisitor {
     }
 
     /**
-     * Register variables.
-     *
-     * Registers n as a variable if it is one.
-     *
-     * @param n         the node to check
-     * @param variables the list of variable nodes
-     * @Return n for chaining.
-     */
-    private Node registerVariables(final Node n, final List<Node> variables) {
-        if (n.isVariable() && !variables.contains(n)) {
-            variables.add(n);
-        }
-        return n;
-    }
-
-    /**
      * Reset the rewriter to the initial state.
      *
      * @return this rewriter for chaining.
@@ -123,20 +110,6 @@ public class OpRewriter implements OpVisitor {
     public OpRewriter reset() {
         result = OpSequence.create();
         return this;
-    }
-
-    /**
-     * Register all the variables in the triple.
-     *
-     * @param t         the triple to register.
-     * @param variables The list of variables.
-     * @return t for chaining
-     */
-    private Triple registerBGPTriple(final Triple t, final List<Node> variables) {
-        registerVariables(t.getSubject(), variables);
-        registerVariables(t.getPredicate(), variables);
-        registerVariables(t.getObject(), variables);
-        return t;
     }
 
     /**
@@ -183,6 +156,63 @@ public class OpRewriter implements OpVisitor {
     }
 
     /**
+     * Handles an operation that reads triples the rewriter cannot express as an
+     * algebra-level {@code SecuredFunction} filter — a property path, a quad
+     * block, an opaque extension, or dataset-name enumeration. Such an operation
+     * touches triples that are never bound to query variables, so no per-triple
+     * filter can be built for it. If the principal may read every triple of the
+     * (concrete) graph the operation is safe and passes through unchanged;
+     * otherwise the rewriter cannot prove it only touches readable data and fails
+     * closed, exactly as the {@link #visit(OpBGP)} handler does when the graph is
+     * unreadable.
+     *
+     * @param op the unfilterable operation.
+     */
+    private void passThroughOrDeny(final Op op) {
+        final Object principal = securityEvaluator.getPrincipal();
+        if (graphIRI != null && !graphIRI.isVariable()
+                && securityEvaluator.evaluate(principal, Action.Read, graphIRI, Triple.ANY)) {
+            addOp(op);
+            return;
+        }
+        if (silentFail) {
+            return;
+        }
+        throw new ReadDeniedException(SecuredItem.Util.modelPermissionMsg(graphIRI));
+    }
+
+    /**
+     * Rewrites the graph pattern nested inside an expression list. SPARQL
+     * {@code FILTER EXISTS} / {@code NOT EXISTS} carry their pattern as an
+     * {@link ExprFunctionOp}; that inner {@code Op} is executed directly (see
+     * {@code ExprFunctionOp.eval}), so it must be rewritten too — otherwise an
+     * existence test over denied data is evaluated unfiltered. Every other
+     * expression is returned unchanged.
+     *
+     * @param exprs the expression list to rewrite (may be {@code null}).
+     * @return the rewritten list, or the original instance if nothing changed.
+     */
+    private ExprList rewriteExprs(final ExprList exprs) {
+        if (exprs == null || exprs.isEmpty()) {
+            return exprs;
+        }
+        boolean changed = false;
+        final ExprList rewritten = new ExprList();
+        for (final Expr expr : exprs.getList()) {
+            if (expr instanceof ExprFunctionOp) {
+                final ExprFunctionOp funcOp = (ExprFunctionOp) expr;
+                final OpRewriter subRewriter = new OpRewriter(securityEvaluator, graphIRI);
+                funcOp.getGraphPattern().visit(subRewriter);
+                rewritten.add(funcOp.copy(new ExprList(funcOp.getArgs()), subRewriter.getResult()));
+                changed = true;
+            } else {
+                rewritten.add(expr);
+            }
+        }
+        return changed ? rewritten : exprs;
+    }
+
+    /**
      * rewrites the subop of assign.
      */
     @Override
@@ -199,26 +229,26 @@ public class OpRewriter implements OpVisitor {
             LOG.debug("Starting visiting OpBGP");
         }
         Object principal = securityEvaluator.getPrincipal();
-        if (!securityEvaluator.evaluate(principal, Action.Read, graphIRI)) {
+        // A concrete graph can be authorized up front. A variable graph (from
+        // GRAPH ?g { ... }) is only known per row, so the graph-level shortcuts
+        // below are skipped and the per-row SecuredFunction — which resolves the
+        // graph node from each binding — is always inserted.
+        final boolean variableGraph = graphIRI == null || graphIRI.isVariable();
+        if (!variableGraph && !securityEvaluator.evaluate(principal, Action.Read, graphIRI)) {
             if (silentFail) {
                 return;
             }
             throw new ReadDeniedException(SecuredItem.Util.modelPermissionMsg(graphIRI));
         }
 
-        // if the user can read any triple just add the opBGP
-        if (securityEvaluator.evaluate(principal, Action.Read, graphIRI, Triple.ANY)) {
+        // if the graph is concrete and the user can read any triple just add the opBGP
+        if (!variableGraph && securityEvaluator.evaluate(principal, Action.Read, graphIRI, Triple.ANY)) {
             addOp(opBGP);
         } else {
             // add security filtering to the resulting triples
-            final List<Triple> newBGP = new ArrayList<>();
-            final List<Node> variables = new ArrayList<>();
-            // register all variables
-            for (final Triple t : opBGP.getPattern().getList()) {
-                newBGP.add(registerBGPTriple(t, variables));
-            }
-            // create the security function.
-            final SecuredFunction secFunc = new SecuredFunction(graphIRI, securityEvaluator, variables, newBGP);
+            final List<Triple> newBGP = new ArrayList<>(opBGP.getPattern().getList());
+            // create the security function (it derives its own variables).
+            final SecuredFunction secFunc = new SecuredFunction(graphIRI, securityEvaluator, newBGP);
             // create the filter
             Op filter = OpFilter.filter(secFunc, new OpBGP(BasicPattern.wrap(newBGP)));
             // add the filter
@@ -241,16 +271,16 @@ public class OpRewriter implements OpVisitor {
             LOG.debug("Starting visiting OpSemiJoin");
         }
         final OpRewriter rewriter = new OpRewriter(securityEvaluator, graphIRI);
-        addOp(OpLateral.create(rewriteOp2(opSemiJoin, rewriter), rewriter.getResult()));
+        addOp(OpSemiJoin.create(rewriteOp2(opSemiJoin, rewriter), rewriter.getResult()));
     }
 
     @Override
     public void visit(OpAntiJoin opAntiJoin) {
         if (LOG.isDebugEnabled()) {
-            LOG.debug("Starting visiting OpSemiJoin");
+            LOG.debug("Starting visiting OpAntiJoin");
         }
         final OpRewriter rewriter = new OpRewriter(securityEvaluator, graphIRI);
-        addOp(OpLateral.create(rewriteOp2(opAntiJoin, rewriter), rewriter.getResult()));
+        addOp(OpAntiJoin.create(rewriteOp2(opAntiJoin, rewriter), rewriter.getResult()));
     }
 
     /**
@@ -273,7 +303,9 @@ public class OpRewriter implements OpVisitor {
         if (LOG.isDebugEnabled()) {
             LOG.debug("Starting visiting OpDatasetName");
         }
-        addOp(dsNames);
+        // Enumerates graph names — a metadata read that cannot be filtered
+        // per-triple. Pass through only when the principal can read everything.
+        passThroughOrDeny(dsNames);
     }
 
     /**
@@ -306,7 +338,9 @@ public class OpRewriter implements OpVisitor {
         if (LOG.isDebugEnabled()) {
             LOG.debug("Starting visiting OpExt");
         }
-        addOp(opExt);
+        // Opaque extension algebra the rewriter cannot descend into; treat it as
+        // an unfilterable read and fail closed unless the principal reads all.
+        passThroughOrDeny(opExt);
     }
 
     /**
@@ -341,7 +375,9 @@ public class OpRewriter implements OpVisitor {
         if (LOG.isDebugEnabled()) {
             LOG.debug("Starting visiting OpFilter");
         }
-        addOp(OpFilter.filterBy(opFilter.getExprs(), rewriteOp1(opFilter)));
+        // Rewrite both the sub-op and any EXISTS/NOT EXISTS pattern carried in the
+        // filter expressions, so an existence test over denied data is filtered.
+        addOp(OpFilter.filterBy(rewriteExprs(opFilter.getExprs()), rewriteOp1(opFilter)));
     }
 
     /**
@@ -352,9 +388,28 @@ public class OpRewriter implements OpVisitor {
         if (LOG.isDebugEnabled()) {
             LOG.debug("Starting visiting OpGraph");
         }
-        final OpRewriter rewriter = new OpRewriter(securityEvaluator, opGraph.getNode());
+        final Node graphNode = opGraph.getNode();
+        if (graphNode.isVariable() && opGraph.getSubOp() instanceof OpBGP) {
+            // GRAPH ?g { <bgp> }: ARQ binds ?g by joining it onto the pattern's
+            // solutions *after* the pattern runs, so ?g is deliberately not visible
+            // inside the pattern and a filter placed there could not resolve it.
+            // Instead wrap the whole graph in a SecuredFunction filter evaluated on
+            // the graph's output, where ?g and the pattern variables are all bound;
+            // the function resolves ?g per row and authorizes each triple against
+            // that concrete graph. ?g is declared among the function's variables so
+            // the optimizer keeps the filter above the graph.
+            final List<Triple> triples = new ArrayList<>(((OpBGP) opGraph.getSubOp()).getPattern().getList());
+            final SecuredFunction secFunc = new SecuredFunction(graphNode, securityEvaluator, triples);
+            addOp(OpFilter.filter(secFunc, new OpGraph(graphNode, opGraph.getSubOp())));
+            return;
+        }
+        // Concrete graph (checks resolve directly), or a complex sub-pattern under a
+        // variable graph (recursive rewrite: a fully-readable principal passes
+        // through, a restricted one fails closed since the inner filters cannot
+        // resolve the hidden graph variable).
+        final OpRewriter rewriter = new OpRewriter(securityEvaluator, graphNode);
         opGraph.getSubOp().visit(rewriter);
-        addOp(new OpGraph(opGraph.getNode(), rewriter.getResult()));
+        addOp(new OpGraph(graphNode, rewriter.getResult()));
     }
 
     /**
@@ -400,7 +455,8 @@ public class OpRewriter implements OpVisitor {
             LOG.debug("Starting visiting OpLeftJoin");
         }
         final OpRewriter rewriter = new OpRewriter(securityEvaluator, graphIRI);
-        addOp(OpLeftJoin.create(rewriteOp2(opLeftJoin, rewriter), rewriter.getResult(), opLeftJoin.getExprs()));
+        addOp(OpLeftJoin.create(rewriteOp2(opLeftJoin, rewriter), rewriter.getResult(),
+                rewriteExprs(opLeftJoin.getExprs())));
     }
 
     /**
@@ -456,7 +512,10 @@ public class OpRewriter implements OpVisitor {
         if (LOG.isDebugEnabled()) {
             LOG.debug("Starting visiting OpPath");
         }
-        addOp(opPath);
+        // A property path traverses intermediate triples that are never bound to
+        // query variables, so a per-triple Read filter cannot be built for it.
+        // Pass through only when the principal reads the whole graph.
+        passThroughOrDeny(opPath);
     }
 
     /**
@@ -505,7 +564,9 @@ public class OpRewriter implements OpVisitor {
         if (LOG.isDebugEnabled()) {
             LOG.debug("Starting visiting OpQuad");
         }
-        addOp(opQuad);
+        // Quad-form triple access: the rewriter only builds triple-level filters,
+        // so fail closed under restriction rather than read the quad unfiltered.
+        passThroughOrDeny(opQuad);
     }
 
     /**
@@ -516,7 +577,9 @@ public class OpRewriter implements OpVisitor {
         if (LOG.isDebugEnabled()) {
             LOG.debug("Starting visiting OpQuadPattern");
         }
-        addOp(quadPattern);
+        // Quad-form BGP: cannot be filtered per-triple here, so fail closed under
+        // restriction (see passThroughOrDeny).
+        passThroughOrDeny(quadPattern);
     }
 
     /**
@@ -549,6 +612,9 @@ public class OpRewriter implements OpVisitor {
         if (LOG.isDebugEnabled()) {
             LOG.debug("Starting visiting opService");
         }
+        // SERVICE targets a remote endpoint governed by its own access control,
+        // not this evaluator's local triple permissions, so there is nothing
+        // local to filter — pass it through unchanged.
         addOp(opService);
     }
 
@@ -562,7 +628,9 @@ public class OpRewriter implements OpVisitor {
         if (LOG.isDebugEnabled()) {
             LOG.debug("Starting visiting OpSlice");
         }
-        addOp(opSlice);
+        // Recurse into the sub-op so LIMIT/OFFSET queries still get their
+        // SecuredFunction filters (every other OpModifier already recurses).
+        addOp(new OpSlice(rewriteOp1(opSlice), opSlice.getStart(), opSlice.getLength()));
     }
 
     /**
@@ -615,6 +683,7 @@ public class OpRewriter implements OpVisitor {
         if (LOG.isDebugEnabled()) {
             LOG.debug("Starting visiting OpQuadBlock");
         }
-        addOp(quadBlock);
+        // Quad-form BGP block: same handling as OpQuadPattern.
+        passThroughOrDeny(quadBlock);
     }
 }
