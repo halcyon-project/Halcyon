@@ -3303,8 +3303,23 @@ public class SecuredModelImpl extends SecuredItemImpl implements SecuredModel {
         }
     }
 
+    /**
+     * @sec.graph Read
+     * @sec.triple Read at least one Triple( resource, p, o ) for each resource
+     *             returned
+     *
+     *             if {@link SecurityEvaluator#isHardReadError()} is true and the
+     *             user does not have read access then an empty iterator will be
+     *             returned.
+     *
+     * @throws ReadDeniedException
+     * @throws AuthenticationRequiredException if user is not authenticated and is
+     *                                         required to be.
+     */
     @Override
-    public ResIterator listSubjectsWithProperty(Property p, String str, String lang, String dir) {
-        return null;
+    public SecuredResIterator listSubjectsWithProperty(final Property p, final String o, final String lang,
+            final String dir) throws ReadDeniedException, AuthenticationRequiredException {
+        return resIterator(() -> holder.getBaseItem().listSubjectsWithProperty(p, o, lang, dir),
+                new ResourceFilter(p, holder.getBaseItem().getRDFNode(NodeFactory.createLiteralDirLang(o, lang, dir))));
     }
 }
