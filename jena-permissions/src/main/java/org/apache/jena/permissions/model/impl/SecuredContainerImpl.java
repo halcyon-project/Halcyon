@@ -24,6 +24,7 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
+import org.apache.jena.graph.Graph;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.Triple;
 import org.apache.jena.permissions.SecurityEvaluator;
@@ -34,10 +35,16 @@ import org.apache.jena.permissions.model.SecuredContainer;
 import org.apache.jena.permissions.model.SecuredModel;
 import org.apache.jena.permissions.utils.ContainerFilter;
 import org.apache.jena.permissions.utils.PermStatementFilter;
+import org.apache.jena.rdf.model.Alt;
+import org.apache.jena.rdf.model.Bag;
 import org.apache.jena.rdf.model.Container;
 import org.apache.jena.rdf.model.Literal;
+import org.apache.jena.rdf.model.Model;
+import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.Property;
 import org.apache.jena.rdf.model.RDFNode;
+import org.apache.jena.rdf.model.Resource;
+import org.apache.jena.rdf.model.Seq;
 import org.apache.jena.rdf.model.Statement;
 import org.apache.jena.shared.AddDeniedException;
 import org.apache.jena.shared.AuthenticationRequiredException;
@@ -559,11 +566,88 @@ public class SecuredContainerImpl extends SecuredResourceImpl implements Secured
      */
     @Override
     public SecuredContainer remove(final Statement s)
-            throws UpdateDeniedException, DeleteDeniedException, AuthenticationRequiredException {
+            throws UpdateDeniedException, DeleteDeniedException, AddDeniedException, AuthenticationRequiredException {
         checkUpdate();
-        checkDelete(s.asTriple());
+        // remove(Statement) is not a simple delete: to keep the container
+        // gap-free the base implementation rewrites membership triples beyond
+        // s. Bag/Alt (ContainerImpl.remove) move the last member into s's slot
+        // -- deleting the last triple and creating one in s's slot -- and Seq
+        // (SeqImpl.remove) shifts every following member down. Every such
+        // triple must be authorized, not just s, or a caller with narrow
+        // permissions could delete/renumber members it does not control.
+        if (canDelete(Triple.ANY) && canCreate(Triple.ANY)) {
+            checkDelete(s.asTriple());
+        } else {
+            checkRemoveDelta(s);
+        }
         holder.getBaseItem().remove(s);
         return holder.getSecuredItem();
+    }
+
+    /**
+     * Authorize every triple that {@code base.remove(s)} will delete or create.
+     * <p>
+     * Rather than duplicate each concrete container's renumbering strategy
+     * (which could drift from Jena), the removal is replayed on an isolated
+     * copy of the container's statements and the resulting delta is checked:
+     * removed triples require {@code Delete}, added triples require
+     * {@code Create}. This stays correct for Bag/Alt (swap-with-last) and Seq
+     * (shift-down) alike.
+     *
+     * @param s the membership statement being removed.
+     * @throws DeleteDeniedException           if a deleted triple is not permitted.
+     * @throws AddDeniedException              if a created triple is not permitted.
+     * @throws AuthenticationRequiredException if user is not authenticated and is
+     *                                         required to be.
+     */
+    private void checkRemoveDelta(final Statement s)
+            throws DeleteDeniedException, AddDeniedException, AuthenticationRequiredException {
+        final Container base = holder.getBaseItem();
+        final Node subject = base.asNode();
+
+        // Copy the container's outgoing statements into a scratch model, at the
+        // same node, so the replayed removal produces triples with the real
+        // subject and objects.
+        final Model scratch = ModelFactory.createDefaultModel();
+        final Graph scratchGraph = scratch.getGraph();
+        final Set<Triple> before = new HashSet<>();
+        final ExtendedIterator<Triple> iter = base.getModel().getGraph().find(subject, Node.ANY, Node.ANY);
+        try {
+            while (iter.hasNext()) {
+                final Triple t = iter.next();
+                before.add(t);
+                scratchGraph.add(t);
+            }
+        } finally {
+            iter.close();
+        }
+
+        // Replay with a same-typed container view so the same renumbering runs.
+        final Resource scratchSubject = scratch.getRDFNode(subject).asResource();
+        final Container scratchContainer = base instanceof Seq ? scratchSubject.as(Seq.class)
+                : base instanceof Alt ? scratchSubject.as(Alt.class) : scratchSubject.as(Bag.class);
+        scratchContainer.remove(scratch.asStatement(s.asTriple()));
+
+        final Set<Triple> after = new HashSet<>();
+        final ExtendedIterator<Triple> iter2 = scratchGraph.find(subject, Node.ANY, Node.ANY);
+        try {
+            while (iter2.hasNext()) {
+                after.add(iter2.next());
+            }
+        } finally {
+            iter2.close();
+        }
+
+        for (final Triple t : before) {
+            if (!after.contains(t)) {
+                checkDelete(t);
+            }
+        }
+        for (final Triple t : after) {
+            if (!before.contains(t)) {
+                checkCreate(t);
+            }
+        }
     }
 
     /**
