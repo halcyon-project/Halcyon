@@ -22,6 +22,7 @@ import org.apache.jena.graph.Graph;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.TransactionHandler;
 import org.apache.jena.graph.Triple;
+import org.apache.jena.graph.impl.GraphWithPerform;
 import org.apache.jena.permissions.SecurityEvaluator;
 import org.apache.jena.permissions.SecurityEvaluator.Action;
 import org.apache.jena.permissions.graph.SecuredGraph;
@@ -40,7 +41,7 @@ import org.apache.jena.util.iterator.ExtendedIterator;
 /**
  * Implementation of SecuredGraph to be used by a SecuredItemInvoker proxy.
  */
-public class SecuredGraphImpl extends SecuredItemImpl implements SecuredGraph {
+public class SecuredGraphImpl extends SecuredItemImpl implements SecuredGraph, GraphWithPerform {
 
     // the prefixMapping for this graph.
     private SecuredPrefixMapping prefixMapping;
@@ -77,6 +78,37 @@ public class SecuredGraphImpl extends SecuredItemImpl implements SecuredGraph {
         checkUpdate();
         checkCreate(t);
         holder.getBaseItem().add(t);
+    }
+
+    /**
+     * Add a triple without firing add notifications ({@link GraphWithPerform}).
+     * <p>
+     * This must be secured with the same checks as {@link #add(Triple)}: the
+     * proxy exposes {@code GraphWithPerform} because it inherits the base
+     * graph's interfaces, and Jena bulk paths (e.g. {@code GraphUtil.addInto},
+     * and hence {@code Model.add(Model)} / {@code RDFDataMgr.read} into this
+     * graph) call {@code performAdd} directly rather than {@link #add(Triple)}.
+     * Without this override those paths would write to the base graph
+     * unchecked.
+     *
+     * @sec.graph Update
+     * @sec.triple Create
+     * @throws AddDeniedException
+     * @throws UpdateDeniedException           if the graph can not be updated.
+     * @throws AuthenticationRequiredException if user is not authenticated and is
+     *                                         required to be.
+     */
+    @Override
+    public void performAdd(final Triple t)
+            throws AddDeniedException, UpdateDeniedException, AuthenticationRequiredException {
+        checkUpdate();
+        checkCreate(t);
+        final Graph base = holder.getBaseItem();
+        if (base instanceof GraphWithPerform) {
+            ((GraphWithPerform) base).performAdd(t);
+        } else {
+            base.add(t);
+        }
     }
 
     /**
@@ -157,6 +189,37 @@ public class SecuredGraphImpl extends SecuredItemImpl implements SecuredGraph {
         checkUpdate();
         checkDelete(t);
         holder.getBaseItem().delete(t);
+    }
+
+    /**
+     * Delete a triple without firing delete notifications
+     * ({@link GraphWithPerform}).
+     * <p>
+     * This must be secured with the same checks as {@link #delete(Triple)}: the
+     * proxy exposes {@code GraphWithPerform} because it inherits the base
+     * graph's interfaces, and Jena bulk paths (e.g. {@code GraphUtil.deleteFrom},
+     * and hence {@code Model.remove(Model)}) call {@code performDelete} directly
+     * rather than {@link #delete(Triple)}. Without this override those paths
+     * would delete from the base graph unchecked.
+     *
+     * @sec.graph Update
+     * @sec.triple Delete
+     * @throws DeleteDeniedException
+     * @throws UpdateDeniedException
+     * @throws AuthenticationRequiredException if user is not authenticated and is
+     *                                         required to be.
+     */
+    @Override
+    public void performDelete(final Triple t)
+            throws DeleteDeniedException, UpdateDeniedException, AuthenticationRequiredException {
+        checkUpdate();
+        checkDelete(t);
+        final Graph base = holder.getBaseItem();
+        if (base instanceof GraphWithPerform) {
+            ((GraphWithPerform) base).performDelete(t);
+        } else {
+            base.delete(t);
+        }
     }
 
     /**
