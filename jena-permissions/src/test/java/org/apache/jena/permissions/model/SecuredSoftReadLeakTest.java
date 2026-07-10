@@ -125,6 +125,38 @@ public class SecuredSoftReadLeakTest {
         }
     }
 
+    // M8: the typed object accessors (getLiteral/getBag/getAlt/getSeq/getList)
+    // used to skip the read check entirely.
+
+    @Test
+    public void statementGetLiteral_throwsForUnreadableTriple() {
+        final Model base = ModelFactory.createDefaultModel();
+        final org.apache.jena.rdf.model.Resource s = base.createResource("http://example.com/s");
+        base.add(s, P, base.createLiteral("secret"));
+        final Triple t = Triple.create(s.asNode(), P.asNode(), base.createLiteral("secret").asNode());
+        try {
+            unreadableStatement(base, s.asNode(), t).getLiteral();
+            fail("getLiteral() must not return the object of an unreadable triple");
+        } catch (final ReadDeniedException expected) {
+            // correct
+        }
+    }
+
+    @Test
+    public void statementGetSeq_throwsForUnreadableTriple() {
+        final Model base = ModelFactory.createDefaultModel();
+        final org.apache.jena.rdf.model.Resource s = base.createResource("http://example.com/s");
+        final Seq object = base.createSeq();
+        base.add(s, P, object);
+        final Triple t = Triple.create(s.asNode(), P.asNode(), object.asNode());
+        try {
+            unreadableStatement(base, s.asNode(), t).getSeq();
+            fail("getSeq() must not return the object of an unreadable triple");
+        } catch (final ReadDeniedException expected) {
+            // correct
+        }
+    }
+
     @Test
     public void statementGetObject_permitted_returnsValue() {
         final Model base = ModelFactory.createDefaultModel();

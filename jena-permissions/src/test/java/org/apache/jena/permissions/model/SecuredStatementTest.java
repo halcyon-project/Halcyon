@@ -291,20 +291,47 @@ public class SecuredStatementTest {
 
     @Test
     public void testGetAlt() {
-        SecuredAlt alt = (SecuredAlt) securedStatement.getAlt();
-        assertEquals(baseStatement.getAlt(), alt.getBaseItem());
+        try {
+            SecuredAlt alt = (SecuredAlt) securedStatement.getAlt();
+            if (!shouldRead()) {
+                fail("Should have thrown ReadDeniedException");
+            }
+            assertEquals(baseStatement.getAlt(), alt.getBaseItem());
+        } catch (final ReadDeniedException e) {
+            if (securityEvaluator.evaluate(Action.Read)) {
+                fail("Should not have thrown ReadDeniedException");
+            }
+        }
     }
 
     @Test
     public void testGetBag() {
-        SecuredBag bag = (SecuredBag) securedStatement.getBag();
-        assertEquals(baseStatement.getBag(), bag.getBaseItem());
+        try {
+            SecuredBag bag = (SecuredBag) securedStatement.getBag();
+            if (!shouldRead()) {
+                fail("Should have thrown ReadDeniedException");
+            }
+            assertEquals(baseStatement.getBag(), bag.getBaseItem());
+        } catch (final ReadDeniedException e) {
+            if (securityEvaluator.evaluate(Action.Read)) {
+                fail("Should not have thrown ReadDeniedException");
+            }
+        }
     }
 
     @Test
     public void testGetSeq() {
-        SecuredSeq seq = (SecuredSeq) securedStatement.getSeq();
-        assertEquals(baseStatement.getSeq(), seq.getBaseItem());
+        try {
+            SecuredSeq seq = (SecuredSeq) securedStatement.getSeq();
+            if (!shouldRead()) {
+                fail("Should have thrown ReadDeniedException");
+            }
+            assertEquals(baseStatement.getSeq(), seq.getBaseItem());
+        } catch (final ReadDeniedException e) {
+            if (securityEvaluator.evaluate(Action.Read)) {
+                fail("Should not have thrown ReadDeniedException");
+            }
+        }
     }
 
     @Test
@@ -320,9 +347,17 @@ public class SecuredStatementTest {
     @Test
     public void testGetLiteral() {
         setSecuredStatement(baseStatement.changeLiteralObject(true));
-        SecuredLiteral l = (SecuredLiteral) securedStatement.getLiteral();
-        assertEquals(baseStatement.getLiteral(), l.getBaseItem());
-
+        try {
+            SecuredLiteral l = (SecuredLiteral) securedStatement.getLiteral();
+            if (!shouldRead()) {
+                fail("Should have thrown ReadDeniedException");
+            }
+            assertEquals(baseStatement.getLiteral(), l.getBaseItem());
+        } catch (final ReadDeniedException e) {
+            if (securityEvaluator.evaluate(Action.Read)) {
+                fail("Should not have thrown ReadDeniedException");
+            }
+        }
     }
 
 }

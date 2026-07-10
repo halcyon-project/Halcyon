@@ -280,6 +280,8 @@ public class SecuredStatementImpl extends SecuredItemImpl implements SecuredStat
      */
     @Override
     public SecuredAlt getAlt() {
+        checkRead();
+        checkReadStatement(holder.getBaseItem().asTriple());
         return SecuredAltImpl.getInstance(getModel(), holder.getBaseItem().getAlt());
     }
 
@@ -291,6 +293,8 @@ public class SecuredStatementImpl extends SecuredItemImpl implements SecuredStat
      */
     @Override
     public SecuredBag getBag() {
+        checkRead();
+        checkReadStatement(holder.getBaseItem().asTriple());
         return SecuredBagImpl.getInstance(getModel(), holder.getBaseItem().getBag());
     }
 
@@ -302,6 +306,8 @@ public class SecuredStatementImpl extends SecuredItemImpl implements SecuredStat
      */
     @Override
     public SecuredSeq getSeq() {
+        checkRead();
+        checkReadStatement(holder.getBaseItem().asTriple());
         return SecuredSeqImpl.getInstance(getModel(), holder.getBaseItem().getSeq());
     }
 
@@ -313,6 +319,8 @@ public class SecuredStatementImpl extends SecuredItemImpl implements SecuredStat
      */
     @Override
     public SecuredRDFList getList() {
+        checkRead();
+        checkReadStatement(holder.getBaseItem().asTriple());
         return SecuredRDFListImpl.getInstance(getModel(), holder.getBaseItem().getList());
     }
 
@@ -416,6 +424,8 @@ public class SecuredStatementImpl extends SecuredItemImpl implements SecuredStat
      */
     @Override
     public SecuredLiteral getLiteral() {
+        checkRead();
+        checkReadStatement(holder.getBaseItem().asTriple());
         return SecuredLiteralImpl.getInstance(getModel(), holder.getBaseItem().getLiteral());
     }
 
