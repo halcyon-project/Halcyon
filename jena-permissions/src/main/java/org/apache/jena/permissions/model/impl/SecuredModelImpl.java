@@ -2820,12 +2820,15 @@ public class SecuredModelImpl extends SecuredItemImpl implements SecuredModel {
                     checkDelete(s);
                     lst.add(s.asTriple());
                 }
-                Graph g = GraphMemFactory.createDefaultGraph();
-                Model m = ModelFactory.createModelForGraph(g);
-                holder.getBaseItem().remove(m.listStatements());
             } finally {
                 iter.close();
             }
+            // Every statement above was authorized; now actually remove them.
+            // (Previously this removed the statements of a fresh, empty model
+            // and so silently deleted nothing.)
+            final Graph g = GraphMemFactory.createDefaultGraph();
+            lst.forEach(g::add);
+            holder.getBaseItem().remove(ModelFactory.createModelForGraph(g).listStatements());
         } else {
             holder.getBaseItem().remove(iter);
         }
