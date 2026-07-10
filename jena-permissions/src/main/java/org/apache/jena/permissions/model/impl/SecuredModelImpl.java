@@ -1445,7 +1445,7 @@ public class SecuredModelImpl extends SecuredItemImpl implements SecuredModel {
     @Override
     public SecuredStatement createStatement(final Resource s, final Property p, final String o)
             throws UpdateDeniedException, AddDeniedException, AuthenticationRequiredException {
-        checkReadOrUpdate(s, p, ResourceFactory.createProperty(o));
+        checkReadOrUpdate(s, p, holder.getBaseItem().createLiteral(o));
         return SecuredStatementImpl.getInstance(holder.getSecuredItem(), holder.getBaseItem().createStatement(s, p, o));
     }
 

@@ -17,6 +17,7 @@
  */
 package org.apache.jena.permissions.model.impl;
 
+import org.apache.jena.graph.Node;
 import org.apache.jena.graph.NodeFactory;
 import org.apache.jena.graph.Triple;
 import org.apache.jena.permissions.impl.ItemHolder;
@@ -443,7 +444,15 @@ public class SecuredStatementImpl extends SecuredItemImpl implements SecuredStat
     }
 
     private Triple getNewTriple(final Triple t, final Object o) {
-        return Triple.create(t.getSubject(), t.getPredicate(), NodeFactory.createLiteralLang(String.valueOf(o), ""));
+        // changeObject(String) stores a plain string literal, while the typed
+        // changeLiteralObject(boolean|char|int|long|float|double) overloads box
+        // their primitive and store model.createTypedLiteral(o). Build the
+        // permission-check object the same way the base actually writes it, so
+        // an evaluator that inspects the object's datatype/value is checked
+        // against the real triple rather than an xsd:string stand-in.
+        final Node obj = (o instanceof String) ? NodeFactory.createLiteralLang((String) o, "")
+                : holder.getBaseItem().getModel().createTypedLiteral(o).asNode();
+        return Triple.create(t.getSubject(), t.getPredicate(), obj);
     }
 
     /**
