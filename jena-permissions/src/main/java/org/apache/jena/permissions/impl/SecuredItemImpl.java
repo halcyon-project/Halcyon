@@ -652,6 +652,27 @@ public abstract class SecuredItemImpl implements SecuredItem {
     }
 
     /**
+     * Check that the triple can be read, always throwing {@link ReadDeniedException}
+     * when it can not — unlike the soft {@link #checkRead(Triple)}, which only throws
+     * in hard-read mode and otherwise returns {@code false}. Direct statement value
+     * accessors ({@code getObject}, {@code getString}, {@code asTriple}, ...) have no
+     * meaningful "empty" result to return and already enforce graph-level read with
+     * the hard {@link #checkRead()}, so they must enforce the triple-level read the
+     * same way rather than returning the value of a triple the caller may not read.
+     *
+     * @param triple the triple to check.
+     * @throws ReadDeniedException             if the triple can not be read.
+     * @throws AuthenticationRequiredException if user is not authenticated and is
+     *                                         required to be.
+     */
+    protected void checkReadStatement(final Triple triple)
+            throws ReadDeniedException, AuthenticationRequiredException {
+        if (!canRead(triple)) {
+            throw new ReadDeniedException(SecuredItem.Util.triplePermissionMsg(modelNode), triple);
+        }
+    }
+
+    /**
      * Checks that read on the securedModel/securedGraph is allowed.
      * <ul>
      * <li>If the securedModel/securedGraph can not be read and the

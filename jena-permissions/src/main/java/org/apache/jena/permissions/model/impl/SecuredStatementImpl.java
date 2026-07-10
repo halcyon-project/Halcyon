@@ -100,7 +100,7 @@ public class SecuredStatementImpl extends SecuredItemImpl implements SecuredStat
     public Triple asTriple() throws ReadDeniedException, AuthenticationRequiredException {
         checkRead();
         final Triple retval = holder.getBaseItem().asTriple();
-        checkRead(retval);
+        checkReadStatement(retval);
         return retval;
     }
 
@@ -325,7 +325,7 @@ public class SecuredStatementImpl extends SecuredItemImpl implements SecuredStat
     @Override
     public boolean getBoolean() throws ReadDeniedException, AuthenticationRequiredException {
         checkRead();
-        checkRead(holder.getBaseItem().asTriple());
+        checkReadStatement(holder.getBaseItem().asTriple());
         return holder.getBaseItem().getBoolean();
     }
 
@@ -338,7 +338,7 @@ public class SecuredStatementImpl extends SecuredItemImpl implements SecuredStat
     @Override
     public byte getByte() throws ReadDeniedException, AuthenticationRequiredException {
         checkRead();
-        checkRead(holder.getBaseItem().asTriple());
+        checkReadStatement(holder.getBaseItem().asTriple());
         return holder.getBaseItem().getByte();
     }
 
@@ -351,7 +351,7 @@ public class SecuredStatementImpl extends SecuredItemImpl implements SecuredStat
     @Override
     public char getChar() throws ReadDeniedException, AuthenticationRequiredException {
         checkRead();
-        checkRead(holder.getBaseItem().asTriple());
+        checkReadStatement(holder.getBaseItem().asTriple());
         return holder.getBaseItem().getChar();
 
     }
@@ -365,7 +365,7 @@ public class SecuredStatementImpl extends SecuredItemImpl implements SecuredStat
     @Override
     public double getDouble() throws ReadDeniedException, AuthenticationRequiredException {
         checkRead();
-        checkRead(holder.getBaseItem().asTriple());
+        checkReadStatement(holder.getBaseItem().asTriple());
         return holder.getBaseItem().getDouble();
     }
 
@@ -378,7 +378,7 @@ public class SecuredStatementImpl extends SecuredItemImpl implements SecuredStat
     @Override
     public float getFloat() throws ReadDeniedException, AuthenticationRequiredException {
         checkRead();
-        checkRead(holder.getBaseItem().asTriple());
+        checkReadStatement(holder.getBaseItem().asTriple());
         return holder.getBaseItem().getFloat();
     }
 
@@ -391,7 +391,7 @@ public class SecuredStatementImpl extends SecuredItemImpl implements SecuredStat
     @Override
     public int getInt() throws ReadDeniedException, AuthenticationRequiredException {
         checkRead();
-        checkRead(holder.getBaseItem().asTriple());
+        checkReadStatement(holder.getBaseItem().asTriple());
         return holder.getBaseItem().getInt();
     }
 
@@ -404,7 +404,7 @@ public class SecuredStatementImpl extends SecuredItemImpl implements SecuredStat
     @Override
     public String getLanguage() throws ReadDeniedException, AuthenticationRequiredException {
         checkRead();
-        checkRead(holder.getBaseItem().asTriple());
+        checkReadStatement(holder.getBaseItem().asTriple());
         return holder.getBaseItem().getLiteral().getLanguage();
     }
 
@@ -428,7 +428,7 @@ public class SecuredStatementImpl extends SecuredItemImpl implements SecuredStat
     @Override
     public long getLong() throws ReadDeniedException, AuthenticationRequiredException {
         checkRead();
-        checkRead(holder.getBaseItem().asTriple());
+        checkReadStatement(holder.getBaseItem().asTriple());
         return holder.getBaseItem().getLong();
     }
 
@@ -464,7 +464,7 @@ public class SecuredStatementImpl extends SecuredItemImpl implements SecuredStat
     @Override
     public SecuredRDFNode getObject() throws ReadDeniedException, AuthenticationRequiredException {
         checkRead();
-        checkRead(holder.getBaseItem().asTriple());
+        checkReadStatement(holder.getBaseItem().asTriple());
         final RDFNode rdfNode = holder.getBaseItem().getObject();
         return SecuredRDFNodeImpl.getInstance(getModel(), rdfNode);
     }
@@ -478,7 +478,7 @@ public class SecuredStatementImpl extends SecuredItemImpl implements SecuredStat
     @Override
     public SecuredProperty getPredicate() {
         checkRead();
-        checkRead(holder.getBaseItem().asTriple());
+        checkReadStatement(holder.getBaseItem().asTriple());
         return SecuredPropertyImpl.getInstance(getModel(), holder.getBaseItem().getPredicate());
     }
 
@@ -492,7 +492,7 @@ public class SecuredStatementImpl extends SecuredItemImpl implements SecuredStat
     @Override
     public SecuredStatement getProperty(final Property p) throws AuthenticationRequiredException {
         checkRead();
-        checkRead(holder.getBaseItem().asTriple());
+        checkReadStatement(holder.getBaseItem().asTriple());
         final StmtIterator s = holder.getBaseItem().getModel()
                 .listStatements(holder.getBaseItem().getObject().asResource(), p, (RDFNode) null);
         final SecuredStatementIterator iter = new SecuredStatementIterator(getModel(), s);
@@ -516,7 +516,7 @@ public class SecuredStatementImpl extends SecuredItemImpl implements SecuredStat
     @Override
     public SecuredResource getResource() {
         checkRead();
-        checkRead(holder.getBaseItem().asTriple());
+        checkReadStatement(holder.getBaseItem().asTriple());
         return SecuredResourceImpl.getInstance(getModel(), holder.getBaseItem().getResource());
     }
 
@@ -529,7 +529,7 @@ public class SecuredStatementImpl extends SecuredItemImpl implements SecuredStat
     @Override
     public short getShort() throws ReadDeniedException, AuthenticationRequiredException {
         checkRead();
-        checkRead(holder.getBaseItem().asTriple());
+        checkReadStatement(holder.getBaseItem().asTriple());
         return holder.getBaseItem().getShort();
     }
 
@@ -559,7 +559,7 @@ public class SecuredStatementImpl extends SecuredItemImpl implements SecuredStat
     @Override
     public String getString() {
         checkRead();
-        checkRead(holder.getBaseItem().asTriple());
+        checkReadStatement(holder.getBaseItem().asTriple());
         return getLiteral().getLexicalForm();
     }
 
@@ -572,7 +572,7 @@ public class SecuredStatementImpl extends SecuredItemImpl implements SecuredStat
     @Override
     public SecuredResource getSubject() {
         checkRead();
-        checkRead(holder.getBaseItem().asTriple());
+        checkReadStatement(holder.getBaseItem().asTriple());
         return SecuredResourceImpl.getInstance(getModel(), holder.getBaseItem().getSubject());
     }
 

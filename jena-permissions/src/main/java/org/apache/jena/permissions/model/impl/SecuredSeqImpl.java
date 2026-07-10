@@ -292,8 +292,9 @@ public class SecuredSeqImpl extends SecuredContainerImpl implements SecuredSeq {
     public SecuredAlt getAlt(final int index) throws ReadDeniedException, AuthenticationRequiredException {
         if (checkSoftRead()) {
             final Alt a = holder.getBaseItem().getAlt(index);
-            checkRead(Triple.create(holder.getBaseItem().asNode(), RDF.li(index).asNode(), a.asNode()));
-            return SecuredAltImpl.getInstance(getModel(), a);
+            if (checkRead(Triple.create(holder.getBaseItem().asNode(), RDF.li(index).asNode(), a.asNode()))) {
+                return SecuredAltImpl.getInstance(getModel(), a);
+            }
         }
         throw new SeqIndexBoundsException(index, 0);
     }
@@ -311,8 +312,9 @@ public class SecuredSeqImpl extends SecuredContainerImpl implements SecuredSeq {
     public SecuredBag getBag(final int index) throws ReadDeniedException, AuthenticationRequiredException {
         if (checkSoftRead()) {
             final Bag b = holder.getBaseItem().getBag(index);
-            checkRead(Triple.create(holder.getBaseItem().asNode(), RDF.li(index).asNode(), b.asNode()));
-            return SecuredBagImpl.getInstance(getModel(), b);
+            if (checkRead(Triple.create(holder.getBaseItem().asNode(), RDF.li(index).asNode(), b.asNode()))) {
+                return SecuredBagImpl.getInstance(getModel(), b);
+            }
         }
         throw new SeqIndexBoundsException(index, 0);
     }
@@ -330,8 +332,9 @@ public class SecuredSeqImpl extends SecuredContainerImpl implements SecuredSeq {
     public boolean getBoolean(final int index) throws ReadDeniedException, AuthenticationRequiredException {
         if (checkSoftRead()) {
             final boolean retval = holder.getBaseItem().getBoolean(index);
-            checkRead(Triple.create(holder.getBaseItem().asNode(), RDF.li(index).asNode(), asObject(retval).asNode()));
-            return retval;
+            if (checkRead(Triple.create(holder.getBaseItem().asNode(), RDF.li(index).asNode(), asObject(retval).asNode()))) {
+                return retval;
+            }
         }
         throw new SeqIndexBoundsException(index, 0);
     }
@@ -349,8 +352,9 @@ public class SecuredSeqImpl extends SecuredContainerImpl implements SecuredSeq {
     public byte getByte(final int index) throws ReadDeniedException, AuthenticationRequiredException {
         if (checkSoftRead()) {
             final byte retval = holder.getBaseItem().getByte(index);
-            checkRead(Triple.create(holder.getBaseItem().asNode(), RDF.li(index).asNode(), asObject(retval).asNode()));
-            return retval;
+            if (checkRead(Triple.create(holder.getBaseItem().asNode(), RDF.li(index).asNode(), asObject(retval).asNode()))) {
+                return retval;
+            }
         }
         throw new SeqIndexBoundsException(index, 0);
     }
@@ -368,8 +372,9 @@ public class SecuredSeqImpl extends SecuredContainerImpl implements SecuredSeq {
     public char getChar(final int index) throws ReadDeniedException, AuthenticationRequiredException {
         if (checkSoftRead()) {
             final char retval = holder.getBaseItem().getChar(index);
-            checkRead(Triple.create(holder.getBaseItem().asNode(), RDF.li(index).asNode(), asObject(retval).asNode()));
-            return retval;
+            if (checkRead(Triple.create(holder.getBaseItem().asNode(), RDF.li(index).asNode(), asObject(retval).asNode()))) {
+                return retval;
+            }
         }
         throw new SeqIndexBoundsException(index, 0);
     }
@@ -387,8 +392,9 @@ public class SecuredSeqImpl extends SecuredContainerImpl implements SecuredSeq {
     public double getDouble(final int index) throws ReadDeniedException, AuthenticationRequiredException {
         if (checkSoftRead()) {
             final double retval = holder.getBaseItem().getDouble(index);
-            checkRead(Triple.create(holder.getBaseItem().asNode(), RDF.li(index).asNode(), asObject(retval).asNode()));
-            return retval;
+            if (checkRead(Triple.create(holder.getBaseItem().asNode(), RDF.li(index).asNode(), asObject(retval).asNode()))) {
+                return retval;
+            }
         }
         throw new SeqIndexBoundsException(index, 0);
     }
@@ -406,8 +412,9 @@ public class SecuredSeqImpl extends SecuredContainerImpl implements SecuredSeq {
     public float getFloat(final int index) throws ReadDeniedException, AuthenticationRequiredException {
         if (checkSoftRead()) {
             final float retval = holder.getBaseItem().getFloat(index);
-            checkRead(Triple.create(holder.getBaseItem().asNode(), RDF.li(index).asNode(), asObject(retval).asNode()));
-            return retval;
+            if (checkRead(Triple.create(holder.getBaseItem().asNode(), RDF.li(index).asNode(), asObject(retval).asNode()))) {
+                return retval;
+            }
         }
         throw new SeqIndexBoundsException(index, 0);
     }
@@ -425,8 +432,9 @@ public class SecuredSeqImpl extends SecuredContainerImpl implements SecuredSeq {
     public int getInt(final int index) throws ReadDeniedException, AuthenticationRequiredException {
         if (checkSoftRead()) {
             final int retval = holder.getBaseItem().getInt(index);
-            checkRead(Triple.create(holder.getBaseItem().asNode(), RDF.li(index).asNode(), asObject(retval).asNode()));
-            return retval;
+            if (checkRead(Triple.create(holder.getBaseItem().asNode(), RDF.li(index).asNode(), asObject(retval).asNode()))) {
+                return retval;
+            }
         }
         throw new SeqIndexBoundsException(index, 0);
     }
@@ -444,8 +452,9 @@ public class SecuredSeqImpl extends SecuredContainerImpl implements SecuredSeq {
     public String getLanguage(final int index) throws ReadDeniedException, AuthenticationRequiredException {
         if (checkSoftRead()) {
             final Literal literal = holder.getBaseItem().getLiteral(index);
-            checkRead(Triple.create(holder.getBaseItem().asNode(), RDF.li(index).asNode(), literal.asNode()));
-            return literal.getLanguage();
+            if (checkRead(Triple.create(holder.getBaseItem().asNode(), RDF.li(index).asNode(), literal.asNode()))) {
+                return literal.getLanguage();
+            }
         }
         throw new SeqIndexBoundsException(index, 0);
     }
@@ -463,8 +472,9 @@ public class SecuredSeqImpl extends SecuredContainerImpl implements SecuredSeq {
     public SecuredLiteral getLiteral(final int index) throws ReadDeniedException, AuthenticationRequiredException {
         if (checkSoftRead()) {
             final Literal literal = holder.getBaseItem().getLiteral(index);
-            checkRead(Triple.create(holder.getBaseItem().asNode(), RDF.li(index).asNode(), literal.asNode()));
-            return SecuredLiteralImpl.getInstance(getModel(), literal);
+            if (checkRead(Triple.create(holder.getBaseItem().asNode(), RDF.li(index).asNode(), literal.asNode()))) {
+                return SecuredLiteralImpl.getInstance(getModel(), literal);
+            }
         }
         throw new SeqIndexBoundsException(index, 0);
     }
@@ -482,8 +492,9 @@ public class SecuredSeqImpl extends SecuredContainerImpl implements SecuredSeq {
     public long getLong(final int index) throws ReadDeniedException, AuthenticationRequiredException {
         if (checkSoftRead()) {
             final long retval = holder.getBaseItem().getLong(index);
-            checkRead(Triple.create(holder.getBaseItem().asNode(), RDF.li(index).asNode(), asObject(retval).asNode()));
-            return retval;
+            if (checkRead(Triple.create(holder.getBaseItem().asNode(), RDF.li(index).asNode(), asObject(retval).asNode()))) {
+                return retval;
+            }
         }
         throw new SeqIndexBoundsException(index, 0);
     }
@@ -501,8 +512,9 @@ public class SecuredSeqImpl extends SecuredContainerImpl implements SecuredSeq {
     public SecuredRDFNode getObject(final int index) throws ReadDeniedException, AuthenticationRequiredException {
         if (checkSoftRead()) {
             final RDFNode retval = holder.getBaseItem().getObject(index);
-            checkRead(Triple.create(holder.getBaseItem().asNode(), RDF.li(index).asNode(), retval.asNode()));
-            return SecuredRDFNodeImpl.getInstance(getModel(), retval);
+            if (checkRead(Triple.create(holder.getBaseItem().asNode(), RDF.li(index).asNode(), retval.asNode()))) {
+                return SecuredRDFNodeImpl.getInstance(getModel(), retval);
+            }
         }
         throw new SeqIndexBoundsException(index, 0);
     }
@@ -520,8 +532,9 @@ public class SecuredSeqImpl extends SecuredContainerImpl implements SecuredSeq {
     public SecuredResource getResource(final int index) throws ReadDeniedException, AuthenticationRequiredException {
         if (checkSoftRead()) {
             final Resource retval = holder.getBaseItem().getResource(index);
-            checkRead(Triple.create(holder.getBaseItem().asNode(), RDF.li(index).asNode(), retval.asNode()));
-            return SecuredResourceImpl.getInstance(getModel(), retval);
+            if (checkRead(Triple.create(holder.getBaseItem().asNode(), RDF.li(index).asNode(), retval.asNode()))) {
+                return SecuredResourceImpl.getInstance(getModel(), retval);
+            }
         }
         throw new SeqIndexBoundsException(index, 0);
     }
@@ -540,8 +553,9 @@ public class SecuredSeqImpl extends SecuredContainerImpl implements SecuredSeq {
     public SecuredSeq getSeq(final int index) throws ReadDeniedException, AuthenticationRequiredException {
         if (checkSoftRead()) {
             final Seq retval = holder.getBaseItem().getSeq(index);
-            checkRead(Triple.create(holder.getBaseItem().asNode(), RDF.li(index).asNode(), retval.asNode()));
-            return SecuredSeqImpl.getInstance(getModel(), retval);
+            if (checkRead(Triple.create(holder.getBaseItem().asNode(), RDF.li(index).asNode(), retval.asNode()))) {
+                return SecuredSeqImpl.getInstance(getModel(), retval);
+            }
         }
         throw new SeqIndexBoundsException(index, 0);
     }
@@ -559,9 +573,10 @@ public class SecuredSeqImpl extends SecuredContainerImpl implements SecuredSeq {
     public short getShort(final int index) throws ReadDeniedException, AuthenticationRequiredException {
         if (checkSoftRead()) {
             final short retval = holder.getBaseItem().getShort(index);
-            checkRead(Triple.create(holder.getBaseItem().asNode(), RDF.li(index).asNode(),
-                    ResourceFactory.createTypedLiteral(retval).asNode()));
-            return retval;
+            if (checkRead(Triple.create(holder.getBaseItem().asNode(), RDF.li(index).asNode(),
+                    ResourceFactory.createTypedLiteral(retval).asNode()))) {
+                return retval;
+            }
         }
         throw new SeqIndexBoundsException(index, 0);
     }
@@ -579,9 +594,10 @@ public class SecuredSeqImpl extends SecuredContainerImpl implements SecuredSeq {
     public String getString(final int index) throws ReadDeniedException, AuthenticationRequiredException {
         if (checkSoftRead()) {
             final String retval = holder.getBaseItem().getString(index);
-            checkRead(Triple.create(holder.getBaseItem().asNode(), RDF.li(index).asNode(),
-                    ResourceFactory.createTypedLiteral(retval).asNode()));
-            return retval;
+            if (checkRead(Triple.create(holder.getBaseItem().asNode(), RDF.li(index).asNode(),
+                    ResourceFactory.createTypedLiteral(retval).asNode()))) {
+                return retval;
+            }
         }
         throw new SeqIndexBoundsException(index, 0);
     }
