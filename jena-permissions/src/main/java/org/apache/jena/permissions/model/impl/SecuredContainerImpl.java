@@ -23,6 +23,7 @@ import java.util.Iterator;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.function.Consumer;
 
 import org.apache.jena.graph.Graph;
 import org.apache.jena.graph.Node;
@@ -578,35 +579,38 @@ public class SecuredContainerImpl extends SecuredResourceImpl implements Secured
         if (canDelete(Triple.ANY) && canCreate(Triple.ANY)) {
             checkDelete(s.asTriple());
         } else {
-            checkRemoveDelta(s);
+            checkWriteDelta(c -> c.remove(c.getModel().asStatement(s.asTriple())));
         }
         holder.getBaseItem().remove(s);
         return holder.getSecuredItem();
     }
 
     /**
-     * Authorize every triple that {@code base.remove(s)} will delete or create.
+     * Authorize every triple that a container mutation will delete or create.
      * <p>
-     * Rather than duplicate each concrete container's renumbering strategy
-     * (which could drift from Jena), the removal is replayed on an isolated
-     * copy of the container's statements and the resulting delta is checked:
-     * removed triples require {@code Delete}, added triples require
-     * {@code Create}. This stays correct for Bag/Alt (swap-with-last) and Seq
-     * (shift-down) alike.
+     * Jena's container mutators are not simple single-triple edits: to keep the
+     * container gap-free they rewrite membership triples beyond the one named
+     * (Bag/Alt {@code remove} moves the last member into the vacated slot; Seq
+     * {@code add}/{@code remove} shift the trailing members up/down). Rather
+     * than duplicate each strategy (which could drift from Jena), the mutation
+     * is replayed on an isolated copy of the container and the resulting delta
+     * is checked: removed triples require {@code Delete}, added triples require
+     * {@code Create}. Correct for Bag/Alt (swap-with-last) and Seq (shift) alike.
      *
-     * @param s the membership statement being removed.
+     * @param mutation the container operation to authorize, applied to a private
+     *                 copy of this container (never to the live base).
      * @throws DeleteDeniedException           if a deleted triple is not permitted.
      * @throws AddDeniedException              if a created triple is not permitted.
      * @throws AuthenticationRequiredException if user is not authenticated and is
      *                                         required to be.
      */
-    private void checkRemoveDelta(final Statement s)
+    protected void checkWriteDelta(final Consumer<Container> mutation)
             throws DeleteDeniedException, AddDeniedException, AuthenticationRequiredException {
         final Container base = holder.getBaseItem();
         final Node subject = base.asNode();
 
         // Copy the container's outgoing statements into a scratch model, at the
-        // same node, so the replayed removal produces triples with the real
+        // same node, so the replayed mutation produces triples with the real
         // subject and objects.
         final Model scratch = ModelFactory.createDefaultModel();
         final Graph scratchGraph = scratch.getGraph();
@@ -626,7 +630,7 @@ public class SecuredContainerImpl extends SecuredResourceImpl implements Secured
         final Resource scratchSubject = scratch.getRDFNode(subject).asResource();
         final Container scratchContainer = base instanceof Seq ? scratchSubject.as(Seq.class)
                 : base instanceof Alt ? scratchSubject.as(Alt.class) : scratchSubject.as(Bag.class);
-        scratchContainer.remove(scratch.asStatement(s.asTriple()));
+        mutation.accept(scratchContainer);
 
         final Set<Triple> after = new HashSet<>();
         final ExtendedIterator<Triple> iter2 = scratchGraph.find(subject, Node.ANY, Node.ANY);

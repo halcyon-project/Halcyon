@@ -223,9 +223,16 @@ public class SecuredSeqImpl extends SecuredContainerImpl implements SecuredSeq {
      */
     @Override
     public Seq add(final int index, final RDFNode o)
-            throws UpdateDeniedException, AddDeniedException, AuthenticationRequiredException {
+            throws UpdateDeniedException, AddDeniedException, DeleteDeniedException, AuthenticationRequiredException {
         checkUpdate();
-        checkCreate(index, o);
+        // Inserting at an occupied index shifts every trailing member up
+        // (SeqImpl.add -> shiftUp: delete (this,_i,x) + create (this,_i+1,x)),
+        // so authorize the full delta, not just the inserted triple.
+        if (canCreate(Triple.ANY) && canDelete(Triple.ANY)) {
+            checkCreate(index, o);
+        } else {
+            checkWriteDelta(c -> ((Seq) c).add(index, o));
+        }
         holder.getBaseItem().add(index, o);
         return holder.getSecuredItem();
     }
@@ -714,11 +721,18 @@ public class SecuredSeqImpl extends SecuredContainerImpl implements SecuredSeq {
      */
     @Override
     public SecuredSeq remove(final int index)
-            throws UpdateDeniedException, DeleteDeniedException, AuthenticationRequiredException {
+            throws UpdateDeniedException, DeleteDeniedException, AddDeniedException, AuthenticationRequiredException {
         checkUpdate();
         final RDFNode rdfNode = holder.getBaseItem().getObject(index);
         if (rdfNode != null) {
-            checkDelete(Triple.create(holder.getBaseItem().asNode(), RDF.li(index).asNode(), rdfNode.asNode()));
+            // Removing at an index shifts every trailing member down
+            // (SeqImpl.remove -> shiftDown: delete (this,_i,x) + create
+            // (this,_i-1,x)), so authorize the full delta, not just index's triple.
+            if (canDelete(Triple.ANY) && canCreate(Triple.ANY)) {
+                checkDelete(Triple.create(holder.getBaseItem().asNode(), RDF.li(index).asNode(), rdfNode.asNode()));
+            } else {
+                checkWriteDelta(c -> ((Seq) c).remove(index));
+            }
             holder.getBaseItem().remove(index);
         }
         return holder.getSecuredItem();

@@ -81,10 +81,36 @@ public class SecuredSeqTest extends SecuredContainerTest {
         }
     }
 
+    /**
+     * Like {@link #testAdd_idx} but for an insert at an already-occupied index,
+     * which shifts the trailing member(s) up (delete + create) and therefore
+     * additionally requires {@code Delete}. (When the preceding add failed the
+     * Seq is empty and the insert needs only Update+Create, but that case also
+     * lacks Update or Create, so requiring all three still predicts correctly.)
+     */
+    private <T> void testAddShift_idx(Supplier<Seq> supplier, T expected, Supplier<T> test) {
+        final Set<Action> perms = SecurityEvaluator.Util
+                .asSet(new Action[] { Action.Update, Action.Create, Action.Delete });
+        try {
+            SecuredSeq securedSeq = (SecuredSeq) supplier.get();
+            if (!securityEvaluator.evaluate(perms)) {
+                fail("Should have thrown AccessDeniedException Exception");
+            }
+            assertNotNull(securedSeq);
+            assertEquals(expected, test.get());
+        } catch (final AccessDeniedException e) {
+            if (securityEvaluator.evaluate(perms)) {
+                fail("Should not have thrown AccessDeniedException Exception");
+            }
+        }
+    }
+
     @Test
     public void testAdd_idx_boolean() {
         testAdd_idx(() -> getSecuredSeq().add(1, true), true, () -> seq.getBoolean(1));
-        testAdd_idx(() -> getSecuredSeq().add(1, false), false, () -> seq.getBoolean(1));
+        // add(1, false) inserts before the existing member, shifting it to _2:
+        // a delete + create, so it also needs Delete (see testAddShift_idx).
+        testAddShift_idx(() -> getSecuredSeq().add(1, false), false, () -> seq.getBoolean(1));
     }
 
     @Test
