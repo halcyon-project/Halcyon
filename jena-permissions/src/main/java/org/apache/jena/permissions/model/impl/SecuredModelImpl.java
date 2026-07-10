@@ -1967,7 +1967,20 @@ public class SecuredModelImpl extends SecuredItemImpl implements SecuredModel {
      */
     @Override
     public boolean isEmpty() throws ReadDeniedException, AuthenticationRequiredException {
-        return checkSoftRead() ? !holder.getBaseItem().contains(holder.getBaseItem().asStatement(Triple.ANY)) : true;
+        if (checkSoftRead()) {
+            if (canRead(Triple.ANY)) {
+                return holder.getBaseItem().isEmpty();
+            }
+            // No blanket read: empty from the caller's view iff no readable
+            // statement exists — consistent with the read-filtered size().
+            final StmtIterator iter = listStatements();
+            try {
+                return !iter.hasNext();
+            } finally {
+                iter.close();
+            }
+        }
+        return true;
     }
 
     /**

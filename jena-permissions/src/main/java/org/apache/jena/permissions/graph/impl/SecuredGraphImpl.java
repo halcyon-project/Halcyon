@@ -314,7 +314,20 @@ public class SecuredGraphImpl extends SecuredItemImpl implements SecuredGraph, G
      */
     @Override
     public boolean isEmpty() throws ReadDeniedException, AuthenticationRequiredException {
-        return checkSoftRead() ? holder.getBaseItem().isEmpty() : true;
+        if (checkSoftRead()) {
+            if (canRead(Triple.ANY)) {
+                return holder.getBaseItem().isEmpty();
+            }
+            // No blanket read: empty from the caller's view iff no readable
+            // triple exists — consistent with the read-filtered find()/size().
+            final ExtendedIterator<Triple> iter = find(Triple.ANY);
+            try {
+                return !iter.hasNext();
+            } finally {
+                iter.close();
+            }
+        }
+        return true;
     }
 
     /**

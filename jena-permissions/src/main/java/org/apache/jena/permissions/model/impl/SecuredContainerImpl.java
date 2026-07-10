@@ -663,7 +663,21 @@ public class SecuredContainerImpl extends SecuredResourceImpl implements Secured
     @Override
     public int size() throws ReadDeniedException, AuthenticationRequiredException {
         checkRead();
-        return holder.getBaseItem().size();
+        if (canRead(Triple.ANY)) {
+            return holder.getBaseItem().size();
+        }
+        // Count only the members the caller can read — consistent with iterator().
+        final SecuredNodeIterator<RDFNode> iter = iterator();
+        int i = 0;
+        try {
+            while (iter.hasNext()) {
+                i++;
+                iter.next();
+            }
+        } finally {
+            iter.close();
+        }
+        return i;
     }
 
     static class ContainerComparator implements Comparator<Statement> {
