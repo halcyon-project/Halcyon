@@ -1391,7 +1391,7 @@ public class SecuredModelImpl extends SecuredItemImpl implements SecuredModel {
 
     /**
      * @sec.graph Update
-     * @sec.triple Create Triple( SecNode.FUTURE, RDF.type, RDF.Alt )
+     * @sec.triple Create Triple( SecNode.FUTURE, RDF.type, RDF.Seq )
      * @throws UpdateDeniedException
      * @throws AddDeniedException
      * @throws AuthenticationRequiredException if user is not authenticated and is
@@ -1400,13 +1400,13 @@ public class SecuredModelImpl extends SecuredItemImpl implements SecuredModel {
     @Override
     public SecuredSeq createSeq() throws UpdateDeniedException, AddDeniedException, AuthenticationRequiredException {
         checkUpdate();
-        checkCreate(Triple.create(SecurityEvaluator.FUTURE, RDF.type.asNode(), RDF.Alt.asNode()));
+        checkCreate(Triple.create(SecurityEvaluator.FUTURE, RDF.type.asNode(), RDF.Seq.asNode()));
         return SecuredSeqImpl.getInstance(holder.getSecuredItem(), holder.getBaseItem().createSeq());
     }
 
     /**
      * @sec.graph Update
-     * @sec.triple Create Triple( uri, RDF.type, RDF.Alt )
+     * @sec.triple Create Triple( uri, RDF.type, RDF.Seq )
      * @throws UpdateDeniedException
      * @throws AddDeniedException
      * @throws AuthenticationRequiredException if user is not authenticated and is
@@ -1415,7 +1415,7 @@ public class SecuredModelImpl extends SecuredItemImpl implements SecuredModel {
     @Override
     public SecuredSeq createSeq(final String uri)
             throws UpdateDeniedException, AddDeniedException, AuthenticationRequiredException {
-        checkReadOrUpdate(ResourceFactory.createResource(uri), RDF.type, RDF.Alt);
+        checkReadOrUpdate(ResourceFactory.createResource(uri), RDF.type, RDF.Seq);
         return SecuredSeqImpl.getInstance(holder.getSecuredItem(), holder.getBaseItem().createSeq(uri));
     }
 
