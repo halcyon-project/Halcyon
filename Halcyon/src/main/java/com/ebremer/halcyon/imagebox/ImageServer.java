@@ -28,6 +28,8 @@ import org.slf4j.LoggerFactory;
 
 public class ImageServer extends HttpServlet {
     private static final Logger logger = LoggerFactory.getLogger(ImageServer.class);
+    private static final int MAX_OUTPUT_DIM = 20000;
+    private static final long MAX_OUTPUT_PIXELS = 100_000_000L;
 
     public ImageServer() {
         logger.info("ImageServer Initialized.");
@@ -63,13 +65,33 @@ public class ImageServer extends HttpServlet {
             reportError(response, HttpServletResponse.SC_NOT_FOUND, "Resource not found or metadata unavailable");
             return;
         }
-        // Clamp requested coordinates to image bounds
+        // Clamp/validate the region against the image, and bound the output size,
+        // so no single request can drive an oversized allocation (C5).
+        final int imgW = meta.getWidth();
+        final int imgH = meta.getHeight();
         if (i.fullrequest) {
             i.x = 0; i.y = 0;
-            i.w = meta.getWidth(); i.h = meta.getHeight();
+            i.w = imgW; i.h = imgH;
         } else {
-            i.w = Math.min(i.w, meta.getWidth() - i.x);
-            i.h = Math.min(i.h, meta.getHeight() - i.y);
+            if (i.x < 0 || i.y < 0 || i.x >= imgW || i.y >= imgH) {
+                reportError(response, HttpServletResponse.SC_BAD_REQUEST, "Region origin out of bounds");
+                return;
+            }
+            i.w = Math.min(i.w, imgW - i.x);
+            i.h = Math.min(i.h, imgH - i.y);
+        }
+        if (i.w <= 0 || i.h <= 0) {
+            reportError(response, HttpServletResponse.SC_BAD_REQUEST, "Empty image region");
+            return;
+        }
+        // Output rectangle (tx,ty) lands in new BufferedImage(px,py); reject
+        // anything beyond the per-dimension and total-pixel budgets. long math on
+        // the product avoids an int overflow flipping a huge size negative.
+        if (i.tx < 0 || i.ty < 0
+                || i.tx > MAX_OUTPUT_DIM || i.ty > MAX_OUTPUT_DIM
+                || (long) i.tx * (long) i.ty > MAX_OUTPUT_PIXELS) {
+            reportError(response, HttpServletResponse.SC_BAD_REQUEST, "Requested output size exceeds the maximum allowed");
+            return;
         }
         TileRequest tr = TileRequest.genTileRequest(
             i.uri, 
