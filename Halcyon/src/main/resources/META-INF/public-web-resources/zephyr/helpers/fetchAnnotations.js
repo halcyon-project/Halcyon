@@ -3,6 +3,7 @@ import { getUrl } from "./conversions.js";
 import { deserializeScene } from "./save.js";
 import { getAnnotationLabel, setAnnotationLabel } from "./sparql.js";
 import { activeImageUrl } from "./annotationTarget.js";
+import { invalidate } from "../renderLoop.js";
 
 export function fetchAnnotations(scene) {
   const button = createButton({
@@ -50,6 +51,15 @@ export function fetchAnnotations(scene) {
         }
       });
 
+      // The auth layer redirects unauthenticated /lws requests to the
+      // sign-in page; fetch follows it silently and hands us HTML.
+      if (response.redirected) {
+        console.error('Annotation list redirected (not signed in):', response.url);
+        alert('Not signed in: the server redirected to the sign-in page.\n'
+          + `Sign in to Halcyon (open ${window.location.origin}/ in this browser), then try again.`);
+        return [];
+      }
+
       // Check if the response is OK and has content
       if (!response.ok) {
         console.error(`HTTP error! status: ${response.status}`);
@@ -72,8 +82,9 @@ export function fetchAnnotations(scene) {
       try {
         data = JSON.parse(responseText);
       } catch (e) {
-        console.error('Error parsing JSON:', e);
-        alert('Error parsing JSON');
+        console.error('Error parsing JSON:', e, responseText.slice(0, 200));
+        alert('Error parsing the annotation list: the server returned a non-JSON '
+          + 'response. This usually means you are not signed in to Halcyon.');
         return [];
       }
 
@@ -103,6 +114,13 @@ export function fetchAnnotations(scene) {
     dragHandle.innerHTML = "<strong>Annotation Sets:</strong>";
     div.appendChild(dragHandle);
 
+    const hint = document.createElement('div');
+    hint.style.cssText = 'font-size:11px;color:#555;margin:2px 0 6px 0;max-width:340px;white-space:normal;';
+    hint.textContent = 'Check a set to display it on the active layer; uncheck to hide. '
+      + 'The Save button updates the single checked set (everything shown on the '
+      + 'layer, including new drawings); with none or several checked it saves a new set.';
+    div.appendChild(hint);
+
     // Create and style the close button
     const closeButton = document.createElement('span');
     closeButton.innerHTML = '&times;';
@@ -116,17 +134,25 @@ export function fetchAnnotations(scene) {
     dragHandle.appendChild(closeButton); // Add close button to drag handle
 
     // Iterate through the annotations
+    let firstCheckbox = null;
     for (let annotation of annotationArray) {
       // Create checkbox
       const label = document.createElement('label');
       const checkbox = document.createElement('input');
       checkbox.type = 'checkbox';
       checkbox.value = annotation;
+      if (!firstCheckbox) firstCheckbox = checkbox;
 
       label.appendChild(checkbox);
 
-      // Create text input for name
-      let name = await getAnnotationLabel(annotation);
+      // Create text input for name. One failed lookup (offline, not signed
+      // in) must not abort the rest of the list — fall back to the filename.
+      let name = null;
+      try {
+        name = await getAnnotationLabel(annotation);
+      } catch (error) {
+        console.error('Annotation label lookup failed:', annotation, error);
+      }
       const textInput = document.createElement('input');
       textInput.type = 'text';
       // Use annotation label or filename
@@ -158,6 +184,9 @@ export function fetchAnnotations(scene) {
           if (!objectMap.has(annotation)) {
             fetch(annotation)
               .then(response => {
+                if (response.redirected) {
+                  throw new Error('Not signed in to Halcyon — sign in in this browser, then re-check this set.');
+                }
                 if (!response.ok) {
                   throw new Error('URL does not exist');
                 }
@@ -167,8 +196,13 @@ export function fetchAnnotations(scene) {
                 try {
                   const objects = deserializeScene(scene, data);
                   objectMap.set(annotation, objects);
+                  invalidate();
+                  if (!objects.length) {
+                    alert('This annotation set is empty (nothing to display).');
+                  }
                 } catch (e) {
                   console.error('Deserialization error:', e);
+                  alert('Could not display this annotation set: ' + e.message);
                 }
               })
               .catch(error => alert(error.message));
@@ -177,6 +211,7 @@ export function fetchAnnotations(scene) {
             objectMap.get(annotation).forEach(obj => {
               obj.visible = true;
             });
+            invalidate();
           }
         } else {
           // If the checkbox is deselected, remove the objects from the scene
@@ -198,6 +233,7 @@ export function fetchAnnotations(scene) {
               }
             });
             objectMap.delete(annotation); // Remove from the objectMap
+            invalidate();
           }
         }
       });
@@ -205,6 +241,12 @@ export function fetchAnnotations(scene) {
 
     // Make the div draggable by the drag handle
     dragElement(div, dragHandle);
+
+    // A single set is what the user came for — display it immediately
+    // instead of waiting for the (easily missed) checkbox.
+    if (annotationArray.length === 1 && firstCheckbox) {
+      firstCheckbox.click();
+    }
   }
 
   function dragElement(element, handle) {

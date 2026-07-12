@@ -25,11 +25,13 @@ export class TileLoader {
     /**
      * @param {object} [opts]
      * @param {number} [opts.maxConcurrent=6] max simultaneous tile requests.
+     * @param {number} [opts.maxRetries=2] extra attempts for transient failures.
      */
-    constructor({ maxConcurrent = 6 } = {}) {
+    constructor({ maxConcurrent = 6, maxRetries = 2 } = {}) {
         this.maxConcurrent = maxConcurrent;
+        this.maxRetries = maxRetries;
         this._active = 0;
-        this._queue = []; // jobs waiting for a slot; served LIFO (newest first)
+        this._queue = []; // jobs waiting for a slot; served lowest priority value first
     }
 
     /**
@@ -37,18 +39,36 @@ export class TileLoader {
      * image is decoded), matching the old `new TextureLoader().load(...)` shape
      * so callers can use it as a material map right away.
      *
-     * @param {string} url         the /iiif/?iiif=... tile URL
-     * @param {function} [onReady] called with the texture once decoded, so the
-     *                             caller can set wrap/filter/repeat/offset.
+     * @param {string} url the /iiif/?iiif=... tile URL
+     * @param {function|object} [options] onReady callback, or an options bag:
+     * @param {Texture}  [options.texture] fill this existing texture instead of
+     *                             creating one (lets a caller build materials
+     *                             up front and fetch lazily; re-requesting a
+     *                             cancelled texture is fine — a fresh job
+     *                             replaces the old handle).
+     * @param {function} [options.onReady] called with the texture once decoded,
+     *                             so the caller can set wrap/filter/repeat.
+     * @param {function} [options.onFail] called once when the request fails
+     *                             permanently (exhausted retries or a 4xx);
+     *                             NOT called for caller-initiated cancels.
+     * @param {number}   [options.priority] dispatch order: lowest value first
+     *                             (callers rank by screen centrality); equal
+     *                             priorities dispatch newest-first.
      * @returns {Texture}
      */
-    load(url, onReady) {
-        const texture = new Texture();
-        texture.colorSpace = SRGBColorSpace;
+    load(url, options) {
+        const opts = (typeof options === 'function') ? { onReady: options } : (options || {});
+        let texture = opts.texture;
+        if (!texture) {
+            texture = new Texture();
+            texture.colorSpace = SRGBColorSpace;
+        }
         const job = {
             url,
             texture,
-            onReady,
+            onReady: opts.onReady || null,
+            onFail: opts.onFail || null,
+            priority: opts.priority || 0,
             controller: new AbortController(),
             started: false,
             canceled: false
@@ -64,6 +84,11 @@ export class TileLoader {
      * Cancel a request previously returned by {@link load}. If it has not
      * started it is dropped from the queue; if it is in flight the fetch is
      * aborted so the server can stop generating the tile.
+     *
+     * Wired into the viewer via ImageViewer.cancelTile: the tile cache cancels
+     * requests whose quads left the view (sweepRequests) and everything inside
+     * an evicted subtree (unboot). A cancelled tile's texture can be re-passed
+     * to load() later — a fresh job replaces the old handle.
      * @param {Texture} texture the handle returned from load()
      */
     cancel(texture) {
@@ -90,9 +115,18 @@ export class TileLoader {
 
     _pump() {
         while (this._active < this.maxConcurrent && this._queue.length > 0) {
-            // LIFO: the most recently requested tiles are usually the ones the
-            // user just zoomed toward, so serve them ahead of the backlog.
-            const job = this._queue.pop();
+            // Priority order: lowest value first (the view centre before the
+            // periphery, on-screen before the prefetch margin). Ties go to
+            // the NEWEST request — the old LIFO behaviour — since fresh
+            // requests track where the user is heading. O(n) scan; the queue
+            // stays small under visibility-gated fetching.
+            let best = this._queue.length - 1;
+            for (let i = this._queue.length - 2; i >= 0; i--) {
+                if (this._queue[i].priority < this._queue[best].priority) {
+                    best = i;
+                }
+            }
+            const job = this._queue.splice(best, 1)[0];
             if (job.canceled) {
                 continue;
             }
@@ -106,7 +140,13 @@ export class TileLoader {
         try {
             const response = await fetch(job.url, { signal: job.controller.signal });
             if (!response.ok) {
-                throw new Error(`IIIF tile request failed (${response.status})`);
+                const err = new Error(`IIIF tile request failed (${response.status})`);
+                // 5xx / timeout / throttling are worth retrying (the server's
+                // bounded reader pool can time out under a zoom burst); other
+                // 4xx responses are permanent.
+                err.permanent = response.status < 500
+                    && response.status !== 408 && response.status !== 429;
+                throw err;
             }
             const blob = await response.blob();
             // WebGL's UNPACK_FLIP_Y has no effect on ImageBitmap sources, so we
@@ -130,12 +170,36 @@ export class TileLoader {
             }
         } catch (err) {
             if (err.name !== 'AbortError') {
-                console.error('Tile load failed:', job.url, err);
+                this._retryOrFail(job, err);
             }
         } finally {
             this._active--;
             this._pump();
         }
+    }
+
+    /**
+     * Re-queue a failed job with linear backoff; give up after maxRetries or
+     * on a permanent (4xx) error, leaving the texture empty. Network errors
+     * (fetch TypeError) count as transient.
+     */
+    _retryOrFail(job, err) {
+        job.attempts = (job.attempts || 0) + 1;
+        if (err.permanent || job.attempts > this.maxRetries) {
+            console.error('Tile load failed:', job.url, err);
+            if (job.onFail) {
+                job.onFail(job);
+            }
+            return;
+        }
+        setTimeout(() => {
+            if (job.canceled) {
+                return;
+            }
+            job.started = false;
+            this._queue.push(job);
+            this._pump();
+        }, 1000 * job.attempts);
     }
 }
 

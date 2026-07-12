@@ -17,6 +17,16 @@
  *                         feature raster); inherits the base's footprint.
  */
 
+import {
+    NormalBlending,
+    MultiplyBlending,
+    CustomBlending,
+    AddEquation,
+    OneFactor,
+    OneMinusSrcColorFactor
+} from 'three';
+import { invalidate } from '../renderLoop.js';
+
 let __seq = 0;
 
 export class LayerEntry {
@@ -33,8 +43,10 @@ export class LayerEntry {
         this.annotationGroup = null;   // THREE.Group holding this layer's annotations
         this.imageWidth = null;        // native pixel dims (set when info.json resolves)
         this.imageHeight = null;
+        this.micronsPerPixel = null;   // physical pixel size (um/px) when the RDF declares one
         this.opacity = 1;
         this.visible = true;
+        this.blendMode = 'normal';     // 'normal' | 'multiply' | 'screen'
         this.children = [];
     }
 
@@ -49,6 +61,10 @@ export class LayerRegistry {
         this.entries = new Map();   // id -> LayerEntry
         this.order = [];            // ids in creation order (stable for the panel)
         this.activeId = null;
+        // Named views (#22): [{name, state}] where state is the deep-link
+        // param string (helpers/deepLink.js). Loaded from / saved into the
+        // stack's named graph alongside the layers.
+        this.views = [];
         this._listeners = { active: [], change: [] };
     }
 
@@ -89,14 +105,65 @@ export class LayerRegistry {
         e.visible = visible;
         if (e.object3d) e.object3d.visible = visible;
         this._emit('change');
+        invalidate();
     }
 
-    setOpacity(id, opacity) {
+    /**
+     * `silent` skips the 'change' event — the layer panel passes it while an
+     * opacity slider is being dragged, because re-rendering the panel would
+     * replace the slider mid-drag.
+     */
+    setOpacity(id, opacity, silent = false) {
         const e = this.entries.get(id);
         if (!e) return;
         e.opacity = opacity;
         if (e.object3d) applyOpacity(e.object3d, opacity);
+        if (!silent) this._emit('change');
+        invalidate();
+    }
+
+    /** Compositing mode for a layer's tiles: 'normal' | 'multiply' | 'screen'. */
+    setBlendMode(id, mode) {
+        const e = this.entries.get(id);
+        if (!e) return;
+        e.blendMode = mode;
+        if (e.object3d) applyBlendMode(e.object3d, mode);
         this._emit('change');
+        invalidate();
+    }
+
+    /**
+     * Move `movedId` to sit before `beforeId` among the SAME parent's
+     * children (panel drag-to-reorder). The siblings' existing z slots are
+     * re-dealt in the new order, so reordering sections re-stacks them and
+     * Save persists both the list order and the z values.
+     */
+    reorder(movedId, beforeId) {
+        const moved = this.entries.get(movedId);
+        const before = this.entries.get(beforeId);
+        if (!moved || !before || moved === before) return;
+        if (!moved.parent || moved.parent !== before.parent) return;
+        const siblings = moved.parent.children;
+        siblings.splice(siblings.indexOf(moved), 1);
+        siblings.splice(siblings.indexOf(before), 0, moved);
+        // Permute the existing z slots to match the new order.
+        const placed = siblings.filter(s => s.object3d);
+        const zs = placed.map(s => s.object3d.position.z).sort((a, b) => a - b);
+        placed.forEach((s, i) => { s.object3d.position.z = zs[i]; });
+        this._rebuildOrder();
+        this._emit('change');
+        invalidate();
+    }
+
+    /** Regenerate display order as a pre-order walk of the entry tree. */
+    _rebuildOrder() {
+        const order = [];
+        const walk = (e) => {
+            order.push(e.id);
+            e.children.forEach(walk);
+        };
+        [...this.entries.values()].filter(e => !e.parent).forEach(walk);
+        this.order = order;
     }
 
     on(event, cb) {
@@ -126,6 +193,16 @@ export class LayerRegistry {
  * stays transparent even at full opacity, so its per-texel alpha keeps blending
  * instead of compositing the tile's transparent background as opaque black.
  */
+/**
+ * True when a tile material must render in the transparent pass: per-texel
+ * alpha, uniform fade, or a non-normal blend mode (blending only applies to
+ * transparent-pass objects).
+ */
+export function needsTransparent(m, opacity) {
+    const u = m.userData || {};
+    return !!u.hasAlpha || opacity < 1 || (u.blendMode && u.blendMode !== 'normal');
+}
+
 export function applyOpacity(object3d, opacity) {
     object3d.traverse(child => {
         const mat = child.material;
@@ -133,7 +210,13 @@ export function applyOpacity(object3d, opacity) {
         const mats = Array.isArray(mat) ? mat : [mat];
         mats.forEach(m => {
             if (m.map || m.isMeshBasicMaterial) {
-                const transparent = (m.userData && m.userData.hasAlpha) || opacity < 1;
+                if (m.userData && m.userData.fadeTarget !== undefined) {
+                    // A tile mid arrival-fade animates its own opacity; just
+                    // retarget the fade so it lands on the new value.
+                    m.userData.fadeTarget = opacity;
+                    return;
+                }
+                const transparent = needsTransparent(m, opacity);
                 m.opacity = opacity;
                 m.transparent = transparent;
                 m.depthWrite = !transparent;
@@ -141,4 +224,39 @@ export function applyOpacity(object3d, opacity) {
             }
         });
     });
+    invalidate();
+}
+
+/**
+ * Set the compositing mode on every tile material under an object. Multiply
+ * darkens (classic IHC-over-H&E compositing); screen lightens. Applied to
+ * existing materials here and inherited by lazily-booted tiles in
+ * imageLayer's boot (which copies the parent tile's blend state).
+ */
+export function applyBlendMode(object3d, mode) {
+    object3d.traverse(child => {
+        const mat = child.material;
+        if (!mat) return;
+        const mats = Array.isArray(mat) ? mat : [mat];
+        mats.forEach(m => {
+            if (m.map || m.isMeshBasicMaterial) {
+                m.userData.blendMode = mode;
+                if (mode === 'multiply') {
+                    m.blending = MultiplyBlending;
+                } else if (mode === 'screen') {
+                    m.blending = CustomBlending;
+                    m.blendEquation = AddEquation;
+                    m.blendSrc = OneFactor;
+                    m.blendDst = OneMinusSrcColorFactor;
+                } else {
+                    m.blending = NormalBlending;
+                }
+                const transparent = needsTransparent(m, m.opacity);
+                m.transparent = transparent;
+                m.depthWrite = !transparent;
+                m.needsUpdate = true;
+            }
+        });
+    });
+    invalidate();
 }

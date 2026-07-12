@@ -1,8 +1,15 @@
-import * as THREE from 'three';
-import { createSlider, createButton, findObjectsByName } from "./elements.js";
+import { createSlider, createButton } from "./elements.js";
+import { tileAdjustments } from "../scene/imageLayer.js";
+import { invalidate } from "../renderLoop.js";
 
 /**
- * Function to handle brightness and contrast adjustment for a 3D scene.
+ * Brightness / contrast sliders.
+ *
+ * The sliders write the shared `tileAdjustments` uniforms that every tile
+ * material references (see scene/imageLayer.js), so an adjustment applies to
+ * all layers at once — including tiles that stream in later — while the
+ * materials themselves stay untouched: edge-tile UV transforms, per-layer
+ * opacity and feature-layer alpha keep working.
  */
 export function brightContrast(scene) {
   let contrastSlider = createSlider({
@@ -11,7 +18,7 @@ export function brightContrast(scene) {
     min: 0,
     max: 4,
     step: 0.01,
-    value: 1 // Default contrast value
+    value: tileAdjustments.contrast.value
   });
 
   let brightnessSlider = createSlider({
@@ -20,89 +27,27 @@ export function brightContrast(scene) {
     min: -1,
     max: 1,
     step: 0.01,
-    value: 0 // Default brightness value
+    value: tileAdjustments.brightness.value
   });
 
   let resetButton = createButton({
-    id: "reset",
+    id: "brightContrastReset",
     innerHtml: "<i class=\"fa fa-undo\"></i>",
     title: "Reset Brightness and Contrast"
   });
 
-  /**
-   * Updates the uniforms of the materials in the scene to adjust the brightness and contrast.
-   *
-   * @param {boolean} [reset=false] - If true, resets the materials to their original state.
-   * @return {void} This function does not return any value.
-   */
-  function updateUniforms(reset = false) {
-    const contrast = parseFloat(contrastSlider.value);
-    const brightness = parseFloat(brightnessSlider.value);
-
-    const squares = findObjectsByName(scene, "Square");
-    squares.forEach(function (mesh) {
-      if (!mesh.originalMaterial) mesh.originalMaterial = mesh.material;
-      if (reset) {
-        if (mesh.originalMaterial) {
-          mesh.material = mesh.originalMaterial;
-          mesh.customShaderMaterial.dispose();
-          delete mesh.customShaderMaterial; // Remove custom shader material reference
-        }
-      } else {
-        if (mesh.customShaderMaterial) {
-          mesh.customShaderMaterial.uniforms.contrast.value = contrast;
-          mesh.customShaderMaterial.uniforms.brightness.value = brightness;
-        } else if (mesh.material.map) {
-          applyShader(mesh, contrast, brightness);
-        }
-      }
-    });
-  }
-
-  /**
-   * Applies a custom shader material to a mesh to adjust the brightness and contrast of its texture.
-   */
-  function applyShader(mesh, contrast, brightness) {
-    const texture = mesh.material.map;
-    const customShaderMaterial = new THREE.ShaderMaterial({
-      uniforms: {
-        myTexture: { value: texture },
-        contrast: { value: contrast },
-        brightness: { value: brightness }
-      },
-      vertexShader: `
-      varying vec2 vUv;
-      void main() {
-          vUv = uv;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-      }
-    `,
-      fragmentShader: `
-      precision mediump float;
-      uniform sampler2D myTexture;
-      uniform float contrast;
-      uniform float brightness;
-      varying vec2 vUv;
-      void main() {
-          vec4 texColor = texture2D(myTexture, vUv);
-          vec3 color = texColor.rgb;
-          color = (color - 0.5) * contrast + 0.5; // Adjust contrast
-          color += brightness; // Adjust brightness
-          gl_FragColor = vec4(color, texColor.a);
-      }
-    `
-    });
-
-    mesh.material = customShaderMaterial;
-    mesh.customShaderMaterial = customShaderMaterial;
+  function updateUniforms() {
+    tileAdjustments.contrast.value = parseFloat(contrastSlider.value);
+    tileAdjustments.brightness.value = parseFloat(brightnessSlider.value);
+    invalidate();
   }
 
   resetButton.addEventListener("click", () => {
     contrastSlider.value = 1; // Reset contrast to default value
     brightnessSlider.value = 0; // Reset brightness to default value
-    updateUniforms(true); // Pass true to indicate reset
+    updateUniforms();
   });
 
-  contrastSlider.addEventListener("input", () => updateUniforms());
-  brightnessSlider.addEventListener("input", () => updateUniforms());
+  contrastSlider.addEventListener("input", updateUniforms);
+  brightnessSlider.addEventListener("input", updateUniforms);
 }

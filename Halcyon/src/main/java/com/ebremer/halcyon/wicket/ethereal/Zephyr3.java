@@ -112,7 +112,11 @@ public class Zephyr3 extends BasePage {
                     fetchAnnotations: { enabled: true },
                     zoomControl: { enabled: true },
                     brightContrast: { enabled: true },
-                    getImageName: { enabled: true }
+                    getImageName: { enabled: true },
+                    scaleBar: { enabled: true },
+                    minimap: { enabled: true },
+                    compare: { enabled: true },
+                    featureInfo: { enabled: true }
                   }
                 };
             """

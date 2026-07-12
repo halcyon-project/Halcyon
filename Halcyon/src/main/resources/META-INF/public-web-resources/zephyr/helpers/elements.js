@@ -1,3 +1,6 @@
+import { invalidate } from "../renderLoop.js";
+import { formatLength, formatArea } from "./conversions.js";
+
 export function createButton(options) {
   let myButton = document.createElement("button");
   myButton.id = options.id;
@@ -18,6 +21,9 @@ export function createSlider({ id, title, min, max, step, value }) {
   const slider = document.createElement('input');
 
   sliderContainer.className = 'slider-container';
+  // The container is what gets inserted into the DOM, so it carries a
+  // removable id (toolbar destroy targets "<id>Container").
+  sliderContainer.id = `${id}Container`;
   sliderLabel.htmlFor = id;
   sliderLabel.innerHTML = title;
   slider.type = 'range';
@@ -167,24 +173,24 @@ export function removeObject(obj, scene) {
       obj.material.dispose();
     }
   }
+  invalidate();
 }
 
-export function turnOtherButtonsOff(activeButton) {
-  // Ensure only one button is "active" at any given moment.
-  const buttons = document.querySelectorAll('button');
-  buttons.forEach(button => {
-    if (button.id !== activeButton.id) {
-      if (button.classList.contains('btnOn')) {
-        button.click(); // shut it off
-      }
-    }
-  });
-}
+// turnOtherButtonsOff is gone (#30): tool exclusion is ToolManager state,
+// not synthetic DOM clicks — see toolManager.js.
 
-export function displayAreaAndPerimeter(area, perimeter) {
-  // Convert area and perimeter to microns
-  // let areaInMicrons = area / 16; // 1 micron² = 16 pixels²
-  // let perimeterInMicrons = perimeter / 4; // 1 micron = 4 pixels
+/**
+ * Show a measurement result. `area`/`perimeter` are in image pixels of the
+ * measured layer; pass its micronsPerPixel (um/px) to display physical units,
+ * or null to report pixels.
+ */
+export function displayAreaAndPerimeter(area, perimeter, micronsPerPixel = null) {
+  const areaText = micronsPerPixel
+    ? formatArea(area * micronsPerPixel * micronsPerPixel)
+    : `${area.toFixed(2)} pixels²`;
+  const perimeterText = micronsPerPixel
+    ? formatLength(perimeter * micronsPerPixel)
+    : `${perimeter.toFixed(2)} pixels`;
 
   let div = document.createElement("div");
   div.classList.add("floating-div");
@@ -197,13 +203,13 @@ export function displayAreaAndPerimeter(area, perimeter) {
     div.remove();
   });
 
-  // Additionally set timeout
+  // Auto-dismiss: remove (not just hide) so repeated measurements don't
+  // accumulate orphaned divs in the DOM.
   setTimeout(() => {
-    div.style.display = 'none';
+    div.remove();
   }, 5000);
 
-  // div.innerHTML = `Area: ${areaInMicrons.toFixed(2)} microns²<br>Perimeter: ${perimeterInMicrons.toFixed(2)} microns`;
-  div.innerHTML = `Area: ${area.toFixed(2)} pixels²<br>Perimeter: ${perimeter.toFixed(2)} pixels`;
+  div.innerHTML = `Area: ${areaText}<br>Perimeter: ${perimeterText}`;
   div.appendChild(closeButton);
   document.body.appendChild(div);
   // console.log(area.toFixed(2), perimeter.toFixed(2));

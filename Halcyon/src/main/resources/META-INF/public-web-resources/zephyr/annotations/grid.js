@@ -1,217 +1,201 @@
 import * as THREE from 'three';
-import { createButton, turnOtherButtonsOff } from "../helpers/elements.js";
 import { getColorAndType } from "../helpers/colorPalette.js";
 import { pickActiveLayer, addAnnotation, removeAnnotation } from "../helpers/annotationTarget.js";
+import { makeHeatmapMesh, indexAt, paintSquare, squareState, hasPaint } from "../helpers/heatmap.js";
+import { pushCommand } from "../helpers/history.js";
+import { invalidate } from "../renderLoop.js";
 
-export function grid(scene, camera, renderer, controls) {
+/**
+ * Heatmap grid tool (#29): an N×N grid of paintable squares over the active
+ * layer. The squares are ONE InstancedMesh (helpers/heatmap.js) — a single
+ * draw call instead of 2,500 meshes — and picking is index arithmetic on
+ * the grid plane, not raycasting. Drag to paint with the palette color,
+ * Shift-drag (or double-tap to toggle remove mode on touch) to erase; one
+ * drag is one undo step. Toggling the tool off keeps the painted squares
+ * (they save as ordinary per-square filled polygons) and tears down the
+ * scaffolding lines — and the whole grid when nothing is painted.
+ */
+export function grid(manager) {
+  const { scene, camera, renderer } = manager.ctx;
   const canvas = renderer.domElement;
-  let isGridAdded = false;
-  let gridLines;
-  let gridSquares;
+  const GRID_SIZE = 50;
+  const SQUARE_SIZE = 100;
+
+  let gridLines = null;
+  let gridMesh = null;
   let isDragging = false;
   let removeMode = false;
   let lastTapTime = 0;
-  let color = "#ff0000"; // Default color
+  let color = "#ff0000";
   let type = "";
 
-  let gridButton = createButton({
+  manager.register({
     id: "grid",
-    innerHtml: "<i class=\"fas fa-border-all\"></i>",
-    title: "Grid"
-  });
-
-  gridButton.addEventListener("click", function () {
-    if (isGridAdded) {
-      canvas.removeEventListener('mousedown', handleMouseDown);
-      canvas.removeEventListener('mousemove', handleMouseMove);
-      canvas.removeEventListener('mouseup', handleMouseUp);
-
-      canvas.removeEventListener('touchstart', handleTouchStart);
-      canvas.removeEventListener('touchmove', handleTouchMove);
-      canvas.removeEventListener('touchend', handleTouchEnd);
-
-      isDragging = false;
-      controls.enabled = true;
-      removeGrid();
-      this.classList.replace('btnOn', 'annotationBtn');
-    } else {
-      canvas.addEventListener('mousedown', handleMouseDown);
-      canvas.addEventListener('mousemove', handleMouseMove);
-      canvas.addEventListener('mouseup', handleMouseUp);
-
-      canvas.addEventListener('touchstart', handleTouchStart);
-      canvas.addEventListener('touchmove', handleTouchMove);
-      canvas.addEventListener('touchend', handleTouchEnd);
-
-      controls.enabled = false;
-      controls.update(); // Force an update to ensure disabling
-      turnOtherButtonsOff(gridButton);
+    icon: "<i class=\"fas fa-border-all\"></i>",
+    title: "Grid",
+    onActivate() {
+      canvas.addEventListener('pointerdown', onPointerDown);
+      canvas.addEventListener('pointermove', onPointerMove);
+      canvas.addEventListener('pointerup', onPointerUp);
+      canvas.addEventListener('pointercancel', onPointerUp);
       addGrid();
-      this.classList.replace('annotationBtn', 'btnOn');
+    },
+    onDeactivate() {
+      canvas.removeEventListener('pointerdown', onPointerDown);
+      canvas.removeEventListener('pointermove', onPointerMove);
+      canvas.removeEventListener('pointerup', onPointerUp);
+      canvas.removeEventListener('pointercancel', onPointerUp);
+      isDragging = false;
+      removeGrid();
     }
-    isGridAdded = !isGridAdded; // Toggle the state
   });
 
-  // Define named functions for event handling
-  function handleMouseDown(event) {
-    // Get the current color and type on mousedown
+  // One drag = one undo step: every square touched during the drag is
+  // captured with its before/after paint state in a single composite command.
+  let dragActions = [];
+
+  function onPointerDown(event) {
+    if (!event.isPrimary) return;
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+
+    // Touch has no shift key: a double-tap toggles remove mode.
+    if (event.pointerType !== 'mouse') {
+      const now = Date.now();
+      if (now - lastTapTime < 300) {
+        removeMode = !removeMode;
+        alert(`Remove mode: ${removeMode ? 'ON' : 'OFF'}`);
+        lastTapTime = 0;
+        return;
+      }
+      lastTapTime = now;
+    }
+
+    canvas.setPointerCapture(event.pointerId);
     ({ color, type } = getColorAndType());
     isDragging = true;
+    dragActions = [];
     colorSquare(event);
   }
 
-  function handleMouseMove(event) {
-    if (isDragging) {
+  function onPointerMove(event) {
+    if (isDragging && event.isPrimary) {
       colorSquare(event);
     }
   }
 
-  function handleMouseUp() {
+  function onPointerUp(event) {
+    if (!event.isPrimary) return;
     isDragging = false;
-  }
-
-  function handleTouchStart(event) {
-    event.preventDefault(); // Prevent default behavior to avoid conflicts
-
-    // Handle double-tap to toggle remove mode
-    const currentTime = new Date().getTime();
-    const tapInterval = currentTime - lastTapTime;
-    if (tapInterval < 300 && tapInterval > 0) {
-      removeMode = !removeMode;
-      alert(`Remove mode: ${removeMode ? 'ON' : 'OFF'}`);
-      lastTapTime = 0; // Reset lastTapTime to avoid misinterpretation of continuous taps
-    } else {
-      lastTapTime = currentTime;
+    if (dragActions.length > 0) {
+      const actions = dragActions;
+      const mesh = gridMesh;
+      dragActions = [];
+      const paint = (state) => {
+        actions.forEach(a => {
+          const s = state === 'after' ? a.after : a.before;
+          paintSquare(mesh, a.idx, s.colored, s.color, s.type);
+        });
+        invalidate();
+      };
+      pushCommand({ undo: () => paint('before'), redo: () => paint('after') });
     }
-
-    ({ color, type } = getColorAndType());
-    isDragging = true;
-    colorSquare(event.touches[0]);
-  }
-
-  function handleTouchMove(event) {
-    event.preventDefault(); // Prevent default behavior
-
-    if (isDragging) {
-      colorSquare(event.touches[0]);
-    }
-  }
-
-function handleTouchEnd(event) {
-    event.preventDefault();
-    isDragging = false;
   }
 
   function addGrid() {
-    // Create a grid overlay with blue lines.
-    const gridSize = 50; // Define the size of the grid
-    const squareSize = 100; // Define the size of each square in the grid
-    const half = gridSize * squareSize / 2;
-    gridLines = new THREE.Group(); // Group to hold the grid lines
-    gridSquares = new THREE.Group(); // Group to hold the grid squares
+    const half = GRID_SIZE * SQUARE_SIZE / 2;
 
     // Center the grid on the point of the ACTIVE LAYER under the middle of
-    // the view, in the layer's own pixel space. The centre is baked into each
-    // square's position (the groups stay at the origin) so a colored square's
-    // local coordinates round-trip exactly through save/fetch.
+    // the view, in the layer's own pixel space. The centre is baked into the
+    // instance matrices (the objects stay at the origin) so a painted
+    // square's local coordinates round-trip exactly through save/fetch.
     const rect = canvas.getBoundingClientRect();
     const center = pickActiveLayer(rect.left + rect.width / 2, rect.top + rect.height / 2, canvas, camera);
 
-    for (let i = 0; i <= gridSize; i++) {
-      const lineGeometry = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(center.x + i * squareSize - half, center.y - half, 0),
-        new THREE.Vector3(center.x + i * squareSize - half, center.y + half, 0)
-      ]);
-      const lineMaterial = new THREE.LineBasicMaterial({ color: 0x0000ff });
-      const line = new THREE.Line(lineGeometry, lineMaterial);
-      gridLines.add(line);
-
-      const lineGeometryHorizontal = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(center.x - half, center.y + i * squareSize - half, 0),
-        new THREE.Vector3(center.x + half, center.y + i * squareSize - half, 0)
-      ]);
-      const lineHorizontal = new THREE.Line(lineGeometryHorizontal, lineMaterial);
-      gridLines.add(lineHorizontal);
+    // Scaffolding: all 102 grid lines in ONE LineSegments draw call.
+    const linePoints = [];
+    for (let i = 0; i <= GRID_SIZE; i++) {
+      const t = i * SQUARE_SIZE - half;
+      linePoints.push(
+        new THREE.Vector3(center.x + t, center.y - half, 0),
+        new THREE.Vector3(center.x + t, center.y + half, 0),
+        new THREE.Vector3(center.x - half, center.y + t, 0),
+        new THREE.Vector3(center.x + half, center.y + t, 0)
+      );
     }
-
-    for (let i = 0; i < gridSize; i++) {
-      for (let j = 0; j < gridSize; j++) {
-        const geometry = new THREE.PlaneGeometry(squareSize, squareSize);
-        const material = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0 });
-        const square = new THREE.Mesh(geometry, material);
-
-        // Position each square
-        square.position.set(center.x + i * squareSize - half + squareSize / 2, center.y + j * squareSize - half + squareSize / 2, 0);
-        square.userData = { colored: false };
-        gridSquares.add(square);
-      }
-    }
-
+    const lineGeometry = new THREE.BufferGeometry().setFromPoints(linePoints);
+    gridLines = new THREE.LineSegments(lineGeometry, new THREE.LineBasicMaterial({ color: 0x0000ff }));
     gridLines.name = "gridLines";
-    gridSquares.name = "gridSquares";
+
+    gridMesh = makeHeatmapMesh({
+      gridSize: GRID_SIZE,
+      squareSize: SQUARE_SIZE,
+      originX: center.x - half,
+      originY: center.y - half
+    });
+
     addAnnotation(scene, gridLines);
-    addAnnotation(scene, gridSquares);
+    addAnnotation(scene, gridMesh);
   }
 
   function removeGrid() {
     if (gridLines) {
       removeAnnotation(scene, gridLines);
-      gridLines.traverse(obj => {
-        if (obj.geometry) obj.geometry.dispose();
-        if (obj.material) obj.material.dispose();
-      });
+      gridLines.geometry.dispose();
+      gridLines.material.dispose();
       gridLines = null;
     }
-    if (gridSquares) {
-      // Colored squares are annotations ("heatmap annotation") and stay
-      // behind for saving/editing; only the uncolored scaffolding is torn down.
-      const scaffolding = gridSquares.children.filter(sq => !sq.userData.colored);
-      scaffolding.forEach(sq => {
-        gridSquares.remove(sq);
-        sq.geometry.dispose();
-        sq.material.dispose();
-      });
-      if (gridSquares.children.length === 0) {
-        removeAnnotation(scene, gridSquares);
+    if (gridMesh) {
+      // Painted squares are annotations and stay behind for saving; an
+      // untouched grid is torn down entirely.
+      if (!hasPaint(gridMesh)) {
+        removeAnnotation(scene, gridMesh);
+        gridMesh.geometry.dispose();
+        gridMesh.material.dispose();
+        gridMesh.dispose(); // instanced attributes
       }
-      gridSquares = null;
+      gridMesh = null;
     }
   }
 
-  // Handling Dragging to Color Squares
-  const raycaster = new THREE.Raycaster();
-  const mouse = new THREE.Vector2();
+  // Picking: intersect the grid's own plane and index into the instances —
+  // works whichever layer is active and never raycasts per-square.
+  const _ray = new THREE.Raycaster();
+  const _ndc = new THREE.Vector2();
+  const _plane = new THREE.Plane();
+  const _n = new THREE.Vector3();
+  const _p = new THREE.Vector3();
+  const _world = new THREE.Vector3();
 
   function colorSquare(event) {
+    if (!gridMesh) return;
     const rect = canvas.getBoundingClientRect();
+    _ndc.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    _ndc.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    _ray.setFromCamera(_ndc, camera);
 
-    // Adjust mouse position for canvas offset
-    mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-    mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    gridMesh.updateWorldMatrix(true, false);
+    _p.setFromMatrixPosition(gridMesh.matrixWorld);
+    _n.set(0, 0, 1).transformDirection(gridMesh.matrixWorld).normalize();
+    _plane.setFromNormalAndCoplanarPoint(_n, _p);
+    if (!_ray.ray.intersectPlane(_plane, _world)) return;
+    const local = gridMesh.worldToLocal(_world);
 
-    // Update the picking ray
-    raycaster.setFromCamera(mouse, camera);
+    const idx = indexAt(gridMesh.userData, local.x, local.y);
+    if (idx === -1) return;
 
-    // Calculate objects intersecting the picking ray
-    const intersects = raycaster.intersectObjects(gridSquares.children);
+    const erase = event.shiftKey || removeMode;
+    const wasColored = gridMesh.userData.colored[idx];
+    if (erase ? !wasColored : wasColored) return;
 
-    if (intersects.length > 0) {
-      const square = intersects[0].object;
-
-      // if ((event.shiftKey || removeMode) && square.userData.colored) {
-      if (event.shiftKey || removeMode) {
-        // Shift-click or double-tap remove mode to un-color the square
-        square.material.opacity = 0;
-        square.userData.colored = false;
-        square.name = "";
-      } else if (!square.userData.colored) {
-        // Regular drag to color the square
-        square.material.color.set(color); // Set the color based on the selected color
-        square.material.opacity = 0.5;
-        square.userData.colored = true;
-        square.name = "heatmap annotation";
-        square.userData.cancerType = type; // Set the cancer type
-      }
+    // Snapshot for the drag's composite undo command (one record per square).
+    let action = dragActions.find(a => a.idx === idx);
+    if (!action) {
+      action = { idx, before: squareState(gridMesh, idx) };
+      dragActions.push(action);
     }
+
+    paintSquare(gridMesh, idx, !erase, color, type);
+    action.after = squareState(gridMesh, idx);
+    invalidate();
   }
 }

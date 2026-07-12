@@ -1,6 +1,9 @@
 import { makeImageViewer } from './imageLayer.js';
+import { getContext, cfg } from '../context.js';
 import { LayerEntry } from './LayerRegistry.js';
 import { saveStack, serializeStackTurtle } from './stackPersistence.js';
+import { encodeViewState, applyViewState } from '../helpers/deepLink.js';
+import { invalidate } from '../renderLoop.js';
 
 /**
  * Floating layer panel for a stack.
@@ -19,6 +22,10 @@ import { saveStack, serializeStackTurtle } from './stackPersistence.js';
 export function initLayerPanel(registry, stack) {
     const existing = document.getElementById('zephyr-layers');
     if (existing) existing.remove();
+    // Unhook the previous panel's registry listeners: a replaced panel would
+    // otherwise keep rendering into its detached div on every registry event.
+    const ctx = getContext();
+    if (ctx.layerPanelCleanup) ctx.layerPanelCleanup();
 
     const zStep = (stack && stack.sectionGap) || 2500;
 
@@ -60,6 +67,13 @@ export function initLayerPanel(registry, stack) {
     saveBtn.addEventListener('click', () => saveStackAction(registry));
     panel.appendChild(saveBtn);
 
+    // Named views (#22): bookmarks of camera + layer state.
+    const viewsDiv = document.createElement('div');
+    viewsDiv.id = 'zephyr-views';
+    viewsDiv.style.borderBottom = '1px solid #ddd';
+    viewsDiv.style.margin = '2px 0 4px 0';
+    panel.appendChild(viewsDiv);
+
     const listDiv = document.createElement('div');
     listDiv.id = 'zephyr-layers-list';
     panel.appendChild(listDiv);
@@ -69,9 +83,13 @@ export function initLayerPanel(registry, stack) {
 
     makeDraggable(panel, header);
 
-    const render = () => renderList(listDiv, registry, stack, zStep);
-    registry.on('change', render);
-    registry.on('active', render);
+    const render = () => {
+        renderViews(viewsDiv, registry);
+        renderList(listDiv, registry, stack, zStep);
+    };
+    const offChange = registry.on('change', render);
+    const offActive = registry.on('active', render);
+    ctx.layerPanelCleanup = () => { offChange(); offActive(); };
     render();
 
     if (!document.getElementById('zephyr-layers-toggle')) {
@@ -81,12 +99,101 @@ export function initLayerPanel(registry, stack) {
         toggle.innerHTML = '<i class="fa-solid fa-layer-group"></i>';
         toggle.title = 'Layers';
         toggle.addEventListener('click', () => {
-            panel.style.display = (panel.style.display === 'none') ? 'block' : 'none';
+            // Look the panel up at click time: this toggle button persists
+            // across panel rebuilds, so a captured reference would go stale.
+            const p = document.getElementById('zephyr-layers');
+            if (p) p.style.display = (p.style.display === 'none') ? 'block' : 'none';
         });
         document.body.insertBefore(toggle, canvas);
     }
 
     return { panel, render };
+}
+
+/**
+ * Named views (#22): save/apply/rename/delete labelled camera + layer states.
+ * Bookmarks live in `registry.views` and persist with "Save stack" (they ride
+ * the stack's named graph). Needs the ZephyrViewer bridge for camera/controls;
+ * on legacy pages without one the section simply doesn't render.
+ */
+function renderViews(viewsDiv, registry) {
+    viewsDiv.innerHTML = '';
+    const viewer = (getContext() || {}).viewer || null;
+    if (!viewer || !viewer.camera) {
+        viewsDiv.style.display = 'none';
+        return;
+    }
+    viewsDiv.style.display = 'block';
+
+    const edited = () => {
+        registry._emit('change');
+        document.dispatchEvent(new CustomEvent('zephyr:stackedited', { detail: { registry } }));
+    };
+
+    const bar = document.createElement('div');
+    bar.style.cssText = 'display:flex;align-items:center;gap:4px;margin:2px 0;';
+    const saveView = document.createElement('button');
+    saveView.className = 'annotationBtn';
+    saveView.innerHTML = '<i class="fa-regular fa-star"></i> Save view';
+    saveView.title = 'Bookmark the current camera/layer state (persists with "Save stack")';
+    saveView.addEventListener('click', () => {
+        const name = prompt('Name this view:', `View ${registry.views.length + 1}`);
+        if (name === null || !name.trim()) return;
+        registry.views.push({
+            name: name.trim(),
+            state: encodeViewState(viewer.camera, viewer.controls, registry)
+        });
+        edited();
+    });
+    bar.appendChild(saveView);
+    viewsDiv.appendChild(bar);
+
+    registry.views.forEach((view, index) => {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;gap:4px;padding:1px 2px;font-size:12px;';
+
+        const star = document.createElement('i');
+        star.className = 'fa-solid fa-star';
+        star.style.cssText = 'width:14px;color:#c9a227;';
+        row.appendChild(star);
+
+        const name = document.createElement('span');
+        name.textContent = view.name;
+        name.style.cssText = 'flex:1;cursor:pointer;overflow:hidden;text-overflow:ellipsis;';
+        name.title = 'Click: go to this view. Double-click: rename.';
+        name.addEventListener('click', () => {
+            applyViewState(view.state, viewer.camera, viewer.controls, registry);
+        });
+        name.addEventListener('dblclick', () => {
+            const newName = prompt('Rename view:', view.name);
+            if (newName === null || !newName.trim()) return;
+            view.name = newName.trim();
+            edited();
+        });
+        row.appendChild(name);
+
+        const update = document.createElement('span');
+        update.textContent = '⟳';
+        update.title = 'Update this view to the current camera/layer state';
+        update.style.cssText = 'cursor:pointer;color:#537895;padding:0 2px;';
+        update.addEventListener('click', () => {
+            view.state = encodeViewState(viewer.camera, viewer.controls, registry);
+            edited();
+        });
+        row.appendChild(update);
+
+        const del = document.createElement('span');
+        del.textContent = '×';
+        del.title = 'Delete this view';
+        del.style.cssText = 'cursor:pointer;color:#b00020;padding:0 4px;';
+        del.addEventListener('click', () => {
+            registry.views.splice(index, 1);
+            edited();
+        });
+        row.appendChild(del);
+
+        viewsDiv.appendChild(row);
+    });
 }
 
 function renderList(listDiv, registry, stack, zStep) {
@@ -119,7 +226,31 @@ function renderList(listDiv, registry, stack, zStep) {
                 : 'fa-regular fa-image';
         icon.style.width = '16px';
         icon.style.color = entry.error ? '#b00020' : '#537895';
-        icon.title = entry.error ? ('load error: ' + entry.error) : entry.type;
+        icon.title = entry.error ? ('load error: ' + entry.error)
+            : (entry.type + ' — drag to reorder');
+        // Drag-to-reorder among same-parent siblings, from the icon (the row
+        // itself must stay non-draggable so sliders/inputs work normally).
+        icon.draggable = true;
+        icon.style.cursor = 'grab';
+        icon.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('text/plain', entry.id);
+            e.dataTransfer.effectAllowed = 'move';
+        });
+        row.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            row.style.outline = '1px dashed #537895';
+        });
+        row.addEventListener('dragleave', () => { row.style.outline = ''; });
+        row.addEventListener('drop', (e) => {
+            e.preventDefault();
+            row.style.outline = '';
+            const movedId = e.dataTransfer.getData('text/plain');
+            if (movedId && movedId !== entry.id) {
+                registry.reorder(movedId, entry.id);
+                document.dispatchEvent(new CustomEvent('zephyr:stackedited', { detail: { registry } }));
+            }
+        });
         main.appendChild(icon);
 
         const label = document.createElement('span');
@@ -130,19 +261,49 @@ function renderList(listDiv, registry, stack, zStep) {
         label.style.cursor = entry.annotatable ? 'pointer' : 'default';
         if (entry.id === activeId) label.style.fontWeight = 'bold';
         if (entry.annotatable) {
-            label.title = 'Select as active layer (annotations target this layer)';
+            label.title = 'Click: select as active layer. Double-click: rename.';
             label.addEventListener('click', () => registry.setActive(entry.id));
+        } else {
+            label.title = 'Double-click: rename';
         }
+        label.addEventListener('dblclick', () => {
+            const name = prompt('Rename layer:', entry.name);
+            if (name === null || name.trim() === '') return;
+            entry.name = name.trim();
+            registry._emit('change');
+            document.dispatchEvent(new CustomEvent('zephyr:stackedited', { detail: { registry } }));
+        });
         main.appendChild(label);
 
         if (entry.type !== 'stack') {
+            // Blend mode (multiply = classic IHC-over-H&E compositing).
+            const blend = document.createElement('select');
+            ['normal', 'multiply', 'screen'].forEach(mode => {
+                const opt = document.createElement('option');
+                opt.value = mode;
+                opt.textContent = mode;
+                blend.appendChild(opt);
+            });
+            blend.value = entry.blendMode || 'normal';
+            blend.title = 'Blend mode';
+            blend.style.fontSize = '10px';
+            blend.addEventListener('change', () => {
+                registry.setBlendMode(entry.id, blend.value);
+                document.dispatchEvent(new CustomEvent('zephyr:stackedited', { detail: { registry } }));
+            });
+            main.appendChild(blend);
+
             const op = document.createElement('input');
             op.type = 'range';
             op.min = '0'; op.max = '1'; op.step = '0.05';
             op.value = String(entry.opacity);
             op.title = 'Opacity';
             op.style.width = '56px';
-            op.addEventListener('input', () => registry.setOpacity(entry.id, Number(op.value)));
+            // 'input' fires continuously during a drag: apply silently (an
+            // emit would rebuild this list and kill the drag), then let the
+            // final 'change' event sync any other views of the registry.
+            op.addEventListener('input', () => registry.setOpacity(entry.id, Number(op.value), true));
+            op.addEventListener('change', () => registry.setOpacity(entry.id, Number(op.value)));
             main.appendChild(op);
         }
 
@@ -192,6 +353,7 @@ function offsetLine(registry, entry) {
         // Mark the stack edited so Save picks it up, but do NOT emit a registry
         // 'change' — that rebuilds this row and would steal input focus.
         document.dispatchEvent(new CustomEvent('zephyr:stackedited', { detail: { registry } }));
+        invalidate();
     };
     xIn.addEventListener('input', apply);
     yIn.addEventListener('input', apply);
@@ -227,6 +389,7 @@ function nudgeZ(registry, entry, dz) {
     entry.object3d.position.z += dz;
     registry._emit('change');
     document.dispatchEvent(new CustomEvent('zephyr:stackedited', { detail: { registry } }));
+    invalidate();
 }
 
 function addImageLayer(registry, stack, zStep) {
@@ -263,6 +426,7 @@ function addImageLayer(registry, stack, zStep) {
             parentGroup.add(lod);
             registry._emit('change');
             document.dispatchEvent(new CustomEvent('zephyr:stackedited', { detail: { registry } }));
+            invalidate();
         })
         .catch((err) => {
             entry.error = String(err);
@@ -280,7 +444,7 @@ function topZ(group) {
 function saveStackAction(registry) {
     // Zephyr3 injects the stack's own named-graph URI; fall back to a prompt
     // (e.g. the dev harness) when it isn't set.
-    let uri = window.stackUri;
+    let uri = cfg('stackUri');
     if (!uri) {
         const root = registry.roots()[0];
         uri = prompt('Save this stack to its named graph (URI):', (root && root.node) || '');

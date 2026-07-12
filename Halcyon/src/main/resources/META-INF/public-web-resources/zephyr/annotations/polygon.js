@@ -1,13 +1,19 @@
 import * as THREE from 'three';
-import { createButton, turnOtherButtonsOff } from "../helpers/elements.js";
 import { pickActiveLayer as getMousePosition, addAnnotation, removeAnnotation } from "../helpers/annotationTarget.js";
 import { getColorAndType } from "../helpers/colorPalette.js";
-import { convertLineLoopToLine } from "../helpers/conversions.js";
+import { createAnnotationLine } from "../helpers/annotationShapes.js";
+import { pushCommand, commandCreate } from "../helpers/history.js";
 
-export function polygon(scene, camera, renderer, controls) {
+/**
+ * Click-per-vertex polygon tool. Pointer events unify mouse and touch: each
+ * pointerup adds a vertex, the pointermove rubber-bands the last one,
+ * double-click (or touch double-tap) closes, Escape aborts the shape in
+ * progress. Finalizes as a fat (Line2) annotation; undoable.
+ */
+export function polygon(manager) {
+  const { scene, camera, renderer } = manager.ctx;
   const canvas = renderer.domElement;
-  let isDrawing = false;
-  let mouseIsPressed = false;
+  let building = false;      // latched from first vertex until finalize/abort
   let points = [];
   let currentPolygon = null;
   let lastTapTime = 0;
@@ -15,126 +21,102 @@ export function polygon(scene, camera, renderer, controls) {
   let type = "";
   let material;
 
-  let polygonButton = createButton({
+  manager.register({
     id: "polygon",
-    innerHtml: "<i class=\"fa-solid fa-draw-polygon\"></i>",
-    title: "Polygon"
-  });
-
-  polygonButton.addEventListener("click", function () {
-    if (isDrawing) {
-      isDrawing = false;
-      controls.enabled = true;
-      this.classList.replace('btnOn', 'annotationBtn');
-      canvas.removeEventListener("mousedown", onMouseDown, false);
-      canvas.removeEventListener("mousemove", onMouseMove, false);
-      canvas.removeEventListener("mouseup", onMouseUp, false);
-      canvas.removeEventListener("dblclick", onDoubleClick, false);
-      canvas.removeEventListener("touchstart", onTouchStart, false);
-      canvas.removeEventListener("touchend", onTouchEnd, false);
-      canvas.removeEventListener("touchcancel", onTouchEnd, false);
-    } else {
-      isDrawing = true;
-      turnOtherButtonsOff(polygonButton);
-      controls.enabled = false;
-      this.classList.replace('annotationBtn', 'btnOn');
-
-      canvas.addEventListener("mousedown", onMouseDown, false);
-      canvas.addEventListener("mousemove", onMouseMove, false);
-      canvas.addEventListener("mouseup", onMouseUp, false);
-      canvas.addEventListener("dblclick", onDoubleClick, false);
-      canvas.addEventListener("touchstart", onTouchStart, false);
-      canvas.addEventListener("touchend", onTouchEnd, false);
-      canvas.addEventListener("touchcancel", onTouchEnd, false);
-
+    icon: "<i class=\"fa-solid fa-draw-polygon\"></i>",
+    title: "Polygon",
+    onActivate() {
+      canvas.addEventListener("pointerdown", onPointerDown);
+      canvas.addEventListener("pointermove", onPointerMove);
+      canvas.addEventListener("pointerup", onPointerUp);
+      canvas.addEventListener("dblclick", onDoubleClick);
+      document.addEventListener("zephyr:escape", onEscape);
       resetDrawingState(); // Reset state when starting a new drawing session
+    },
+    onDeactivate() {
+      canvas.removeEventListener("pointerdown", onPointerDown);
+      canvas.removeEventListener("pointermove", onPointerMove);
+      canvas.removeEventListener("pointerup", onPointerUp);
+      canvas.removeEventListener("dblclick", onDoubleClick);
+      document.removeEventListener("zephyr:escape", onEscape);
+      onEscape(); // drop any half-built polygon
     }
   });
 
   function setMaterial() {
     ({ color, type } = getColorAndType());
 
-    material = new THREE.LineBasicMaterial({ color, linewidth: 5 });
+    material = new THREE.LineBasicMaterial({ color });
     material.depthTest = false;
     material.depthWrite = false;
   }
 
-  function onMouseDown(event) {
-    if (isDrawing && !mouseIsPressed) {
-      setMaterial();
-      mouseIsPressed = true;
-      points = []; // Reset points for a new polygon
-      let point = getMousePosition(event.clientX, event.clientY, canvas, camera);
-      points.push(point);
-      if (!currentPolygon) {
-        currentPolygon = createPolygon();
+  function onPointerDown(event) {
+    if (!event.isPrimary) return;
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+
+    // Touch has no dblclick: detect a double-tap to close the polygon.
+    if (event.pointerType !== 'mouse') {
+      const now = Date.now();
+      if (now - lastTapTime < 300) {
+        lastTapTime = 0;
+        onDoubleClick(event);
+        return;
       }
+      lastTapTime = now;
+    }
+
+    // Only the FIRST press seeds the polygon — every pointerup (below)
+    // records a vertex, so seeding on later presses would double them.
+    if (!building) {
+      setMaterial();
+      building = true;
+      points = [getMousePosition(event.clientX, event.clientY, canvas, camera)];
+      currentPolygon = createPolygon();
     }
   }
 
-  function onMouseMove(event) {
-    if (isDrawing && mouseIsPressed) {
-      let point = getMousePosition(event.clientX, event.clientY, canvas, camera);
-      points[points.length - 1] = point;
+  function onPointerMove(event) {
+    if (building && event.isPrimary) {
+      // rubber-band the vertex being placed
+      points[points.length - 1] = getMousePosition(event.clientX, event.clientY, canvas, camera);
       updatePolygon();
     }
   }
 
-  function onMouseUp(event) {
-    if (isDrawing) {
-      let point = getMousePosition(event.clientX, event.clientY, canvas, camera);
-      points.push(point);
+  function onPointerUp(event) {
+    if (building && event.isPrimary) {
+      points.push(getMousePosition(event.clientX, event.clientY, canvas, camera));
       updatePolygon();
     }
   }
 
   function onDoubleClick(event) {
-    if (isDrawing && points.length > 2) {
-      mouseIsPressed = false;
-      points.pop(); // Remove the duplicated point from double-click
-      finalizeCurrentPolygon(); // Finalize and prepare for a new polygon
+    if (building && points.length > 2) {
+      points.pop(); // Remove the duplicated point from the double-click/tap
+      finalizeCurrentPolygon();
     }
   }
 
-  // Touch event handlers
-  function onTouchStart(event) {
-    if (isDrawing) {
-      setMaterial();
-      let currentTime = new Date().getTime();
-      let tapInterval = currentTime - lastTapTime;
-      if (tapInterval < 300 && tapInterval > 0) {
-        onDoubleClick(event);
-        return;
-      }
-      lastTapTime = currentTime;
-
-      mouseIsPressed = true;
-      let touch = event.touches[0];
-      let point = getMousePosition(touch.clientX, touch.clientY, canvas, camera);
-      points.push(point);
-      if (!currentPolygon) {
-        currentPolygon = createPolygon();
-      }
-      event.preventDefault();
+  function onEscape() {
+    if (currentPolygon) {
+      removeAnnotation(scene, currentPolygon);
     }
-  }
-
-  function onTouchEnd(event) {
-    if (isDrawing) {
-      mouseIsPressed = false;
-      let touch = event.changedTouches[0];
-      let point = getMousePosition(touch.clientX, touch.clientY, canvas, camera);
-      points.push(point);
-      updatePolygon();
-      event.preventDefault();
-    }
+    resetDrawingState();
   }
 
   function finalizeCurrentPolygon() {
     updatePolygon();
-    if (currentPolygon) {
-      const line = convertLineLoopToLine(currentPolygon, "polygon", type);
+    if (currentPolygon && points.length >= 3) {
+      const flat = [];
+      points.forEach(p => flat.push(p.x, p.y, p.z));
+      const line = createAnnotationLine(flat, {
+        name: "polygon annotation", color, closed: true, cancerType: type
+      });
       addAnnotation(scene, line);
+      pushCommand(commandCreate(line));
+      removeAnnotation(scene, currentPolygon);
+    } else if (currentPolygon) {
       removeAnnotation(scene, currentPolygon);
     }
     resetDrawingState();
@@ -164,7 +146,7 @@ export function polygon(scene, camera, renderer, controls) {
 
   function resetDrawingState() {
     points = [];
-    mouseIsPressed = false;
+    building = false;
     currentPolygon = null;
   }
 }

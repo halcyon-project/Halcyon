@@ -1,3 +1,4 @@
+import { cfg } from '../context.js';
 /**
  * Stack persistence — read/write a stack's RDF to its OWN named graph.
  *
@@ -11,7 +12,7 @@
  * round-trip test; the SPARQL write path requires an authenticated session and
  * should be exercised before relying on it.
  *
- * Uses the global $rdf (rdflib) and window.token, matching the rest of Zephyr.
+ * Uses the global $rdf (rdflib); auth comes from the context config (cfg).
  */
 
 const ZEPH_NS = 'https://halcyon.is/zephyr/ns/';
@@ -30,9 +31,24 @@ export function buildStackGraph(registry, stackUri, name) {
     // Record the saver as the stack's creator, in the stack's OWN graph (never
     // the security graph — clients must not mint ACLs). The Stacks page treats
     // schema:creator == you as write access, so you can delete stacks you save.
-    const creator = (typeof window !== 'undefined') && window.useriri;
+    const creator = cfg('useriri');
     if (creator) {
         g.add($rdf.sym(stackUri), $rdf.sym('https://schema.org/creator'), $rdf.sym(creator));
+    }
+    // Named views (#22): labelled camera/layer states (the deep-link format)
+    // ride the stack's own graph. Saves are regenerative (DROP + INSERT), so
+    // the registry's current view list is re-emitted every time.
+    const views = registry.views || [];
+    if (views.length) {
+        const XSD = $rdf.Namespace('http://www.w3.org/2001/XMLSchema#');
+        views.forEach((view, i) => {
+            const node = $rdf.blankNode();
+            g.add($rdf.sym(stackUri), ZEPH('view'), node);
+            g.add(node, $rdf.sym(RDF_TYPE), ZEPH('View'));
+            g.add(node, $rdf.sym('https://schema.org/name'), $rdf.literal(view.name || 'View'));
+            g.add(node, ZEPH('state'), $rdf.literal(view.state || ''));
+            g.add(node, ZEPH('order'), $rdf.literal(String(i), XSD('integer')));
+        });
     }
     return g;
 }
@@ -43,7 +59,11 @@ function emitStack(g, ZEPH, subject, stackEntry) {
     stackEntry.children.forEach((child) => {
         const member = $rdf.blankNode();
         if (child.type === 'stack') {
-            const nested = $rdf.blankNode();
+            // A nested stack that has its own URI keeps it — minting a fresh
+            // blank node here would strip the section's identity on every
+            // save. entry.node holds a bare blank-node id (no URI scheme) for
+            // anonymous sections and a full URI for named ones.
+            const nested = isUri(child.node) ? $rdf.sym(child.node) : $rdf.blankNode();
             emitStack(g, ZEPH, nested, child);
             g.add(member, ZEPH('src'), nested);
         } else if (child.src) {
@@ -55,6 +75,10 @@ function emitStack(g, ZEPH, subject, stackEntry) {
                 child.type === 'feature' ? ZEPH('FeatureLayer') : ZEPH('ImageLayer'));
         }
         addTransform(g, ZEPH, member, child);
+        // Presentation: the display name survives saves (panel rename).
+        if (child.name) {
+            g.add(member, $rdf.sym('https://schema.org/name'), $rdf.literal(child.name));
+        }
         members.push(member);
     });
     // Emit the rdf:List explicitly with the correct rdf:nil terminator. The
@@ -89,10 +113,34 @@ function addTransform(g, ZEPH, member, entry) {
         if (approx(sx, 1) === false) g.add(member, ZEPH('scalex'), num(sx));
         if (approx(sy, 1) === false) g.add(member, ZEPH('scaley'), num(sy));
     }
+    // Presentation state (#19): opacity always (deterministic reload),
+    // visibility and blend only when non-default.
+    if (entry.type !== 'stack') {
+        g.add(member, ZEPH('opacity'), num(round(entry.opacity)));
+        if (entry.visible === false) {
+            g.add(member, ZEPH('visible'), $rdf.literal('false'));
+        }
+        if (entry.blendMode && entry.blendMode !== 'normal') {
+            g.add(member, ZEPH('blend'), $rdf.literal(entry.blendMode));
+        }
+    }
 }
 
 function round(v) { return Math.round(v * 1000) / 1000; }
 function approx(a, b) { return Math.abs(a - b) < 1e-6; }
+function isUri(v) { return typeof v === 'string' && /^[a-z][a-z0-9+.-]*:/i.test(v); }
+
+/**
+ * Reject anything that couldn't sit inside a SPARQL <...> term — whitespace or
+ * angle brackets would break out of the term (the URI may come from a prompt).
+ */
+function validateGraphUri(uri) {
+    const v = String(uri);
+    if (!isUri(v) || /[\s<>"{}|^`\\]/.test(v)) {
+        throw new Error(`Not a valid graph URI: ${v}`);
+    }
+    return v;
+}
 
 /** Turtle for the current stack (debug / preview). */
 export function serializeStackTurtle(registry, stackUri, name) {
@@ -112,7 +160,7 @@ async function rdfRequest(body, contentType) {
         method: 'POST',
         headers: {
             'Content-Type': contentType,
-            'Authorization': `Bearer ${window.token || ''}`
+            'Authorization': `Bearer ${cfg('token') || ''}`
         },
         body
     });
@@ -125,10 +173,11 @@ async function rdfRequest(body, contentType) {
  * old contents; INSERT DATA writes the new triples into GRAPH <stackUri>.
  */
 export async function saveStack(stackUri, registry, name) {
+    const graph = validateGraphUri(stackUri);
     const triples = serializeStackNTriples(registry, stackUri, name);
     const update =
-        `DROP SILENT GRAPH <${stackUri}> ;\n` +
-        `INSERT DATA { GRAPH <${stackUri}> {\n${triples}} }`;
+        `DROP SILENT GRAPH <${graph}> ;\n` +
+        `INSERT DATA { GRAPH <${graph}> {\n${triples}} }`;
     await rdfRequest(update, 'application/sparql-update');
     return true;
 }
@@ -138,7 +187,8 @@ export async function saveStack(stackUri, registry, name) {
  * rdflib store (baseURI = stackUri) and hands the root subject to the builder.
  */
 export async function loadStackGraph(stackUri) {
+    const graph = validateGraphUri(stackUri);
     const query =
-        `CONSTRUCT { ?s ?p ?o } WHERE { GRAPH <${stackUri}> { ?s ?p ?o } }`;
+        `CONSTRUCT { ?s ?p ?o } WHERE { GRAPH <${graph}> { ?s ?p ?o } }`;
     return rdfRequest(query, 'application/sparql-query');
 }

@@ -1,121 +1,93 @@
 import * as THREE from 'three';
-import { createButton, turnOtherButtonsOff } from "../helpers/elements.js";
 import { pickActiveLayer as getMousePosition, addAnnotation, removeAnnotation } from "../helpers/annotationTarget.js";
 import { getColorAndType } from "../helpers/colorPalette.js";
-import { convertLineLoopToLine } from "../helpers/conversions.js";
+import { createAnnotationLine } from "../helpers/annotationShapes.js";
+import { pushCommand, commandCreate } from "../helpers/history.js";
 
-export function ellipse(scene, camera, renderer, controls) {
+/**
+ * Ellipse tool: rubber-bands a thin temp LineLoop, finalizes as a fat
+ * (Line2) annotation. Pointer events only, with capture (see rectangle.js).
+ */
+export function ellipse(manager) {
+  const { scene, camera, renderer } = manager.ctx;
   const canvas = renderer.domElement;
   let material;
   let segments = 64; // 64 line segments is a common choice
   let color = "#0000ff"; // Default color
   let type = "";
 
-  let isDrawing = false;
-  let mouseIsPressed = false;
+  let pointerActive = false;
   let startPoint;
   let endPoint;
   let currentEllipse; // This will hold the ellipse currently being drawn
 
-  let ellipseButton = createButton({
+  manager.register({
     id: "ellipse",
-    innerHtml: "<i class=\"fa-regular fa-circle\"></i>",
-    title: "Ellipse"
-  });
-
-  ellipseButton.addEventListener("click", function () {
-    if (isDrawing) {
-      isDrawing = false;
-      controls.enabled = true;
-      this.classList.replace('btnOn', 'annotationBtn');
-      canvas.removeEventListener("mousedown", onMouseDown, false);
-      canvas.removeEventListener("mousemove", onMouseMove, false);
-      canvas.removeEventListener("mouseup", onMouseUp, false);
-
-      canvas.removeEventListener("touchstart", onTouchStart, false);
-      canvas.removeEventListener("touchmove", onTouchMove, false);
-      canvas.removeEventListener("touchend", onTouchEnd, false);
-    } else {
-      isDrawing = true;
-      turnOtherButtonsOff(ellipseButton);
-      controls.enabled = false;
-      this.classList.replace('annotationBtn', 'btnOn');
-
-      canvas.addEventListener("mousedown", onMouseDown, false);
-      canvas.addEventListener("mousemove", onMouseMove, false);
-      canvas.addEventListener("mouseup", onMouseUp, false);
-
-      canvas.addEventListener("touchstart", onTouchStart, false);
-      canvas.addEventListener("touchmove", onTouchMove, false);
-      canvas.addEventListener("touchend", onTouchEnd, false);
+    icon: "<i class=\"fa-regular fa-circle\"></i>",
+    title: "Ellipse",
+    onActivate() {
+      canvas.addEventListener("pointerdown", onPointerDown);
+      canvas.addEventListener("pointermove", onPointerMove);
+      canvas.addEventListener("pointerup", onPointerUp);
+      canvas.addEventListener("pointercancel", onPointerUp);
+      document.addEventListener("zephyr:escape", onEscape);
+    },
+    onDeactivate() {
+      canvas.removeEventListener("pointerdown", onPointerDown);
+      canvas.removeEventListener("pointermove", onPointerMove);
+      canvas.removeEventListener("pointerup", onPointerUp);
+      canvas.removeEventListener("pointercancel", onPointerUp);
+      document.removeEventListener("zephyr:escape", onEscape);
+      onEscape();
     }
   });
 
   function setMaterial() {
     ({ color, type } = getColorAndType());
 
-    material = new THREE.LineBasicMaterial({ color, linewidth: 5 });
+    material = new THREE.LineBasicMaterial({ color });
     material.depthTest = false;
     material.depthWrite = false;
   }
 
-  function onMouseDown(event) {
-    if (isDrawing) {
-      setMaterial();
-      mouseIsPressed = true;
-      startPoint = getMousePosition(event.clientX, event.clientY, canvas, camera);
-      currentEllipse = createEllipse();
-    }
+  function onPointerDown(event) {
+    if (!event.isPrimary) return;
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    canvas.setPointerCapture(event.pointerId);
+    setMaterial();
+    pointerActive = true;
+    startPoint = getMousePosition(event.clientX, event.clientY, canvas, camera);
+    currentEllipse = createEllipse();
   }
 
-  function onMouseMove(event) {
-    if (isDrawing && mouseIsPressed) {
+  function onPointerMove(event) {
+    if (pointerActive && event.isPrimary) {
       endPoint = getMousePosition(event.clientX, event.clientY, canvas, camera);
       updateEllipse();
     }
   }
 
-  function onMouseUp(event) {
-    if (isDrawing) {
-      mouseIsPressed = false;
-      endPoint = getMousePosition(event.clientX, event.clientY, canvas, camera);
-      updateEllipse();
-      const line = convertLineLoopToLine(currentEllipse, "ellipse", type);
-      addAnnotation(scene, line);
-      removeAnnotation(scene, currentEllipse); // Remove the original LineLoop
-      currentEllipse = null; // Clear current ellipse reference
-    }
+  function onPointerUp(event) {
+    if (!pointerActive || !event.isPrimary) return;
+    pointerActive = false;
+    endPoint = getMousePosition(event.clientX, event.clientY, canvas, camera);
+    updateEllipse();
+    const line = createAnnotationLine(
+      Array.from(currentEllipse.geometry.attributes.position.array),
+      { name: "ellipse annotation", color, closed: true, cancerType: type }
+    );
+    addAnnotation(scene, line);
+    pushCommand(commandCreate(line));
+    removeAnnotation(scene, currentEllipse); // Remove the temp LineLoop
+    currentEllipse = null;
   }
 
-  function onTouchStart(event) {
-    if (isDrawing) {
-      setMaterial();
-      mouseIsPressed = true;
-      let touch = event.touches[0];
-      startPoint = getMousePosition(touch.clientX, touch.clientY, canvas, camera);
-      currentEllipse = createEllipse();
+  function onEscape() {
+    if (currentEllipse) {
+      removeAnnotation(scene, currentEllipse);
+      currentEllipse = null;
     }
-  }
-
-  function onTouchMove(event) {
-    if (isDrawing && mouseIsPressed) {
-      let touch = event.touches[0];
-      endPoint = getMousePosition(touch.clientX, touch.clientY, canvas, camera);
-      updateEllipse();
-    }
-  }
-
-  function onTouchEnd(event) {
-    if (isDrawing) {
-      mouseIsPressed = false;
-      let touch = event.changedTouches[0];
-      endPoint = getMousePosition(touch.clientX, touch.clientY, canvas, camera);
-      updateEllipse();
-      const line = convertLineLoopToLine(currentEllipse, "ellipse", type);
-      addAnnotation(scene, line);
-      removeAnnotation(scene, currentEllipse); // Remove the original LineLoop
-      currentEllipse = null; // Clear current ellipse reference
-    }
+    pointerActive = false;
   }
 
   function createEllipse() {

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { createButton } from "./elements.js";
+import { invalidate } from "../renderLoop.js";
 
 export function crosshairs(scene, camera) {
   let crossButton = createButton({
@@ -71,6 +72,7 @@ export function crosshairs(scene, camera) {
       // Remove the 'btnOn' class as the crosshairs are now hidden
       crossButton.classList.replace('btnOn', 'annotationBtn');
     }
+    invalidate();
   }
 
   // Toggle button event listener

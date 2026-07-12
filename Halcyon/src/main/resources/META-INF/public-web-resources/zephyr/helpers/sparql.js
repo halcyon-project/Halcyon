@@ -1,9 +1,13 @@
+import { cfg } from '../context.js';
 // Helper function to execute SPARQL queries
 async function executeSparqlQuery(query, token, isUpdate = false) {
   const endpoint = `${window.location.origin}/rdf`;
 
   if (!token) {
-    token = await getToken(); // This shouldn't happen, but just in case.
+    // No interactive fallback: the page injects window.token for signed-in
+    // sessions, and prompting for a password here would be a credential-
+    // handling anti-pattern. Fail so callers can degrade gracefully.
+    throw new Error('Not signed in: no bearer token for the /rdf endpoint.');
   }
 
   const options = {
@@ -31,29 +35,58 @@ async function executeSparqlQuery(query, token, isUpdate = false) {
     });
 }
 
+// Escape a value for use inside a double-quoted SPARQL string literal.
+function escapeLiteral(value) {
+  return String(value)
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"')
+    .replace(/\r/g, '\\r')
+    .replace(/\n/g, '\\n');
+}
+
+// Validate a URI for use inside a SPARQL <...> term: whitespace or angle
+// brackets would break out of the term (and the whole update with it).
+function validateUri(value) {
+  const uri = String(value);
+  if (/[\s<>"{}|^`\\]/.test(uri)) {
+    throw new Error(`Not a legal URI for a SPARQL term: ${uri}`);
+  }
+  new URL(uri); // throws on anything that isn't an absolute URI
+  return uri;
+}
+
 // Function to set the annotation label
 export function setAnnotationLabel(rdfSubject, newName) {
-  const token = window.token;
+  const token = cfg('token');
 
-  const sparqlQuery = `
+  let sparqlQuery;
+  try {
+    const subject = validateUri(rdfSubject);
+    const name = escapeLiteral(newName);
+    sparqlQuery = `
 PREFIX sdo: <https://schema.org/>
 PREFIX hal: <https://halcyon.is/ns/>
 DELETE {
   GRAPH hal:CollectionsAndResources {
-    <${rdfSubject}> sdo:name ?oldname
+    <${subject}> sdo:name ?oldname
   }
 }
 INSERT {
   GRAPH hal:CollectionsAndResources {
-    <${rdfSubject}> sdo:name "${newName}"
+    <${subject}> sdo:name "${name}"
   }
 }
 WHERE {
   GRAPH hal:CollectionsAndResources {
-    <${rdfSubject}> a hal:Annotation .
-    OPTIONAL { <${rdfSubject}> sdo:name ?oldname }
+    <${subject}> a hal:Annotation .
+    OPTIONAL { <${subject}> sdo:name ?oldname }
   }
 }`;
+  } catch (error) {
+    // Mirror the query-failure path: log and resolve (callers never reject).
+    console.error('Error setting annotation label:', error);
+    return Promise.resolve();
+  }
 
   return executeSparqlQuery(sparqlQuery, token, true)
     .then(result => {
@@ -66,14 +99,15 @@ WHERE {
 
 // Function to get the annotation label
 export function getAnnotationLabel(rdfSubject) {
-  const token = window.token;
+  const token = cfg('token');
+  const subject = validateUri(rdfSubject); // throws; callers handle per-item
 
   const sparqlQuery = `
 PREFIX sdo: <https://schema.org/>
 PREFIX hal: <https://halcyon.is/ns/>
 SELECT ?name WHERE {
   GRAPH hal:CollectionsAndResources {
-    <${rdfSubject}> sdo:name ?name
+    <${subject}> sdo:name ?name
   }
 }`;
 
@@ -104,50 +138,4 @@ SELECT ?name WHERE {
       console.error('Error retrieving annotation label:', error);
       throw error;
     });
-}
-
-// This scenario shouldn't happen; handling just in case:
-async function getCredentials() {
-  const username = prompt("Please enter your username:");
-  const password = prompt("Please enter your password:");
-
-  return { username, password };
-}
-
-async function getToken() {
-  const { username, password } = await getCredentials();
-
-  const authEndpoint = `${window.location.origin}/auth/realms/Halcyon/protocol/openid-connect/token`;
-  const authData = new URLSearchParams({
-    client_id: 'account',
-    username: username,
-    password: password,
-    grant_type: 'password'
-  });
-
-  try {
-    const response = await fetch(authEndpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      body: authData
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-
-      // Store the token in the window object
-      window.token = data.access_token;
-
-      return data.access_token;
-    } else {
-      const errorText = await response.text();
-      console.error('Error fetching token:', response.status, response.statusText, errorText);
-    }
-  } catch (error) {
-    console.error('Fetch error:', error);
-  }
-
-  return null;
 }

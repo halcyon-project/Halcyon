@@ -1,7 +1,7 @@
 import { getUrl } from "./conversions.js";
 
 export function getImageName(scene) {
-  addEventListener("DOMContentLoaded", (event) => {
+  const start = () => {
     const checkInterval = 1500;
     const maxAttempts = 10; // Stop after 10 attempts
 
@@ -11,8 +11,6 @@ export function getImageName(scene) {
       const url = getUrl(scene);
       if (url) {
         const imageName = url.split("/").pop();
-        // const parts = imageName.split(".");
-        // const firstPart = parts[0];
         const textNode = document.createTextNode(imageName.toString());
         const divElement = document.createElement("div");
         divElement.id = "imageNameDiv";
@@ -30,5 +28,13 @@ export function getImageName(scene) {
     };
 
     checkUrl();
-  });
+  };
+
+  // The toolbar can initialize after DOMContentLoaded has already fired
+  // (a dynamic applyConfig) — waiting on the event alone would never run.
+  if (document.readyState === 'loading') {
+    addEventListener("DOMContentLoaded", start);
+  } else {
+    start();
+  }
 }

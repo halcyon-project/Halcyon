@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { getRegistry } from '../context.js';
+import { invalidate } from '../renderLoop.js';
 
 /**
  * Active-layer targeting for annotation tools.
@@ -20,9 +22,7 @@ import * as THREE from 'three';
  *   - read the target image via activeImageUrl() / activeDims().
  */
 
-function registry() {
-    return (window.__zephyr && window.__zephyr.registry) || null;
-}
+const registry = getRegistry;
 
 export function getActiveEntry() {
     const r = registry();
@@ -50,12 +50,14 @@ export function getActiveGroup() {
 export function addAnnotation(scene, obj) {
     const g = getActiveGroup();
     (g || scene).add(obj);
+    invalidate();
     return g || scene;
 }
 
 export function removeAnnotation(scene, obj) {
     if (obj && obj.parent) obj.parent.remove(obj);
     else if (scene && obj) scene.remove(obj);
+    invalidate();
 }
 
 const _ray = new THREE.Raycaster();
@@ -101,4 +103,13 @@ export function activeImageUrl() {
 export function activeDims() {
     const e = getActiveEntry();
     return e ? { imageWidth: e.imageWidth, imageHeight: e.imageHeight } : {};
+}
+
+/**
+ * Physical pixel size (um/px) of the active layer, or null when unknown —
+ * measurement tools then fall back to reporting image pixels.
+ */
+export function activeMicronsPerPixel() {
+    const e = getActiveEntry();
+    return (e && e.micronsPerPixel > 0) ? e.micronsPerPixel : null;
 }

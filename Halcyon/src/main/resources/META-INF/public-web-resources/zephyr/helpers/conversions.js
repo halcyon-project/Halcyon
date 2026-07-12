@@ -118,6 +118,20 @@ export function pixelsToMicrometers(pixels, micronsPerPixel) {
   return pixels * micronsPerPixel;
 }
 
+/** Human-friendly physical length from micrometres (um -> mm -> cm). */
+export function formatLength(microns) {
+  if (microns >= 10000) return `${(microns / 10000).toFixed(2)} cm`;
+  if (microns >= 1000) return `${(microns / 1000).toFixed(2)} mm`;
+  return `${microns.toFixed(2)} µm`;
+}
+
+/** Human-friendly physical area from square micrometres. */
+export function formatArea(squareMicrons) {
+  if (squareMicrons >= 1e8) return `${(squareMicrons / 1e8).toFixed(2)} cm²`;
+  if (squareMicrons >= 1e6) return `${(squareMicrons / 1e6).toFixed(2)} mm²`;
+  return `${squareMicrons.toFixed(2)} µm²`;
+}
+
 /**
  * Calculate the area of a polygon in square image pixels.
  *
@@ -162,25 +176,3 @@ export function calculatePolygonPerimeter(positions) {
   return perimeter;
 }
 
-/**
- * Improve raycasting by converting to Line
- */
-export function convertLineLoopToLine(lineLoop, name, cancerType) {
-  const geometry = new THREE.BufferGeometry();
-  const positions = lineLoop.geometry.attributes.position.array;
-  const vertices = new Float32Array(positions.length + 3);
-  vertices.set(positions);
-
-  // Add the first point at the end to close the loop
-  vertices[positions.length] = positions[0];
-  vertices[positions.length + 1] = positions[1];
-  vertices[positions.length + 2] = positions[2];
-
-  geometry.setAttribute("position", new THREE.BufferAttribute(vertices, 3));
-  const line = new THREE.Line(geometry, lineLoop.material);
-  line.name = `${name} annotation`;
-  if (cancerType.length > 0) {
-    line.userData.cancerType = cancerType;
-  }
-  return line;
-}

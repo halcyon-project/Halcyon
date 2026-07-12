@@ -23,7 +23,10 @@
 <body>
   <div id="dev-controls">
     <strong>Zephyr stack dev harness</strong>
-    <p class="hint">Open this while logged into Halcyon in the same browser (IIIF tiles use your session). Edit the base URI + Turtle, then Build.</p>
+    <p class="hint">Sign in to <a href="/" target="_blank">Halcyon</a> in this browser first —
+      tiles are served without a session, but annotation save/fetch and stack
+      persistence need one (they fail with sign-in redirects otherwise).
+      Edit the base URI + Turtle, then Build.</p>
     <label>Base URI</label>
     <input id="dev-base" type="text" value="https://localhost:8888/lws/tcga/coad/">
     <label>Stack (Turtle)</label>
@@ -50,7 +53,8 @@
     import * as THREE from 'three';
     import { TrackballControls } from 'three/addons/controls/TrackballControls.js';
     import * as ZEPHYR from 'zephyr';
-    import * as ZEPHRDF from 'zephyrRDF';
+    import { ZephyrViewer } from '/zephyr/viewer.js';
+    import { installDeepLinks } from '/zephyr/helpers/deepLink.js';
     import { toolbar } from '/zephyr/toolbar.js';
     import * as rdf from '/rdflib/rdflib.min.js';   // side effect: sets window.$rdf
     import { loadStackGraph } from '/zephyr/scene/stackPersistence.js';
@@ -70,7 +74,9 @@
         screenCapture: { enabled: true }, crosshairs: { enabled: false },
         save: { enabled: true }, fetchAnnotations: { enabled: true },
         zoomControl: { enabled: false }, brightContrast: { enabled: false },
-        getImageName: { enabled: false }
+        getImageName: { enabled: false },
+        scaleBar: { enabled: true }, minimap: { enabled: true },
+        compare: { enabled: true }, featureInfo: { enabled: true }
       }
     };
 
@@ -102,7 +108,6 @@
 
     // ---- three.js scaffold (mirrors Zephyr3.html) --------------------------
     const scene = new THREE.Scene();
-    const we = new ZEPHRDF.WE(scene, null);
     const camera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 1, 5000000);
     camera.position.z = 100000;
     camera.lookAt(new THREE.Vector3(0, 0, 0));
@@ -118,10 +123,21 @@
       camera.updateProjectionMatrix();
     });
 
-    const controls = new TrackballControls(camera, renderer.domElement);
-    controls.dynamicDampingFactor = 0.2;
+    // 2D slide navigation (zoom-to-cursor) by default; append
+    // ?controls=trackball for free 3D rotation (z-spread inspection).
+    const use3d = new URLSearchParams(location.search).get('controls') === 'trackball';
+    const controls = use3d
+      ? new TrackballControls(camera, renderer.domElement)
+      : new ZEPHYR.SlideControls(camera, renderer.domElement);
+    if (controls.dynamicDampingFactor !== undefined) controls.dynamicDampingFactor = 0.2;
     ZEPHYR.DrawAxis(scene);
     toolbar(scene, camera, renderer, controls, camera.position.z, config);
+
+    // Composition root: owns the registry, config, render loop and teardown.
+    const viewer = new ZephyrViewer({
+      scene, camera, renderer, controls,
+      config: { token: window.token, useriri: window.useriri, userName: window.userName }
+    });
 
     document.addEventListener('zephyr:stackready', (e) => {
       let box = e.detail && e.detail.bounds;
@@ -139,27 +155,18 @@
       camera.updateProjectionMatrix();
       if (controls.target) controls.target.copy(center);
       controls.update();
+      if (controls.saveState) controls.saveState(); // Reset View returns here
+      ZEPHYR.invalidate();
       status('Stack ready. Layers: ' + (e.detail.registry ? e.detail.registry.list().length : '?'));
     });
 
-    function clearScene() {
-      // Remove previously-built StackViewers and the layer panel/toggle.
-      [...scene.children].forEach(c => { if (c.type === 'StackViewer') scene.remove(c); });
-      ['zephyr-layers', 'zephyr-layers-toggle', 'zSpread'].forEach(id => {
-        const el = document.getElementById(id); if (el) el.remove();
-      });
-      if (window.__zephyr) { window.__zephyr.registry = null; window.__zephyr.stack = null; }
-    }
-
     function build(ttl, base) {
       try {
-        clearScene();
-        const store = $rdf.graph();
-        we.store = store;
-        ZEPHRDF.ParseTTL(ttl, store, base);
-        const elems = ZEPHRDF.ListElements(store, base);
-        status('Parsed. Typed elements: ' + elems.length + '. Building…');
-        elems.forEach(e => we.add(e));
+        // viewer.clear() cancels outstanding tile fetches and frees the old
+        // stack's GPU/bitmap memory before the rebuild.
+        viewer.clear();
+        viewer.buildStack(ttl, base);
+        status('Building… layers registered: ' + viewer.registry.list().length);
       } catch (err) {
         status('Build error: ' + (err && err.message ? err.message : err));
         console.error(err);
@@ -186,11 +193,13 @@
       }
     });
 
-    (function animate() {
-      controls.update();
-      renderer.render(scene, camera);
-      requestAnimationFrame(animate);
-    })();
+    // Render on demand: frames only happen while something is dirty (camera
+    // motion, tile arrivals, tool input); the rAF suspends when idle.
+    viewer.startLoop();
+
+    // Shareable URLs: hash tracks camera pose + active/hidden layers, and is
+    // applied after stack framing (so a pasted link wins).
+    installDeepLinks({ camera, controls });
 
     // Auto-build the default stack.
     build(COAD, document.getElementById('dev-base').value.trim());

@@ -1,63 +1,75 @@
 import * as THREE from "three";
-import { createButton, turnOtherButtonsOff, removeObject } from "./elements.js";
+import { removeObject } from "./elements.js";
 import { DragControls } from "three/addons/controls/DragControls.js";
+import { annotationPoints, setAnnotationPoints } from "./annotationShapes.js";
+import { pushCommand, commandDelete, commandChange } from "./history.js";
+import { invalidate } from "../renderLoop.js";
 
 /**
- * Handles the process of selecting objects in a scene for editing, including adding edit handles and a deletion button.
+ * Edit tool: click an annotation to select it, then
+ *  - drag a vertex handle to reshape it,
+ *  - drag the shape itself to move it whole,
+ *  - Delete key or the trash button removes it,
+ *  - click empty space to deselect.
+ * Every completed operation (vertex drag, move, delete) is undoable.
+ *
+ * Works on fat lines (Line2 — vertices via userData.points) and legacy
+ * THREE.Line annotations loaded from old sets alike, through
+ * annotationPoints()/setAnnotationPoints().
  */
-export function edit(scene, camera, renderer, controls, originalZ) {
-  let clicked = false;
+export function edit(manager) {
+  const { scene, camera, renderer, originalZ } = manager.ctx;
   let intersectableObjects = [];
   let dragControls;
   let handles = [];
   let currentMesh = null;
+  let workingPoints = null; // live vertex copy of the selection (geometry-local)
+  let dragSnapshot = null;  // captured at dragstart for the undo command
+  let lastMeshPos = new THREE.Vector3();
 
-  let editButton = createButton({
+  manager.register({
     id: "edit",
-    innerHtml: "<i class=\"fas fa-edit\"></i>",
-    title: "Edit"
-  });
-
-  editButton.addEventListener("click", function () {
-    if (clicked) {
-      clicked = false;
-      controls.enabled = true;
-      this.classList.replace('btnOn', 'annotationBtn');
-      renderer.domElement.removeEventListener('click', onMouseClick, false);
-      intersectableObjects = [];
-      turnOffEdit();
-    } else {
-      clicked = true;
-      turnOtherButtonsOff(editButton);
-      controls.enabled = false;
-      this.classList.replace('annotationBtn', 'btnOn');
+    icon: "<i class=\"fas fa-edit\"></i>",
+    title: "Edit",
+    cursor: "pointer",
+    onActivate() {
       renderer.domElement.addEventListener('click', onMouseClick, false);
+      document.addEventListener('zephyr:delete', onDeleteKey);
       getAnnotationsForEdit();
+    },
+    onDeactivate() {
+      renderer.domElement.removeEventListener('click', onMouseClick, false);
+      document.removeEventListener('zephyr:delete', onDeleteKey);
+      intersectableObjects = [];
+      clearSelection();
     }
   });
 
-  function removal(mesh) {
-    if (mesh.name.includes("annotation")) {
-      // Find the index of the mesh in the array
-      const index = intersectableObjects.findIndex(object => object === mesh);
+  function onDeleteKey() {
+    deleteSelected();
+  }
 
-      // If the mesh is found, remove it from the array
-      if (index > -1) {
-        intersectableObjects.splice(index, 1);
-      }
-    }
-
-    // Annotations live in a layer's annotation group, not directly in the
-    // scene, so removal must go through the parent (scene.remove would
-    // silently no-op and leave the object visible).
-    removeObject(mesh, scene);
+  /** Delete the current selection (trash button and Delete key); undoable. */
+  function deleteSelected() {
+    if (!currentMesh) return;
+    const mesh = currentMesh;
+    const parent = mesh.parent;
+    if (!parent) return;
+    parent.remove(mesh);
+    const index = intersectableObjects.indexOf(mesh);
+    if (index > -1) intersectableObjects.splice(index, 1);
+    // History owns the object's lifetime now — dispose happens only when the
+    // delete command falls off the stack unredone.
+    pushCommand(commandDelete(mesh, parent));
+    clearSelection();
+    invalidate();
   }
 
   // Enhanced function to handle mesh deletion
-  function setupDeletionButton(mesh, handles) {
-    const vertex = new THREE.Vector3();
-    // Extract the first vertex position from the geometry
-    vertex.fromBufferAttribute(mesh.geometry.attributes.position, 0); // For the first vertex
+  function setupDeletionButton(mesh) {
+    const points = annotationPoints(mesh);
+    if (points.length < 3) return;
+    const vertex = new THREE.Vector3(points[0], points[1], points[2]);
 
     // Convert the vertex position to world space
     vertex.applyMatrix4(mesh.matrixWorld);
@@ -87,17 +99,7 @@ export function edit(scene, camera, renderer, controls, originalZ) {
     button.style.top = `${y}px`;
     button.style.transform = 'translate(-50%, -50%)'; // Center the button over the vertex
 
-    // Add event listener for the button
-    button.addEventListener('click', () => {
-      // Remove mesh
-      removal(mesh);
-
-      // Remove handles
-      removeHandles(handles);
-
-      // Remove the div from the DOM
-      document.body.removeChild(button);
-    });
+    button.addEventListener('click', deleteSelected);
   }
 
   // Helper function to calculate the threshold based on the distance
@@ -137,56 +139,51 @@ export function edit(scene, camera, renderer, controls, originalZ) {
       }
     }
 
-    if (intersects.length > 0) {
-      const selectedMesh = intersects[0];
-      // Size the handles from the distance to the annotation itself — in a
-      // stack its layer can sit far from the world origin.
-      const center = new THREE.Box3().setFromObject(selectedMesh).getCenter(new THREE.Vector3());
-      const distance = camera.position.distanceTo(center);
-      const size = calculateThreshold(distance, 3, 100); // Set size of edit handles based on zoom
-      setupDeletionButton(selectedMesh, addEditHandles(selectedMesh, size));
+    if (intersects.length === 0) {
+      clearSelection(); // click-away deselects
       return;
     }
+
+    const selectedMesh = intersects[0];
+    if (selectedMesh === currentMesh) return; // already selected
+    // One live selection at a time.
+    clearSelection();
+    // Size the handles from the distance to the annotation itself — in a
+    // stack its layer can sit far from the world origin.
+    const center = new THREE.Box3().setFromObject(selectedMesh).getCenter(new THREE.Vector3());
+    const distance = camera.position.distanceTo(center);
+    const size = calculateThreshold(distance, 3, 100); // Set size of edit handles based on zoom
+    select(selectedMesh, size);
   }
 
-  // Handler function for drag events
-  function dragHandler(event) {
-    const position = event.object.position;
-    const index = handles.indexOf(event.object);
-
-    // When a handle is dragged, update the position of the corresponding vertex in the buffer attribute
-    if (currentMesh && currentMesh.geometry.attributes.position) {
-      currentMesh.geometry.attributes.position.setXYZ(index, position.x, position.y, position.z);
-      // Notify Three.js to update the geometry
-      currentMesh.geometry.attributes.position.needsUpdate = true;
-    }
-  }
-
-  function addEditHandles(mesh, size) {
-    // Store the current mesh for reference in the drag handler
+  /** Build handles + drag controls for a selected annotation. */
+  function select(mesh, size) {
     currentMesh = mesh;
-
-    // Ensure the mesh's world matrix is up-to-date
+    workingPoints = annotationPoints(mesh).slice();
     mesh.updateMatrixWorld(true);
-
-    let vertices = mesh.geometry.attributes.position.array;
+    lastMeshPos.copy(mesh.position);
 
     let color;
-
     if (mesh.material && mesh.material.color) {
       color = mesh.material.color;
     } else {
       color = 0x0000ff;
     }
 
-    // Create handles for each vertex
+    // Create handles for each vertex. Handle positions live in the mesh's
+    // PARENT space: geometry-local vertex + the mesh's own position offset
+    // (whole-shape moves translate the mesh, not its geometry).
     handles = [];
-    for (let i = 0; i < vertices.length; i += 3) {
+    for (let i = 0; i < workingPoints.length; i += 3) {
       const handleGeometry = new THREE.SphereGeometry(size);
       const handleMaterial = new THREE.MeshBasicMaterial({ color });
       const handleMesh = new THREE.Mesh(handleGeometry, handleMaterial);
       handleMesh.name = "handle";
-      handleMesh.position.fromArray(vertices.slice(i, i + 3));
+      handleMesh.position.set(
+        workingPoints[i] + mesh.position.x,
+        workingPoints[i + 1] + mesh.position.y,
+        workingPoints[i + 2] + mesh.position.z
+      );
       handles.push(handleMesh);
     }
 
@@ -197,35 +194,120 @@ export function edit(scene, camera, renderer, controls, originalZ) {
     const parent = mesh.parent || scene;
     handles.forEach(element => parent.add(element));
 
-    // Create DragControls
-    dragControls = new DragControls(handles, camera, renderer.domElement);
+    // The mesh itself is draggable too (whole-shape move).
+    dragControls = new DragControls([mesh, ...handles], camera, renderer.domElement);
+    // Make legacy hairline annotations grabbable.
+    dragControls.getRaycaster().params.Line = { threshold: Math.max(2, size) };
 
-    dragControls.addEventListener("drag", dragHandler);
+    dragControls.addEventListener("dragstart", onDragStart);
+    dragControls.addEventListener("drag", onDrag);
+    dragControls.addEventListener("dragend", onDragEnd);
 
-    return handles;
+    setupDeletionButton(mesh);
+    invalidate();
   }
 
-  function turnOffEdit() {
+  function refreshHandles() {
+    if (!currentMesh || !workingPoints) return;
+    for (let i = 0; i < handles.length; i++) {
+      handles[i].position.set(
+        workingPoints[3 * i] + currentMesh.position.x,
+        workingPoints[3 * i + 1] + currentMesh.position.y,
+        workingPoints[3 * i + 2] + currentMesh.position.z
+      );
+    }
+    invalidate();
+  }
+
+  function onDragStart(event) {
+    if (!currentMesh) return;
+    if (event.object === currentMesh) {
+      dragSnapshot = { kind: 'move', before: currentMesh.position.clone() };
+      lastMeshPos.copy(currentMesh.position);
+    } else {
+      dragSnapshot = { kind: 'points', before: workingPoints.slice() };
+    }
+  }
+
+  function onDrag(event) {
+    if (!currentMesh) return;
+    if (event.object === currentMesh) {
+      // whole-shape move: carry the handles along
+      const delta = new THREE.Vector3().copy(currentMesh.position).sub(lastMeshPos);
+      handles.forEach(h => h.position.add(delta));
+      lastMeshPos.copy(currentMesh.position);
+    } else {
+      // vertex edit: write the handle position back into the geometry
+      const index = handles.indexOf(event.object);
+      if (index === -1 || !workingPoints) return;
+      workingPoints[3 * index] = event.object.position.x - currentMesh.position.x;
+      workingPoints[3 * index + 1] = event.object.position.y - currentMesh.position.y;
+      workingPoints[3 * index + 2] = event.object.position.z - currentMesh.position.z;
+      setAnnotationPoints(currentMesh, workingPoints);
+    }
+  }
+
+  function onDragEnd(event) {
+    if (!currentMesh || !dragSnapshot) return;
+    const mesh = currentMesh;
+    const snap = dragSnapshot;
+    dragSnapshot = null;
+
+    if (snap.kind === 'move') {
+      const before = snap.before;
+      const after = mesh.position.clone();
+      if (before.equals(after)) return;
+      pushCommand(commandChange(
+        () => { mesh.position.copy(before); if (currentMesh === mesh) refreshHandles(); invalidate(); },
+        () => { mesh.position.copy(after); if (currentMesh === mesh) refreshHandles(); invalidate(); }
+      ));
+    } else {
+      const before = snap.before;
+      const after = workingPoints.slice();
+      const apply = (pts) => () => {
+        setAnnotationPoints(mesh, pts);
+        if (currentMesh === mesh) {
+          workingPoints = pts.slice();
+          refreshHandles();
+        }
+      };
+      pushCommand(commandChange(apply(before), apply(after)));
+    }
+  }
+
+  // Tear down the current selection: delete button, drag controls (which hold
+  // pointer listeners on the canvas), and handles. Runs before each new
+  // selection, on click-away, and on toggle-off.
+  function clearSelection() {
     // Remove delete buttons
     const divs = Array.from(document.querySelectorAll('div')).filter(div => div.querySelector('i.fa.fa-trash'));
     divs.forEach(div => {
-      document.body.removeChild(div);
+      div.remove();
     });
 
-    // Remove drag event listener and handles
+    // Remove drag listeners and release the canvas pointer listeners
     if (dragControls) {
-      dragControls.removeEventListener("drag", dragHandler);
+      dragControls.removeEventListener("dragstart", onDragStart);
+      dragControls.removeEventListener("drag", onDrag);
+      dragControls.removeEventListener("dragend", onDragEnd);
+      dragControls.dispose();
       dragControls = null;
     }
 
     // Remove edit handles
     removeHandles();
+    currentMesh = null;
+    workingPoints = null;
+    dragSnapshot = null;
   }
 
   function getAnnotationsForEdit() {
     scene.traverse((object) => {
-      // Check if the object's name contains "annotation"
-      if (object.name.includes("annotation")) {
+      // Individual annotation shapes only — never the per-layer container
+      // Group (named 'annotations'), whose bounding box covers everything.
+      if (object.name.includes("annotation")
+          && object.name !== 'annotations'
+          && (object.geometry || (object.userData && object.userData.points))) {
         intersectableObjects.push(object);
       }
     });
@@ -238,10 +320,7 @@ export function edit(scene, camera, renderer, controls, originalZ) {
         objectsToRemove.push(object);
       }
     });
-    objectsToRemove.forEach(object => removal(object));
-
-    // Clear the handles array
+    objectsToRemove.forEach(object => removeObject(object, scene));
     handles = [];
-    currentMesh = null;
   }
 }

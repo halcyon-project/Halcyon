@@ -8,6 +8,7 @@ import com.ebremer.halcyon.lib.ImageRegion;
 import com.ebremer.halcyon.lib.Rectangle;
 import com.ebremer.halcyon.lib.URITools;
 import com.ebremer.ns.EXIF;
+import com.ebremer.ns.GEO;
 import com.ebremer.ns.HAL;
 import java.awt.BasicStroke;
 import java.awt.Color;
@@ -28,8 +29,14 @@ import org.apache.jena.query.QueryExecution;
 import org.apache.jena.query.QueryExecutionFactory;
 import org.apache.jena.query.QuerySolution;
 import org.apache.jena.query.ResultSet;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
+import org.apache.jena.rdf.model.Property;
+import org.apache.jena.rdf.model.RDFNode;
+import org.apache.jena.rdf.model.Resource;
+import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.vocabulary.RDF;
@@ -124,8 +131,131 @@ public class BeakGraphImageReader extends AbstractImageReader {
     @Override
     public Model readTileMeta(ImageRegion region, Rectangle preferredsize) {
         ImageMeta.ImageScale scale = meta.getBestMatch(Math.max((double) region.getWidth()/(double) preferredsize.width(),(double) region.getHeight()/ (double) preferredsize.height()));
-        //Model m = readTileMeta(scale.Validate(region.scaleRegion(scale.scale())),scale.series());
-        return ModelFactory.createDefaultModel();
+        return readTileMeta(scale.Validate(region.scaleRegion(scale.scale())), scale.series(), scale.scale());
+    }
+
+    /**
+     * Region metadata (the `default.json` / `default.ttl` tile formats): the
+     * features whose geometry intersects the requested region. Mirrors
+     * readTile's grid walk, but instead of rasterizing each WKT it emits
+     *
+     *   ?feature ?p ?o ;  geo:hasGeometry ?geo .
+     *   ?geo  a geo:Geometry ;  geo:asWKT "<wkt>" .
+     *
+     * The stored WKT is in the queried series' pixel space; coordinates are
+     * rescaled so the returned WKT is always in FULL-RESOLUTION image pixels —
+     * the same space the client clicked in. The feature hop is OPTIONAL: a
+     * BeakGraph holding only geometries still answers with the outlines.
+     */
+    private Model readTileMeta(ImageRegion ir, int series, int scale) {
+        Model m = ModelFactory.createDefaultModel();
+        m.setNsPrefix("geo", GEO.NS);
+        m.setNsPrefix("hal", HAL.NS);
+        java.awt.Rectangle window = new java.awt.Rectangle(ir.getX(), ir.getY(), ir.getWidth(), ir.getHeight());
+        int a1 = ir.getX() / Params.GRIDTILESIZE;
+        int b1 = ir.getY() / Params.GRIDTILESIZE;
+        int a2 = (int) Math.ceil(((float) ( ir.getX() + ir.getWidth() )) / Params.GRIDTILESIZE );
+        int b2 = (int) Math.ceil(((float) ( ir.getY() + ir.getHeight() )) / Params.GRIDTILESIZE );
+        for (int i=a1; i<a2; i++) {
+            for (int j=b1; j<b2; j++) {
+                ParameterizedSparqlString pss = new ParameterizedSparqlString(
+                    """
+                    select distinct ?geo ?wkt ?feature ?p ?o ?p2 ?o2
+                    where {
+                        graph <urn:x-beakgraph:grid:?series:?x:?y> {
+                            ?geo hal:asWKT?series ?wkt
+                        }
+                        optional {
+                            ?feature geo:hasGeometry ?geo .
+                            ?feature ?p ?o
+                            optional { ?o ?p2 ?o2 filter(isBlank(?o)) }
+                        }
+                    }
+                    """
+                );
+                pss.setLiteral("series", series);
+                pss.setLiteral("x", i);
+                pss.setLiteral("y", j);
+                pss.setNsPrefix("hal", HAL.NS);
+                pss.setNsPrefix("geo", GEO.NS);
+                BeakGraph bg = null;
+                try {
+                    bg = BeakGraphPool.getPool().borrowObject(uri);
+                    try (QueryExecution qexec = QueryExecutionFactory.create(pss.toString(), bg.getDataset())) {
+                        ResultSet rs = qexec.execSelect();
+                        // One geometry appears in many rows (one per feature
+                        // property) and possibly in several grid cells; the
+                        // intersection verdict and the WKT emission happen once.
+                        Map<String,Boolean> hit = new HashMap<>();
+                        while (rs.hasNext()) {
+                            QuerySolution qs = rs.next();
+                            Resource geo = qs.getResource("geo");
+                            String wkt = qs.getLiteral("wkt").getString();
+                            String key = geo.toString();
+                            Boolean in = hit.get(key);
+                            if (in == null) {
+                                in = parseWktToPolygon(wkt, 0, 0).getBounds().intersects(window);
+                                hit.put(key, in);
+                                if (in) {
+                                    m.add(geo, RDF.type, GEO.Geometry);
+                                    m.add(geo, GEO.asWKT, rescaleWKT(wkt, scale));
+                                }
+                            }
+                            if (!in || !qs.contains("feature")) continue;
+                            Resource feature = qs.getResource("feature");
+                            m.add(feature, GEO.hasGeometry, geo);
+                            if (qs.contains("p") && qs.contains("o")) {
+                                Property p = ResourceFactory.createProperty(qs.getResource("p").getURI());
+                                RDFNode o = qs.get("o");
+                                // hasGeometry is re-linked above (a feature may
+                                // point at other series' geometries too), and
+                                // per-series WKT blobs stay out of the payload.
+                                if (!GEO.hasGeometry.equals(p) && !p.getURI().startsWith(HAL.NS + "asWKT")) {
+                                    m.add(feature, p, o);
+                                    // Second hop: blank-node objects (e.g.
+                                    // hal:measurement [ ... ]) carry their
+                                    // values one level deeper — inline them so
+                                    // the client sees numbers, not bnode stubs.
+                                    if (qs.contains("p2") && qs.contains("o2")) {
+                                        m.add(o.asResource(),
+                                              ResourceFactory.createProperty(qs.getResource("p2").getURI()),
+                                              qs.get("o2"));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } catch (Exception ex) {
+                    logger.error("readTileMeta {} {}", uri, ex.getMessage());
+                } finally {
+                    if (bg != null) {
+                        try {
+                            BeakGraphPool.getPool().returnObject(uri, bg);
+                        } catch (Exception e) {
+                            logger.error("Pool Return Error : {}", e.getMessage());
+                        }
+                    }
+                }
+            }
+        }
+        return m;
+    }
+
+    /**
+     * Rescale integer WKT coordinates from a pyramid series' pixel space back
+     * to full resolution. Identity at scale 1 (the common case: a click
+     * inspection requests the region 1:1, which best-matches series 0).
+     */
+    private static String rescaleWKT(String wkt, int scale) {
+        if (scale <= 1) return wkt;
+        Matcher matcher = pattern.matcher(wkt);
+        StringBuilder sb = new StringBuilder();
+        while (matcher.find()) {
+            matcher.appendReplacement(sb,
+                (Long.parseLong(matcher.group(1)) * scale) + " " + (Long.parseLong(matcher.group(2)) * scale));
+        }
+        matcher.appendTail(sb);
+        return sb.toString();
     }
 
     /**

@@ -13,6 +13,16 @@ import { makeImageViewer, Square, showViewerError } from './scene/imageLayer.js'
 import { buildStack } from './scene/StackBuilder.js';
 import { LayerRegistry, LayerEntry } from './scene/LayerRegistry.js';
 import { initLayerPanel } from './scene/LayerPanel.js';
+import { initStackNavigator } from './scene/StackNavigator.js';
+import { installViewPrefs } from './helpers/viewPrefs.js';
+import { getContext } from './context.js';
+import { invalidate } from './renderLoop.js';
+
+// Render-on-demand API for pages (see renderLoop.js).
+export { invalidate, startRenderLoop } from './renderLoop.js';
+// 2D slide navigation (zoom-to-cursor); TrackballControls remains the choice
+// for free 3D rotation.
+export { SlideControls } from './SlideControls.js';
 
 /**
  * zephyr.js — public entry points for the WebGL viewer.
@@ -20,14 +30,19 @@ import { initLayerPanel } from './scene/LayerPanel.js';
  * The tiled level-of-detail engine now lives in scene/imageLayer.js and the
  * recursive RDF stack builder in scene/StackBuilder.js; this module keeps the
  * stable exports (CreateImageViewer, DrawAxis, Square, Stack) and owns the
- * shared LayerRegistry that annotation tools read via window.__zephyr.registry.
+ * shared LayerRegistry that annotation tools resolve via context.js.
  */
 
-/** The single registry for the current page (single image or stack). */
+/**
+ * The page's registry. A constructed ZephyrViewer (viewer.js) owns it;
+ * legacy pages without one get a lazily-created singleton on the active
+ * context, as before.
+ */
 export function getRegistry() {
-    if (!window.__zephyr) window.__zephyr = {};
-    if (!window.__zephyr.registry) window.__zephyr.registry = new LayerRegistry();
-    return window.__zephyr.registry;
+    const ctx = getContext() || {};
+    if (ctx.viewer) return ctx.viewer.registry;
+    if (!ctx.registry) ctx.registry = new LayerRegistry();
+    return ctx.registry;
 }
 
 function baseName(url) {
@@ -58,14 +73,15 @@ export function CreateImageViewer(renderer, scene, url, offset = 0) {
             document.dispatchEvent(new CustomEvent('zephyr:stackready', {
                 detail: { registry, object: lod }
             }));
+            invalidate();
         })
         .catch((error) => showViewerError(`Error loading image ${url}: ${error.message}`));
 }
 
 /**
  * StackViewer: builds a nested zeph:Stack into a placed scene-graph plus a
- * LayerRegistry, exposes both on window.__zephyr, and announces readiness (with
- * world bounds) so the page can frame the camera.
+ * LayerRegistry, exposes both on the active context, and announces readiness
+ * (with world bounds) so the page can frame the camera.
  *
  * Constructed by zephyrRDF.WE.add for the root Stack subject. Extends Group so
  * it drops straight into the scene.
@@ -93,39 +109,31 @@ class Stack extends Group {
         this.add(addZAxis());
         this.createUX();
 
-        window.__zephyr.stack = this;
+        getContext().stack = this;
         initLayerPanel(this.registry, this);
+        // Restore remembered brightness/contrast, z-spread, active layer and
+        // visibilities for this stack (deep links applied later still win).
+        installViewPrefs(this.registry, this);
 
+        invalidate();
         ready.then(() => {
             this.registry._emit('change');
             document.dispatchEvent(new CustomEvent('zephyr:stackready', {
                 detail: { registry: this.registry, stack: this, bounds: this.getBounds() }
             }));
+            invalidate();
         });
     }
 
     getRegistry() { return this.registry; }
 
-    /** Z-spread slider: scales the layer group's z so sections separate/merge. */
+    /**
+     * Stack navigator (scene/StackNavigator.js): section stepping with
+     * solo/dim view modes plus the z-spread slider. One per page — a second
+     * root stack replaces the previous navigator.
+     */
     createUX() {
-        const myDiv = document.createElement('div');
-        myDiv.style.width = '100%';
-        myDiv.style.color = 'lightblue';
-        myDiv.style.margin = '0';
-        const canvas = document.querySelector('canvas');
-        document.body.insertBefore(myDiv, canvas);
-        const slider = document.createElement('input');
-        slider.id = 'zSpread';
-        slider.title = 'Z spread';
-        slider.type = 'range';
-        slider.min = '1';
-        slider.max = '40';
-        slider.value = '1';
-        slider.classList.add('annotationBtn');
-        slider.addEventListener('input', (event) => {
-            this.stackGroup.scale.z = Number(event.target.value);
-        });
-        myDiv.appendChild(slider);
+        initStackNavigator(this.registry, this);
     }
 }
 

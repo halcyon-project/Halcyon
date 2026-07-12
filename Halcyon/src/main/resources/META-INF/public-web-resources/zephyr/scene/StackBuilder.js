@@ -1,6 +1,6 @@
 import { Group, Box3, Vector3 } from 'three';
 import { makeImageViewer } from './imageLayer.js';
-import { LayerEntry } from './LayerRegistry.js';
+import { LayerEntry, applyBlendMode } from './LayerRegistry.js';
 
 /**
  * Recursively turn a zeph:Stack RDF graph into a THREE scene-graph of placed
@@ -41,22 +41,58 @@ export function buildStack(store, rootSubject, renderer, registry, options = {})
 
     const opts = Object.assign({ sectionGap: 2500, overlayGap: 2 }, options);
     const promises = [];
-    const ctx = { store, renderer, registry, zeph, geo, so, rdf, opts, promises, sectionCount: 0 };
+    const ctx = { store, renderer, registry, zeph, geo, so, rdf, opts, promises, sectionCount: 0, path: new Set() };
 
     const group = buildGroup(ctx, rootSubject, null, 0);
+    registry.views = readViews(store, rootSubject, zeph, so);
 
     const ready = Promise.all(promises).then(() => {});
     const bounds = () => new Box3().setFromObject(group);
     return { group, ready, bounds };
 }
 
-function buildGroup(ctx, subject, parentEntry, depth) {
+/**
+ * Named views (#22): zeph:view nodes on the root stack, each carrying a
+ * schema:name label, a zeph:state deep-link string, and a zeph:order.
+ */
+function readViews(store, rootSubject, zeph, so) {
+    const views = [];
+    store.match(rootSubject, zeph('view'), null).forEach((statement) => {
+        const node = statement.object;
+        const name = store.any(node, so('name'));
+        const state = store.any(node, zeph('state'));
+        const order = store.any(node, zeph('order'));
+        if (!state) return;
+        const o = order ? parseFloat(order.value) : views.length;
+        views.push({
+            name: name ? name.value : 'View',
+            state: state.value,
+            order: Number.isFinite(o) ? o : views.length
+        });
+    });
+    views.sort((a, b) => a.order - b.order);
+    return views.map(({ name, state }) => ({ name, state }));
+}
+
+function buildGroup(ctx, subject, parentEntry, depth, labelOverride = null) {
     const { store, registry, zeph } = ctx;
+
+    // Guard against cyclic zeph:src nesting (one malformed graph away), which
+    // would otherwise recurse forever. Only the CURRENT recursion path counts:
+    // re-use of the same named stack in sibling branches (a DAG) stays legal.
+    const pathKey = termValue(subject);
+    if (ctx.path.has(pathKey)) {
+        console.error('Zephyr: cyclic stack nesting at ' + pathKey + ' — skipping repeat.');
+        return new Group();
+    }
+    ctx.path.add(pathKey);
+
     const group = new Group();
     group.name = 'Stack';
     group.type = 'Stack';
 
-    const label = depth === 0 ? nameFor(subject, 'Stack') : `Section ${++ctx.sectionCount}`;
+    const label = labelOverride
+        || (depth === 0 ? nameFor(subject, 'Stack') : `Section ${++ctx.sectionCount}`);
     const stackEntry = registry.add(new LayerEntry({
         type: 'stack',
         role: depth === 0 ? 'base' : 'overlay',
@@ -84,35 +120,68 @@ function buildGroup(ctx, subject, parentEntry, depth) {
 
     let z = 0;
     let leafIndex = 0;
+    let groupPx = null; // reference physical pixel size for this group's frame
     members.forEach(({ member, srcNode, nested }) => {
         const meta = readMeta(ctx, member, srcNode);
         const asSection = nested || leavesAreSections;
         const zpos = (meta.zorder != null) ? meta.zorder : z;
 
+        // Persisted presentation state (#19): display name, opacity,
+        // visibility and blend mode, written back by Save.
+        const declaredName = store.any(member, ctx.so('name'));
+
         if (nested) {
-            const child = buildGroup(ctx, srcNode, stackEntry, depth + 1);
+            const child = buildGroup(ctx, srcNode, stackEntry, depth + 1,
+                declaredName ? declaredName.value : null);
             child.position.set(meta.offx, meta.offy, zpos);
             group.add(child);
         } else {
             const role = asSection ? 'base' : (leafIndex === 0 ? 'base' : 'overlay');
             const type = leafType(ctx, srcNode);
-            const opacity = (role === 'base') ? 1 : 0.5;
+            let opacity = (role === 'base') ? 1 : 0.5;
+            const declaredOpacity = store.any(member, zeph('opacity'));
+            if (declaredOpacity) {
+                const f = parseFloat(declaredOpacity.value);
+                if (Number.isFinite(f)) opacity = f;
+            }
+            const declaredVisible = store.any(member, zeph('visible'));
+            const declaredBlend = store.any(member, zeph('blend'));
             const entry = registry.add(new LayerEntry({
                 type,
                 role,
-                name: nameFor(srcNode, termValue(srcNode)),
+                name: declaredName ? declaredName.value : nameFor(srcNode, termValue(srcNode)),
                 node: termValue(member),
                 src: termValue(srcNode),
                 parent: stackEntry,
                 depth: depth + 1
             }));
             entry.opacity = opacity;
+            if (declaredVisible && declaredVisible.value === 'false') entry.visible = false;
+            if (declaredBlend && declaredBlend.value) entry.blendMode = declaredBlend.value;
+            // Physical pixel size (zeph:pixelsizeX, um/px) feeds the scale
+            // bar and micron measurements for whichever layer is active.
+            if (meta.pxX > 0) entry.micronsPerPixel = meta.pxX;
+            // Pixel-size registration: layers scanned at different physical
+            // resolutions align by scaling each by the ratio of its pixel
+            // size to the group's reference — the first leaf that declares
+            // one, whose pixel grid defines the group's world units. On save
+            // the ratio is baked into zeph:scalex/scaley (pixel sizes aren't
+            // re-serialised), which still round-trips the placement.
+            if (meta.pxX > 0 && meta.pxY > 0) {
+                if (!groupPx) {
+                    groupPx = { x: meta.pxX, y: meta.pxY };
+                } else {
+                    meta.sx *= meta.pxX / groupPx.x;
+                    meta.sy *= meta.pxY / groupPx.y;
+                }
+            }
             placeLeaf(ctx, entry, srcNode, meta, zpos, opacity, group);
             leafIndex++;
         }
         z += asSection ? ctx.opts.sectionGap : ctx.opts.overlayGap;
     });
 
+    ctx.path.delete(pathKey);
     return group;
 }
 
@@ -126,10 +195,12 @@ function placeLeaf(ctx, entry, srcNode, meta, zpos, opacity, group) {
             lod.position.set(meta.offx, meta.offy, zpos);
             lod.visible = entry.visible;
             lod.userData.layerId = entry.id;
-            lod.renderOrder = (entry.role === 'overlay') ? 10 : 0;
             entry.object3d = lod;
             entry.imageWidth = lod.imageWidth;
             entry.imageHeight = lod.imageHeight;
+            if (entry.blendMode && entry.blendMode !== 'normal') {
+                applyBlendMode(lod, entry.blendMode);
+            }
             group.add(lod);
             ctx.registry._emit('change');
         })

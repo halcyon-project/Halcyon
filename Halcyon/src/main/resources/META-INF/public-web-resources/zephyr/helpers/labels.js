@@ -1,43 +1,29 @@
 import * as THREE from "three";
-import { createButton, textInputPopup, turnOtherButtonsOff, displayAreaAndPerimeter } from "./elements.js";
+import { textInputPopup, displayAreaAndPerimeter } from "./elements.js";
 import { calculatePolygonArea, calculatePolygonPerimeter } from "./conversions.js"
+import { activeMicronsPerPixel } from "./annotationTarget.js";
+import { annotationPoints } from "./annotationShapes.js";
 
 // Label or area and perimeter
-export function label(scene, camera, renderer, controls, originalZ, type) {
-  let button;
+export function label(manager, type) {
+  const { scene, camera, renderer } = manager.ctx;
 
-  if (type === "label") {
-    button = createButton({
-      id: "label",
-      innerHtml: "<i class=\"fas fa-tag\"></i>",
-      title: "Label"
-    });
-  } else {
-    button = createButton({
-      id: "area",
-      // innerHtml: "<i class=\"fa fa-area-chart\"></i>",
-      // innerHtml: "<i class=\"fa fa-square\"></i>",
-      innerHtml: "<i class=\"fa fa-ruler-combined\"></i>",
-      title: "Area and Perimeter"
-    });
-  }
-
-  let clicked = false;
   let mouse = new THREE.Vector2();
   let raycaster = new THREE.Raycaster();
   let objects = [];
 
-  button.addEventListener("click", function () {
-    clicked = !clicked;
-    if (clicked) {
-      turnOtherButtonsOff(button);
-      controls.enabled = false;
-      this.classList.replace('annotationBtn', 'btnOn');
+  manager.register({
+    id: type === "label" ? "label" : "area",
+    icon: type === "label"
+      ? "<i class=\"fas fa-tag\"></i>"
+      : "<i class=\"fa fa-ruler-combined\"></i>",
+    title: type === "label" ? "Label" : "Area and Perimeter",
+    cursor: "pointer",
+    onActivate() {
       getAnnotationObjects();
       renderer.domElement.addEventListener('click', onMouseClick, false);
-    } else {
-      controls.enabled = true;
-      this.classList.replace('btnOn', 'annotationBtn');
+    },
+    onDeactivate() {
       objects = [];
       renderer.domElement.removeEventListener('click', onMouseClick, false);
     }
@@ -46,7 +32,11 @@ export function label(scene, camera, renderer, controls, originalZ, type) {
   function getAnnotationObjects() {
     objects = []; // Clear objects array to avoid duplicates
     scene.traverse((object) => {
-      if (object.name.includes("annotation")) {
+      // Individual annotation shapes only — never the per-layer container
+      // Group (named 'annotations'), whose bounding box covers everything.
+      if (object.name.includes("annotation")
+          && object.name !== 'annotations'
+          && (object.geometry || (object.userData && object.userData.points))) {
         objects.push(object);
       }
     });
@@ -81,13 +71,14 @@ export function label(scene, camera, renderer, controls, originalZ, type) {
         if (type === "label") {
           textInputPopup(event, selectedMesh);
         } else {
-          // Calculate area and perimeter
-          let currentPolygonPositions = selectedMesh.geometry.attributes.position.array;
+          // Calculate area and perimeter (works for fat lines and legacy)
+          let currentPolygonPositions = annotationPoints(selectedMesh);
+          if (!currentPolygonPositions.length) return;
           const area = calculatePolygonArea(currentPolygonPositions);
           const perimeter = calculatePolygonPerimeter(currentPolygonPositions);
 
           // Display the area and perimeter
-          displayAreaAndPerimeter(area, perimeter);
+          displayAreaAndPerimeter(area, perimeter, activeMicronsPerPixel());
         }
         return;
       }

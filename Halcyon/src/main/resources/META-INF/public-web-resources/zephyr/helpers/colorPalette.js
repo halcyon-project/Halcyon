@@ -1,3 +1,5 @@
+import { getContext, cfg } from '../context.js';
+
 export function colorPalette() {
   // Create the container for the custom dropdown
   let paletteContainer = document.createElement('div');
@@ -7,10 +9,10 @@ export function colorPalette() {
   // Insert the container before the canvas element
   document.body.insertBefore(paletteContainer, document.querySelector('canvas'));
 
-  if (!window.useriri) {
+  const url = colorClassesUrl(cfg('useriri'));
+  if (!url) {
     buildColorPalette(paletteContainer);
   } else {
-    const url = `${window.useriri.replace("user", "users")}/colorclasses`;
     fetch(url, {
       method: 'GET',
       headers: {
@@ -32,6 +34,26 @@ export function colorPalette() {
         console.error(url);
         buildColorPalette(paletteContainer);
       });
+  }
+}
+
+/**
+ * Derive the user's colorclasses resource from their IRI, swapping only the
+ * path segment "user" for "users" — a plain string replace could hit the
+ * host name or an unrelated segment.
+ */
+function colorClassesUrl(useriri) {
+  if (!useriri) return null;
+  try {
+    const u = new URL(useriri);
+    u.pathname = u.pathname
+      .split('/')
+      .map(segment => (segment === 'user' ? 'users' : segment))
+      .join('/');
+    return `${u.href.replace(/\/+$/, '')}/colorclasses`;
+  } catch (err) {
+    console.error('Cannot derive colorclasses URL from useriri:', useriri, err);
+    return null;
   }
 }
 
@@ -100,9 +122,10 @@ function buildColorPalette(paletteContainer, data) {
       dropdownButton.textContent = text;
       dropdownContent.style.display = 'none';
 
-      // Update global variables
-      window.cancerColor = color;
-      window.cancerType = text;
+      // Palette selection is per-viewer state on the active context (#32).
+      const ctx = getContext();
+      ctx.cancerColor = color;
+      ctx.cancerType = text;
     }
   });
 
@@ -118,10 +141,13 @@ function buildColorPalette(paletteContainer, data) {
 
 export function getColorAndType() {
   let color, type;
-  // Set the color and type before starting to draw
-  if (window.cancerColor && window.cancerColor.length > 0) {
-    color = window.cancerColor;
-    type = window.cancerType;
+  // Set the color and type before starting to draw. The context carries the
+  // palette selection; the flat globals remain as a legacy-page fallback.
+  const ctx = getContext();
+  const selected = (ctx && ctx.cancerColor) || window.cancerColor;
+  if (selected && selected.length > 0) {
+    color = selected;
+    type = (ctx && ctx.cancerColor) ? ctx.cancerType : window.cancerType;
   } else {
     color = "#0000ff";
     type = "";

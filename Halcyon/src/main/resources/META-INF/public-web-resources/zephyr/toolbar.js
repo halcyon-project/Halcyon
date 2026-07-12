@@ -1,6 +1,9 @@
-window.cancerColor = '';
-window.cancerType = '';
-
+// toolbar.js
+// Initializes the annotation/utility toolbar for a viewer page.
+// Modal tools (drawing, edit, label, inspect) register with the ToolManager
+// (#30), which owns activation state, mutual exclusion, camera-controls
+// gating, cursor and button styling; the remaining entries are panels and
+// one-shot actions that manage their own DOM.
 import { enableDrawing } from './annotations/free-drawing.js';
 import { rectangle } from './annotations/rectangle.js';
 import { ellipse } from './annotations/ellipse.js';
@@ -18,8 +21,20 @@ import { screenCapture } from "./helpers/elements.js";
 import { colorPalette } from "./helpers/colorPalette.js";
 import { brightContrast } from "./helpers/brightContrast.js";
 import { getImageName } from "./helpers/getImageName.js";
+import { scaleBar } from "./helpers/scaleBar.js";
+import { minimap } from "./helpers/minimap.js";
+import { compare } from "./helpers/compare.js";
+import { featureInfo } from "./helpers/featureInfo.js";
+import { installAnnotationKeys } from "./helpers/history.js";
+import { ToolManager } from "./toolManager.js";
 
 export function toolbar(scene, camera, renderer, controls, originalZ, config) {
+  // Undo/redo + Escape/Delete/PageUp/PageDown bindings (idempotent).
+  installAnnotationKeys();
+
+  // One state machine for the mutually-exclusive tools (#30).
+  const manager = new ToolManager({ scene, camera, renderer, controls, originalZ });
+
   const tools = {
     colorPalette: {
       initialize: () => colorPalette(),
@@ -28,67 +43,46 @@ export function toolbar(scene, camera, renderer, controls, originalZ, config) {
       }
     },
     freeDrawing: {
-      initialize: () => enableDrawing(scene, camera, renderer, controls),
-      destroy: () => {
-        removeElement("freeDrawing");
-      }
+      initialize: () => enableDrawing(manager)
     },
     rectangle: {
-      initialize: () => rectangle(scene, camera, renderer, controls, { button: "<i class=\"fa-regular fa-square\"></i>", color: 0x0000ff, select: false }),
-      destroy: () => {
-        removeElement("rectangle");
-      }
+      initialize: () => rectangle(manager, { button: "<i class=\"fa-regular fa-square\"></i>", color: 0x0000ff, select: false })
     },
     rectangleAlt: {
-      initialize: () => rectangle(scene, camera, renderer, controls, { button: "<i class=\"fas fa-crop-alt\"></i>", color: "#ff7900", select: true }),
-      destroy: () => {
-        removeElement("selection");
-      }
+      initialize: () => rectangle(manager, { button: "<i class=\"fas fa-crop-alt\"></i>", color: "#ff7900", select: true })
     },
     ellipse: {
-      initialize: () => ellipse(scene, camera, renderer, controls),
-      destroy: () => {
-        removeElement("ellipse");
-      }
+      initialize: () => ellipse(manager)
     },
     polygon: {
-      initialize: () => polygon(scene, camera, renderer, controls),
-      destroy: () => {
-        removeElement("polygon");
-      }
+      initialize: () => polygon(manager)
     },
     hollowBrush: {
-      initialize: () => hollowBrush(scene, camera, renderer, controls),
+      initialize: () => hollowBrush(manager),
       destroy: () => {
-        removeElement("hollowBrush");
+        removeElement("brushSizeSlider");
+        removeElement("sliderValueDisplay");
       }
     },
     grid: {
-      initialize: () => grid(scene, camera, renderer, controls),
-      destroy: () => {
-        removeElement("grid");
-      }
+      initialize: () => grid(manager)
     },
     edit: {
-      initialize: () => edit(scene, camera, renderer, controls, originalZ),
-      destroy: () => {
-        removeElement("edit");
-      }
+      initialize: () => edit(manager)
     },
     label: {
       initialize: () => {
-        label(scene, camera, renderer, controls, originalZ, "label");
-        label(scene, camera, renderer, controls, originalZ, "area");
-      },
-      destroy: () => {
-        removeElement("label");
-        removeElement("area");
+        label(manager, "label");
+        label(manager, "area");
       }
     },
     ruler: {
-      initialize: () => ruler(scene, camera, renderer, controls),
+      initialize: () => ruler(manager)
+    },
+    featureInfo: {
+      initialize: () => featureInfo(manager),
       destroy: () => {
-        removeElement("ruler");
+        removeElement("featureInfoPopup");
       }
     },
     screenCapture: {
@@ -130,9 +124,9 @@ export function toolbar(scene, camera, renderer, controls, originalZ, config) {
     brightContrast: {
       initialize: () => brightContrast(scene),
       destroy: () => {
-        removeElement("brightnessSlider");
-        removeElement("contrastSlider");
-        removeElement("resetButton");
+        removeElement("brightnessContainer");
+        removeElement("contrastContainer");
+        removeElement("brightContrastReset");
       }
     },
     getImageName: {
@@ -140,12 +134,34 @@ export function toolbar(scene, camera, renderer, controls, originalZ, config) {
       destroy: () => {
         removeElement("imageNameDiv");
       }
+    },
+    scaleBar: {
+      initialize: () => scaleBar(camera, renderer, controls),
+      destroy: () => {
+        removeElement("scaleBar");
+      }
+    },
+    minimap: {
+      initialize: () => minimap(camera, renderer, controls),
+      destroy: () => {
+        removeElement("minimap");
+      }
+    },
+    compare: {
+      initialize: () => compare(camera, renderer, controls),
+      destroy: () => {
+        cleanupButton("compare"); // stop clipping tiles before the UI goes
+        removeElement("compare");
+        removeElement("comparePanel");
+        removeElement("compareDivider");
+      }
     }
   };
 
   const toolbarManager = {
     enabled: config.toolbarEnabled,
     tools: tools,
+    manager: manager,
     initialize() {
       if (this.enabled) {
         for (let tool in this.tools) {
@@ -164,6 +180,11 @@ export function toolbar(scene, camera, renderer, controls, originalZ, config) {
       }
     },
     clearTools() {
+      // The manager deactivates the live tool (removing its canvas listeners
+      // and re-enabling the camera controls), runs every tool's onDestroy
+      // and removes their buttons; the per-tool destroy entries below cover
+      // the panels/actions that own their own DOM.
+      manager.destroy();
       for (let tool in this.tools) {
         if (typeof this.tools[tool].destroy === "function") {
           this.tools[tool].destroy();
@@ -181,5 +202,14 @@ function removeElement(name) {
   const element = document.getElementById(name);
   if (element) {
     element.remove();
+  }
+}
+
+// Tools with live scene/listener state hang a teardown on their button
+// (button.__cleanup); run it before the DOM node disappears.
+function cleanupButton(name) {
+  const element = document.getElementById(name);
+  if (element && typeof element.__cleanup === 'function') {
+    element.__cleanup();
   }
 }

@@ -1,23 +1,24 @@
 import * as THREE from 'three';
-import { createButton, turnOtherButtonsOff } from "../helpers/elements.js";
 import { pickActiveLayer as getMousePosition, addAnnotation, removeAnnotation } from "../helpers/annotationTarget.js";
 import { getColorAndType } from "../helpers/colorPalette.js";
+import { createAnnotationLine } from "../helpers/annotationShapes.js";
+import { pushCommand, commandCreate } from "../helpers/history.js";
 
-export function hollowBrush(scene, camera, renderer, controls) {
+/**
+ * Brush-outline tool: stamps circles along the stroke, unions them with JSTS
+ * on release, and keeps only the outline as a fat (Line2) annotation.
+ * Pointer events only, with capture; Escape aborts the stroke; undoable.
+ */
+export function hollowBrush(manager) {
+  const { scene, camera, renderer } = manager.ctx;
   let brushSize = 100; // Size of the brush
   let brushShapeGroup = new THREE.Group(); // Group to hold brush shapes
-  let isDrawing = false; // Flag to check if drawing is active
-  let mouseIsPressed = false;
+  let pointerActive = false;
   let circles = []; // Array to store circle data for JSTS union
+  let lastBrushPoint = null; // last stamped circle centre (for decimation)
   const canvas = renderer.domElement;
   let color = "#0000ff"; // Default color
   let type = "";
-
-  let brushButton = createButton({
-    id: "hollowBrush",
-    innerHtml: "<i class=\"fa-solid fa-broom\"></i>",
-    title: "Brush Outline"
-  });
 
   // Create the brush size slider
   const slider = document.createElement('input');
@@ -25,7 +26,7 @@ export function hollowBrush(scene, camera, renderer, controls) {
   slider.id = 'brushSizeSlider';
   slider.min = '10';
   slider.max = '1000';
-  slider.value = '10';
+  slider.value = String(brushSize); // keep the display honest about the default
   slider.title = "Brush Size";
 
   // Create a span to display the slider value
@@ -43,22 +44,20 @@ export function hollowBrush(scene, camera, renderer, controls) {
   slider.addEventListener('change', onSliderChange);
 
   function onSliderInput(event) {
-    brushSize = event.target.value;
+    brushSize = Number(event.target.value);
     updateTempCircle();
     sliderValueDisplay.textContent = brushSize;
   }
 
   function onSliderChange(event) {
-    brushSize = event.target.value;
+    brushSize = Number(event.target.value);
     removeTempCircle();
     sliderValueDisplay.textContent = brushSize;
   }
 
   let tempCircle = null;
   function updateTempCircle() {
-    if (tempCircle) {
-      removeAnnotation(scene, tempCircle);
-    }
+    removeTempCircle(); // dispose the previous preview — input fires per tick of the drag
     let geometry = new THREE.CircleGeometry(brushSize, 32);
     let material = new THREE.MeshBasicMaterial({ color: 0x00ff00, opacity: 0.5, transparent: true });
     tempCircle = new THREE.Mesh(geometry, material);
@@ -74,135 +73,91 @@ export function hollowBrush(scene, camera, renderer, controls) {
     }
   }
 
-  // Add event listener to the brush button
-  brushButton.addEventListener("click", function () {
-    if (isDrawing) {
-      isDrawing = false;
-      controls.enabled = true;
-      this.classList.replace('btnOn', 'annotationBtn');
-      canvas.removeEventListener('mousedown', onMouseDown);
-      canvas.removeEventListener('mousemove', onMouseMove);
-      canvas.removeEventListener('mouseup', onMouseUp);
-
-      canvas.removeEventListener('touchstart', onTouchStart);
-      canvas.removeEventListener('touchmove', onTouchMove);
-      canvas.removeEventListener('touchend', onTouchEnd);
-    } else {
-      isDrawing = true;
-      turnOtherButtonsOff(brushButton);
-      controls.enabled = false;
-      this.classList.replace('annotationBtn', 'btnOn');
-
-      canvas.addEventListener('mousedown', onMouseDown);
-      canvas.addEventListener('mousemove', onMouseMove);
-      canvas.addEventListener('mouseup', onMouseUp);
-
-      canvas.addEventListener('touchstart', onTouchStart);
-      canvas.addEventListener('touchmove', onTouchMove);
-      canvas.addEventListener('touchend', onTouchEnd);
+  manager.register({
+    id: "hollowBrush",
+    icon: "<i class=\"fa-solid fa-broom\"></i>",
+    title: "Brush Outline",
+    onActivate() {
+      canvas.addEventListener('pointerdown', onPointerDown);
+      canvas.addEventListener('pointermove', onPointerMove);
+      canvas.addEventListener('pointerup', onPointerUp);
+      canvas.addEventListener('pointercancel', onPointerUp);
+      document.addEventListener('zephyr:escape', onEscape);
+    },
+    onDeactivate() {
+      canvas.removeEventListener('pointerdown', onPointerDown);
+      canvas.removeEventListener('pointermove', onPointerMove);
+      canvas.removeEventListener('pointerup', onPointerUp);
+      canvas.removeEventListener('pointercancel', onPointerUp);
+      document.removeEventListener('zephyr:escape', onEscape);
+      onEscape(); // drop any stroke in progress
     }
   });
 
-  // Function to start drawing
-  function onMouseDown() {
-    if (isDrawing) {
-      ({ color, type } = getColorAndType());
-      mouseIsPressed = true;
-      brushShapeGroup = new THREE.Group();
-      addAnnotation(scene, brushShapeGroup);
+  function onPointerDown(event) {
+    if (!event.isPrimary) return;
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    canvas.setPointerCapture(event.pointerId);
+    ({ color, type } = getColorAndType());
+    pointerActive = true;
+    lastBrushPoint = null;
+    brushShapeGroup = new THREE.Group();
+    addAnnotation(scene, brushShapeGroup);
+    stamp(event.clientX, event.clientY);
+  }
+
+  function onPointerMove(event) {
+    if (pointerActive && event.isPrimary) {
+      stamp(event.clientX, event.clientY);
     }
   }
 
-  // Function to draw the brush shape
-  function onMouseMove(event) {
-    if (isDrawing && mouseIsPressed) {
-      const point = getMousePosition(event.clientX, event.clientY, canvas, camera);
-      if (point === null) return;
+  /** Stamp a brush circle at the pointer (decimated to quarter-radius steps). */
+  function stamp(clientX, clientY) {
+    const point = getMousePosition(clientX, clientY, canvas, camera);
+    if (point === null) return;
 
-      // Create a Three.js circle at the intersection point
-      const brushGeometry = new THREE.CircleGeometry(brushSize, 32);
-      const brushMaterial = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.1 });
-      const brushCircle = new THREE.Mesh(brushGeometry, brushMaterial);
+    // Decimate: one circle per quarter-radius of travel keeps the union's
+    // outline while capping how many buffers JSTS merges on release.
+    if (lastBrushPoint && lastBrushPoint.distanceTo(point) < brushSize * 0.25) return;
+    lastBrushPoint = point.clone();
 
-      brushCircle.position.set(point.x, point.y, 0);
+    const brushGeometry = new THREE.CircleGeometry(brushSize, 32);
+    const brushMaterial = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.1 });
+    const brushCircle = new THREE.Mesh(brushGeometry, brushMaterial);
+    brushCircle.position.set(point.x, point.y, 0);
+    brushShapeGroup.add(brushCircle);
 
-      brushShapeGroup.add(brushCircle); // Add the circle to the group
-
-      // Store the center point and radius of each drawn circle in a way that JSTS can use to calculate unions
-      circles.push({center: {x: point.x, y: point.y}, radius: brushSize});
-    }
+    // Store the center point and radius of each drawn circle in a way that JSTS can use to calculate unions
+    circles.push({ center: { x: point.x, y: point.y }, radius: brushSize });
   }
 
-  // Function to stop drawing
-  function onMouseUp(event) {
-    if (isDrawing) {
-      mouseIsPressed = false;
-      // Union Calculation
-      const unionGeometry = calculateUnion(); // Calculate the union of all drawn circles
-      if (unionGeometry) {
-        drawUnion(unionGeometry, event); // Visualize the union
-      }
-      circles = []; // Reset for the next drawing session
-
-      // Remove all circles from the scene
-      while (brushShapeGroup.children.length > 0) {
-        let child = brushShapeGroup.children[0];
-        // Scene Management: dispose of those resources to avoid memory leaks
-        if (child.geometry) child.geometry.dispose();
-        if (child.material) child.material.dispose();
-        brushShapeGroup.remove(child);
-      }
+  function onPointerUp(event) {
+    if (!pointerActive || !event.isPrimary) return;
+    pointerActive = false;
+    // Union Calculation
+    const unionGeometry = calculateUnion(); // Calculate the union of all drawn circles
+    if (unionGeometry) {
+      drawUnion(unionGeometry); // Visualize the union
     }
+    clearStroke();
   }
 
-  function onTouchStart(event) {
-    if (isDrawing) {
-      ({ color, type } = getColorAndType());
-      mouseIsPressed = true;
-      brushShapeGroup = new THREE.Group();
-      addAnnotation(scene, brushShapeGroup);
-    }
+  function onEscape() {
+    pointerActive = false;
+    clearStroke();
   }
 
-  function onTouchMove(event) {
-    if (isDrawing && mouseIsPressed) {
-      const touch = event.touches[0];
-      const point = getMousePosition(touch.clientX, touch.clientY, canvas, camera);
-      if (point === null) return;
-
-      // Create a Three.js circle at the intersection point
-      const brushGeometry = new THREE.CircleGeometry(brushSize, 32);
-      const brushMaterial = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.1 });
-      const brushCircle = new THREE.Mesh(brushGeometry, brushMaterial);
-
-      brushCircle.position.set(point.x, point.y, 0);
-
-      brushShapeGroup.add(brushCircle); // Add the circle to the group
-
-      // Store the center point and radius of each drawn circle in a way that JSTS can use to calculate unions
-      circles.push({center: {x: point.x, y: point.y}, radius: brushSize});
+  function clearStroke() {
+    circles = [];
+    // Remove all circles from the scene and dispose of their resources
+    while (brushShapeGroup.children.length > 0) {
+      let child = brushShapeGroup.children[0];
+      if (child.geometry) child.geometry.dispose();
+      if (child.material) child.material.dispose();
+      brushShapeGroup.remove(child);
     }
-  }
-
-  function onTouchEnd(event) {
-    if (isDrawing) {
-      mouseIsPressed = false;
-      // Union Calculation
-      const unionGeometry = calculateUnion(); // Calculate the union of all drawn circles
-      if (unionGeometry) {
-        drawUnion(unionGeometry, event); // Visualize the union
-      }
-      circles = []; // Reset for the next drawing session
-
-      // Remove all circles from the scene
-      while (brushShapeGroup.children.length > 0) {
-        let child = brushShapeGroup.children[0];
-        // Scene Management: dispose of those resources to avoid memory leaks
-        if (child.geometry) child.geometry.dispose();
-        if (child.material) child.material.dispose();
-        brushShapeGroup.remove(child);
-      }
-    }
+    removeAnnotation(scene, brushShapeGroup);
   }
 
   // Calculate the union of all circles
@@ -242,19 +197,17 @@ export function hollowBrush(scene, camera, renderer, controls) {
     return newArray;
   }
 
-  // Visualize the Union with a Blue Line
-  function drawUnion(unionGeometry, event) {
-    // Convert JSTS union geometry to Three.js line
+  // Visualize the union outline as a fat closed line
+  function drawUnion(unionGeometry) {
     const coordinates = unionGeometry.getCoordinates();
     const points = coordinates.map(coord => new THREE.Vector3(coord.x, coord.y, 0));
-    const lineGeometry = new THREE.BufferGeometry().setFromPoints(decimate(points));
-    const lineMaterial = new THREE.LineBasicMaterial({ color, linewidth: 5 });
+    const flat = [];
+    decimate(points).forEach(p => flat.push(p.x, p.y, p.z));
 
-    const line = new THREE.LineLoop(lineGeometry, lineMaterial); // Use LineLoop to close the shape
-    line.name = "hollow annotation";
-    if (type.length > 0) {
-      line.userData.cancerType = type;
-    }
+    const line = createAnnotationLine(flat, {
+      name: "hollow annotation", color, closed: true, cancerType: type
+    });
     addAnnotation(scene, line);
+    pushCommand(commandCreate(line));
   }
 }
