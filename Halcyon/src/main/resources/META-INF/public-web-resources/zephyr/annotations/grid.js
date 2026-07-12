@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { createButton, turnOtherButtonsOff } from "../helpers/elements.js";
 import { getColorAndType } from "../helpers/colorPalette.js";
+import { pickActiveLayer, addAnnotation, removeAnnotation } from "../helpers/annotationTarget.js";
 
 export function grid(scene, camera, renderer, controls) {
   const canvas = renderer.domElement;
@@ -31,7 +32,7 @@ export function grid(scene, camera, renderer, controls) {
 
       isDragging = false;
       controls.enabled = true;
-      removeGridLines();
+      removeGrid();
       this.classList.replace('btnOn', 'annotationBtn');
     } else {
       canvas.addEventListener('mousedown', handleMouseDown);
@@ -105,21 +106,29 @@ function handleTouchEnd(event) {
     // Create a grid overlay with blue lines.
     const gridSize = 50; // Define the size of the grid
     const squareSize = 100; // Define the size of each square in the grid
+    const half = gridSize * squareSize / 2;
     gridLines = new THREE.Group(); // Group to hold the grid lines
     gridSquares = new THREE.Group(); // Group to hold the grid squares
 
+    // Center the grid on the point of the ACTIVE LAYER under the middle of
+    // the view, in the layer's own pixel space. The centre is baked into each
+    // square's position (the groups stay at the origin) so a colored square's
+    // local coordinates round-trip exactly through save/fetch.
+    const rect = canvas.getBoundingClientRect();
+    const center = pickActiveLayer(rect.left + rect.width / 2, rect.top + rect.height / 2, canvas, camera);
+
     for (let i = 0; i <= gridSize; i++) {
       const lineGeometry = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(i * squareSize - gridSize * squareSize / 2, -gridSize * squareSize / 2, 0),
-        new THREE.Vector3(i * squareSize - gridSize * squareSize / 2, gridSize * squareSize / 2, 0)
+        new THREE.Vector3(center.x + i * squareSize - half, center.y - half, 0),
+        new THREE.Vector3(center.x + i * squareSize - half, center.y + half, 0)
       ]);
       const lineMaterial = new THREE.LineBasicMaterial({ color: 0x0000ff });
       const line = new THREE.Line(lineGeometry, lineMaterial);
       gridLines.add(line);
 
       const lineGeometryHorizontal = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(-gridSize * squareSize / 2, i * squareSize - gridSize * squareSize / 2, 0),
-        new THREE.Vector3(gridSize * squareSize / 2, i * squareSize - gridSize * squareSize / 2, 0)
+        new THREE.Vector3(center.x - half, center.y + i * squareSize - half, 0),
+        new THREE.Vector3(center.x + half, center.y + i * squareSize - half, 0)
       ]);
       const lineHorizontal = new THREE.Line(lineGeometryHorizontal, lineMaterial);
       gridLines.add(lineHorizontal);
@@ -132,38 +141,41 @@ function handleTouchEnd(event) {
         const square = new THREE.Mesh(geometry, material);
 
         // Position each square
-        square.position.set(i * squareSize - gridSize * squareSize / 2 + squareSize / 2, j * squareSize - gridSize * squareSize / 2 + squareSize / 2, 0);
+        square.position.set(center.x + i * squareSize - half + squareSize / 2, center.y + j * squareSize - half + squareSize / 2, 0);
         square.userData = { colored: false };
         gridSquares.add(square);
       }
     }
 
-    updateGridPosition(); // Calculate and set the initial position of the grid
-
     gridLines.name = "gridLines";
     gridSquares.name = "gridSquares";
-    scene.add(gridLines);
-    scene.add(gridSquares);
+    addAnnotation(scene, gridLines);
+    addAnnotation(scene, gridSquares);
   }
 
-  function updateGridPosition() {
-    if (!gridLines || !gridSquares) return; // If the grid doesn't exist, exit the function
-
-    // Calculate the center of the camera's current view
-    const vector = new THREE.Vector3(); // Vector pointing to the center of the screen
-    const direction = new THREE.Vector3();
-    camera.getWorldDirection(direction);
-    vector.addVectors(camera.position, direction.multiplyScalar(1000)); // Adjust distance based on your scene
-
-    // Set grid position to match the calculated center point
-    gridLines.position.copy(vector);
-    gridLines.position.z = 0; // keep flush
-    gridSquares.position.copy(vector);
-    gridSquares.position.z = 0; // keep flush
-  }
-
-  function removeGridLines() {
-    scene.remove(gridLines);
+  function removeGrid() {
+    if (gridLines) {
+      removeAnnotation(scene, gridLines);
+      gridLines.traverse(obj => {
+        if (obj.geometry) obj.geometry.dispose();
+        if (obj.material) obj.material.dispose();
+      });
+      gridLines = null;
+    }
+    if (gridSquares) {
+      // Colored squares are annotations ("heatmap annotation") and stay
+      // behind for saving/editing; only the uncolored scaffolding is torn down.
+      const scaffolding = gridSquares.children.filter(sq => !sq.userData.colored);
+      scaffolding.forEach(sq => {
+        gridSquares.remove(sq);
+        sq.geometry.dispose();
+        sq.material.dispose();
+      });
+      if (gridSquares.children.length === 0) {
+        removeAnnotation(scene, gridSquares);
+      }
+      gridSquares = null;
+    }
   }
 
   // Handling Dragging to Color Squares

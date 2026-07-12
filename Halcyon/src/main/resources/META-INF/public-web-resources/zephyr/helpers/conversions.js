@@ -119,79 +119,47 @@ export function pixelsToMicrometers(pixels, micronsPerPixel) {
 }
 
 /**
- * Convert a 3D point in the scene to a 2D screen position
+ * Calculate the area of a polygon in square image pixels.
+ *
+ * `positions` is a flat x,y,z array in the annotation layer's local space,
+ * whose units ARE image pixels — so the Shoelace formula on the raw
+ * coordinates is exact, independent of zoom, camera, and devicePixelRatio.
+ * Works for both open rings and closed rings (last vertex == first): the
+ * wrap-around term of a closed ring is zero.
  */
-function toScreenPosition(point, camera, renderer) {
-  const canvas = renderer.domElement;
-  // Needed to center the projected 2D coordinates
-  const widthHalf = 0.5 * canvas.width;
-  const heightHalf = 0.5 * canvas.height;
-
-  // Map the 3D point to a range of -1 to 1 on the X and Y axes
-  const vector = point.clone().project(camera);
-
-  // Scale and shift the coordinates to fit within the canvas width/height
-  vector.x = (vector.x * widthHalf) + widthHalf;
-  vector.y = -(vector.y * heightHalf) + heightHalf;
-
-  return new THREE.Vector2(vector.x, vector.y);
-}
-
-/**
- * Calculate the area of a polygon in square pixels
- */
-export function calculatePolygonArea(positions, camera, renderer) {
+export function calculatePolygonArea(positions) {
   // The Shoelace formula (or Gauss's area formula)
   let area = 0;
   const n = positions.length / 3;
-  const screenPositions = [];
 
   for (let i = 0; i < n; i++) {
-    const vertex = new THREE.Vector3(positions[3 * i], positions[3 * i + 1], positions[3 * i + 2]);
-    screenPositions.push(toScreenPosition(vertex, camera, renderer));
-  }
-
-  for (let i = 0; i < n - 1; i++) {
-    const x1 = screenPositions[i].x;
-    const y1 = screenPositions[i].y;
-    const x2 = screenPositions[i + 1].x;
-    const y2 = screenPositions[i + 1].y;
+    const j = (i + 1) % n;
+    const x1 = positions[3 * i];
+    const y1 = positions[3 * i + 1];
+    const x2 = positions[3 * j];
+    const y2 = positions[3 * j + 1];
     area += (x1 * y2 - x2 * y1);
   }
-  area = Math.abs(area) / 2;
-  return area / 4;
+  return Math.abs(area) / 2;
 }
 
 /**
- * Calculate the perimeter of a polygon in pixels
+ * Calculate the perimeter of a polygon in image pixels (same coordinate
+ * conventions as calculatePolygonArea).
  */
-export function calculatePolygonPerimeter(positions, camera, renderer) {
-  // The sum of the distances between each pair of consecutive vertices
+export function calculatePolygonPerimeter(positions) {
+  // The sum of the distances between each pair of consecutive vertices,
+  // including the closing edge back to the first vertex.
   let perimeter = 0;
   const n = positions.length / 3;
-  const screenPositions = [];
 
   for (let i = 0; i < n; i++) {
-    const vertex = new THREE.Vector3(positions[3 * i], positions[3 * i + 1], positions[3 * i + 2]);
-    screenPositions.push(toScreenPosition(vertex, camera, renderer));
+    const j = (i + 1) % n;
+    const dx = positions[3 * j] - positions[3 * i];
+    const dy = positions[3 * j + 1] - positions[3 * i + 1];
+    perimeter += Math.sqrt(dx * dx + dy * dy);
   }
-
-  for (let i = 0; i < n - 1; i++) {
-    const x1 = screenPositions[i].x;
-    const y1 = screenPositions[i].y;
-    const x2 = screenPositions[i + 1].x;
-    const y2 = screenPositions[i + 1].y;
-    perimeter += Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
-  }
-
-  // Closing the polygon by adding distance between the last and the first point
-  const x1 = screenPositions[n - 1].x;
-  const y1 = screenPositions[n - 1].y;
-  const x2 = screenPositions[0].x;
-  const y2 = screenPositions[0].y;
-  perimeter += Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
-
-  return perimeter / 2;
+  return perimeter;
 }
 
 /**

@@ -2,8 +2,7 @@ import * as THREE from "three";
 import { FontLoader } from "three/addons/loaders/FontLoader.js";
 import { TextGeometry } from "three/addons/geometries/TextGeometry.js";
 import { createButton } from "./elements.js";
-import { getMousePosition } from "./mouse.js";
-// import { pixelsToMicrons } from "./conversions.js";
+import { pickActiveLayer as getMousePosition, addAnnotation, removeAnnotation, getActiveGroup } from "./annotationTarget.js";
 
 export function ruler(scene, camera, renderer, controls) {
   let isDrawing = false;
@@ -20,10 +19,10 @@ export function ruler(scene, camera, renderer, controls) {
   let fontLoader = new FontLoader();
   fontLoader.load(myFont, function (font) {
     let line, textMesh, circle, textBackground;
-    let startPoint, endPoint;
     let startVector, endVector;
     let message = "";
-    let lineGeometry, lineMaterial, circleGeometry, circleMaterial;
+    let lineMaterial, circleMaterial;
+    let lines = []; // every measurement line drawn while the tool is on
 
     rulerButton.addEventListener("click", function () {
       if (isDrawing) {
@@ -39,23 +38,17 @@ export function ruler(scene, camera, renderer, controls) {
         canvas.removeEventListener('touchmove', onTouchMove, false);
         canvas.removeEventListener('touchend', onTouchEnd, false);
 
-        // Clear the previously drawn line and text from the scene, ensuring a clean slate for the next drawing action.
-        if (line) {
-          for (let i = scene.children.length - 1; i >= 0; i--) {
-            if (scene.children[i].name === "ruler") {
-              // Dispose of geometry and material if necessary
-              if (scene.children[i].geometry) scene.children[i].geometry.dispose();
-              if (scene.children[i].material) scene.children[i].material.dispose();
-
-              // Remove the object
-              scene.remove(scene.children[i]);
-            }
-          }
-          line = null; // Clear reference
-        }
+        // Clear every measurement drawn this session. The objects live in the
+        // active layer's annotation group, so removal must be parent-aware.
+        lines.forEach(l => myDispose(l));
+        lines = [];
+        line = null;
         myDispose(textMesh);
+        textMesh = null;
         myDispose(textBackground);
+        textBackground = null;
         myDispose(circle);
+        circle = null;
 
       } else {
         // Turn on drawing mode
@@ -70,7 +63,6 @@ export function ruler(scene, camera, renderer, controls) {
         canvas.addEventListener('touchmove', onTouchMove, false);
         canvas.addEventListener('touchend', onTouchEnd, false);
 
-        lineGeometry = new THREE.BufferGeometry();
         // Line material
         lineMaterial = new THREE.LineBasicMaterial({
           color: 0x00ff00,
@@ -88,12 +80,8 @@ export function ruler(scene, camera, renderer, controls) {
           depthWrite: false
         });
 
-        // Ensuring correct render order and visibility
-        lineMaterial.renderOrder = 999;
-        circleMaterial.renderOrder = 998;
-
         // Circle geometry
-        circleGeometry = new THREE.BufferGeometry();
+        const circleGeometry = new THREE.BufferGeometry();
         const points = [];
         for (let i = 0; i <= 64; i++) {
           const angle = (i / 64) * Math.PI * 2;
@@ -104,101 +92,106 @@ export function ruler(scene, camera, renderer, controls) {
         circle.computeLineDistances(); // Needed for dashed lines
         circle.visible = false;
         circle.renderOrder = 997;
-        scene.add(circle);
+        addAnnotation(scene, circle);
       }
     });
 
     function myDispose(mesh) {
       if (mesh) {
-        scene.remove(mesh);
-        mesh.geometry.dispose();
-        mesh.material.dispose();
-        mesh = null; // Clear reference
+        removeAnnotation(scene, mesh);
+        if (mesh.geometry) mesh.geometry.dispose();
+        if (mesh.material) mesh.material.dispose();
       }
+    }
+
+    /** Start a measurement at a picked point on the active layer. */
+    function begin(clientX, clientY) {
+      const startPoint = getMousePosition(clientX, clientY, canvas, camera);
+      startVector = new THREE.Vector3(startPoint.x, startPoint.y, 0);
+
+      const lineGeometry = new THREE.BufferGeometry();
+      lineGeometry.setFromPoints([startVector, startVector]);
+      line = new THREE.Line(lineGeometry, lineMaterial);
+      line.name = "ruler";
+      line.renderOrder = 999;
+      addAnnotation(scene, line);
+      lines.push(line);
+
+      circle.position.copy(startVector);
+      circle.scale.set(0, 0, 0);
+      circle.visible = true;
+    }
+
+    /** Stretch the current measurement to a picked point and re-label it. */
+    function update(clientX, clientY) {
+      const endPoint = getMousePosition(clientX, clientY, canvas, camera);
+      endVector = new THREE.Vector3(endPoint.x, endPoint.y, 0);
+
+      line.geometry.setFromPoints([startVector, endVector]);
+
+      myDispose(textMesh);
+      myDispose(textBackground);
+
+      // Both endpoints are in the active layer's local space, whose units are
+      // image pixels — the direct distance IS the length in image pixels,
+      // independent of zoom and devicePixelRatio.
+      const length = startVector.distanceTo(endVector).toFixed(2);
+      message = `Length ${length} pixels`;
+
+      // Size the label from its distance to the camera in WORLD space (the
+      // layer's plane may sit away from the world origin in a stack).
+      const group = getActiveGroup();
+      const worldEnd = group ? group.localToWorld(endVector.clone()) : endVector.clone();
+      const distanceToCamera = camera.position.distanceTo(worldEnd);
+      const textSize = distanceToCamera * 0.05; // Adjust this scaling factor as needed
+
+      let textGeometry = new TextGeometry(message, {
+        font: font,
+        size: textSize, // Use the dynamic text size
+        height: textSize / 10 // Adjust the height relative to the size
+      });
+
+      let textMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff, depthTest: false });
+      textMesh = new THREE.Mesh(textGeometry, textMaterial);
+      textMesh.position.copy(endVector);
+      textMesh.renderOrder = 998;
+      addAnnotation(scene, textMesh);
+
+      // Create background for text
+      const bbox = new THREE.Box3().setFromObject(textMesh);
+      const bboxSize = bbox.getSize(new THREE.Vector3());
+
+      let backgroundGeometry = new THREE.PlaneGeometry(bboxSize.x + 10, bboxSize.y + 10);
+      let backgroundMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00, side: THREE.DoubleSide, depthTest: false });
+      textBackground = new THREE.Mesh(backgroundGeometry, backgroundMaterial);
+
+      // Position the background so that the bottom left corner is at the pointer
+      textBackground.position.copy(endVector);
+      textBackground.position.x += (bboxSize.x + 10) / 2; // Move to the right by half the width
+      textBackground.position.y -= (bboxSize.y + 10) / 2; // Move up by half the height
+      textBackground.position.y += (bboxSize.y + 10) / 2 + 5; // Center the text vertically and move up slightly more
+      textBackground.position.z -= 0.01; // Slightly behind the text
+      textBackground.renderOrder = 997; // Render before the text
+      addAnnotation(scene, textBackground);
+
+      // Update the circle size and position
+      const distance = startVector.distanceTo(endVector);
+      // Edges of the circle will align with the endpoints of the line being drawn:
+      circle.scale.set(distance / 2, distance / 2, distance / 2);
+      circle.position.copy(startVector.clone().add(endVector).multiplyScalar(0.5));
+      circle.visible = true;
     }
 
     function onMouseDown(event) {
       if (isDrawing) {
         mouseIsPressed = true;
-        startPoint = getMousePosition(event.clientX, event.clientY, canvas, camera);
-        startVector = new THREE.Vector3(startPoint.x, startPoint.y, 0);
-
-        lineGeometry.setFromPoints([startVector, startVector]);
-        line = new THREE.Line(lineGeometry, lineMaterial);
-        line.name = "ruler";
-        line.renderOrder = 999;
-        scene.add(line);
-
-        circle.position.copy(startVector);
-        circle.scale.set(0, 0, 0);
-        circle.visible = true;
-        // console.log("Circle added at start position", circle.position);
+        begin(event.clientX, event.clientY);
       }
     }
 
     function onMouseMove(event) {
       if (isDrawing && mouseIsPressed) {
-        endPoint = getMousePosition(event.clientX, event.clientY, canvas, camera);
-        endVector = new THREE.Vector3(endPoint.x, endPoint.y, 0);
-
-        line.geometry.setFromPoints([startVector, endVector]);
-
-        if (textMesh) scene.remove(textMesh);
-        if (textBackground) scene.remove(textBackground);
-
-        let length = Calculate.lineLength(
-          startPoint.x,
-          startPoint.y,
-          endPoint.x,
-          endPoint.y,
-          calculateScaleFactor(camera, renderer)
-        ).toFixed(2);
-
-        // message = `Length ${length} \u00B5m`;
-        message = `Length ${length} pixels`;
-
-        // Calculate the distance from the camera to the text
-        const distanceToCamera = camera.position.distanceTo(endVector);
-        const textSize = distanceToCamera * 0.05; // Adjust this scaling factor as needed
-
-        let textGeometry = new TextGeometry(message, {
-          font: font,
-          size: textSize, // Use the dynamic text size
-          height: textSize / 10 // Adjust the height relative to the size
-        });
-
-        let textMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff, depthTest: false });
-        textMesh = new THREE.Mesh(textGeometry, textMaterial);
-        textMesh.position.copy(endVector);
-        textMesh.renderOrder = 998;
-        scene.add(textMesh);
-
-        // Create background for text
-        const bbox = new THREE.Box3().setFromObject(textMesh);
-        const bboxSize = bbox.getSize(new THREE.Vector3());
-
-        let backgroundGeometry = new THREE.PlaneGeometry(bboxSize.x + 10, bboxSize.y + 10);
-        let backgroundMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00, side: THREE.DoubleSide, depthTest: false });
-        textBackground = new THREE.Mesh(backgroundGeometry, backgroundMaterial);
-
-        // Position the background so that the bottom left corner is at the pointer
-        textBackground.position.copy(endVector);
-        textBackground.position.x += (bboxSize.x + 10) / 2; // Move to the right by half the width
-        textBackground.position.y -= (bboxSize.y + 10) / 2; // Move up by half the height
-        textBackground.position.y += (bboxSize.y + 10) / 2 + 5; // Center the text vertically and move up slightly more
-        textBackground.position.z -= 0.01; // Slightly behind the text
-        textBackground.renderOrder = 997; // Render before the text
-        scene.add(textBackground);
-
-        // Update the circle size and position
-        const distance = startVector.distanceTo(endVector);
-        // Edges of the circle will align with the endpoints of the line being drawn:
-        circle.scale.set(distance / 2, distance / 2, distance / 2);
-        circle.position.copy(startVector.clone().add(endVector).multiplyScalar(0.5));
-        circle.visible = true;
-        // console.log("Circle updated: ", circle.position, circle.scale);
-
-        renderer.render(scene, camera);
+        update(event.clientX, event.clientY);
       }
     }
 
@@ -211,84 +204,14 @@ export function ruler(scene, camera, renderer, controls) {
       if (isDrawing) {
         mouseIsPressed = true;
         const touch = event.touches[0];
-        startPoint = getMousePosition(touch.clientX, touch.clientY, canvas, camera);
-        startVector = new THREE.Vector3(startPoint.x, startPoint.y, 0);
-
-        lineGeometry.setFromPoints([startVector, startVector]);
-        line = new THREE.Line(lineGeometry, lineMaterial);
-        line.name = "ruler";
-        line.renderOrder = 999;
-        scene.add(line);
-
-        circle.position.copy(startVector);
-        circle.scale.set(0, 0, 0);
-        circle.visible = true;
+        begin(touch.clientX, touch.clientY);
       }
     }
 
     function onTouchMove(event) {
       if (isDrawing && mouseIsPressed) {
         const touch = event.touches[0];
-        endPoint = getMousePosition(touch.clientX, touch.clientY, canvas, camera);
-        endVector = new THREE.Vector3(endPoint.x, endPoint.y, 0);
-
-        line.geometry.setFromPoints([startVector, endVector]);
-
-        if (textMesh) scene.remove(textMesh);
-        if (textBackground) scene.remove(textBackground);
-
-        let length = Calculate.lineLength(
-          startPoint.x,
-          startPoint.y,
-          endPoint.x,
-          endPoint.y,
-          calculateScaleFactor(camera, renderer)
-        ).toFixed(2);
-
-        // message = `Length ${length} \u00B5m`;
-        message = `Length ${length} pixels`;
-
-        // Calculate the distance from the camera to the text
-        const distanceToCamera = camera.position.distanceTo(endVector);
-        const textSize = distanceToCamera * 0.05; // Adjust this scaling factor as needed
-
-        let textGeometry = new TextGeometry(message, {
-          font: font,
-          size: textSize, // Use the dynamic text size
-          height: textSize / 10 // Adjust the height relative to the size
-        });
-
-        let textMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff, depthTest: false });
-        textMesh = new THREE.Mesh(textGeometry, textMaterial);
-        textMesh.position.copy(endVector);
-        textMesh.renderOrder = 998;
-        scene.add(textMesh);
-
-        // Create background for text
-        const bbox = new THREE.Box3().setFromObject(textMesh);
-        const bboxSize = bbox.getSize(new THREE.Vector3());
-
-        let backgroundGeometry = new THREE.PlaneGeometry(bboxSize.x + 10, bboxSize.y + 10);
-        let backgroundMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00, side: THREE.DoubleSide, depthTest: false });
-        textBackground = new THREE.Mesh(backgroundGeometry, backgroundMaterial);
-
-        // Position the background so that the bottom left corner is at the pointer
-        textBackground.position.copy(endVector);
-        textBackground.position.x += (bboxSize.x + 10) / 2; // Move to the right by half the width
-        textBackground.position.y -= (bboxSize.y + 10) / 2; // Move up by half the height
-        textBackground.position.y += (bboxSize.y + 10) / 2 + 5; // Center the text vertically and move up slightly more
-        textBackground.position.z -= 0.01; // Slightly behind the text
-        textBackground.renderOrder = 997; // Render before the text
-        scene.add(textBackground);
-
-        // Update the circle size and position
-        const distance = startVector.distanceTo(endVector);
-        // Edges of the circle will align with the endpoints of the line being drawn:
-        circle.scale.set(distance / 2, distance / 2, distance / 2);
-        circle.position.copy(startVector.clone().add(endVector).multiplyScalar(0.5));
-        circle.visible = true;
-
-        renderer.render(scene, camera);
+        update(touch.clientX, touch.clientY);
       }
     }
 
@@ -297,34 +220,4 @@ export function ruler(scene, camera, renderer, controls) {
       circle.visible = false;
     }
   });
-
-  /**
-   * Calculate line length
-   */
-  const Calculate = {
-    lineLength(x1, y1, x2, y2, scaleFactor) {
-      const threeJsUnitsLength = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
-      const pixLength = threeJsUnitsLength * scaleFactor;
-      return pixLength;
-      // return pixelsToMicrons(pixLength); // Convert to microns
-    }
-  };
-
-  /**
-   * The scale factor is used to convert distances measured in Three.js units to screen pixels
-   * by accounting for the current perspective of the camera and the dimensions of the renderer's canvas.
-   */
-  function calculateScaleFactor(camera, renderer) {
-    // Calculate the visible height at the depth of the plane
-    const distance = camera.position.z;
-    const vFov = (camera.fov * Math.PI) / 180; // Convert vertical fov to radians
-    const planeHeightAtDistance = 2 * Math.tan(vFov / 2) * distance;
-
-    // Calculate the scale factor
-    const screenHeight = renderer.domElement.clientHeight;
-    const scaleFactor = screenHeight / planeHeightAtDistance;
-    // console.log("scaleFactor", scaleFactor);
-
-    return scaleFactor;
-  }
 }

@@ -83,8 +83,8 @@ export function label(scene, camera, renderer, controls, originalZ, type) {
         } else {
           // Calculate area and perimeter
           let currentPolygonPositions = selectedMesh.geometry.attributes.position.array;
-          const area = calculatePolygonArea(currentPolygonPositions, camera, renderer);
-          const perimeter = calculatePolygonPerimeter(currentPolygonPositions, camera, renderer);
+          const area = calculatePolygonArea(currentPolygonPositions);
+          const perimeter = calculatePolygonPerimeter(currentPolygonPositions);
 
           // Display the area and perimeter
           displayAreaAndPerimeter(area, perimeter);

@@ -132,8 +132,8 @@ export function enableDrawing(scene, camera, renderer, controls) {
         line.geometry.computeBoundingSphere();
 
         // Calculate area and perimeter
-        const area = calculatePolygonArea(currentPolygonPositions, camera, renderer);
-        const perimeter = calculatePolygonPerimeter(currentPolygonPositions, camera, renderer);
+        const area = calculatePolygonArea(currentPolygonPositions);
+        const perimeter = calculatePolygonPerimeter(currentPolygonPositions);
 
         // Display the area and perimeter
         displayAreaAndPerimeter(area, perimeter);
@@ -212,8 +212,8 @@ export function enableDrawing(scene, camera, renderer, controls) {
         line.geometry.computeBoundingSphere();
 
         // Calculate area and perimeter
-        const area = calculatePolygonArea(currentPolygonPositions, camera, renderer);
-        const perimeter = calculatePolygonPerimeter(currentPolygonPositions, camera, renderer);
+        const area = calculatePolygonArea(currentPolygonPositions);
+        const perimeter = calculatePolygonPerimeter(currentPolygonPositions);
 
         // Display the area and perimeter
         displayAreaAndPerimeter(area, perimeter);

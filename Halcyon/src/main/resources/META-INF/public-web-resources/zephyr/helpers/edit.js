@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { createButton, turnOtherButtonsOff } from "./elements.js";
+import { createButton, turnOtherButtonsOff, removeObject } from "./elements.js";
 import { DragControls } from "three/addons/controls/DragControls.js";
 
 /**
@@ -47,18 +47,10 @@ export function edit(scene, camera, renderer, controls, originalZ) {
       }
     }
 
-    if (mesh.geometry) mesh.geometry.dispose();
-    if (mesh.material) {
-      // If the material is an array (multi-materials), dispose each one
-      if (Array.isArray(mesh.material)) {
-        mesh.material.forEach(material => material.dispose());
-      } else {
-        mesh.material.dispose();
-      }
-    }
-
-    // Remove the mesh from the scene
-    scene.remove(mesh);
+    // Annotations live in a layer's annotation group, not directly in the
+    // scene, so removal must go through the parent (scene.remove would
+    // silently no-op and leave the object visible).
+    removeObject(mesh, scene);
   }
 
   // Enhanced function to handle mesh deletion
@@ -129,10 +121,6 @@ export function edit(scene, camera, renderer, controls, originalZ) {
   function onMouseClick(event) {
     event.preventDefault();
 
-    // Calculate the distance from the camera to a target point (e.g., the center of the scene)
-    const distance = camera.position.distanceTo(scene.position);
-    let size = calculateThreshold(distance, 3, 100); // Set size of edit handles based on zoom
-
     // Get the canvas element and its bounding rectangle
     const rect = renderer.domElement.getBoundingClientRect();
     mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
@@ -151,6 +139,11 @@ export function edit(scene, camera, renderer, controls, originalZ) {
 
     if (intersects.length > 0) {
       const selectedMesh = intersects[0];
+      // Size the handles from the distance to the annotation itself — in a
+      // stack its layer can sit far from the world origin.
+      const center = new THREE.Box3().setFromObject(selectedMesh).getCenter(new THREE.Vector3());
+      const distance = camera.position.distanceTo(center);
+      const size = calculateThreshold(distance, 3, 100); // Set size of edit handles based on zoom
       setupDeletionButton(selectedMesh, addEditHandles(selectedMesh, size));
       return;
     }
@@ -197,8 +190,12 @@ export function edit(scene, camera, renderer, controls, originalZ) {
       handles.push(handleMesh);
     }
 
-    // Add handles to the scene
-    handles.forEach(element => scene.add(element));
+    // Add handles beside the mesh (its annotation group), not the scene:
+    // vertex coordinates are in the layer's local pixel space, and
+    // DragControls drags in the object's PARENT space, so sharing the mesh's
+    // parent keeps handle positions and geometry write-backs consistent.
+    const parent = mesh.parent || scene;
+    handles.forEach(element => parent.add(element));
 
     // Create DragControls
     dragControls = new DragControls(handles, camera, renderer.domElement);
