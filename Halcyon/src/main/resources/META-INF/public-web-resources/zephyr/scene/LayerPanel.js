@@ -1,7 +1,10 @@
+import { Group } from 'three';
 import { makeImageViewer } from './imageLayer.js';
+import { createAnnotationLayer, createImageAnnotationLayer, moveRideAlong } from '../helpers/annotationTarget.js';
 import { getContext, cfg } from '../context.js';
 import { LayerEntry } from './LayerRegistry.js';
 import { saveStack, serializeStackTurtle } from './stackPersistence.js';
+import { saveAllAnnotationLayers } from '../helpers/save.js';
 import { encodeViewState, applyViewState } from '../helpers/deepLink.js';
 import { invalidate } from '../renderLoop.js';
 
@@ -89,7 +92,7 @@ export function initLayerPanel(registry, stack) {
     };
     const offChange = registry.on('change', render);
     const offActive = registry.on('active', render);
-    ctx.layerPanelCleanup = () => { offChange(); offActive(); };
+    ctx.layerPanelCleanup = () => { offChange(); offActive(); closeOverflowMenu(); };
     render();
 
     if (!document.getElementById('zephyr-layers-toggle')) {
@@ -206,7 +209,10 @@ function renderList(listDiv, registry, stack, zStep) {
         row.style.padding = '2px 2px';
         row.style.marginLeft = `${Math.max(0, entry.depth - 1) * 14}px`;
         row.style.borderRadius = '4px';
-        if (entry.id === activeId) row.style.background = '#d7e1ec';
+        if (entry.id === activeId || entry.id === registry.activeAnnotationId) {
+            // Distinct tint for the active annotation target vs the active layer.
+            row.style.background = entry.type === 'annotation' ? '#e5ddf0' : '#d7e1ec';
+        }
 
         const main = document.createElement('div');
         main.style.display = 'flex';
@@ -222,16 +228,19 @@ function renderList(listDiv, registry, stack, zStep) {
 
         const icon = document.createElement('i');
         icon.className = entry.type === 'stack' ? 'fa-solid fa-layer-group'
-            : entry.type === 'feature' ? 'fa-solid fa-shapes'
-                : 'fa-regular fa-image';
+            : entry.type === 'annotation' ? 'fa-solid fa-pen-nib'
+                : entry.type === 'feature' ? 'fa-solid fa-shapes'
+                    : 'fa-regular fa-image';
         icon.style.width = '16px';
         icon.style.color = entry.error ? '#b00020' : '#537895';
+        // Annotation planes ride on their target and aren't z-reordered.
+        const draggable = entry.type !== 'annotation';
         icon.title = entry.error ? ('load error: ' + entry.error)
-            : (entry.type + ' — drag to reorder');
+            : (draggable ? (entry.type + ' — drag to reorder') : entry.type);
         // Drag-to-reorder among same-parent siblings, from the icon (the row
         // itself must stay non-draggable so sliders/inputs work normally).
-        icon.draggable = true;
-        icon.style.cursor = 'grab';
+        icon.draggable = draggable;
+        icon.style.cursor = draggable ? 'grab' : 'default';
         icon.addEventListener('dragstart', (e) => {
             e.dataTransfer.setData('text/plain', entry.id);
             e.dataTransfer.effectAllowed = 'move';
@@ -258,11 +267,19 @@ function renderList(listDiv, registry, stack, zStep) {
         label.style.flex = '1';
         label.style.overflow = 'hidden';
         label.style.textOverflow = 'ellipsis';
-        label.style.cursor = entry.annotatable ? 'pointer' : 'default';
-        if (entry.id === activeId) label.style.fontWeight = 'bold';
+        label.style.cursor = (entry.annotatable || entry.type === 'annotation' || entry.annotates) ? 'pointer' : 'default';
+        if (entry.id === activeId || entry.id === registry.activeAnnotationId) label.style.fontWeight = 'bold';
         if (entry.annotatable) {
             label.title = 'Click: select as active layer. Double-click: rename.';
             label.addEventListener('click', () => registry.setActive(entry.id));
+        } else if (entry.type === 'annotation') {
+            label.title = 'Click: draw into this annotation layer. Double-click: rename.';
+            label.addEventListener('click', () => registry.setActiveAnnotation(entry.id));
+        } else if (entry.annotates) {
+            // Derived image shown as an annotation layer: not a drawing surface;
+            // clicking selects its source image as the active layer.
+            label.title = 'Derived image layer. Click: select its source. Double-click: rename.';
+            label.addEventListener('click', () => registry.setActive(entry.annotates));
         } else {
             label.title = 'Double-click: rename';
         }
@@ -275,24 +292,8 @@ function renderList(listDiv, registry, stack, zStep) {
         });
         main.appendChild(label);
 
+        // Opacity for any non-stack layer — spatial tiles AND annotation planes.
         if (entry.type !== 'stack') {
-            // Blend mode (multiply = classic IHC-over-H&E compositing).
-            const blend = document.createElement('select');
-            ['normal', 'multiply', 'screen'].forEach(mode => {
-                const opt = document.createElement('option');
-                opt.value = mode;
-                opt.textContent = mode;
-                blend.appendChild(opt);
-            });
-            blend.value = entry.blendMode || 'normal';
-            blend.title = 'Blend mode';
-            blend.style.fontSize = '10px';
-            blend.addEventListener('change', () => {
-                registry.setBlendMode(entry.id, blend.value);
-                document.dispatchEvent(new CustomEvent('zephyr:stackedited', { detail: { registry } }));
-            });
-            main.appendChild(blend);
-
             const op = document.createElement('input');
             op.type = 'range';
             op.min = '0'; op.max = '1'; op.step = '0.05';
@@ -307,21 +308,16 @@ function renderList(listDiv, registry, stack, zStep) {
             main.appendChild(op);
         }
 
-        // z reorder for spatial layers (sections / bases)
-        if (entry.role === 'base' && entry.object3d) {
-            main.appendChild(zButton('▲', 'Move up in z', () => nudgeZ(registry, entry, +zStep)));
-            main.appendChild(zButton('▼', 'Move down in z', () => nudgeZ(registry, entry, -zStep)));
-        }
+        // Everything secondary (blend, z / stacking reorder, registration
+        // offset/scale, add-layer actions) folds behind a ⋯ overflow menu so a
+        // busy row stays compact. Rendered only when the layer has such actions.
+        const more = overflowButton(registry, stack, entry, zStep);
+        if (more) main.appendChild(more);
+
+        // Delete stays inline — a quick, common action.
+        main.appendChild(deleteButton(registry, entry));
 
         row.appendChild(main);
-
-        // x/y offset for any placed layer — the main use is registering an
-        // overlay (feature/IHC raster) onto its base. position.x/.y are the
-        // offsets in image pixels and are what Save writes as zeph:offsetx/y.
-        if (entry.object3d) {
-            row.appendChild(offsetLine(registry, entry));
-        }
-
         listDiv.appendChild(row);
     });
 }
@@ -341,15 +337,19 @@ function offsetLine(registry, entry) {
     tag.textContent = 'offset';
     line.appendChild(tag);
 
-    const xIn = offsetField(entry.object3d.position.x, 'Offset X in image pixels (+ = right)');
-    const yIn = offsetField(entry.object3d.position.y, 'Offset Y in image pixels (+ = up)');
+    // Offset is registration placement, which lives on the frame (fall back to
+    // the image content for a standalone layer that has no frame).
+    const node = entry.frame || entry.object3d;
+    const xIn = offsetField(node.position.x, 'Offset X in image pixels (+ = right)');
+    const yIn = offsetField(node.position.y, 'Offset Y in image pixels (+ = up)');
 
     const apply = () => {
-        if (!entry.object3d) return;
+        const n = entry.frame || entry.object3d;
+        if (!n) return;
         const x = parseFloat(xIn.value);
         const y = parseFloat(yIn.value);
-        if (Number.isFinite(x)) entry.object3d.position.x = x;
-        if (Number.isFinite(y)) entry.object3d.position.y = y;
+        if (Number.isFinite(x)) n.position.x = x;
+        if (Number.isFinite(y)) n.position.y = y;
         // Mark the stack edited so Save picks it up, but do NOT emit a registry
         // 'change' — that rebuilds this row and would steal input focus.
         document.dispatchEvent(new CustomEvent('zephyr:stackedited', { detail: { registry } }));
@@ -362,6 +362,26 @@ function offsetLine(registry, entry) {
     line.appendChild(xIn);
     line.appendChild(document.createTextNode('y'));
     line.appendChild(yIn);
+
+    // Ride-along image: a uniform registration scale (multiplies its footprint).
+    if (entry.annotates && entry.type !== 'annotation' && entry.object3d && entry.imageWidth) {
+        const sIn = document.createElement('input');
+        sIn.type = 'number';
+        sIn.step = 'any';
+        sIn.title = 'Scale (registration multiplier)';
+        sIn.style.width = '54px';
+        sIn.value = String(entry.rideScale || 1);
+        sIn.addEventListener('input', () => {
+            const s = parseFloat(sIn.value);
+            if (!Number.isFinite(s) || s <= 0) return;
+            entry.rideScale = s;
+            entry.object3d.scale.set(entry.imageWidth * s, entry.imageHeight * s, 1);
+            document.dispatchEvent(new CustomEvent('zephyr:stackedited', { detail: { registry } }));
+            invalidate();
+        });
+        line.appendChild(document.createTextNode('scale'));
+        line.appendChild(sIn);
+    }
     return line;
 }
 
@@ -384,9 +404,221 @@ function zButton(glyph, title, onClick) {
     return b;
 }
 
+// ---- Per-row overflow (⋯) menu --------------------------------------------
+// Secondary per-layer actions live in a floating menu so rows stay compact.
+// One menu is open at a time; it is body-appended + position:fixed so the
+// stack panel's overflow never clips it, and it survives list rebuilds (its
+// controls close over stable registry/entry refs), closing only on
+// outside-click, Escape, re-clicking its ⋯, opening another, or an add/delete.
+let __overflowMenu = null;
+
+function closeOverflowMenu() {
+    if (!__overflowMenu) return;
+    __overflowMenu.remove();
+    __overflowMenu = null;
+    document.removeEventListener('pointerdown', __overflowDocDown, true);
+    document.removeEventListener('keydown', __overflowKey, true);
+}
+function __overflowDocDown(e) {
+    if (__overflowMenu && !__overflowMenu.contains(e.target) && e.target !== __overflowMenu.__anchor) {
+        closeOverflowMenu();
+    }
+}
+function __overflowKey(e) { if (e.key === 'Escape') closeOverflowMenu(); }
+
+function openOverflowMenu(anchor, populate) {
+    const toggleShut = __overflowMenu && __overflowMenu.__anchor === anchor;
+    closeOverflowMenu();
+    if (toggleShut) return;   // re-clicking the same ⋯ just closes it
+    const menu = document.createElement('div');
+    menu.className = 'zephyr-overflow-menu';
+    menu.__anchor = anchor;
+    menu.style.cssText = 'position:fixed;z-index:10000;background:#fff;border:1px solid #cbd5e1;'
+        + 'border-radius:6px;box-shadow:0 6px 20px rgba(0,0,0,.18);padding:4px;min-width:190px;'
+        + 'font:12px sans-serif;color:#27374c;display:flex;flex-direction:column;gap:1px;';
+    populate(menu);
+    document.body.appendChild(menu);
+    // Anchor under the button, right-aligned; flip above / clamp to the viewport.
+    const r = anchor.getBoundingClientRect();
+    let left = Math.max(4, r.right - menu.offsetWidth);
+    if (left + menu.offsetWidth > window.innerWidth - 4) left = Math.max(4, window.innerWidth - menu.offsetWidth - 4);
+    let top = r.bottom + 4;
+    if (top + menu.offsetHeight > window.innerHeight - 4) top = Math.max(4, r.top - menu.offsetHeight - 4);
+    menu.style.left = left + 'px';
+    menu.style.top = top + 'px';
+    __overflowMenu = menu;
+    document.addEventListener('pointerdown', __overflowDocDown, true);
+    document.addEventListener('keydown', __overflowKey, true);
+}
+
+function menuRow(labelText, controlEl) {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:6px;padding:3px 6px;';
+    const lb = document.createElement('span');
+    lb.textContent = labelText;
+    lb.style.cssText = 'flex:1;white-space:nowrap;';
+    row.appendChild(lb);
+    if (controlEl) row.appendChild(controlEl);
+    return row;
+}
+function menuSeparator() {
+    const s = document.createElement('div');
+    s.style.cssText = 'height:1px;background:#e2e8f0;margin:3px 0;';
+    return s;
+}
+function menuAction(iconHtml, labelText, onClick, opts = {}) {
+    const b = document.createElement('button');
+    b.className = 'annotationBtn';
+    b.innerHTML = (iconHtml ? iconHtml + ' ' : '') + labelText;
+    b.style.cssText = 'display:block;width:100%;text-align:left;padding:5px 6px;border:none;'
+        + 'background:transparent;cursor:pointer;font:12px sans-serif;'
+        + (opts.danger ? 'color:#b00020;' : 'color:#27374c;');
+    b.addEventListener('mouseenter', () => { b.style.background = '#eef2f7'; });
+    b.addEventListener('mouseleave', () => { b.style.background = 'transparent'; });
+    b.addEventListener('click', onClick);
+    return b;
+}
+
+function blendSelect(registry, entry) {
+    const blend = document.createElement('select');
+    ['normal', 'multiply', 'screen'].forEach(mode => {
+        const opt = document.createElement('option');
+        opt.value = mode;
+        opt.textContent = mode;
+        blend.appendChild(opt);
+    });
+    blend.value = entry.blendMode || 'normal';
+    blend.title = 'Blend mode';
+    blend.style.fontSize = '11px';
+    blend.addEventListener('change', () => {
+        registry.setBlendMode(entry.id, blend.value);
+        document.dispatchEvent(new CustomEvent('zephyr:stackedited', { detail: { registry } }));
+    });
+    return blend;
+}
+
+function zPair(upTitle, onUp, downTitle, onDown) {
+    const wrap = document.createElement('span');
+    wrap.style.cssText = 'display:inline-flex;gap:2px;';
+    wrap.appendChild(zButton('▲', upTitle, onUp));
+    wrap.appendChild(zButton('▼', downTitle, onDown));
+    return wrap;
+}
+
+/**
+ * The ⋯ button for a row, or null when the layer has no secondary actions
+ * (e.g. a plain annotation layer, whose only extra action — delete — stays
+ * inline). Opens a menu with whichever of blend / z / stacking / registration /
+ * add-layer controls apply to the layer.
+ */
+function overflowButton(registry, stack, entry, zStep) {
+    const hasBlend = (entry.type === 'image' || entry.type === 'feature');
+    const hasZ = (entry.role === 'base' && !!entry.object3d);
+    let overlayCount = 0;
+    if (entry.annotates && (entry.type === 'image' || entry.type === 'feature') && entry.object3d) {
+        const src = registry.get(entry.annotates);
+        overlayCount = src ? src.children.filter(
+            c => c.annotates && (c.type === 'image' || c.type === 'feature')).length : 0;
+    }
+    const hasRide = overlayCount > 1;
+    const hasReg = (!!entry.object3d && entry.type !== 'annotation');
+    const hasAdd = entry.annotatable;
+    if (!(hasBlend || hasZ || hasRide || hasReg || hasAdd)) return null;
+
+    const more = document.createElement('button');
+    more.className = 'annotationBtn';
+    more.innerHTML = '&#8943;';   // ⋯
+    more.title = 'More actions';
+    more.style.padding = '0 6px';
+    more.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        openOverflowMenu(more, (menu) => {
+            if (hasBlend) menu.appendChild(menuRow('Blend', blendSelect(registry, entry)));
+            if (hasZ) menu.appendChild(menuRow('Z order', zPair(
+                'Move up in z', () => nudgeZ(registry, entry, +zStep),
+                'Move down in z', () => nudgeZ(registry, entry, -zStep))));
+            if (hasRide) menu.appendChild(menuRow('Stacking', zPair(
+                'Bring forward (on top)', () => moveRideAlong(entry, +1),
+                'Send backward', () => moveRideAlong(entry, -1))));
+            if (hasReg) {
+                if (menu.childNodes.length) menu.appendChild(menuSeparator());
+                const ol = offsetLine(registry, entry);
+                ol.style.marginLeft = '6px';
+                ol.style.marginTop = '0';
+                menu.appendChild(ol);
+            }
+            if (hasAdd) {
+                menu.appendChild(menuSeparator());
+                menu.appendChild(menuAction('<i class="fa-solid fa-plus"></i>', 'Add annotation layer', () => {
+                    closeOverflowMenu();
+                    const name = prompt('Name for the new annotation layer:', '');
+                    if (name === null) return; // cancelled
+                    const ae = createAnnotationLayer(entry, name.trim() || undefined);
+                    if (!ae) { alert('Select/load the image first, then add an annotation layer.'); return; }
+                    document.dispatchEvent(new CustomEvent('zephyr:stackedited', { detail: { registry } }));
+                }));
+                menu.appendChild(menuAction('<i class="fa-solid fa-image"></i>', 'Add image layer', () => {
+                    closeOverflowMenu();
+                    addImageAnnotationLayer(registry, stack, entry);
+                }));
+            }
+        });
+    });
+    return more;
+}
+
+/**
+ * Load a derived image and register it as a ride-along image annotation layer
+ * under its source: nested in the panel, riding on the source's frame,
+ * independently shown/faded — but NOT a drawing surface (annotates != null, so
+ * annotation tools never target it). Semi-transparent by default so it overlays
+ * its source without z-fighting.
+ */
+function addImageAnnotationLayer(registry, stack, source) {
+    if (!source.frame) { alert('Load the source image first, then add a derived image layer.'); return; }
+    const src = prompt('IIIF identifier of the derived image to show as an annotation layer:');
+    if (!src) return;
+    const name = prompt('Name for this image layer:', src.split(/[\/#]/).filter(Boolean).pop() || src);
+    if (name === null) return;
+    const renderer = stack && stack.we ? stack.we.renderer : null;
+    const res = createImageAnnotationLayer(source, src, name.trim() || undefined, renderer, { opacity: 0.5 });
+    if (!res) { alert('Load the source image first, then add a derived image layer.'); return; }
+    res.promise.then(() => {
+        if (res.entry.error) { alert('Failed to load derived image: ' + res.entry.error); return; }
+        document.dispatchEvent(new CustomEvent('zephyr:stackedited', { detail: { registry } }));
+    });
+}
+
+/** Trash button that deletes a layer (and its contents) from the stack. */
+function deleteButton(registry, entry) {
+    const b = document.createElement('button');
+    b.className = 'annotationBtn';
+    b.innerHTML = '<i class="fa-solid fa-trash"></i>';
+    b.title = 'Delete this layer';
+    b.style.padding = '0 4px';
+    b.style.color = '#b00020';
+    b.addEventListener('click', () => {
+        const kids = countDescendants(entry);
+        const extra = kids ? ` and its ${kids} sub-layer${kids > 1 ? 's' : ''}` : '';
+        if (!confirm(`Delete "${entry.name}"${extra}?\n\n`
+            + 'This removes it from the stack; saved image/annotation files on the '
+            + 'server are not deleted. Save the stack to make it permanent.')) return;
+        registry.remove(entry.id);
+        document.dispatchEvent(new CustomEvent('zephyr:stackedited', { detail: { registry } }));
+    });
+    return b;
+}
+
+function countDescendants(entry) {
+    let n = 0;
+    (entry.children || []).forEach(c => { n += 1 + countDescendants(c); });
+    return n;
+}
+
 function nudgeZ(registry, entry, dz) {
-    if (!entry.object3d) return;
-    entry.object3d.position.z += dz;
+    const node = entry.frame || entry.object3d;
+    if (!node) return;
+    node.position.z += dz;
     registry._emit('change');
     document.dispatchEvent(new CustomEvent('zephyr:stackedited', { detail: { registry } }));
     invalidate();
@@ -416,14 +648,21 @@ function addImageLayer(registry, stack, zStep) {
 
     makeImageViewer(stack.we ? stack.we.renderer : null, src, 1, entry.type === 'feature')
         .then((lod) => {
-            lod.scale.x = lod.imageWidth;
-            lod.scale.y = lod.imageHeight;
-            lod.position.set(0, 0, z);
+            // Wrap in a Frame (see StackBuilder.placeLeaf) so a manually-added
+            // layer decouples image visibility from its annotations too.
+            const frame = new Group();
+            frame.name = 'frame';
+            frame.position.set(0, 0, z);
+            frame.userData.layerId = entry.id;
+            lod.scale.set(lod.imageWidth, lod.imageHeight, 1);
+            lod.position.set(0, 0, 0);
             lod.userData.layerId = entry.id;
+            frame.add(lod);
+            entry.frame = frame;
             entry.object3d = lod;
             entry.imageWidth = lod.imageWidth;
             entry.imageHeight = lod.imageHeight;
-            parentGroup.add(lod);
+            parentGroup.add(frame);
             registry._emit('change');
             document.dispatchEvent(new CustomEvent('zephyr:stackedited', { detail: { registry } }));
             invalidate();
@@ -452,8 +691,18 @@ function saveStackAction(registry) {
     }
     const name = prompt('Name for this stack:', defaultStackName(registry));
     if (name === null) return;
-    saveStack(uri, registry, name)
-        .then(() => alert('Stack "' + name + '" saved.'))
+    // Save hand-drawn annotation layers to LDP first (sets their src) so the
+    // stack graph can persist them and reload them on open.
+    saveAllAnnotationLayers(registry)
+        .then((failed) => saveStack(uri, registry, name).then(() => failed))
+        .then((failed) => {
+            if (failed && failed.length) {
+                alert('Stack "' + name + '" saved, but these annotation layers could NOT be '
+                    + 'saved and will not reload: ' + failed.join(', '));
+            } else {
+                alert('Stack "' + name + '" saved.');
+            }
+        })
         .catch(err => alert('Save failed: ' + err.message));
 }
 

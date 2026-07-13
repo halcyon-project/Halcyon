@@ -1,6 +1,8 @@
 import { Group, Box3, Vector3 } from 'three';
-import { makeImageViewer } from './imageLayer.js';
+import { makeImageViewer, disposeSubtree } from './imageLayer.js';
 import { LayerEntry, applyBlendMode } from './LayerRegistry.js';
+import { createAnnotationLayer, createImageAnnotationLayer } from '../helpers/annotationTarget.js';
+import { loadAnnotationSetInto } from '../helpers/save.js';
 
 /**
  * Recursively turn a zeph:Stack RDF graph into a THREE scene-graph of placed
@@ -39,7 +41,7 @@ export function buildStack(store, rootSubject, renderer, registry, options = {})
     const so = $rdf.Namespace('https://schema.org/');
     const rdf = $rdf.Namespace('http://www.w3.org/1999/02/22-rdf-syntax-ns#');
 
-    const opts = Object.assign({ sectionGap: 2500, overlayGap: 2 }, options);
+    const opts = Object.assign({ sectionGap: 2500, overlayGap: 200 }, options);
     const promises = [];
     const ctx = { store, renderer, registry, zeph, geo, so, rdf, opts, promises, sectionCount: 0, path: new Set() };
 
@@ -118,14 +120,33 @@ function buildGroup(ctx, subject, parentEntry, depth, labelOverride = null) {
     // image plus overlays. Nested zeph:Stacks are always sections.
     const leavesAreSections = (depth === 0 && nestedCount === 0);
 
-    let z = 0;
+    // First pass: resolve each member's metadata and intended z-slot. z is an
+    // explicit zeph:zorder when present, else an auto-incrementing slot
+    // (sections stride by sectionGap, overlays by overlayGap).
+    let zc = 0;
+    members.forEach((m) => {
+        m.meta = readMeta(ctx, m.member, m.srcNode);
+        m.asSection = m.nested || leavesAreSections;
+        m.zpos = (m.meta.zorder != null) ? m.meta.zorder : zc;
+        zc += m.asSection ? ctx.opts.sectionGap : ctx.opts.overlayGap;
+    });
+    // Enforce a resolvable minimum Z-separation between layers. At WSI camera
+    // distances the depth buffer can't distinguish planes only a few units
+    // apart, so near-coplanar layers z-fight ("flutter") and one is partly
+    // lost. Spread any layers closer than overlayGap — this also repairs
+    // stacks persisted with the old 2-unit gap or with colliding zorders —
+    // while preserving order and any larger (section) gaps. Walk in z-order so
+    // a deliberate manual offset (LayerPanel z-drag) is respected.
+    const minGap = ctx.opts.overlayGap;
+    let lastZ = -Infinity;
+    [...members].sort((a, b) => a.zpos - b.zpos).forEach((m) => {
+        if (m.zpos < lastZ + minGap) m.zpos = lastZ + minGap;
+        lastZ = m.zpos;
+    });
+
     let leafIndex = 0;
     let groupPx = null; // reference physical pixel size for this group's frame
-    members.forEach(({ member, srcNode, nested }) => {
-        const meta = readMeta(ctx, member, srcNode);
-        const asSection = nested || leavesAreSections;
-        const zpos = (meta.zorder != null) ? meta.zorder : z;
-
+    members.forEach(({ member, srcNode, nested, meta, asSection, zpos }) => {
         // Persisted presentation state (#19): display name, opacity,
         // visibility and blend mode, written back by Save.
         const declaredName = store.any(member, ctx.so('name'));
@@ -175,10 +196,9 @@ function buildGroup(ctx, subject, parentEntry, depth, labelOverride = null) {
                     meta.sy *= meta.pxY / groupPx.y;
                 }
             }
-            placeLeaf(ctx, entry, srcNode, meta, zpos, opacity, group);
+            placeLeaf(ctx, entry, srcNode, meta, zpos, opacity, group, member);
             leafIndex++;
         }
-        z += asSection ? ctx.opts.sectionGap : ctx.opts.overlayGap;
     });
 
     ctx.path.delete(pathKey);
@@ -186,22 +206,40 @@ function buildGroup(ctx, subject, parentEntry, depth, labelOverride = null) {
 }
 
 /** Async: fetch the leaf's info.json, size/position it, register the object. */
-function placeLeaf(ctx, entry, srcNode, meta, zpos, opacity, group) {
+function placeLeaf(ctx, entry, srcNode, meta, zpos, opacity, group, member) {
     const src = termValue(srcNode);
     const p = makeImageViewer(ctx.renderer, src, opacity, entry.type === 'feature')
         .then((lod) => {
-            lod.scale.x = lod.imageWidth * meta.sx;
-            lod.scale.y = lod.imageHeight * meta.sy;
-            lod.position.set(meta.offx, meta.offy, zpos);
+            // Deleted (or the stack cleared) while its image was still loading:
+            // drop the just-loaded viewer instead of adding an orphan to the scene.
+            if (!ctx.registry.entries.has(entry.id)) { disposeSubtree(lod); return; }
+            // A per-layer Frame owns the registration (placement + pixel scale);
+            // the image content and any annotation planes are independently
+            // toggleable children of it, so the image can be hidden while its
+            // annotations stay visible. Net world transform is unchanged: the
+            // frame's (sx, sy) scale times the image's native (w, h) footprint
+            // equals the old (imageWidth * sx) placement.
+            const frame = new Group();
+            frame.name = 'frame';
+            frame.position.set(meta.offx, meta.offy, zpos);
+            frame.scale.set(meta.sx, meta.sy, 1);
+            frame.userData.layerId = entry.id;
+
+            lod.scale.set(lod.imageWidth, lod.imageHeight, 1);
+            lod.position.set(0, 0, 0);
             lod.visible = entry.visible;
             lod.userData.layerId = entry.id;
+            frame.add(lod);
+
+            entry.frame = frame;
             entry.object3d = lod;
             entry.imageWidth = lod.imageWidth;
             entry.imageHeight = lod.imageHeight;
             if (entry.blendMode && entry.blendMode !== 'normal') {
                 applyBlendMode(lod, entry.blendMode);
             }
-            group.add(lod);
+            group.add(frame);
+            if (member) buildRideAlongs(ctx, entry, member);
             ctx.registry._emit('change');
         })
         .catch((err) => {
@@ -210,6 +248,54 @@ function placeLeaf(ctx, entry, srcNode, meta, zpos, opacity, group) {
             ctx.registry._emit('change');
         });
     ctx.promises.push(p);
+}
+
+/**
+ * Recreate a spatial leaf's persisted ride-along layers (drawn annotation
+ * layers + derived images) from its zeph:annotations list, attaching them to
+ * the leaf's frame. Annotation content is fetched from zeph:src and loaded
+ * best-effort — a failure logs and is skipped, never breaking the stack build.
+ */
+function buildRideAlongs(ctx, sourceEntry, member) {
+    const { store, zeph, rdf, geo, so } = ctx;
+    listElements(store, member, zeph('annotations')).forEach((rm) => {
+        const srcNode = store.any(rm, zeph('src'));
+        const src = srcNode ? termValue(srcNode) : null;
+        if (!src) return;
+        const nameNode = store.any(rm, so('name'));
+        const name = nameNode ? nameNode.value : null;
+        const opNode = store.any(rm, zeph('opacity'));
+        const opacity = opNode ? parseFloat(opNode.value) : undefined;
+        const visNode = store.any(rm, zeph('visible'));
+        const visible = !(visNode && visNode.value === 'false');
+        const offx = numOrZero(store, rm, zeph('offsetx'));
+        const offy = numOrZero(store, rm, zeph('offsety'));
+        if (store_holds(store, rm, rdf('type'), zeph('AnnotationLayer'))) {
+            const ae = createAnnotationLayer(sourceEntry, name || undefined, false);
+            if (!ae) return;
+            ae.src = src;   // remember the LDP set URL so a re-save round-trips
+            if (opacity != null && Number.isFinite(opacity)) ae.opacity = opacity;
+            if (!visible) ctx.registry.setVisible(ae.id, false);
+            const p = loadAnnotationSetInto(src, ae.object3d)
+                .then(() => { if (ae.opacity !== 1) ctx.registry.setOpacity(ae.id, ae.opacity, true); })
+                .catch((err) => console.error('Zephyr: annotation set load failed', src, err));
+            ctx.promises.push(p);
+        } else {
+            const isFeature = (srcNode && (store_holds(store, srcNode, rdf('type'), zeph('FeatureLayer'))
+                || store_holds(store, srcNode, rdf('type'), geo('FeatureCollection'))))
+                || /\.(ttl|h5)$/i.test(src);
+            const scale = numOrZero(store, rm, zeph('scalex')) || 1;
+            const res = createImageAnnotationLayer(sourceEntry, src, name || undefined, ctx.renderer,
+                { feature: isFeature, opacity, visible, offx, offy, scale });
+            if (res && res.promise) ctx.promises.push(res.promise);
+        }
+    });
+}
+
+function numOrZero(store, s, p) {
+    const t = store.any(s, p);
+    const f = t ? parseFloat(t.value) : NaN;
+    return Number.isFinite(f) ? f : 0;
 }
 
 // ---- RDF helpers -----------------------------------------------------------

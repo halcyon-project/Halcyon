@@ -61,11 +61,18 @@ export function initStackNavigator(registry, stack) {
         index = ((index % list.length) + list.length) % list.length;
         list.forEach((s, i) => {
             const current = (i === index);
-            if (s.object3d) {
-                // Solo hides the others; All/Dim restore the panel's state.
-                s.object3d.visible = (mode === 'solo')
-                    ? (current && s.visible !== false)
-                    : (s.visible !== false);
+            // Solo/All toggle the whole section — its frame (image AND its
+            // annotation / ride-along layers). A framed (leaf) section's
+            // visibility checkbox controls the image content (object3d)
+            // independently, so its FRAME always shows and the checkbox
+            // survives. A non-framed (nested) section has no such split — its
+            // object3d IS both the section and what the checkbox controls — so
+            // Solo AND All must respect its checkbox (`on`), else Solo re-shows
+            // a checkbox-hidden current section.
+            const node = s.frame || s.object3d;
+            if (node) {
+                const on = s.frame ? true : (s.visible !== false);
+                node.visible = (mode === 'solo') ? (current && on) : on;
             }
             setDim(s, mode === 'dim' && !current);
         });

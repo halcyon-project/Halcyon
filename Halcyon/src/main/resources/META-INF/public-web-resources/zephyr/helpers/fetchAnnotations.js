@@ -1,8 +1,9 @@
 import { createButton } from "./elements.js";
 import { getUrl } from "./conversions.js";
-import { deserializeScene } from "./save.js";
+import { loadAnnotationSetInto } from "./save.js";
 import { getAnnotationLabel, setAnnotationLabel } from "./sparql.js";
-import { activeImageUrl } from "./annotationTarget.js";
+import { activeImageUrl, getActiveEntry, createAnnotationLayer } from "./annotationTarget.js";
+import { getRegistry } from "../context.js";
 import { invalidate } from "../renderLoop.js";
 
 export function fetchAnnotations(scene) {
@@ -116,9 +117,9 @@ export function fetchAnnotations(scene) {
 
     const hint = document.createElement('div');
     hint.style.cssText = 'font-size:11px;color:#555;margin:2px 0 6px 0;max-width:340px;white-space:normal;';
-    hint.textContent = 'Check a set to display it on the active layer; uncheck to hide. '
-      + 'The Save button updates the single checked set (everything shown on the '
-      + 'layer, including new drawings); with none or several checked it saves a new set.';
+    hint.textContent = 'Check a set to display it as its own named layer on the active '
+      + 'source; uncheck to hide it. Use "Save annotations" (or Save Stack) to persist '
+      + 'the layers you have drawn.';
     div.appendChild(hint);
 
     // Create and style the close button
@@ -178,63 +179,36 @@ export function fetchAnnotations(scene) {
       div.appendChild(label);
       div.appendChild(document.createElement('br'));
 
+      // Checking a set loads it as its OWN named annotation layer (nested under
+      // the active source in the panel); unchecking removes that layer. The
+      // set's file on the server is kept either way. objectMap maps set URL ->
+      // annotation-layer id.
       checkbox.addEventListener('change', function () {
+        const r = getRegistry();
         if (this.checked) {
-          // If the checkbox is selected, fetch the annotations again
           if (!objectMap.has(annotation)) {
-            fetch(annotation)
-              .then(response => {
-                if (response.redirected) {
-                  throw new Error('Not signed in to Halcyon — sign in in this browser, then re-check this set.');
-                }
-                if (!response.ok) {
-                  throw new Error('URL does not exist');
-                }
-                return response.json();
-              })
-              .then(data => {
-                try {
-                  const objects = deserializeScene(scene, data);
-                  objectMap.set(annotation, objects);
-                  invalidate();
-                  if (!objects.length) {
-                    alert('This annotation set is empty (nothing to display).');
-                  }
-                } catch (e) {
-                  console.error('Deserialization error:', e);
-                  alert('Could not display this annotation set: ' + e.message);
-                }
-              })
-              .catch(error => alert(error.message));
-          } else {
-            // If the objects are already fetched, make them visible again
-            objectMap.get(annotation).forEach(obj => {
-              obj.visible = true;
-            });
-            invalidate();
+            const source = getActiveEntry();
+            if (!source) { alert('Select a layer first, then check a set.'); this.checked = false; return; }
+            const setName = (textInput && textInput.value) || annotation.split('/').pop();
+            const ae = createAnnotationLayer(source, setName, false);
+            if (!ae) { alert('Select/load the image first, then check a set.'); this.checked = false; return; }
+            ae.src = annotation;   // its content already lives at this LDP URL
+            objectMap.set(annotation, ae.id);
+            loadAnnotationSetInto(annotation, ae.object3d)
+              .then(() => invalidate())
+              .catch(error => {
+                alert('Could not display this annotation set: ' + error.message);
+                if (r) r.remove(ae.id);
+                objectMap.delete(annotation);
+                this.checked = false;
+              });
+          } else if (r) {
+            r.setVisible(objectMap.get(annotation), true);
           }
-        } else {
-          // If the checkbox is deselected, remove the objects from the scene
-          if (objectMap.has(annotation)) {
-            objectMap.get(annotation).forEach(obj => {
-              if (obj.parent) {
-                obj.parent.remove(obj); // Remove from parent
-              } else {
-                scene.remove(obj); // Fallback to remove directly from the scene
-              }
-              if (obj.geometry) obj.geometry.dispose(); // Dispose of geometry
-              if (obj.material) {
-                // Dispose of material (handle arrays of materials)
-                if (Array.isArray(obj.material)) {
-                  obj.material.forEach(material => material.dispose());
-                } else {
-                  obj.material.dispose();
-                }
-              }
-            });
-            objectMap.delete(annotation); // Remove from the objectMap
-            invalidate();
-          }
+        } else if (objectMap.has(annotation)) {
+          if (r) r.remove(objectMap.get(annotation));
+          objectMap.delete(annotation);
+          invalidate();
         }
       });
     }

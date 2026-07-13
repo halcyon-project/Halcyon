@@ -453,6 +453,25 @@ export class ImageViewer extends LOD {
                     }
                 });
             }
+            // Ride-along image tiles inherit the parent's depth bias + render
+            // order, so a coplanar overlay keeps winning the depth test at every
+            // zoom level (see annotationTarget.applyRideDepthBias).
+            const db = m.userData.depthBias;
+            if (db) {
+                high.traverse((o) => {
+                    if (o.name === 'Square') {
+                        const cm = o.material;
+                        if (cm.userData.depthBias === undefined) {
+                            cm.userData.depthBias = db;
+                            cm.userData.rideRenderOrder = m.userData.rideRenderOrder;
+                            cm.polygonOffsetFactor += db;
+                            cm.polygonOffsetUnits += db;
+                            cm.needsUpdate = true;
+                        }
+                        o.renderOrder = m.userData.rideRenderOrder || 0;
+                    }
+                });
+            }
             high.frustumCulled = true;
             this.addLevel(high, 0); // the real switch distance lives on the low level
             this.high = high;

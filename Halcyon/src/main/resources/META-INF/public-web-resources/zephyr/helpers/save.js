@@ -1,9 +1,9 @@
 // Save / load annotation sets.
 import * as THREE from 'three';
 import { createButton } from "./elements.js";
-import { getUrl } from "./conversions.js";
 import { setAnnotationLabel } from "./sparql.js";
-import { activeImageUrl, getActiveGroup, activeDims } from "./annotationTarget.js";
+import { getActiveGroup } from "./annotationTarget.js";
+import { getRegistry } from "../context.js";
 import { localToImagePoints, imageToLocalPoints, pointsToWKT, wktToPoints } from "./wkt.js";
 import { createAnnotationLine, createFilledPolygon, annotationPoints, ANNOTATION_LINEWIDTH } from "./annotationShapes.js";
 import { heatmapToAnnotations } from "./heatmap.js";
@@ -31,168 +31,138 @@ export function save(scene) {
   createButton({
     id: "save",
     innerHtml: "<i class=\"fas fa-save\"></i>",
-    title: "Save"
-  }).addEventListener("click", function () {
-    // Where does a save go? Everything currently displayed on the ACTIVE
-    // layer is saved as one snapshot. If exactly ONE set is checked in the
-    // Fetch Annotations popup, that set is UPDATED (confirmed below);
-    // otherwise a NEW set is created. Displaying several sets and saving
-    // therefore merges them into the target.
-    const annotationsDiv = document.getElementById("annotations-div");
-    const checkboxes = annotationsDiv
-      ? annotationsDiv.querySelectorAll('input[type="checkbox"]:checked')
-      : [];
-
-    if (checkboxes.length === 1) {
-      const selectedUrl = checkboxes[0].value;
-      const nameInput = checkboxes[0].nextElementSibling;
-      const setName = (nameInput && nameInput.value) || String(selectedUrl).split('/').pop();
-      if (confirm(`Update the annotation set "${setName}" with everything shown on this layer?\n\n(Cancel to save as a NEW set instead.)`)) {
-        serializeScene(scene, null, selectedUrl);
-        return;
-      }
-    }
-    const label = prompt("Enter a label for this annotation set:", "My Annotation Set");
-    if (label === null) return; // cancelled — save nothing
-    serializeScene(scene, label); // Save to a new file
-  });
-
-  async function serializeScene(scene, label, postUrl) {
-    // Collect annotations from the ACTIVE layer's group (falling back to the
-    // whole scene for the single-image case).
-    const root = getActiveGroup() || scene;
-    const dims = activeDims();
-    const imageId = activeImageUrl() || getUrl(scene);
-    if (!imageId || !dims.imageWidth || !dims.imageHeight) {
-      alert('No active image layer to associate annotations with.');
+    title: "Save all annotation layers to their files (Save Stack also saves the stack)"
+  }).addEventListener("click", async function () {
+    // Save the drawn content of every annotation layer to its own LDP file
+    // (setting each layer's src). This is the "save my annotations" action;
+    // Save Stack (layer panel) does this AND persists the stack graph.
+    const registry = getRegistry();
+    if (!registry) { alert('No active viewer.'); return; }
+    if (!registry.list().some(e => e.type === 'annotation' && e.object3d)) {
+      alert('No annotation layers to save — draw or load annotations first.');
       return;
     }
+    const failed = await saveAllAnnotationLayers(registry);
+    if (failed && failed.length) {
+      alert('Some annotation layers could not be saved (see console): ' + failed.join(', '));
+    } else {
+      alert('Annotations saved.');
+    }
+  });
+}
 
+/**
+ * Fetch a persisted annotation set by URL and build its shapes into a specific
+ * target group — used to reload a stack's annotation layers on open.
+ */
+export async function loadAnnotationSetInto(url, targetGroup) {
+    const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    if (res.redirected) throw new Error('not signed in (redirected to sign-in)');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return deserializeScene(null, data, targetGroup);
+}
+
+/**
+ * Collect the annotation shapes under `group` into the v1 payload envelope, or
+ * null if the group holds no annotations. Shared by the Save button and by the
+ * stack Save (which persists every annotation layer).
+ */
+function collectAnnotations(group, imageId, imageWidth, imageHeight) {
     const annotations = [];
     const v = new THREE.Vector3();
-    root.traverse(obj => {
-      // The instanced heatmap grid (#29) is one mesh holding every painted
-      // square — expand it to ordinary per-square filled polygons so saved
-      // sets stay identical to the per-mesh era (and reload editable).
-      if (obj.isInstancedMesh && obj.userData && obj.userData.heatmap) {
-        annotations.push(...heatmapToAnnotations(obj, dims.imageWidth, dims.imageHeight));
-        return;
-      }
-      if (!obj.name || !obj.name.includes("annotation") || obj.name === 'annotations') return;
-
-      // Geometry-local vertices. Meshes without explicit userData.points
-      // (legacy grid squares: PlaneGeometry, whose attribute order is a
-      // triangle strip — a bowtie as a polygon) serialize from their
-      // bounding box corners instead.
-      let flat;
-      if (obj.userData && Array.isArray(obj.userData.points)) {
-        flat = obj.userData.points;
-      } else if (obj.isMesh && obj.geometry) {
-        if (obj.geometry.boundingBox === null) obj.geometry.computeBoundingBox();
-        const b = obj.geometry.boundingBox;
-        flat = b ? [b.min.x, b.max.y, 0, b.max.x, b.max.y, 0, b.max.x, b.min.y, 0, b.min.x, b.min.y, 0] : [];
-      } else {
-        flat = annotationPoints(obj);
-      }
-      if (!flat.length) return;
-
-      // Bake the object's own transform (whole-shape moves) into the points.
-      obj.updateMatrix();
-      const baked = [];
-      for (let i = 0; i < flat.length; i += 3) {
-        v.set(flat[i], flat[i + 1], flat[i + 2]).applyMatrix4(obj.matrix);
-        baked.push(v.x, v.y, v.z);
-      }
-      const imagePts = localToImagePoints(baked, dims.imageWidth, dims.imageHeight);
-      const closed = (obj.userData.closed !== undefined) ? !!obj.userData.closed : true;
-      // Fat lines (Line2) EXTEND Mesh in three's type system — a bare isMesh
-      // test misclassifies every outline as a filled polygon.
-      const fill = !!(obj.userData && obj.userData.fill)
-        || (obj.isMesh === true && obj.isLine2 !== true && obj.isLineSegments2 !== true);
-      annotations.push({
-        name: obj.name,
-        classification: obj.userData.cancerType || '',
-        color: (obj.material && obj.material.color) ? `#${obj.material.color.getHexString()}` : '#0000ff',
-        linewidth: (obj.userData && obj.userData.linewidth)
-          || (obj.material && obj.material.linewidth) || 1,
-        fill,
-        opacity: (obj.material && obj.material.opacity != null) ? obj.material.opacity : 1,
-        wkt: pointsToWKT(imagePts, closed || fill)
-      });
+    group.traverse(obj => {
+        if (obj.isInstancedMesh && obj.userData && obj.userData.heatmap) {
+            annotations.push(...heatmapToAnnotations(obj, imageWidth, imageHeight));
+            return;
+        }
+        if (!obj.name || !obj.name.includes("annotation") || obj.name === 'annotations') return;
+        let flat;
+        if (obj.userData && Array.isArray(obj.userData.points)) {
+            flat = obj.userData.points;
+        } else if (obj.isMesh && obj.geometry) {
+            if (obj.geometry.boundingBox === null) obj.geometry.computeBoundingBox();
+            const b = obj.geometry.boundingBox;
+            flat = b ? [b.min.x, b.max.y, 0, b.max.x, b.max.y, 0, b.max.x, b.min.y, 0, b.min.x, b.min.y, 0] : [];
+        } else {
+            flat = annotationPoints(obj);
+        }
+        if (!flat.length) return;
+        obj.updateMatrix();
+        const baked = [];
+        for (let i = 0; i < flat.length; i += 3) {
+            v.set(flat[i], flat[i + 1], flat[i + 2]).applyMatrix4(obj.matrix);
+            baked.push(v.x, v.y, v.z);
+        }
+        const imagePts = localToImagePoints(baked, imageWidth, imageHeight);
+        const closed = (obj.userData.closed !== undefined) ? !!obj.userData.closed : true;
+        const fill = !!(obj.userData && obj.userData.fill)
+            || (obj.isMesh === true && obj.isLine2 !== true && obj.isLineSegments2 !== true);
+        annotations.push({
+            name: obj.name,
+            classification: obj.userData.cancerType || '',
+            color: (obj.material && obj.material.color) ? `#${obj.material.color.getHexString()}` : '#0000ff',
+            linewidth: (obj.userData && obj.userData.linewidth) || (obj.material && obj.material.linewidth) || 1,
+            fill,
+            opacity: (obj.material && obj.material.opacity != null) ? obj.material.opacity : 1,
+            wkt: pointsToWKT(imagePts, closed || fill)
+        });
     });
-
-    if (annotations.length === 0) {
-      alert('No annotations on the selected layer to save.');
-      return;
-    }
-
-    const payload = [
-      {
-        format: FORMAT,
-        version: 1,
-        image: imageId,
-        imageWidth: dims.imageWidth,
-        imageHeight: dims.imageHeight,
-        created: new Date().toISOString(),
-        annotations
-      },
-      // Server linkage marker — the LDP side types this resource as a
-      // hal:Annotation of the image. Kept byte-compatible with legacy saves.
-      { image: imageId, type: "hal:Annotation" }
+    if (!annotations.length) return null;
+    return [
+        { format: FORMAT, version: 1, image: imageId, imageWidth, imageHeight, created: new Date().toISOString(), annotations },
+        { image: imageId, type: "hal:Annotation" }
     ];
+}
 
-    if (!postUrl) {
-      const container = imageId.substring(0, imageId.lastIndexOf('/') + 1);
-      postUrl = `${container}${crypto.randomUUID()}.json`;
+/**
+ * Save every annotation layer's shapes to its own LDP resource so a stack Save
+ * can persist the layers (via zeph:src) and reload them on open. Sets each
+ * layer's `src`. Best-effort per layer (a failure logs and is skipped). Called
+ * before the stack graph is written, so freshly hand-drawn annotations survive
+ * a single "Save Stack" without a separate annotation-save step.
+ */
+export async function saveAllAnnotationLayers(registry) {
+    const layers = registry.list().filter(e => e.type === 'annotation' && e.object3d);
+    const failed = [];
+    for (const e of layers) {
+        // Only (re)save a layer that changed since its last save, or was never
+        // saved — an unchanged loaded layer keeps its existing file.
+        if (!e.dirty && e.src) continue;
+        const source = e.annotates ? registry.get(e.annotates) : null;
+        const imageId = source && source.src;
+        const w = source && source.imageWidth;
+        const h = source && source.imageHeight;
+        if (!imageId || !w || !h) continue;
+        const payload = collectAnnotations(e.object3d, imageId, w, h);
+        if (!payload) continue; // empty layer — nothing to save
+        let url = e.src;
+        if (!url) {
+            const container = imageId.substring(0, imageId.lastIndexOf('/') + 1);
+            url = `${container}${crypto.randomUUID()}.json`;
+        }
+        try {
+            const res = await fetch(url, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (res.redirected) throw new Error('redirected to sign-in (not signed in)');
+            if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+            try { await setAnnotationLabel(url, e.name); } catch (le) { console.error('label set failed', le); }
+            e.src = url;
+            e.dirty = false;
+        } catch (err) {
+            console.error('Zephyr: failed to save annotation layer', e.name, err);
+            failed.push(e.name || e.id);
+        }
     }
-
-    // First save the serialized objects
-    try {
-      const response = await fetch(postUrl, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      });
-
-      // The auth layer redirects unauthenticated /lws requests to the
-      // sign-in page; fetch follows it and lands on a 200 HTML page — which
-      // is NOT a successful save. Detect and say so instead of lying.
-      if (response.redirected) {
-        console.error('Annotation save redirected (not signed in):', response.url);
-        alert('Save failed: the server redirected to the sign-in page.\n'
-          + `Sign in to Halcyon (open ${window.location.origin}/ in this browser), then save again.`);
-        return;
-      }
-      if (!response.ok) {
-        console.error('Error creating file:', response.status, response.statusText);
-        alert(`Save failed: ${response.status} ${response.statusText}`);
-        return;  // Stop execution if the file creation fails
-      }
-      console.log('File created successfully.', response);
-    } catch (error) {
-      console.error('Fetch error:', error);
-      alert('Save failed: ' + error.message);
-      return;  // Stop execution if there is a fetch error
-    }
-
-    if (label) {
-      // After the resource is created, set the annotation label
-      try {
-        await setAnnotationLabel(postUrl, label);
-      } catch (error) {
-        console.error('Error setting annotation label:', error);
-      }
-    }
-
-    alert('Annotations saved successfully.');
-  }
+    return failed;   // names of layers that could not be saved (empty = all good)
 }
 
 /** Build scene objects from a v1 schema envelope. */
-function buildFromSchema(scene, doc) {
-  const target = getActiveGroup() || scene;
+function buildFromSchema(scene, doc, targetGroup) {
+  const target = targetGroup || getActiveGroup() || scene;
   const objects = [];
   const w = doc.imageWidth;
   const h = doc.imageHeight;
@@ -217,12 +187,12 @@ function buildFromSchema(scene, doc) {
   return objects;
 }
 
-export function deserializeScene(scene, serializedObjects) {
+export function deserializeScene(scene, serializedObjects, targetGroup) {
   // Versioned envelope (v1)?
   if (Array.isArray(serializedObjects)
       && serializedObjects[0]
       && serializedObjects[0].format === FORMAT) {
-    return buildFromSchema(scene, serializedObjects[0]);
+    return buildFromSchema(scene, serializedObjects[0], targetGroup);
   }
 
   // Legacy import path: arrays of raw THREE.ObjectLoader JSON.
@@ -245,9 +215,9 @@ export function deserializeScene(scene, serializedObjects) {
     // Deserialize the object
     const object = loader.parse(serializedData);
 
-    // Add to the active layer's annotation group (falling back to the scene),
-    // so a re-loaded set lands on the currently-selected layer.
-    (getActiveGroup() || scene).add(object);
+    // Add to the given target group, else the active layer's annotation group
+    // (falling back to the scene), so a re-loaded set lands where intended.
+    (targetGroup || getActiveGroup() || scene).add(object);
     objects.push(object);
   });
 

@@ -3,6 +3,7 @@ import { removeObject } from "./elements.js";
 import { DragControls } from "three/addons/controls/DragControls.js";
 import { annotationPoints, setAnnotationPoints } from "./annotationShapes.js";
 import { pushCommand, commandDelete, commandChange } from "./history.js";
+import { markLayerDirty, pruneEmptyAnnotationLayer } from "./annotationTarget.js";
 import { invalidate } from "../renderLoop.js";
 
 /**
@@ -55,12 +56,21 @@ export function edit(manager) {
     const mesh = currentMesh;
     const parent = mesh.parent;
     if (!parent) return;
+    markLayerDirty(mesh);   // the layer changed — incremental Save Stack re-saves it
     parent.remove(mesh);
     const index = intersectableObjects.indexOf(mesh);
     if (index > -1) intersectableObjects.splice(index, 1);
     // History owns the object's lifetime now — dispose happens only when the
     // delete command falls off the stack unredone.
-    pushCommand(commandDelete(mesh, parent));
+    const del = commandDelete(mesh, parent);
+    // If that emptied a never-saved annotation layer, remove it too — undoably,
+    // as one command so Ctrl+Z restores both the shape and its layer.
+    const layer = pruneEmptyAnnotationLayer(parent);
+    pushCommand(layer ? {
+        undo() { del.undo(); layer.undo(); },
+        redo() { del.redo(); layer.redo(); },
+        dispose() { if (del.dispose) del.dispose(); }
+    } : del);
     clearSelection();
     invalidate();
   }
@@ -252,6 +262,7 @@ export function edit(manager) {
     const mesh = currentMesh;
     const snap = dragSnapshot;
     dragSnapshot = null;
+    markLayerDirty(mesh);   // moved/reshaped — incremental Save Stack re-saves it
 
     if (snap.kind === 'move') {
       const before = snap.before;

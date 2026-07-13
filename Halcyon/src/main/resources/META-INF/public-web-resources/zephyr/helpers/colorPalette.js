@@ -62,7 +62,7 @@ function buildColorPalette(paletteContainer, data) {
   paletteContainer.innerHTML = '';
 
   let options;
-  if (data) {
+  if (data && Array.isArray(data.hasAnnotationClass)) {
     options = [];
     // console.log("data:", JSON.stringify(data));
 

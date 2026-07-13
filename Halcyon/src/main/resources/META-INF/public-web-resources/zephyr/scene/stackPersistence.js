@@ -79,6 +79,8 @@ function emitStack(g, ZEPH, subject, stackEntry) {
         if (child.name) {
             g.add(member, $rdf.sym('https://schema.org/name'), $rdf.literal(child.name));
         }
+        // Ride-along layers (annotation + derived image) of this spatial leaf.
+        emitRideAlongs(g, ZEPH, member, child);
         members.push(member);
     });
     // Emit the rdf:List explicitly with the correct rdf:nil terminator. The
@@ -96,20 +98,83 @@ function emitStack(g, ZEPH, subject, stackEntry) {
     g.add(subject, ZEPH('layers'), list);
 }
 
-/** Persist the layer's live placement (only non-default values). */
-function addTransform(g, ZEPH, member, entry) {
-    const o = entry.object3d;
-    if (!o) return;
+/**
+ * Emit a spatial leaf's ride-along layers (drawn annotation layers + derived
+ * images shown as annotation layers) as a zeph:annotations rdf:List. An
+ * annotation layer's shapes live in their own LDP resource (zeph:src); this
+ * records only the reference + presentation, not the geometry.
+ */
+function emitRideAlongs(g, ZEPH, parentMember, entry) {
+    const RDF = $rdf.Namespace('http://www.w3.org/1999/02/22-rdf-syntax-ns#');
     const XSD = $rdf.Namespace('http://www.w3.org/2001/XMLSchema#');
     const num = (v) => $rdf.literal(String(v), XSD('double'));
-    if (o.position) {
-        g.add(member, ZEPH('zorder'), num(round(o.position.z)));
-        if (o.position.x) g.add(member, ZEPH('offsetx'), num(round(o.position.x)));
-        if (o.position.y) g.add(member, ZEPH('offsety'), num(round(o.position.y)));
+    const members = [];
+    // Emit in stacking order (rideOrder) so a reorder round-trips: on load the
+    // list position drives each overlay's recomputed depth-bias order.
+    (entry.children || []).filter(c => c.annotates)
+        .sort((a, b) => (a.rideOrder || 0) - (b.rideOrder || 0))
+        .forEach((r) => {
+        // A never-saved annotation layer has no LDP content to reference — skip
+        // it rather than persist a dangling layer that can't reload.
+        if (r.type === 'annotation' && !r.src) return;
+        if (!r.src) return;
+        const m = $rdf.blankNode();
+        if (r.type === 'annotation') {
+            g.add(m, $rdf.sym(RDF_TYPE), ZEPH('AnnotationLayer'));
+            g.add(m, ZEPH('src'), $rdf.sym(r.src));
+        } else {
+            g.add(m, ZEPH('src'), $rdf.sym(r.src));
+            g.add($rdf.sym(r.src), $rdf.sym(RDF_TYPE),
+                r.type === 'feature' ? ZEPH('FeatureLayer') : ZEPH('ImageLayer'));
+        }
+        if (r.name) g.add(m, $rdf.sym('https://schema.org/name'), $rdf.literal(r.name));
+        g.add(m, ZEPH('opacity'), num(round(r.opacity)));
+        if (r.visible === false) g.add(m, ZEPH('visible'), $rdf.literal('false'));
+        // Registration offset + scale of a derived-image ride-along in the frame.
+        const o = r.object3d;
+        if (o && o.position) {
+            if (o.position.x) g.add(m, ZEPH('offsetx'), num(round(o.position.x)));
+            if (o.position.y) g.add(m, ZEPH('offsety'), num(round(o.position.y)));
+        }
+        if (r.type !== 'annotation' && r.rideScale && approx(r.rideScale, 1) === false) {
+            g.add(m, ZEPH('scalex'), num(r.rideScale));
+        }
+        members.push(m);
+    });
+    if (!members.length) return;
+    let list = RDF('nil');
+    for (let i = members.length - 1; i >= 0; i--) {
+        const cell = $rdf.blankNode();
+        g.add(cell, RDF('first'), members[i]);
+        g.add(cell, RDF('rest'), list);
+        list = cell;
     }
-    if (o.scale && entry.imageWidth && entry.imageHeight) {
-        const sx = o.scale.x / entry.imageWidth;
-        const sy = o.scale.y / entry.imageHeight;
+    g.add(parentMember, ZEPH('annotations'), list);
+}
+
+/** Persist the layer's live placement (only non-default values). */
+function addTransform(g, ZEPH, member, entry) {
+    // Placement lives on the layer's Frame (leaves) or its own group (sections).
+    const place = entry.frame || entry.object3d;
+    if (!place) return;
+    const XSD = $rdf.Namespace('http://www.w3.org/2001/XMLSchema#');
+    const num = (v) => $rdf.literal(String(v), XSD('double'));
+    if (place.position) {
+        g.add(member, ZEPH('zorder'), num(round(place.position.z)));
+        if (place.position.x) g.add(member, ZEPH('offsetx'), num(round(place.position.x)));
+        if (place.position.y) g.add(member, ZEPH('offsety'), num(round(place.position.y)));
+    }
+    // The frame's scale IS the pixel-registration ratio (sx, sy). Pre-frame
+    // layers instead baked it into the ImageViewer scale (imageWidth * sx), so
+    // recover it by dividing when there is no frame (older layers / sections).
+    let sx = null, sy = null;
+    if (entry.frame && place.scale) {
+        sx = place.scale.x; sy = place.scale.y;
+    } else if (place.scale && entry.imageWidth && entry.imageHeight) {
+        sx = place.scale.x / entry.imageWidth;
+        sy = place.scale.y / entry.imageHeight;
+    }
+    if (sx !== null) {
         if (approx(sx, 1) === false) g.add(member, ZEPH('scalex'), num(sx));
         if (approx(sy, 1) === false) g.add(member, ZEPH('scaley'), num(sy));
     }

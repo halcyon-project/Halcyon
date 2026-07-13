@@ -44,8 +44,11 @@ export function scaleBar(camera, renderer, controls) {
 
     // Layer pixels per world unit (registration can rescale a layer).
     let layerPerWorld = 1;
-    if (entry && entry.object3d && entry.imageWidth) {
-      const sx = entry.object3d.scale.x / entry.imageWidth;
+    if (entry && (entry.frame || (entry.object3d && entry.imageWidth))) {
+      // The registration scale (sx) lives on the frame; pre-frame layers baked
+      // it into the image's scale (imageWidth * sx).
+      const sx = entry.frame ? entry.frame.scale.x
+               : entry.object3d.scale.x / entry.imageWidth;
       if (sx > 0) layerPerWorld = 1 / sx;
     }
     const mpp = activeMicronsPerPixel();

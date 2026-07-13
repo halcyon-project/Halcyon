@@ -94,7 +94,7 @@ class Stack extends Group {
         this.store = we.getStore();
         this.registry = getRegistry();
 
-        const opts = { sectionGap: 2500, overlayGap: 2 };
+        const opts = { sectionGap: 2500, overlayGap: 200 };
         this.sectionGap = opts.sectionGap;
         const { group, ready, bounds } = buildStack(
             this.store, statement.subject, we.renderer || null, this.registry, opts
