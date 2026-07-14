@@ -70,6 +70,10 @@ logging:
     file:    "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level %logger{36}.%M - %msg%n"    
   level:
     root: ERROR
+    # The W3C LWS module (HalcyonLWS). Root is ERROR, so without this the storage
+    # is entirely silent: no mount confirmation, no ACP bootstrap warning, no
+    # metadata-scan results.
+    com.ebremer.lws: INFO
     #com.ebremer.halcyon.filereaders: TRACE
     #org.pac4j: TRACE
     #org.eclipse.jetty: TRACE

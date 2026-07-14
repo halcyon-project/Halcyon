@@ -11,6 +11,7 @@
     <modules>
         <module>jena-permissions</module>
         <module>halcyon-core</module>
+        <module>HalcyonLWS</module>
         <module>Halcyon</module>
     </modules>
     
@@ -191,6 +192,15 @@
                      deprecated the module and removed it in Jena 6.x. -->
                 <groupId>com.ebremer.HalcyonProject</groupId>
                 <artifactId>jena-permissions</artifactId>
+                <type>jar</type>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <!-- W3C Linked Web Storage Protocol server (module HalcyonLWS/).
+                     Independent of the legacy com.ebremer.halcyon.server.lws
+                     servlet, which stays as-is. -->
+                <groupId>com.ebremer.HalcyonProject</groupId>
+                <artifactId>HalcyonLWS</artifactId>
                 <type>jar</type>
                 <version>${project.version}</version>
             </dependency>

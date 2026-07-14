@@ -77,6 +77,11 @@ public class HalcyonApplication extends VandegraphApplication {
         mountPage("/stacks", Stacks.class);
         mountPage("/viewer", MultiViewer.class);
         mountPage("/containers", Collections.class);
+        // The W3C Linked Web Storage browser. Note the path: it must NOT begin with
+        // "W3Clws", because Wicket's ignore list is a raw prefix match, so such a page
+        // would be excluded from Wicket by the very entries that let the LWS servlets
+        // through.
+        mountPage("/storage", com.ebremer.halcyon.lws.StoragePage.class);
         mountPage("/upload", Upload.class);
         mountPage("/sparql", Sparql.class);
         mountPage("/about", About.class);

@@ -16,6 +16,7 @@ hs_err_pid*
 
 # Runtime RDF state / data
 /Halcyon/tdb2/
+/Halcyon/lws-tdb2/
 /Halcyon/rdfdata/
 /Halcyon/data/
 /Halcyon/*.ttl.gz
@@ -49,6 +50,10 @@ application-*.local.yml
 .DS_Store
 Thumbs.db
 
+# Stray dirs created by an unexpanded $SP shell variable (scratchpad path)
+$SP/
+
 # Maven build scratch
 dependency-reduced-pom.xml
 /jena-permissions/target/
+/HalcyonLWS/target/

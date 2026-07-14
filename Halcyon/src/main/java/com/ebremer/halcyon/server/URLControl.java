@@ -1,6 +1,7 @@
 package com.ebremer.halcyon.server;
 
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
+import com.ebremer.lws.config.LwsSettings;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -65,6 +66,15 @@ public class URLControl {
         HalcyonSettings.getSettings().GetResourceHandlers().forEach(rh -> {
             if (!ignores.contains(rh.urlPath())) {
                 ignores.add(rh.urlPath());
+            }
+        });
+        // Same hazard, same fix, for the W3C Linked Web Storage mounts
+        // (:hasLWSStorage). These are served by the HalcyonLWS module and are
+        // unrelated to the resource handlers above, but the Wicket filter is
+        // mapped on /* and would claim them just the same.
+        LwsSettings.get().storages().forEach(st -> {
+            if (!ignores.contains(st.urlPath())) {
+                ignores.add(st.urlPath());
             }
         });
         return String.join(",", ignores);

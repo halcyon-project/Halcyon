@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html xmlns:wicket="http://wicket.apache.org">
+<wicket:head>
+    <style>
+        .lws { padding: 1em 1.5em; font-family: system-ui, -apple-system, sans-serif; }
+        .lws h2 { margin: 0 0 .15em 0; }
+        .lws .sub { color:#666; margin-bottom:1.1em; max-width:60em; line-height:1.45; }
+        .lws code { background:#f4f4f6; padding:.1em .35em; border-radius:3px; font-size:.9em; }
+        .lws .ok  { color:#1a7f37; }
+        .lws .bad { color:#b3261e; }
+        .lws .status { min-height:1.5em; margin:.5em 0 .8em 0; }
+        .lws .status ul { margin:.4em 0 0 0; padding-left:1.2em; }
+        .lws table.dataview { width:100%; border-collapse:collapse; margin-top:.6em; }
+        .lws table.dataview th, .lws table.dataview td {
+            text-align:left; padding:.4em .6em; border-bottom:1px solid #e6e6ea; font-size:.92em; }
+        .lws table.dataview th { background:#fafafc; font-weight:600; }
+        .lws ul.storages { list-style:none; padding:0; max-width:60em; }
+        .lws ul.storages li {
+            border:1px solid #e6e6ea; border-radius:6px; padding:.85em 1.1em; margin-bottom:.7em; }
+        .lws ul.storages .path { font-weight:600; font-size:1.05em; }
+        .lws ul.storages .del {
+            float:right; font-size:.78em; font-weight:400; color:#b3261e; text-decoration:none;
+            border:1px solid #e6a3a0; border-radius:4px; padding:.1em .55em; cursor:pointer; }
+        .lws ul.storages .del:hover { background:#fdecea; }
+        .lws ul.storages .del.disabled {
+            color:#b0b0b0; border-color:#e2e2e6; cursor:not-allowed; pointer-events:none; }
+        .lws form.addstorage { max-width:60em; margin:.3em 0 0 0; }
+        .lws .naming { color:#555; font-size:.9em; margin:.25em 0 .45em 0; line-height:1.4; }
+        .lws .forms { display:flex; gap:1.6em; flex-wrap:wrap; margin-top:1.5em; }
+        .lws fieldset { border:1px solid #e6e6ea; border-radius:6px; padding:.6em 1em .9em 1em; }
+        .lws legend { font-size:.85em; color:#555; padding:0 .3em; }
+        .lws input[type=text] { padding:.3em .45em; }
+        .lws .crumb { margin-bottom:.5em; font-size:.92em; }
+    </style>
+</wicket:head>
+<body>
+<wicket:extend>
+    <div class="lws">
+        <h2>Storage</h2>
+        <div class="sub">
+            W3C Linked Web Storage. Everything here is fetched over HTTP using the LWS media
+            types and <em>your own</em> access token &mdash; this page has no privileged access
+            to the store. So you see exactly what the access-control policies say you may see,
+            and a container that looks empty is empty <em>for you</em>.
+        </div>
+
+        <div class="status" wicket:id="status"></div>
+        <div wicket:id="body"><span wicket:id="view"></span></div>
+    </div>
+
+    <!-- ============ signed out ============ -->
+    <wicket:fragment wicket:id="signedOutFrag">
+        <fieldset style="max-width:44em">
+            <legend>Not signed in</legend>
+            <p style="margin:.4em 0 .6em 0; line-height:1.5">
+                This page browses the storage as <em>you</em>, using your own access token,
+                so it needs you signed in. Every request it made right now would come back
+                <code>401</code> &mdash; which is the storage working correctly, not a fault.
+            </p>
+            <a href="/blank">Sign in</a>
+        </fieldset>
+    </wicket:fragment>
+
+    <!-- ============ the storage chooser ============ -->
+    <wicket:fragment wicket:id="storagesFrag">
+        <span wicket:id="empty"></span>
+        <ul class="storages">
+            <li wicket:id="storages">
+                <div class="path">
+                    <a href="#" wicket:id="open"><span wicket:id="path">/W3Clws</span></a>
+                    &mdash; <span wicket:id="state">reachable</span>
+                    <a wicket:id="delete" class="del">Delete</a>
+                </div>
+                <div class="naming" wicket:id="naming"></div>
+                <div><code wicket:id="root"></code></div>
+                <div style="font-size:.88em"><a wicket:id="desc">storage description</a></div>
+            </li>
+        </ul>
+
+        <form wicket:id="addStorage" class="addstorage">
+            <fieldset>
+                <legend>Add a storage by URI</legend>
+                <input type="text" wicket:id="uri" size="52"
+                       placeholder="https://another-server.example/storage/"/>
+                <button wicket:id="go" type="submit">Add</button>
+                <div style="font-size:.8em;color:#777;margin-top:.4em; max-width:52em; line-height:1.45">
+                    A local or <em>remote</em> W3C Linked Web Storage &mdash; connecting to storage on
+                    another server is a central point of LWS. Paste its root URI (or its
+                    <code>.description</code>); it is validated by fetching its storage description.
+                    A remote storage is browsed <em>anonymously</em> &mdash; your access token is never
+                    sent to another server. Added storages are remembered in this browser.
+                </div>
+            </fieldset>
+        </form>
+    </wicket:fragment>
+
+    <!-- ============ a container ============ -->
+    <wicket:fragment wicket:id="containerFrag">
+        <div class="crumb">
+            <a href="#" wicket:id="back">&larr; all storages</a>
+            &nbsp;&middot;&nbsp; <code wicket:id="uri"></code>
+        </div>
+        <div wicket:id="error"></div>
+
+        <div wicket:id="contents">
+            <div style="color:#555;font-size:.9em" wicket:id="total"></div>
+            <table class="dataview" wicket:id="table">[table]</table>
+
+            <div class="forms">
+                <div wicket:id="uploader">
+                    <fieldset>
+                        <legend>Upload a file</legend>
+                        <input type="file" id="lwsFile"/>
+                        <input type="text" id="lwsSlug" placeholder="Slug (a hint)" size="18"/>
+                        <button type="button" id="lwsUploadBtn">POST</button>
+                        <div style="font-size:.8em;color:#777;margin-top:.35em">
+                            The flat storage ignores the Slug and mints a UUID.
+                        </div>
+                    </fieldset>
+                </div>
+
+                <form wicket:id="mkdir">
+                    <fieldset>
+                        <legend>New container</legend>
+                        <input type="text" wicket:id="name" placeholder="name" size="18"/>
+                        <button wicket:id="go" type="submit">Create</button>
+                    </fieldset>
+                </form>
+
+                <form wicket:id="search">
+                    <fieldset>
+                        <legend>Type search (HTTP QUERY)</legend>
+                        <input type="text" wicket:id="type" size="34"
+                               placeholder="https://schema.org/ImageObject"/>
+                        <button wicket:id="go" type="submit">QUERY</button>
+                        <div style="font-size:.8em;color:#777;margin-top:.35em">
+                            Searches the whole storage by type, including types the file
+                            readers discovered.
+                        </div>
+                    </fieldset>
+                </form>
+            </div>
+        </div>
+    </wicket:fragment>
+
+    <wicket:fragment wicket:id="rowFrag">
+        <a href="#" wicket:id="open"><span wicket:id="label"></span></a><a wicket:id="raw"></a>
+    </wicket:fragment>
+
+    <wicket:fragment wicket:id="deleteFrag">
+        <a href="#" wicket:id="delete">delete</a>
+    </wicket:fragment>
+</wicket:extend>
+</body>
+</html>

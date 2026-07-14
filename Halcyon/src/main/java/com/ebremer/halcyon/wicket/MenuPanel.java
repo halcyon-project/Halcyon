@@ -32,6 +32,7 @@ public class MenuPanel extends Panel {
         ExternalLink colorclasses = new ExternalLink("colorclasses", host+"/user/colorclasses","Color Classes");
         ExternalLink threed = new ExternalLink("threed", host+"/threed","3D");
         ExternalLink containers = new ExternalLink("containers", host+"/containers","Containers");
+        ExternalLink storage = new ExternalLink("storage", host+"/storage","Storage");
         ExternalLink revisionhistory = new ExternalLink("revisionhistory", host+"/revisionhistory","Revision History");
         //ExternalLink login = new ExternalLink("loginLink", host+"/gui/login","Login");
         Link login = new Link<Void>("loginLink") {
@@ -48,6 +49,7 @@ public class MenuPanel extends Panel {
         add(sparql);
         add(stacks);
         add(containers);
+        add(storage);
         add(threed);
         add(logout);
         add(login);
@@ -57,6 +59,7 @@ public class MenuPanel extends Panel {
         account.setVisible(false);
         colorclasses.setVisible(false);
         containers.setVisible(false);
+        storage.setVisible(false);
         sparql.setVisible(false);
         stacks.setVisible(false);
         logout.setVisible(false);
@@ -71,6 +74,9 @@ public class MenuPanel extends Panel {
             //account.setVisible(true);
             sparql.setVisible(true);
             stacks.setVisible(true);
+            // Visible to every signed-in user. The page shows only what ACP
+            // permits them, so gating it by role here would be redundant.
+            storage.setVisible(true);
             hp.getGroups().forEach(k->{
                 System.out.println("GROUP : "+k);
             });

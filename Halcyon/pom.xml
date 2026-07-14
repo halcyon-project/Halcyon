@@ -513,6 +513,15 @@
             <artifactId>halcyon-core</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <!-- W3C Linked Web Storage server. Halcyon depends on it only to
+                 register its servlets (LwsStorageConfiguration) and to host the
+                 Storage UI; the UI itself talks to the storage over HTTP as an
+                 ordinary LWS client, not through this jar. Distinct from the
+                 legacy com.ebremer.halcyon.server.lws servlet, which is unchanged. -->
+            <groupId>${project.groupId}</groupId>
+            <artifactId>HalcyonLWS</artifactId>
+        </dependency>
         <!--
         <dependency>
             <groupId>com.github.ben-manes.caffeine</groupId>
