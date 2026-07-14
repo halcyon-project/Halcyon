@@ -100,6 +100,7 @@
         <shiro.version>2.1.0</shiro.version>
         <jts.version>1.20.0</jts.version>
         <twelvemonkeys.version>3.13.1</twelvemonkeys.version>
+        <cygnus.version>0.1.0-SNAPSHOT</cygnus.version>
         <maven-compiler-plugin.version>3.15.0</maven-compiler-plugin.version>
         <maven-shade-plugin.version>3.6.2</maven-shade-plugin.version>
         <maven-enforcer-plugin.version>3.6.3</maven-enforcer-plugin.version>
@@ -251,6 +252,32 @@
                 <groupId>com.ebremer</groupId>
                 <artifactId>dcm2rdf</artifactId>
                 <version>${dcm2rdf.version}</version>
+            </dependency>
+            <!-- cygnus: ImageIO plug-ins for whole-slide and codec formats.
+                 svs and ndpi expose a slide's pyramid as ImageIO image indices
+                 and read regions through ImageReadParam, the same contract the
+                 TIFF reader is driven by. svs pulls jpeg2000 in for Aperio's
+                 private JPEG 2000 tiles, so that codec's ImageIO plug-in is
+                 registered alongside dcm4che's native one. -->
+            <dependency>
+                <groupId>com.ebremer</groupId>
+                <artifactId>svs</artifactId>
+                <version>${cygnus.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.ebremer</groupId>
+                <artifactId>ndpi</artifactId>
+                <version>${cygnus.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.ebremer</groupId>
+                <artifactId>jpeg2000</artifactId>
+                <version>${cygnus.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.ebremer</groupId>
+                <artifactId>jpegxl</artifactId>
+                <version>${cygnus.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.apicatalog</groupId>

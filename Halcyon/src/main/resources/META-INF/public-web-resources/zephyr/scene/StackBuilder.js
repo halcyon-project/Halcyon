@@ -179,9 +179,12 @@ function buildGroup(ctx, subject, parentEntry, depth, labelOverride = null) {
             entry.opacity = opacity;
             if (declaredVisible && declaredVisible.value === 'false') entry.visible = false;
             if (declaredBlend && declaredBlend.value) entry.blendMode = declaredBlend.value;
-            // Physical pixel size (zeph:pixelsizeX, um/px) feeds the scale
-            // bar and micron measurements for whichever layer is active.
-            if (meta.pxX > 0) entry.micronsPerPixel = meta.pxX;
+            // Physical pixel size (µm/px) feeds the scale bar + micron
+            // measurements. A fresh import declares zeph:pixelsizeX; a re-saved
+            // stack instead carries the dedicated zeph:micronsPerPixel (pixelsize
+            // is NOT re-emitted — it would double-bake the registration ratio).
+            const mpp = (meta.mpp > 0) ? meta.mpp : meta.pxX;
+            if (mpp > 0) entry.micronsPerPixel = mpp;
             // Pixel-size registration: layers scanned at different physical
             // resolutions align by scaling each by the ratio of its pixel
             // size to the group's reference — the first leaf that declares
@@ -360,7 +363,8 @@ function readMeta(ctx, member, srcNode) {
         sx: num(member, 'scalex') || 1,
         sy: num(member, 'scaley') || 1,
         pxX: num(member, 'pixelsizeX'),
-        pxY: num(member, 'pixelsizeY')
+        pxY: num(member, 'pixelsizeY'),
+        mpp: num(member, 'micronsPerPixel')
     };
 }
 

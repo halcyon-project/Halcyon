@@ -3,7 +3,7 @@ import { disposeSubtree } from './scene/imageLayer.js';
 import { loadStackGraph } from './scene/stackPersistence.js';
 import { startRenderLoop, invalidate } from './renderLoop.js';
 import { ParseTTL, ListElements, WE } from './zephyrRDF.js';
-import { getContext, setContext } from './context.js';
+import { getContext, setContext, runCleanups } from './context.js';
 
 /**
  * ZephyrViewer — the viewer's composition root.
@@ -98,7 +98,7 @@ export class ZephyrViewer {
      */
     clear() {
         ['zephyr-layers', 'zephyr-layers-toggle', 'stackNavigator',
-         'zephyr-error', 'zephyr-failed-tiles'].forEach(id => {
+         'scaleBar', 'minimap', 'zephyr-error', 'zephyr-failed-tiles'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.remove();
         });
@@ -107,6 +107,10 @@ export class ZephyrViewer {
             ctx.layerPanelCleanup();
             ctx.layerPanelCleanup = null;
         }
+        // Remove the global listeners (controls/window/document/registry) that
+        // scaleBar, minimap, StackNavigator and viewPrefs registered, so a
+        // rebuild doesn't accumulate ghost handlers on detached DOM (M23).
+        runCleanups();
         // Cancel queued/in-flight fetches, return bytes to the tile cache,
         // close ImageBitmaps, release GPU resources — for every layer.
         this.registry.list().forEach(entry => {

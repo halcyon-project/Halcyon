@@ -273,7 +273,8 @@ so `registry.views` is re-emitted every time.
 | `zeph:zorder` | member | z placement |
 | `zeph:offsetx` / `zeph:offsety` | member / ride-along | x/y placement |
 | `zeph:scalex` / `zeph:scaley` | member / ride-along | pixel-registration scale |
-| `zeph:pixelsizeX` / `zeph:pixelsizeY` | member | physical µm/px (read → `micronsPerPixel`) |
+| `zeph:pixelsizeX` / `zeph:pixelsizeY` | member | physical µm/px **on import** (read → `micronsPerPixel`; also drives the registration ratio) |
+| `zeph:micronsPerPixel` | member | physical µm/px written by **Save** — calibration round-trip, decoupled from the registration ratio (see below) |
 | `zeph:opacity` | member / ride-along | 0–1 opacity |
 | `zeph:visible` | member / ride-along | `"false"` when hidden |
 | `zeph:blend` | member | `multiply` / `screen` |
@@ -403,10 +404,15 @@ infinite loops.
   (annotation PUT/GET, set lists) render the Wicket home page as `200` HTML —
   saves "succeed" storing nothing and reads JSON-parse-fail. Client keeps
   redirect/HTML guards at every fetch site.
-- **Pixel-size registration.** Layers scanned at different µm/px align by scaling
-  each by the ratio of its pixel size to the group's reference (first pixel-size-
-  bearing leaf). On save the ratio is baked into `zeph:scalex/scaley` (pixel
-  sizes aren't re-serialized), which still round-trips placement.
+- **Pixel-size registration vs calibration.** Layers scanned at different µm/px
+  align by scaling each by the ratio of its pixel size to the group's reference
+  (first pixel-size-bearing leaf). On save that ratio is baked into
+  `zeph:scalex/scaley` and `pixelsizeX/Y` is **not** re-serialized — re-reading
+  it would *double-apply* the ratio (the read side re-bakes whenever
+  `pixelsizeX > 0`). Calibration is preserved separately via the dedicated
+  `zeph:micronsPerPixel`, which `readMeta` restores into `entry.micronsPerPixel`
+  **without** touching the registration path — so both placement *and* the µm/px
+  used by the scale bar / ruler / area round-trip. (H14.)
 - **Names matter for tooling.** The annotation container `Group` is named
   `annotations` and every drawn shape's name includes `annotation`; feature
   highlight / heatmap groups deliberately avoid that substring so the

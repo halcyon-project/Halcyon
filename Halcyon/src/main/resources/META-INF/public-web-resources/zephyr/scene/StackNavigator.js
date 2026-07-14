@@ -1,5 +1,6 @@
 import { applyOpacity } from './LayerRegistry.js';
 import { invalidate } from '../renderLoop.js';
+import { registerCleanup } from '../context.js';
 
 /**
  * Stack navigator: step through a stack's sections (PgUp/PgDn or ◀ ▶) with
@@ -136,6 +137,12 @@ export function initStackNavigator(registry, stack) {
 
     const onSectionKey = (e) => { if (multi) step(e.detail || 1); };
     document.addEventListener('zephyr:section', onSectionKey);
+    // Teardown: the document-level key listener outlives #stackNavigator, so a
+    // rebuild would otherwise leave a ghost handler stepping an old stack (M23).
+    registerCleanup('stackNavigator', () => {
+        document.removeEventListener('zephyr:section', onSectionKey);
+        container.remove();
+    });
 
     if (multi) apply();
 

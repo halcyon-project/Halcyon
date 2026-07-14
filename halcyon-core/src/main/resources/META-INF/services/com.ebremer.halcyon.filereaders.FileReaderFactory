@@ -1,4 +1,8 @@
 com.ebremer.halcyon.filereaders.TiffImageReaderFactory
+com.ebremer.halcyon.filereaders.SVSImageReaderFactory
+com.ebremer.halcyon.filereaders.NDPIImageReaderFactory
+com.ebremer.halcyon.filereaders.JPEG2000ImageReaderFactory
+com.ebremer.halcyon.filereaders.JPEGXLImageReaderFactory
 com.ebremer.halcyon.filereaders.DICOMImageReaderFactory
 com.ebremer.halcyon.filereaders.BeakGraphImageReaderFactory
 com.ebremer.halcyon.filereaders.RDFFileReaderFactory

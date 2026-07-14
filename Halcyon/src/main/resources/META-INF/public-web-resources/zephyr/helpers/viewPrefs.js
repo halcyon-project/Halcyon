@@ -1,5 +1,5 @@
 import { tileAdjustments } from '../scene/imageLayer.js';
-import { cfg } from '../context.js';
+import { cfg, registerCleanup } from '../context.js';
 import { invalidate } from '../renderLoop.js';
 
 /**
@@ -103,8 +103,8 @@ export function installViewPrefs(registry, stack) {
     };
 
     apply();
-    registry.on('change', scheduleWrite);
-    registry.on('active', scheduleWrite);
+    const offChange = registry.on('change', scheduleWrite);
+    const offActive = registry.on('active', scheduleWrite);
     // Brightness/contrast and z-spread bypass the registry — catch their
     // sliders through one delegated listener.
     const onInput = (event) => {
@@ -113,4 +113,14 @@ export function installViewPrefs(registry, stack) {
     };
     document.addEventListener('input', onInput);
     window.addEventListener('beforeunload', write);
+
+    // Teardown so a rebuild doesn't leak the registry subscriptions / listeners
+    // onto the old registry and detached sliders (M23).
+    registerCleanup('viewPrefs', () => {
+        offChange();
+        offActive();
+        document.removeEventListener('input', onInput);
+        window.removeEventListener('beforeunload', write);
+        clearTimeout(timer);
+    });
 }

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { getRegistry } from '../context.js';
+import { getRegistry, registerCleanup } from '../context.js';
 import { getActiveEntry, activeMicronsPerPixel } from "./annotationTarget.js";
 import { formatLength } from "./conversions.js";
 
@@ -27,6 +27,7 @@ export function scaleBar(camera, renderer, controls) {
 
   const _v = new THREE.Vector3();
   let hookedRegistry = null;
+  let offRegistry = null;
 
   const update = () => {
     // Re-render the bar from the camera's distance to the active layer plane.
@@ -75,7 +76,7 @@ export function scaleBar(camera, renderer, controls) {
     // so switching the active layer re-scales the bar.
     const registry = getRegistry();
     if (registry && registry !== hookedRegistry) {
-      registry.on('active', update);
+      offRegistry = registry.on('active', update);
       hookedRegistry = registry;
     }
   };
@@ -84,4 +85,13 @@ export function scaleBar(camera, renderer, controls) {
   window.addEventListener('resize', update);
   document.addEventListener('zephyr:stackready', update);
   update();
+
+  // Teardown so a rebuild doesn't leak these global/registry listeners (M23).
+  registerCleanup('scaleBar', () => {
+    if (controls && controls.removeEventListener) controls.removeEventListener('change', update);
+    window.removeEventListener('resize', update);
+    document.removeEventListener('zephyr:stackready', update);
+    if (offRegistry) offRegistry();
+    container.remove();
+  });
 }

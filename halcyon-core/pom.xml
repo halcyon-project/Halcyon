@@ -78,6 +78,28 @@
             <groupId>com.twelvemonkeys.imageio</groupId>
             <artifactId>imageio-psd</artifactId>
         </dependency>
+        <!-- cygnus ImageIO plug-ins, driven by the readers in
+             com.ebremer.halcyon.filereaders. svs and ndpi expose a slide's
+             pyramid as ImageIO image indices and read regions through
+             ImageReadParam, the same contract TiffImageReader is written
+             against; svs pulls jpeg2000 in for Aperio's private JPEG 2000
+             tiles. -->
+        <dependency>
+            <groupId>com.ebremer</groupId>
+            <artifactId>svs</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.ebremer</groupId>
+            <artifactId>ndpi</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.ebremer</groupId>
+            <artifactId>jpeg2000</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.ebremer</groupId>
+            <artifactId>jpegxl</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.dcm4che</groupId>
             <artifactId>dcm4che-core</artifactId>

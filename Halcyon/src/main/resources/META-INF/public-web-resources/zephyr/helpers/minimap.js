@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { getRegistry } from '../context.js';
+import { getRegistry, registerCleanup } from '../context.js';
 import { getActiveEntry, pickActiveLayer } from "./annotationTarget.js";
 import { tileFormat } from "../scene/imageLayer.js";
 import { invalidate } from "../renderLoop.js";
@@ -35,6 +35,7 @@ export function minimap(camera, renderer, controls) {
 
   let currentSrc = null;
   let hookedRegistry = null;
+  let offRegistry = null;
 
   const update = () => {
     const entry = getActiveEntry();
@@ -81,7 +82,7 @@ export function minimap(camera, renderer, controls) {
 
     const registry = getRegistry();
     if (registry && registry !== hookedRegistry) {
-      registry.on('active', update);
+      offRegistry = registry.on('active', update);
       hookedRegistry = registry;
     }
   };
@@ -135,4 +136,14 @@ export function minimap(camera, renderer, controls) {
   window.addEventListener('resize', update);
   document.addEventListener('zephyr:stackready', update);
   update();
+
+  // Teardown so a rebuild doesn't leak these listeners / the #minimap DOM (M23).
+  // The container's own pointer/img listeners go with container.remove().
+  registerCleanup('minimap', () => {
+    if (controls && controls.removeEventListener) controls.removeEventListener('change', update);
+    window.removeEventListener('resize', update);
+    document.removeEventListener('zephyr:stackready', update);
+    if (offRegistry) offRegistry();
+    container.remove();
+  });
 }

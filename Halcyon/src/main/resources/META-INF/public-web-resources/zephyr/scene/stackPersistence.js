@@ -188,6 +188,14 @@ function addTransform(g, ZEPH, member, entry) {
         if (entry.blendMode && entry.blendMode !== 'normal') {
             g.add(member, ZEPH('blend'), $rdf.literal(entry.blendMode));
         }
+        // Physical pixel size (µm/px) — a DEDICATED predicate, NOT pixelsizeX,
+        // so reload restores calibration (scale bar / ruler / area / perimeter)
+        // WITHOUT re-baking the registration ratio: that ratio already lives in
+        // the saved scalex, and re-emitting pixelsizeX would double-apply it
+        // (see StackBuilder's readMeta + ratio-baking). Full precision, no round.
+        if (entry.micronsPerPixel > 0) {
+            g.add(member, ZEPH('micronsPerPixel'), num(entry.micronsPerPixel));
+        }
     }
 }
 

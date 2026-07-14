@@ -58,3 +58,32 @@ export function cfg(key) {
     }
     return (typeof window !== 'undefined') ? window[key] : undefined;
 }
+
+/**
+ * Keyed teardown registry (M23). Helpers that add global listeners
+ * (controls/window/document) or subscribe to the registry register a KEYED
+ * cleanup here. Re-registering the same key runs the previous cleanup first, so
+ * re-initialising a helper is idempotent; `runCleanups()` (called by
+ * ZephyrViewer.clear()) drains them all. Either way a rebuild removes stale
+ * handlers instead of leaking them onto detached DOM / an old registry.
+ */
+export function registerCleanup(key, fn) {
+    const c = getContext();
+    if (!c) return;
+    if (!c._cleanups) c._cleanups = new Map();
+    const prev = c._cleanups.get(key);
+    if (prev && prev !== fn) {
+        try { prev(); } catch (e) { console.error('Zephyr cleanup failed:', key, e); }
+    }
+    c._cleanups.set(key, fn);
+}
+
+/** Run and clear every registered cleanup (viewer teardown / rebuild). */
+export function runCleanups() {
+    const c = active;
+    if (!c || !c._cleanups) return;
+    for (const [key, fn] of c._cleanups) {
+        try { fn(); } catch (e) { console.error('Zephyr cleanup failed:', key, e); }
+    }
+    c._cleanups.clear();
+}
