@@ -41,10 +41,16 @@ public class SecurityCore {
     public synchronized Dataset getDataset() {
         if (ds==null) {
             ds = TDB2Factory.connectDataset(hs.getRDFSecurityStoreLocation());
-            ds.begin(ReadWrite.READ);
+            // H13: end() in a finally. (This class is dead — getInstance2() has no
+            // callers — but it opens its OWN TDB2 instance, so leaving the pattern
+            // here would be a working template for the next person who copies it.)
             m = ModelFactory.createDefaultModel();
-            m.add(ds.getNamedModel(HAL.SecurityGraph.getURI()));
-            ds.end();
+            ds.begin(ReadWrite.READ);
+            try {
+                m.add(ds.getNamedModel(HAL.SecurityGraph.getURI()));
+            } finally {
+                ds.end();
+            }
         }
         return ds;
     }

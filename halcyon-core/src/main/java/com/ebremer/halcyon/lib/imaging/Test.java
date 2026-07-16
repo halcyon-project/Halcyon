@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.jena.query.ParameterizedSparqlString;
+import org.apache.jena.query.QueryExecution;
 import org.apache.jena.query.QueryExecutionFactory;
 import org.apache.jena.query.ResultSet;
 import org.apache.jena.query.ResultSetFormatter;
@@ -55,7 +56,11 @@ public class Test {
             """);
         pss.setNsPrefix("geo", GEO.NS);
         pss.setNsPrefix("hal", HAL.NS);
-        ResultSet rs = QueryExecutionFactory.create(pss.toString(),m).execSelect();
+        // H13: in-memory model, but close the execution.
+        ResultSet rs;
+        try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m)) {
+            rs = qe.execSelect().materialise();
+        }
         rs.forEachRemaining(qs->{
             Polygon poly = GeometryTools.WKT2Polygon(qs.get("wkt").asLiteral().getString());
             String classification = qs.get("classification").toString();

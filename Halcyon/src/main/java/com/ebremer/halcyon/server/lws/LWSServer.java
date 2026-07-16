@@ -1,5 +1,6 @@
 package com.ebremer.halcyon.server.lws;
 
+import com.ebremer.halcyon.server.RequestPrincipal;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.annotation.MultipartConfig;
@@ -125,21 +126,64 @@ public class LWSServer extends DefaultServlet {
      * as saving JSON, uploading files, or sending a default HTML response.
      */
     private void handleRequestWithContentType(HttpServletRequest request, HttpServletResponse response, String contentType, String method) throws IOException {
+        if (contentType == null) {
+            sendDefaultResponse(response);
+            return;
+        }
         try {
             switch (contentType) {
                 case TURTLE -> {
                 }
                 case APPLICATION_JSON -> {
                     if ("PUT".equals(method)) {
+                        if (!requireSignedIn(request, response)) {
+                            return;
+                        }
                         Tools.Save(request, response);
                     }
                 }
-                case OCTET_STREAM -> Utils.UploadFile(request);
+                case OCTET_STREAM -> {
+                    if (!requireSignedIn(request, response)) {
+                        return;
+                    }
+                    sendUploadStatus(response, Utils.UploadFile(request));
+                }
                 default -> sendDefaultResponse(response);
             }
         } catch (Exception e) {
             logger.error("Error processing {} request for URI: {}", method, request.getRequestURI(), e);
             response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Server encountered an error");
+        }
+    }
+
+    /**
+     * C1: every LWS mutation requires an authenticated, non-anonymous caller.
+     * These mounts are NOT listed in {@code URLControl.getSecuredURLs()}, so the
+     * pac4j security filter never runs for them — which previously left the
+     * file-upload and annotation-save paths writable with no credentials at all.
+     * The principal is read from the signed-in session (see {@link RequestPrincipal});
+     * both shipped clients (the Wicket upload page and the Zephyr viewer's
+     * annotation save) are used by signed-in users and already send the cookie.
+     *
+     * @return true if the caller may proceed; otherwise the 401 has been sent.
+     */
+    private boolean requireSignedIn(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        if (RequestPrincipal.isSignedIn(RequestPrincipal.resolve(request, response))) {
+            return true;
+        }
+        logger.warn("Rejecting unauthenticated LWS write to {}", request.getRequestURI());
+        response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Not signed in");
+        return false;
+    }
+
+    /** Map an upload outcome to a real HTTP status (it used to always look OK). */
+    private void sendUploadStatus(HttpServletResponse response, Utils.UploadResult result) throws IOException {
+        switch (result) {
+            case OK -> response.setStatus(HttpServletResponse.SC_NO_CONTENT);
+            case FORBIDDEN -> response.sendError(HttpServletResponse.SC_FORBIDDEN, "Illegal File-Name");
+            case BAD_REQUEST -> response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Bad Chunk-Offset");
+            case NOT_FOUND -> response.sendError(HttpServletResponse.SC_NOT_FOUND, "No such container");
+            case ERROR -> response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Upload failed");
         }
     }
 

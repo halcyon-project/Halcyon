@@ -6,6 +6,7 @@ import com.ebremer.ns.HAL;
 import java.util.HashMap;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.ParameterizedSparqlString;
+import org.apache.jena.query.QueryExecution;
 import org.apache.jena.query.QueryExecutionFactory;
 import org.apache.jena.query.QuerySolution;
 import org.apache.jena.query.ReadWrite;
@@ -30,11 +31,17 @@ public class UserColorsAndClasses {
         Model m = ModelFactory.createDefaultModel();
         Resource r = m.createProperty(HAL.NS+HalcyonSession.get().getUserURI()+"/colorclasses");
         Dataset ds = DataCore.getInstance().getDataset();
+        // H13: end() in a finally. Constructed from FeatureManager.getFeatures, i.e.
+        // on a Wicket worker thread — a strand kills that thread for every later
+        // request it serves.
         ds.begin(ReadWrite.READ);
-        if (ds.containsNamedModel(r)) {
-            m.add(ds.getNamedModel(r));
+        try {
+            if (ds.containsNamedModel(r)) {
+                m.add(ds.getNamedModel(r));
+            }
+        } finally {
+            ds.end();
         }
-        ds.end();
         RDFDataMgr.write(System.out, m, RDFFormat.TURTLE_PRETTY);
         ParameterizedSparqlString pss = new ParameterizedSparqlString(
             """
@@ -50,10 +57,13 @@ public class UserColorsAndClasses {
             """);
         pss.setNsPrefix("hal", HAL.NS);
         pss.setNsPrefix("so", SchemaDO.NS);
-        ResultSet rs = QueryExecutionFactory.create(pss.toString(), m).execSelect();
-        while (rs.hasNext()) {
-            QuerySolution qs = rs.next();
-            types.put(qs.getResource("class"), new Bundle(qs.get("name").asLiteral().getString(), qs.get("color").asLiteral().getString()));
+        // H13: in-memory model, but close the execution.
+        try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m)) {
+            ResultSet rs = qe.execSelect();
+            while (rs.hasNext()) {
+                QuerySolution qs = rs.next();
+                types.put(qs.getResource("class"), new Bundle(qs.get("name").asLiteral().getString(), qs.get("color").asLiteral().getString()));
+            }
         }
         types.forEach((k,v)->{
             System.out.println(k+" ---> "+v);

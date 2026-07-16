@@ -10,7 +10,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.Banner.Mode;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
-import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.boot.web.servlet.ServletRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.Ordered;
@@ -52,7 +51,7 @@ public class Main {
     @Bean
     public KeycloakOidcConfiguration keycloakOidcConfiguration() {
         KeycloakOidcConfiguration config = new KeycloakOidcConfiguration();
-        config.setClientId("account");
+        config.setClientId(HalcyonSettings.CLIENT_ID);
         config.setRealm("Halcyon");
         config.setBaseUri(HalcyonSettings.getSettings().getProxyHostName());
         //config.setBaseUri(HalcyonSettings.getSettings().getProxyHostName());
@@ -73,16 +72,12 @@ public class Main {
         return srb;
     }
 
-    @Lazy(true)
-    @Bean
-    ServletRegistrationBean RaptorServerRegistration() {
-        ServletRegistrationBean srb = new ServletRegistrationBean();
-        srb.setLoadOnStartup(3);
-        srb.setOrder(Ordered.HIGHEST_PRECEDENCE + 4);
-        srb.setServlet(new Raptor());
-        srb.setUrlMappings(Arrays.asList("/raptor/*"));
-        return srb;
-    }
+    // C2: the Raptor servlet registration is GONE. It ran QueryFactory.create()
+    // on a raw request parameter against a path-selected BeakGraph with no
+    // authentication, no WAC check and no LIMIT/timeout — anonymous read of
+    // medical annotation data plus a trivial cartesian-product DoS. It had no
+    // callers anywhere in the tree. If a query API is ever needed again it must
+    // be authenticated, WAC-authorized and bounded, over the SECURED graph.
 
     @Lazy(true)
     @Bean
@@ -95,10 +90,25 @@ public class Main {
         return srb;
     }
 
+    @Lazy(true)
+    @Bean
+    ServletRegistrationBean SaveStackServletRegistration() {
+        ServletRegistrationBean srb = new ServletRegistrationBean();
+        srb.setLoadOnStartup(3);
+        srb.setOrder(Ordered.HIGHEST_PRECEDENCE + 6);
+        srb.setServlet(new SaveStackServlet());
+        srb.setUrlMappings(Arrays.asList("/savestack"));
+        return srb;
+    }
+
     @Bean
     public ServletRegistrationBean proxyServletRegistrationBean() {
         HalcyonSettings settings = HalcyonSettings.getSettings();
-        ServletRegistrationBean bean = new ServletRegistrationBean(new HalcyonProxyServlet(), "/rdf/*");
+        // C5: `true` = attach the signed-in session's bearer token to the proxied
+        // request server-side, so the page no longer has to publish it into
+        // window.token for the browser to send. The /auth proxy below must stay
+        // false (it talks to Keycloak itself).
+        ServletRegistrationBean bean = new ServletRegistrationBean(new HalcyonProxyServlet(true), "/rdf/*");
         bean.addInitParameter("targetUri", "http://localhost:" + settings.GetSPARQLPort() + "/rdf");
         bean.addInitParameter(ProxyServlet.P_PRESERVECOOKIES, "true");
         bean.addInitParameter(ProxyServlet.P_HANDLEREDIRECTS, "true");
@@ -120,14 +130,11 @@ public class Main {
         return bean;
     }
 
-    @Bean
-    public FilterRegistrationBean<CustomFilter> KeycloakOIDCFilterFilterRegistration() {
-        FilterRegistrationBean<CustomFilter> registration = new FilterRegistrationBean<>();
-        registration.setFilter(new CustomFilter());
-        registration.addUrlPatterns("/*");
-        registration.setOrder(Ordered.HIGHEST_PRECEDENCE + 2);
-        return registration;
-    }
+    // C2: CustomFilter is GONE. Its only behaviour was to FORWARD-dispatch any
+    // request carrying a ?query= parameter to /raptor, which bypassed the
+    // REQUEST-dispatch pac4j security filter entirely (a FORWARD is not a
+    // REQUEST). With the forward and the Raptor mount both removed there is
+    // nothing left for it to do — every other path just called chain.doFilter.
 
     public static void main(String[] args) {
         logger.info("Starting Halcyon...");
@@ -139,14 +146,23 @@ public class Main {
         i.init();
         DataCore dc = DataCore.getInstance();
         Dataset ds = dc.getDataset();        
+        // H13: guarded WRITE. Startup path, so a strand here means the server comes
+        // up unable to write anything rather than failing outright — which is worse
+        // than crashing, because it looks healthy.
         ds.begin(ReadWrite.WRITE);
-        ds.removeNamedModel("https://localhost:8888/ldp/utah/HnE/Stack2/stack.jsonld");
-        //Stack stack = new Stack();
-        ds.removeNamedModel("https://localhost:8888/utah/HnE/Stack2/stack.jsonld");
-//        ds.removeNamedModel("file:///D:/HalcyonStorage/utah/HnE/Stack2/stack.jsonld");
-        //ds.addNamedModel("https://localhost:8888/stack", stack.getModel());
-        ds.commit();
-        ds.end();
+        try {
+            ds.removeNamedModel("https://localhost:8888/ldp/utah/HnE/Stack2/stack.jsonld");
+            //Stack stack = new Stack();
+            ds.removeNamedModel("https://localhost:8888/utah/HnE/Stack2/stack.jsonld");
+//            ds.removeNamedModel("file:///D:/HalcyonStorage/utah/HnE/Stack2/stack.jsonld");
+            //ds.addNamedModel("https://localhost:8888/stack", stack.getModel());
+            ds.commit();
+        } catch (RuntimeException ex) {
+            ds.abort();
+            throw ex;
+        } finally {
+            ds.end();
+        }
         if (!(System.getProperty("spring.aot.processing") != null)) {
             SPARQLEndPoint.getSPARQLEndPoint();
         }    

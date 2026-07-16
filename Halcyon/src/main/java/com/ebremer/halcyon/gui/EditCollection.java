@@ -50,17 +50,21 @@ public class EditCollection extends BasePage {
         Resource container = ResourceFactory.createResource(uuid);
         Dataset ds = DatabaseLocator.getDatabase().getDataset();
         Model mmm = ModelFactory.createDefaultModel();
+        // H13: end() in a finally. This page's save handler was already correct —
+        // only the constructor was missing the guard.
         ds.begin(ReadWrite.READ);
-
-        Statement titleStmt = ds.getNamedModel(HAL.CollectionsAndResources).getProperty(container, DCTerms.title);
-        if (titleStmt != null) {
-            mmm.add(titleStmt);
-        } else {
-            // Provide a default value if the title is missing
-            Literal defaultTitle = mmm.createLiteral("Untitled Collection");
-            mmm.add(container, DCTerms.title, defaultTitle);
+        try {
+            Statement titleStmt = ds.getNamedModel(HAL.CollectionsAndResources).getProperty(container, DCTerms.title);
+            if (titleStmt != null) {
+                mmm.add(titleStmt);
+            } else {
+                // Provide a default value if the title is missing
+                Literal defaultTitle = mmm.createLiteral("Untitled Collection");
+                mmm.add(container, DCTerms.title, defaultTitle);
+            }
+        } finally {
+            ds.end();
         }
-        ds.end();
 
         mod = new SessionScopedModel(mmm);
 
@@ -108,8 +112,8 @@ public class EditCollection extends BasePage {
             @Override
             public void populateItem(Item<ICellPopulator<Solution>> cellItem, String componentId, IModel<Solution> model) {
                 Solution s = model.getObject();
-                int numRead = (int) s.get("numRead").getLiteralValue();
-                int numWrite = (int) s.get("numWrite").getLiteralValue();
+                int numRead = Solutions.intOf(s, "numRead");
+                int numWrite = Solutions.intOf(s, "numWrite");
                 String d = (numRead > 0) ? "R" : "";
                 d = d + ((numWrite > 0) ? "W" : "");
                 cellItem.add(new Label(componentId, d));
@@ -147,7 +151,10 @@ public class EditCollection extends BasePage {
         pss.setIri("SecurityGraph", HAL.SecurityGraph.getURI());
         System.out.println(pss.toString());
 
-        SelectDataProvider rdfsdf = new SelectDataProvider(ds, pss.toString());
+        // M18: supplier form — see ListImages. NOTE this is the RAW dataset, but it is
+        // still not VandegraphApplication.getDataset() (HalcyonApplication does not
+        // override it), so appDataset is false here too and it must be re-acquirable.
+        SelectDataProvider rdfsdf = new SelectDataProvider(() -> DatabaseLocator.getDatabase().getDataset(), pss.toString());
         rdfsdf.setQuery(pss.toString());
 
         AjaxFallbackDefaultDataTable table = new AjaxFallbackDefaultDataTable<>("table", columns, rdfsdf, 35);

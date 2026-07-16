@@ -2,13 +2,11 @@ package com.ebremer.halcyon.datum;
 
 import com.ebremer.halcyon.fuseki.shiro.JwtToken;
 import com.ebremer.halcyon.fuseki.shiro.JwtVerifier;
-import com.ebremer.halcyon.fuseki.shiro.KeycloakPublicKeyFetcher;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import com.ebremer.ns.HAL;
 import io.jsonwebtoken.Claims;
 import java.io.Serializable;
 import java.security.Principal;
-import java.security.PublicKey;
 import java.util.ArrayList;
 import org.pac4j.oidc.profile.keycloak.KeycloakOidcProfile;
 
@@ -50,10 +48,20 @@ public class HalcyonPrincipal implements Principal, Serializable {
         groups.add(HAL.Anonymous.toString());
     }
     
+    /**
+     * @throws IllegalArgumentException if the token carries no verified claims —
+     *         H2: build the principal ONLY from verified claims. This used to
+     *         re-verify the token itself and then NPE on a null Claims, which was
+     *         the accidental (and only) thing rejecting a forged token.
+     */
     public HalcyonPrincipal(JwtToken jwttoken, boolean anonymous) {
         groups = new ArrayList<>();
         this.token = (String) jwttoken.getCredentials();
-        Claims claims = getClaims(token);
+        // Already verified by JwtToken's constructor — no second verification.
+        Claims claims = jwttoken.getClaims();
+        if (claims == null) {
+            throw new IllegalArgumentException("Cannot build a principal from an unverified JWT");
+        }
         URNuuid = "urn:uuid:"+claims.get("sub");
         if (claims.containsKey("sub")) {
             this.uuid = (String) claims.get("sub");
@@ -92,10 +100,10 @@ public class HalcyonPrincipal implements Principal, Serializable {
     }
     
     private Claims getClaims(String tokenx) {
-        PublicKey publicKey = KeycloakPublicKeyFetcher.getKeycloakPublicKeyFetcher().getPublicKey();
         Claims claimsx = null;
         try {
-            claimsx = new JwtVerifier(publicKey).verify(tokenx);
+            // M4: the verifier picks the signing key by the token's own `kid`.
+            claimsx = new JwtVerifier().verify(tokenx);
         } catch (Exception ex) {
             System.out.println(ex.toString());
         }

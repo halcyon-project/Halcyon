@@ -1,5 +1,6 @@
 package com.ebremer.halcyon.gui;
 
+import static com.ebremer.halcyon.data.DataCore.Level.OPEN;
 import com.ebremer.vandegraph.SelectDataProvider;
 import com.ebremer.halcyon.wicket.BasePage;
 import com.ebremer.halcyon.wicket.ListFeatures;
@@ -7,6 +8,7 @@ import com.ebremer.vandegraph.Solution;
 import com.ebremer.halcyon.wicket.DatabaseLocator;
 import com.ebremer.vandegraph.SparqlVarColumn;
 import com.ebremer.halcyon.data.DataCore;
+import com.ebremer.halcyon.data.StackStore;
 import com.ebremer.halcyon.datum.HalcyonFactory;
 import com.ebremer.halcyon.wicket.Upload;
 import com.ebremer.ns.HAL;
@@ -76,8 +78,11 @@ public class Collections extends BasePage {
         pss.setNsPrefix("lws", LWS.NS);
         pss.setNsPrefix("dct", DCTerms.NS);
         pss.setIri("car", HAL.CollectionsAndResources.getURI());
-        Dataset ds = DatabaseLocator.getDatabase().getDataset();
-        SelectDataProvider rdfsdf = new SelectDataProvider(ds,pss.toString());
+        // H6: WAC-filtered. The graph is a CONSTANT, so the secured dataset hands
+        // back a jena-permissions graph and each container triple is authorized by
+        // its subject -- you only see the containers you may read.
+        // M18: supplier form — see ListImages.
+        SelectDataProvider rdfsdf = new SelectDataProvider(() -> DatabaseLocator.getDatabase().getSecuredDataset(OPEN), pss.toString());
         rdfsdf.setQuery(pss.toString());
         add(new AjaxFallbackDefaultDataTable<>("table", columns, rdfsdf,35)); 
         
@@ -86,13 +91,31 @@ public class Collections extends BasePage {
         button.add(new AjaxEventBehavior("click") {
             @Override
             protected void onEvent(AjaxRequestTarget target) {
+                // M17: re-check server-side. The page is now ADMIN-gated (PageAccess),
+                // but that is one layer, and this handler is an ajax endpoint that
+                // writes to the RAW dataset — bypassing SecuredDatasetGraph.addGraph
+                // and therefore every WAC check — so it must not rely on the page guard
+                // alone. Before H4+this, the only thing standing between any signed-in
+                // user and creating containers was MenuPanel hiding the link.
+                if (!StackStore.isAdmin(HalcyonSession.get().getHalcyonPrincipal())) {
+                    Logger.getLogger(Collections.class.getName())
+                          .log(Level.WARNING, "Refusing container creation - not an admin");
+                    return;
+                }
                 String uuid = HalcyonFactory.CreateUUIDResource().getURI();
                 Dataset ds = DataCore.getInstance().getDataset();
+                // H13: both WRITE transactions here need abort()/end() guards — a
+                // strand wedges every writer in the process, not just this thread.
                 ds.begin(ReadWrite.WRITE);
-                ds.addNamedModel(uuid, HalcyonFactory.CreateCollection(ResourceFactory.createResource(uuid)));
-                ds.commit();
-                ds.end();
-                ds.begin(ReadWrite.WRITE);
+                try {
+                    ds.addNamedModel(uuid, HalcyonFactory.CreateCollection(ResourceFactory.createResource(uuid)));
+                    ds.commit();
+                } catch (RuntimeException ex) {
+                    ds.abort();
+                    throw ex;
+                } finally {
+                    ds.end();
+                }
                 ParameterizedSparqlString pss = new ParameterizedSparqlString(
                         """
                         insert {
@@ -106,10 +129,19 @@ public class Collections extends BasePage {
                 pss.setNsPrefix("lws", LWS.NS);
                 pss.setNsPrefix("so", SchemaDO.NS);
                 pss.setIri("g", HAL.CollectionsAndResources.getURI());
+                // Build the update OUTSIDE the transaction: UpdateFactory.create parses,
+                // and a parse error inside the txn would strand it.
                 UpdateRequest updateRequest = UpdateFactory.create(pss.toString());
-                UpdateAction.execute(updateRequest, ds);
-                ds.commit();
-                ds.end();
+                ds.begin(ReadWrite.WRITE);
+                try {
+                    UpdateAction.execute(updateRequest, ds);
+                    ds.commit();
+                } catch (RuntimeException ex) {
+                    ds.abort();
+                    throw ex;
+                } finally {
+                    ds.end();
+                }
                 PageParameters pageParameters = new PageParameters();
                 pageParameters.add("container", uuid);
                 setResponsePage(EditCollection.class, pageParameters);

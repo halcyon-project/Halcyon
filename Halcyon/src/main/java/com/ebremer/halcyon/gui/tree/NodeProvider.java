@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.ParameterizedSparqlString;
+import org.apache.jena.query.QueryExecution;
 import org.apache.jena.query.QueryExecutionFactory;
 import org.apache.jena.query.ReadWrite;
 import org.apache.jena.query.ResultSet;
@@ -36,9 +37,13 @@ public class NodeProvider implements ITreeProvider<GraphNode> {
         DataCore dc = DataCore.getInstance();
         Dataset ds = dc.getDataset();
         Model h = ModelFactory.createDefaultModel();
+        // H13: end() in a finally.
         ds.begin(ReadWrite.READ);
-        h.add(ds.getNamedModel(HAL.CollectionsAndResources));
-        ds.end();
+        try {
+            h.add(ds.getNamedModel(HAL.CollectionsAndResources));
+        } finally {
+            ds.end();
+        }
         rdm = new SessionScopedModel(h);
     }
     
@@ -136,11 +141,13 @@ public class NodeProvider implements ITreeProvider<GraphNode> {
             }
         """);
         pss.setNsPrefix("so", SchemaDO.NS);
-        ResultSet rs = QueryExecutionFactory.create(pss.toString(), m).execSelect();
-        rs.forEachRemaining(qs->{
-            Resource r = qs.getResource("s").asResource();
-            ar.add(new GraphNode(r.asNode(),rdm));
-        });
+        // H13: in-memory model (no transaction to strand), but close the execution.
+        try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m)) {
+            qe.execSelect().forEachRemaining(qs->{
+                Resource r = qs.getResource("s").asResource();
+                ar.add(new GraphNode(r.asNode(),rdm));
+            });
+        }
         return ar.iterator();
     }
 

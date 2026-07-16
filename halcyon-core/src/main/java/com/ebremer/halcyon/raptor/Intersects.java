@@ -44,14 +44,14 @@ public class Intersects extends FunctionBase {
         };
         Polygon tile = geometryFactory.createPolygon(coords);
         WKTReader reader = new WKTReader();
-        Polygon wkt = null;
         try {
+            // M6: keep this as a Geometry. It used to cast to Polygon, so a legal
+            // MULTIPOLYGON threw an uncaught ClassCastException and failed the
+            // whole query. Geometry.intersects() is polymorphic and already does
+            // the right thing for a multi-part region.
             Geometry geometry = reader.read(nwkt.getString());
-            wkt = (Polygon) geometry;
-            return NodeValue.makeBoolean(wkt.intersects(tile));
+            return NodeValue.makeBoolean(geometry.intersects(tile));
         } catch (ParseException ex) {
-            System.out.println(tile);
-            System.out.println(wkt);
             Logger.getLogger(Intersects.class.getName()).log(Level.SEVERE, null, ex);
         } catch (IllegalArgumentException ex) {
             System.out.println("RUNT : "+nwkt.getString());

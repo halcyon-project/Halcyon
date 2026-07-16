@@ -1,7 +1,10 @@
 package com.ebremer.halcyon.fuseki;
 
+import com.ebremer.halcyon.datum.HalcyonPrincipal;
+import com.ebremer.halcyon.server.RequestPrincipal;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.ws.rs.core.HttpHeaders;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -15,6 +18,8 @@ import org.apache.http.NameValuePair;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.message.BasicNameValuePair;
 import org.mitre.dsmiley.httpproxy.ProxyServlet;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -22,10 +27,29 @@ import org.mitre.dsmiley.httpproxy.ProxyServlet;
  */
 public class HalcyonProxyServlet extends ProxyServlet {
 
+    private static final Logger logger = LoggerFactory.getLogger(HalcyonProxyServlet.class);
+
+    /**
+     * C5: when true, this proxy attaches the caller's bearer token from their
+     * signed-in SESSION (see {@link #doExecute}) so the page never has to publish
+     * it into {@code window.token}. Only the {@code /rdf} proxy sets this — the
+     * {@code /auth} (Keycloak) proxy must NOT, or it would ship the user's access
+     * token to the IdP on every request and disturb the OIDC flow.
+     */
+    private final boolean attachSessionBearer;
+
+    public HalcyonProxyServlet() {
+        this(false);
+    }
+
+    public HalcyonProxyServlet(boolean attachSessionBearer) {
+        this.attachSessionBearer = attachSessionBearer;
+    }
+
     @Override
     protected void copyRequestHeaders(HttpServletRequest servletRequest, HttpRequest proxyRequest) {
         super.copyRequestHeaders(servletRequest, proxyRequest);
-        
+
         proxyRequest.removeHeaders("X-Forwarded-For");
         proxyRequest.removeHeaders("X-Forwarded-Proto");
         proxyRequest.removeHeaders("X-Forwarded-Host");        
@@ -76,7 +100,21 @@ public class HalcyonProxyServlet extends ProxyServlet {
     
     @Override
     protected HttpResponse doExecute(HttpServletRequest servletRequest, HttpServletResponse servletResponse, HttpRequest proxyRequest) throws IOException {
-        System.out.println(servletRequest);        
+        if (attachSessionBearer) {
+            // C5: the raw Keycloak access token used to be published into the DOM
+            // (window.token) purely so the browser could put it on this request —
+            // which meant any XSS could read a live bearer token and take the
+            // account over. Attach it here instead, from the signed-in session.
+            // The client's own Authorization header is dropped first, so a caller
+            // cannot choose the identity presented to the backend.
+            proxyRequest.removeHeaders(HttpHeaders.AUTHORIZATION);
+            HalcyonPrincipal principal = RequestPrincipal.resolve(servletRequest, servletResponse);
+            if (RequestPrincipal.isSignedIn(principal) && principal.getToken() != null) {
+                proxyRequest.addHeader(HttpHeaders.AUTHORIZATION, "Bearer " + principal.getToken());
+            } else {
+                logger.debug("No signed-in session for {} — proxying unauthenticated", servletRequest.getRequestURI());
+            }
+        }
         //servletRequest.getHeaderNames().asIterator().forEachRemaining(h->{
           //  System.out.println("SH : "+h+" --> "+servletRequest.getHeader(h));
         //});

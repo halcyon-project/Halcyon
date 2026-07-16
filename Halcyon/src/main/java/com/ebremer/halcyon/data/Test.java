@@ -26,17 +26,20 @@ public class Test {
     public static void main(String args[]) {
         Dataset x = TDB2Factory.connectDataset("/projects/Halcyon/Halcyon/tdb2");
         Dataset ds = DatasetFactory.wrap(new SecuredDatasetGraph(x.asDatasetGraph(), new WACSecurityEvaluator(CLOSED)));
-        QueryExecution qe = QueryExecutionFactory.create(
+        // H13: guarded end() + a closed QueryExecution. Dev scratch main(), but it
+        // is the kind of thing that gets copied.
+        ds.begin(ReadWrite.READ);
+        try (QueryExecution qe = QueryExecutionFactory.create(
             """
             select *
             where { graph <https://halcyon.is/ns/CollectionsAndResources> {
                  ?s ?p ?o
                  }
             }
-            """, ds);
-        ds.begin(ReadWrite.READ);
-        ResultSetFormatter.out(System.out,qe.execSelect());
-        ds.end();
-        
+            """, ds)) {
+            ResultSetFormatter.out(System.out, qe.execSelect());
+        } finally {
+            ds.end();
+        }
     }
 }

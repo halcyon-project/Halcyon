@@ -22,6 +22,10 @@ import org.apache.jena.vocabulary.DCTerms;
 public class Patterns {
     
     /*
+    // H13: kept commented out, but CORRECTED in place — as written this was the
+    // leak template the live methods were copied from (unclosed QueryExecution,
+    // unguarded end(), and begin() called AFTER create()). Uncommenting the old
+    // version would have reintroduced the defect.
     public static List<Node> getCollectionList(Dataset ds) {
         ParameterizedSparqlString pss = new ParameterizedSparqlString( """
             select ?s ?name
@@ -29,12 +33,12 @@ public class Patterns {
         """);
         pss.setNsPrefix("hal", HAL.NS);
         pss.setNsPrefix("so", SchemaDO.NS);
-        QueryExecution qe = QueryExecutionFactory.create(pss.toString(), ds);
         ds.begin(ReadWrite.READ);
-        ResultSet rs = qe.execSelect().materialise();
-        List<Node> list = Solution.nodes(rs, "s");
-        ds.end();
-        return list;
+        try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), ds)) {
+            return Solution.nodes(qe.execSelect().materialise(), "s");
+        } finally {
+            ds.end();
+        }
     }*/
     
     public static Model getCollectionRDF2(Dataset ds) {
@@ -48,18 +52,31 @@ public class Patterns {
         pss.setNsPrefix("lws", LWS.NS);
         pss.setNsPrefix("dct", DCTerms.NS);
         pss.setIri("g", HAL.CollectionsAndResources.getURI());
-        System.out.println(pss.toString());
-        QueryExecution qe = QueryExecutionFactory.create(pss.toString(), ds);
-        Model m;
-        try {
-            ds.begin(ReadWrite.READ);
-            m = qe.execConstruct();
+        // H13: the QueryExecution was never closed, and begin() sat INSIDE the try —
+        // so a throw from begin() itself ran end() against a non-transaction, masking
+        // the real error. Same shape as getALLCollectionRDF below.
+        ds.begin(ReadWrite.READ);
+        try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), ds)) {
+            return qe.execConstruct();
         } finally {
             ds.end();
         }
-        return m;
     }
     
+    /**
+     * The collections the caller may read, for label lookup.
+     * <p>
+     * H6: was an unfiltered read of the RAW dataset, so it handed back every
+     * container in the store regardless of ACL. Two things had to change together:
+     * the dataset is now the WAC-secured one, AND {@code ?g} is BOUND to
+     * CollectionsAndResources instead of left as a variable. The binding is not
+     * cosmetic — a variable {@code GRAPH ?g} is answered through
+     * {@code SecuredDatasetGraph.findNG}, which hands back the base iterator RAW
+     * once graph-level access passes, so the per-triple (per-container) filter
+     * would never run and this would still return everything. With a constant
+     * graph, ARQ routes through {@code getGraph} -> a jena-permissions secured
+     * graph -> each triple authorized by its subject.
+     */
     public static Model getALLCollectionRDF() {
         ParameterizedSparqlString pss = new ParameterizedSparqlString( """
             construct {?s a lws:Container; dct:title ?name}
@@ -68,12 +85,14 @@ public class Patterns {
         pss.setNsPrefix("hal", HAL.NS);
         pss.setNsPrefix("lws", LWS.NS);
         pss.setNsPrefix("dct", DCTerms.NS);
-        Dataset ds = DataCore.getInstance().getDataset();
-        QueryExecution qe = QueryExecutionFactory.create(pss.toString(), ds);
+        pss.setIri("g", HAL.CollectionsAndResources.getURI());
+        Dataset ds = DataCore.getInstance().getSecuredDataset(DataCore.Level.OPEN);
         ds.begin(ReadWrite.READ);
-        Model m = qe.execConstruct();
-        ds.end();
-        return m;
+        try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), ds)) {
+            return qe.execConstruct();
+        } finally {
+            ds.end();
+        }
     }
         
     public static List<Node> getCollectionList45X(Model m) {
@@ -85,9 +104,9 @@ public class Patterns {
         pss.setNsPrefix("hal", HAL.NS);
         pss.setNsPrefix("lws", LWS.NS);
         pss.setNsPrefix("dct", DCTerms.NS);
-        QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m);
-        ResultSet rs = qe.execSelect();
-        List<Node> list = Solution.nodes(rs, "s");
-        return list;
+        // H13: in-memory model, so no transaction to strand — but still close it.
+        try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m)) {
+            return Solution.nodes(qe.execSelect(), "s");   // consumes the ResultSet
+        }
     }
 }

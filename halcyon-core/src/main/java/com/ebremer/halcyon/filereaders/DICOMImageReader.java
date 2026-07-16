@@ -68,6 +68,22 @@ public class DICOMImageReader extends AbstractImageReader {
      *  cdt:List multi-values, and source-file provenance. Reusable / thread-safe. */
     private static final Dcm2RdfBuilder D2R = new Dcm2RdfBuilder().oid(true).cdt(true).extra(true);
 
+    /** DimensionOrganizationType (0020,9311) — the frame ordering of a tiled instance. */
+    private static final String TILED_FULL = "TILED_FULL";
+    private static final String TILED_SPARSE = "TILED_SPARSE";
+
+    // M10: every geometry field below is read straight out of an untrusted file
+    // header and then used to size allocations and index frames, so each one is
+    // bounded here. The limits are far above anything real: observed slides use
+    // 256x256 tiles (label/overview strips 401x6, 1280x16) and total matrices up to
+    // ~166,908 x 84,951.
+    /** Max per-tile edge. Real: 256..1280. */
+    private static final int MAX_TILE_DIM = 16384;
+    /** Max pixels in one decoded tile — ~256 MB at 4 B/px, the actual OOM lever. */
+    private static final long MAX_TILE_PIXELS = 64L * 1024 * 1024;
+    /** Max total-matrix edge. Real: ~166,908. Also keeps {@code width + tileW} clear of int overflow. */
+    private static final int MAX_MATRIX_DIM = 1 << 20;
+
     private final URI uri;
     private final URI base;
     private final ImageMeta meta;
@@ -258,14 +274,15 @@ public class DICOMImageReader extends AbstractImageReader {
 
     /** Structural fields for one DICOM file, plus its dcm2rdf model. */
     private record DcmInfo(File file, Model model, String series, String flavor,
-                           int width, int height, int tileW, int tileH, int numFrames) {}
+                           int width, int height, int tileW, int tileH, int numFrames,
+                           String organization) {}
 
     /** Convert a DICOM file to RDF (header only) and pull the fields we need. */
     private static DcmInfo probe(File f) throws IOException {
         Model fm = D2R.toModel(f);
         ParameterizedSparqlString pss = new ParameterizedSparqlString(
             """
-            SELECT ?series ?itype ?w ?h ?cols ?rows ?frames WHERE {
+            SELECT ?series ?itype ?w ?h ?cols ?rows ?frames ?org WHERE {
                 ?s a dcm:SOPInstance .
                 OPTIONAL { ?s dcm:0020000E ?series }
                 OPTIONAL { ?s dcm:00080008 ?itype }
@@ -274,6 +291,7 @@ public class DICOMImageReader extends AbstractImageReader {
                 OPTIONAL { ?s dcm:00280011 ?cols }
                 OPTIONAL { ?s dcm:00280010 ?rows }
                 OPTIONAL { ?s dcm:00280008 ?frames }
+                OPTIONAL { ?s dcm:00209311 ?org }
             } LIMIT 1
             """
         );
@@ -294,16 +312,101 @@ public class DICOMImageReader extends AbstractImageReader {
             int w = intOf(qs, "w", cols);
             int h = intOf(qs, "h", rows);
             int frames = intOf(qs, "frames", 1);
-            return new DcmInfo(f, fm, series, flavor, w, h, cols, rows, frames);
+            String org = strOf(qs, "org");
+            // M9/M10: reject before any of this reaches an allocation or a frame index.
+            validate(f, w, h, cols, rows, frames, org);
+            return new DcmInfo(f, fm, series, flavor, w, h, cols, rows, frames, org);
         }
     }
 
+    /**
+     * M9/M10: refuse a header this reader cannot honour, rather than rendering from it.
+     * <p>
+     * Called from {@link #probe}, so the effect is: the opened file itself fails the
+     * constructor with this message, while a bad sibling is merely skipped (the group
+     * loop already catches IOException per sibling).
+     */
+    private static void validate(File f, int width, int height, int tileW, int tileH,
+                                int frames, String org) throws IOException {
+        // M10: tileW/tileH reach `(width + tileW - 1) / tileW` in the Level ctor, so a
+        // header declaring Columns=0 was an ArithmeticException (/ by zero) out of the
+        // constructor, and a negative one silently produced a bogus tilesPerRow.
+        if (tileW <= 0 || tileH <= 0) {
+            throw new IOException("DICOM declares a non-positive tile size (Columns=" + tileW
+                    + " Rows=" + tileH + "): " + f);
+        }
+        if (width <= 0 || height <= 0) {
+            throw new IOException("DICOM declares a non-positive pixel matrix ("
+                    + width + "x" + height + "): " + f);
+        }
+        if (frames <= 0) {
+            throw new IOException("DICOM declares NumberOfFrames=" + frames + ": " + f);
+        }
+        // M10: the decode-time OOM lever — dr.read(frame) allocates tileW*tileH.
+        if (tileW > MAX_TILE_DIM || tileH > MAX_TILE_DIM
+                || (long) tileW * (long) tileH > MAX_TILE_PIXELS) {
+            throw new IOException("DICOM declares an implausible tile size " + tileW + "x" + tileH
+                    + " (max " + MAX_TILE_DIM + " per edge, " + MAX_TILE_PIXELS + " px): " + f);
+        }
+        if (width > MAX_MATRIX_DIM || height > MAX_MATRIX_DIM) {
+            throw new IOException("DICOM declares an implausible pixel matrix " + width + "x" + height
+                    + " (max " + MAX_MATRIX_DIM + " per edge): " + f);
+        }
+        // M9: the frame index below is `row * tilesPerRow + col`, which is ONLY the
+        // frame order of TILED_FULL. A TILED_SPARSE instance stores each frame's
+        // position in its Per-Frame Functional Groups (Plane Position (Slide)) and may
+        // omit tiles entirely, so that formula silently returns the WRONG TISSUE — no
+        // exception, just a scrambled slide. For pathology that is worse than an
+        // error, so anything this reader cannot order is refused. (The tag is absent
+        // on non-WSI DICOM — a plain MR/CT — which stays readable while it has a
+        // single frame, since frame 0 is then the only answer the formula can give.)
+        if (org.isEmpty()) {
+            if (frames > 1) {
+                throw new IOException("DICOM has " + frames + " frames but no DimensionOrganizationType"
+                        + " (0020,9311); frame order is unknown: " + f);
+            }
+            return;
+        }
+        if (!TILED_FULL.equals(org)) {
+            throw new IOException("DICOM DimensionOrganizationType=" + org + " is not supported"
+                    + (TILED_SPARSE.equals(org)
+                        ? " (TILED_SPARSE needs the per-frame Plane Position (Slide) map; no sample"
+                          + " exists to verify an implementation against)"
+                        : "")
+                    + ": " + f);
+        }
+    }
+
+    /**
+     * M10: never let a malformed header throw out of here. {@code asLiteral().getInt()}
+     * raises NumberFormatException/DatatypeFormatException on a literal that is not a
+     * number (a header claiming Columns="abc"), which used to escape the constructor
+     * as an unhandled runtime exception rather than a readable failure.
+     */
     private static int intOf(QuerySolution qs, String var, int dflt) {
         if (!qs.contains(var)) {
             return dflt;
         }
         RDFNode n = qs.get(var);
-        return n.isLiteral() ? n.asLiteral().getInt() : dflt;
+        if (!n.isLiteral()) {
+            return dflt;
+        }
+        try {
+            return n.asLiteral().getInt();
+        } catch (RuntimeException ex) {
+            logger.warn("DICOM header field {} is not an integer ({}) — using default {}",
+                    var, n, dflt);
+            return dflt;
+        }
+    }
+
+    /** Plain-literal string field, or "" — dcm2rdf emits (0020,9311) as a bare string. */
+    private static String strOf(QuerySolution qs, String var) {
+        if (!qs.contains(var)) {
+            return "";
+        }
+        RDFNode n = qs.get(var);
+        return n.isLiteral() ? n.asLiteral().getLexicalForm().trim() : "";
     }
 
     private static boolean sameFile(File a, File b) {
@@ -355,6 +458,14 @@ public class DICOMImageReader extends AbstractImageReader {
         private ImageInputStream iis;
 
         Level(int series, File file, int width, int height, int tileW, int tileH, int numFrames) {
+            // M10: probe()/validate() has already bounded these, but this ctor divides by
+            // tileW and is the thing that actually blew up (ArithmeticException on
+            // Columns=0). Keep the invariant local so it cannot be reintroduced by a
+            // future caller that skips validate().
+            if (tileW <= 0 || tileH <= 0) {
+                throw new IllegalArgumentException("tile size must be positive, got "
+                        + tileW + "x" + tileH + " for " + file);
+            }
             this.series = series;
             this.file = file;
             this.width = width;
@@ -398,6 +509,12 @@ public class DICOMImageReader extends AbstractImageReader {
                 int ry1 = (y + h - 1) / tileH;
                 for (int ry = ry0; ry <= ry1; ry++) {
                     for (int cx = cx0; cx <= cx1; cx++) {
+                        // M9: valid ONLY for TILED_FULL, where frames are laid out in
+                        // raster order with no gaps. That is now an enforced invariant,
+                        // not an assumption: validate() refuses any instance whose
+                        // DimensionOrganizationType is not TILED_FULL (or absent with a
+                        // single frame), because for TILED_SPARSE this formula returns
+                        // the wrong frame and silently composites the wrong tissue.
                         int frame = ry * tilesPerRow + cx; // 0-based, TILED_FULL
                         if (frame < 0 || frame >= numFrames) {
                             continue;

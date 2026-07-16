@@ -29,6 +29,7 @@ import java.util.Collections;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.jena.query.ParameterizedSparqlString;
+import org.apache.jena.query.QueryExecution;
 import org.apache.jena.query.QueryExecutionFactory;
 import org.apache.jena.query.ResultSet;
 import org.apache.jena.rdf.model.Model;
@@ -129,9 +130,13 @@ public class IIIFMETA {
         );
         pss.setNsPrefix("geo", GEO.NS);
         pss.setNsPrefix("dct", DCTerms.NS);
-        ResultSet rsx = QueryExecutionFactory.create(pss.toString(), mm).execSelect();
-        if (rsx.hasNext()) {
-            return rsx.next().get("title").asLiteral().getString();
+        // H13: in-memory model, but close the execution — this runs on every IIIF
+        // info.json request.
+        try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), mm)) {
+            ResultSet rsx = qe.execSelect();
+            if (rsx.hasNext()) {
+                return rsx.next().get("title").asLiteral().getString();
+            }
         }
         return "Unknown";
     }

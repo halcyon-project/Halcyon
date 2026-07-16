@@ -4,6 +4,7 @@ import com.ebremer.halcyon.filereaders.ImageReader;
 import com.ebremer.halcyon.server.utils.ImageReaderPool;
 import com.ebremer.halcyon.utils.ImageTools;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.net.URI;
 import java.util.concurrent.Callable;
 import org.apache.jena.rdf.model.Model;
@@ -145,29 +146,43 @@ public class TileRequest implements Callable<Tile> {
     // ------------------------------------------------------------------------
     // Callable implementation – no mutation
     // ------------------------------------------------------------------------
+    /**
+     * M13: this must THROW when it cannot produce what was asked for.
+     * <p>
+     * It used to log a failed decode and return a {@code Tile} with a null image,
+     * and swallow every exception besides. Two consequences, both bad:
+     * <ul>
+     *   <li>{@code TileRequestEngine.getFutureTile} wraps this call in
+     *       {@code catch (Exception e) { cache.invalidate(key); throw e; }} — the
+     *       "evict poisoned key" path. Since this method never threw, that catch was
+     *       <em>unreachable</em> and the failed Tile was cached like a success. The
+     *       cache is {@code expireAfterAccess(10 min)}, so every retry RESET the
+     *       clock: a tile that failed once could stay poisoned indefinitely, for as
+     *       long as anyone kept asking for it.</li>
+     *   <li>A swallowed exception lost the reason. The caller saw only a null image.</li>
+     * </ul>
+     * Throwing lets the wrapper evict the key and surfaces the real cause to
+     * {@code ImageServer} as an ExecutionException, which answers 500 and leaves the
+     * next request free to try again.
+     * <p>
+     * A null image is only an error when one was actually requested — a meta-only
+     * request ({@code retrieveBufferedImage == false}) legitimately has none.
+     */
     @Override
-    public Tile call() {
+    public Tile call() throws Exception {
         logger.trace("Processing TileRequest for URI: {}", uri);
-
-        Tile tile = new Tile(this);
-
-        try {
-            if (retrieveBufferedImage) {
-                BufferedImage bi = getBufferedImage(aspectratio);
-                if (bi != null) {
-                    tile.setBufferedImage(bi);
-                } else {
-                    logger.error("Failed to retrieve BufferedImage for {}", uri);
-                }
+        BufferedImage bi = null;
+        Model m = null;
+        if (retrieveBufferedImage) {
+            bi = getBufferedImage(aspectratio);
+            if (bi == null) {
+                throw new IOException("Tile decode produced no image for " + uri + " region=" + region);
             }
-            if (retrieveMeta) {
-                Model meta = getMeta();
-                tile.setMeta(meta);
-            }
-        } catch (Exception e) {
-            logger.error("Unexpected error during TileRequest execution", e);
         }
-        return tile;
+        if (retrieveMeta) {
+            m = getMeta();
+        }
+        return new Tile(this, bi, m);
     }
 
     // ------------------------------------------------------------------------

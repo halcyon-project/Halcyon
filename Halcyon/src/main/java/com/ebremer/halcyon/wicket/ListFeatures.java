@@ -25,7 +25,9 @@ import org.apache.jena.graph.Node;
 import org.apache.jena.graph.NodeFactory;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.ParameterizedSparqlString;
+import org.apache.jena.query.QueryExecution;
 import org.apache.jena.query.QueryExecutionFactory;
+import org.apache.jena.query.ReadWrite;
 import org.apache.jena.query.ResultSet;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.vocabulary.DCTerms;
@@ -81,7 +83,7 @@ public class ListFeatures extends Panel {
             """
             select distinct ?name ?creator
             where {
-                graph ?car {?collection lws:contains ?s}
+                graph ?car {?collection lws:contains+ ?s}
               	graph ?s {?fc a geo:FeatureCollection; dct:title ?name ; prov:wasGeneratedBy/prov:wasAssociatedWith ?creator}
             }
             """
@@ -94,10 +96,15 @@ public class ListFeatures extends Panel {
         pss.setNsPrefix("exif", EXIF.NS);
         pss.setNsPrefix("prov", PROVO.NS);
         pss.setIri("car", HAL.CollectionsAndResources.getURI());
-        //Dataset ds = DatabaseLocator.getDatabase().getSecuredDataset();
-        Dataset ds = DatabaseLocator.getDatabase().getDataset();
+        // `lws:contains+` (transitive) — must match ListImages, which this panel sits
+        // on: containers nest, so a one-level join listed no features for any parent
+        // container. See the full note there.
+        // H6: WAC-filtered, not the raw store (see ListImages for why both the
+        // constant-graph and variable-graph halves are gated).
+        // M18: supplier form — see ListImages. A bare Dataset cannot be re-acquired
+        // after page-store deserialization and throws from ds() on the next request.
         logger.debug(pss.toString());
-        rdfsdf = new SelectDataProvider(ds, pss.toString());
+        rdfsdf = new SelectDataProvider(() -> DatabaseLocator.getDatabase().getSecuredDataset(OPEN), pss.toString());
         ParameterizedSparqlString pss2 = rdfsdf.getPSS();
         pss2.setIri("collection", "urn:halcyon:nothing");
         rdfsdf.setQuery(pss2.toString());
@@ -115,6 +122,12 @@ public class ListFeatures extends Panel {
                         try {
                             HalcyonPrincipal p = HalcyonSession.get().getHalcyonPrincipal();
                             String uuid = p.getUserURI();
+                            // M16: NOT "hold until done" — see the full note in
+                            // ListImages. getCollectionRDF2 queries the secured dataset,
+                            // which re-enters borrowObject() on this same user key from
+                            // WACSecurityEvaluator; holding the borrow makes this method
+                            // contend with itself, and a borrow failure there is a silent
+                            // deny (evaluate() returns false). Return first, deliberately.
                             AccessCache ac = AccessCachePool.getPool().borrowObject(uuid);
                             AccessCachePool.getPool().returnObject(uuid, ac);
                             if (ac.getCollections().size() == 0) {
@@ -171,9 +184,17 @@ public class ListFeatures extends Panel {
         LinkedList<Node> list = new LinkedList<>();
         Query q = rdfsdf.getQuery();
         Dataset ds = rdfsdf.getDS();
-        ds.begin();
-        ResultSet rs = QueryExecutionFactory.create(q, ds).execSelect().materialise();
-        ds.end();
+        // H13: guarded end() + a closed QueryExecution. Note begin() with no
+        // argument is READ_PROMOTE, i.e. a txn that can turn into a WRITE — and a
+        // stranded WRITE blocks every other writer in the process, not just this
+        // thread. Ask for READ explicitly; this method only reads.
+        ResultSet rs;
+        ds.begin(ReadWrite.READ);
+        try (QueryExecution qe = QueryExecutionFactory.create(q, ds)) {
+            rs = qe.execSelect().materialise();
+        } finally {
+            ds.end();
+        }
         rs.forEachRemaining(c -> {
             list.add(c.get("creator").asNode());
         });

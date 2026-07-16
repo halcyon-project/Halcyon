@@ -30,6 +30,7 @@ import java.util.Iterator;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.DatasetFactory;
 import org.apache.jena.query.ParameterizedSparqlString;
+import org.apache.jena.query.QueryExecution;
 import org.apache.jena.query.QueryExecutionFactory;
 import org.apache.jena.query.QuerySolution;
 import org.apache.jena.query.ReadWrite;
@@ -86,10 +87,21 @@ public class FeatureManager {
         pss.setNsPrefix("rdf", RDF.uri);
         pss.setIri("image", urn);
         pss.setValues("selected", createactions);
+        // H13: end() must be in a finally. Everything between begin and end can
+        // throw — pss.toString() raises ARQException on a bad substitution, create()
+        // raises QueryParseException, and materialise() pulls the WHOLE result set
+        // into memory, so it can OOM. Any of those used to skip end() and strand a
+        // READ transaction on this Wicket worker thread; the thread then fails
+        // EVERY later begin() with "Currently in an active transaction" for the rest
+        // of the process's life. See LwsServlet.service, which reaps exactly this.
+        ResultSet results;
         ds.begin(ReadWrite.READ);
-        logger.debug(pss.toString());
-        ResultSet results = QueryExecutionFactory.create(pss.toString(), ds).execSelect().materialise();
-        ds.end();
+        try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), ds)) {
+            logger.debug(pss.toString());
+            results = qe.execSelect().materialise();   // materialise: safe to read after end()
+        } finally {
+            ds.end();
+        }
         ArrayList<RDFNode> roc = new ArrayList<>();
         while (results.hasNext()) {
             QuerySolution qs = results.next();
@@ -109,10 +121,15 @@ public class FeatureManager {
         pss.setNsPrefix("rdfs", RDFS.getURI());
         pss.setNsPrefix("rdf", RDF.uri);        
         pss.setValues("selected", roc);
+        // H13: as above — guarded end() and a closed QueryExecution.
+        ResultSet rs;
         ds.begin(ReadWrite.READ);
-        logger.debug(pss.toString());
-        ResultSet rs = QueryExecutionFactory.create(pss.toString(), ds).execSelect().materialise();
-        ds.end();
+        try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), ds)) {
+            logger.debug(pss.toString());
+            rs = qe.execSelect().materialise();
+        } finally {
+            ds.end();
+        }
         record ColorCode(String color, int code, String name) {}
         HashMap<Resource,ColorCode> types = new HashMap<>();
         HalColors cs = new HalColors();
@@ -124,8 +141,13 @@ public class FeatureManager {
             rocs.add(qs.get("roc").asResource());
             String color = ucac.getColor(key);
             String name = ucac.getName(key);
-            if (color!=null) {
-                types.put(key,new ColorCode(ColorTools.Hex2RGBA(color),types.size()+1,name));
+            // M7: Hex2RGBA now returns null for a hal:color that isn't a valid
+            // hex colour (it used to throw straight out of this response). Treat
+            // an unusable colour exactly like a missing one and fall back to the
+            // auto-assigned palette rather than passing null downstream.
+            String rgba = ColorTools.Hex2RGBA(color);
+            if (rgba!=null) {
+                types.put(key,new ColorCode(rgba,types.size()+1,name));
             } else if (!types.containsKey(key)) {
                 types.put(key,new ColorCode(cs.removeFirst(),types.size()+1,"Unknown"));
             }

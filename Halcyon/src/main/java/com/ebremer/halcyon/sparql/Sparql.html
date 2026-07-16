@@ -11,7 +11,8 @@
         <script>
             Yasgui.defaults.tabName = "Query";
             Yasgui.defaults.yasqe.value =  "select *\nwhere {graph ?g {?s ?p ?o}}\nlimit 20";
-            Yasgui.defaults.requestConfig.headers = {'AUTHORIZATION': 'Bearer '+token};
+            // C5: no Authorization header here — the /rdf proxy attaches the signed-in
+            // session's bearer token server-side, so the page never holds a live credential.
             const yasgui = new Yasgui(document.getElementById("yasgui"),
                 {   requestConfig: {
                         endpoint: "/rdf"},

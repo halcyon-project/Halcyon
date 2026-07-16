@@ -54,6 +54,13 @@ public final class HalcyonSettings {
     private final HashMap<String, String> file2httpMappings;
     private final String Realm = "master";
     public static final String REALM = "Halcyon";
+    /**
+     * The OIDC client this application authenticates its users through. Single
+     * definition so the pac4j config and the JWT verifier cannot drift: H2 —
+     * the verifier rejects a token whose {@code azp}/{@code aud} names some
+     * OTHER client of the realm, which it previously accepted.
+     */
+    public static final String CLIENT_ID = "account";
     public static final int DEFAULTHTTPPORT = 8888;
     public static final int DEFAULTHTTPSPORT = 9999;
     public static final int DEFAULTSPARQLPORT = 8887;
@@ -120,11 +127,12 @@ public final class HalcyonSettings {
     public String getHostName() {
         String qs = "prefix : <" + HAL.NS + "> select ?HostName where {?s :HostName ?HostName}";
         Query query = QueryFactory.create(qs);
-        QueryExecution qe = QueryExecutionFactory.create(query, m);
-        ResultSet results = qe.execSelect();
-        if (results.hasNext()) {
-            QuerySolution sol = results.nextSolution();
-            return sol.get("HostName").asLiteral().getString();
+        try (QueryExecution qe = QueryExecutionFactory.create(query, m)) {
+            ResultSet results = qe.execSelect();
+            if (results.hasNext()) {
+                QuerySolution sol = results.nextSolution();
+                return sol.get("HostName").asLiteral().getString();
+            }
         }
         return DEFAULTHOSTNAME + ":" + DEFAULTHTTPPORT;
     }
@@ -132,11 +140,12 @@ public final class HalcyonSettings {
     public String getProxyHostName() {
         String qs = "prefix : <" + HAL.NS + "> select ?ProxyHostName where {?s :ProxyHostName ?ProxyHostName}";
         Query query = QueryFactory.create(qs);
-        QueryExecution qe = QueryExecutionFactory.create(query, m);
-        ResultSet results = qe.execSelect();
-        if (results.hasNext()) {
-            QuerySolution sol = results.nextSolution();
-            return sol.get("ProxyHostName").asLiteral().getString();
+        try (QueryExecution qe = QueryExecutionFactory.create(query, m)) {
+            ResultSet results = qe.execSelect();
+            if (results.hasNext()) {
+                QuerySolution sol = results.nextSolution();
+                return sol.get("ProxyHostName").asLiteral().getString();
+            }
         }
         return DEFAULTHOSTNAME + ":" + DEFAULTHTTPPORT;
     }
@@ -144,10 +153,11 @@ public final class HalcyonSettings {
     public String getAuthServer() {
         ParameterizedSparqlString pss = new ParameterizedSparqlString("select ?AuthServer where {?s :AuthServer ?AuthServer}");
         pss.setNsPrefix("", HAL.NS);
-        QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m);
-        ResultSet results = qe.execSelect();
-        if (results.hasNext()) {
-            return results.nextSolution().get("AuthServer").asLiteral().getString();
+        try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m)) {
+            ResultSet results = qe.execSelect();
+            if (results.hasNext()) {
+                return results.nextSolution().get("AuthServer").asLiteral().getString();
+            }
         }
         return DEFAULTHOSTNAME + ":" + DEFAULTHTTPPORT;
     }
@@ -171,7 +181,9 @@ public final class HalcyonSettings {
     public boolean IsFileScanDisabled() {
         ParameterizedSparqlString pss = new ParameterizedSparqlString("ask where {?s hal:fileScanDisabled true}");
         pss.setNsPrefix("hal", HAL.NS);
-        return QueryExecutionFactory.create(pss.toString(), m).execAsk();
+        try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m)) {
+            return qe.execAsk();
+        }
     }
 
     public static HalcyonSettings getSettings() {
@@ -206,12 +218,13 @@ public final class HalcyonSettings {
     public String GetMasterID() {
         String qs = "prefix : <" + HAL.NS + "> select ?s where {?s a :HalcyonSettingsFile}";
         Query query = QueryFactory.create(qs);
-        QueryExecution qe = QueryExecutionFactory.create(query, m);
-        ResultSet results = qe.execSelect();
-        if (results.hasNext()) {
-            QuerySolution sol = results.nextSolution();
-            Master = sol.get("s").asResource();
-            return Master.getURI();
+        try (QueryExecution qe = QueryExecutionFactory.create(query, m)) {
+            ResultSet results = qe.execSelect();
+            if (results.hasNext()) {
+                QuerySolution sol = results.nextSolution();
+                Master = sol.get("s").asResource();
+                return Master.getURI();
+            }
         }
         return null;
     }
@@ -219,11 +232,12 @@ public final class HalcyonSettings {
     public int GetNumberOfFileProcessorThreads() {
         ParameterizedSparqlString pss = new ParameterizedSparqlString("select ?threads where {?s :fileProcessors ?threads}");
         pss.setNsPrefix("", HAL.NS);
-        QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m);
-        ResultSet results = qe.execSelect();
-        if (results.hasNext()) {
-            QuerySolution sol = results.nextSolution();
-            return sol.get("threads").asLiteral().getInt();
+        try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m)) {
+            ResultSet results = qe.execSelect();
+            if (results.hasNext()) {
+                QuerySolution sol = results.nextSolution();
+                return sol.get("threads").asLiteral().getInt();
+            }
         }
         return DEFAULTFILEPROCESSORTHREEADS;
     }
@@ -231,11 +245,12 @@ public final class HalcyonSettings {
     public int GetSPARQLPort() {
         ParameterizedSparqlString pss = new ParameterizedSparqlString("select ?port where {?s :SPARQLport ?port}");
         pss.setNsPrefix("", HAL.NS);
-        QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m);
-        ResultSet results = qe.execSelect();
-        if (results.hasNext()) {
-            QuerySolution sol = results.nextSolution();
-            return sol.get("port").asLiteral().getInt();
+        try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m)) {
+            ResultSet results = qe.execSelect();
+            if (results.hasNext()) {
+                QuerySolution sol = results.nextSolution();
+                return sol.get("port").asLiteral().getInt();
+            }
         }
         return DEFAULTSPARQLPORT;
     }
@@ -244,11 +259,12 @@ public final class HalcyonSettings {
         ParameterizedSparqlString pss = new ParameterizedSparqlString("select ?ip where {?s ?p ?ip}");
         pss.setNsPrefix("", HAL.NS);
         pss.setIri("p", HAL.HostIP.getURI());
-        QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m);
-        ResultSet results = qe.execSelect();
-        if (results.hasNext()) {
-            QuerySolution sol = results.next();
-            return sol.get("ip").asLiteral().getString();
+        try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m)) {
+            ResultSet results = qe.execSelect();
+            if (results.hasNext()) {
+                QuerySolution sol = results.next();
+                return sol.get("ip").asLiteral().getString();
+            }
         }
         return DEFAULTHOSTIP;
     }
@@ -263,8 +279,10 @@ public final class HalcyonSettings {
         );
         pss.setNsPrefix("", HAL.NS);
         pss.setNsPrefix("lws", LWS.NS);
-        QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m);
-        ResultSet results = qe.execSelect();
+        ResultSet results;
+        try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m)) {
+            results = qe.execSelect().materialise();
+        }
         ArrayList<ResourceHandler> list = new ArrayList<>();
         while (results.hasNext()) {
             QuerySolution sol = results.next();
@@ -296,8 +314,10 @@ public final class HalcyonSettings {
         );
         pss.setNsPrefix("", HAL.NS);
         pss.setNsPrefix("lws", LWS.NS);
-        QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m);
-        ResultSet results = qe.execSelect().materialise();
+        ResultSet results;
+        try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m)) {
+            results = qe.execSelect().materialise();
+        }
         boolean ha = results.hasNext();
         ArrayList<String> list = new ArrayList<>();
         results.forEachRemaining(qs -> {
@@ -317,11 +337,12 @@ public final class HalcyonSettings {
     public int GetHTTPPort() {
         String qs = "prefix : <" + HAL.NS + "> select ?port where {?s :HTTPPort ?port}";
         Query query = QueryFactory.create(qs);
-        QueryExecution qe = QueryExecutionFactory.create(query, m);
-        ResultSet results = qe.execSelect();
-        if (results.hasNext()) {
-            QuerySolution sol = results.nextSolution();
-            return sol.get("port").asLiteral().getInt();
+        try (QueryExecution qe = QueryExecutionFactory.create(query, m)) {
+            ResultSet results = qe.execSelect();
+            if (results.hasNext()) {
+                QuerySolution sol = results.nextSolution();
+                return sol.get("port").asLiteral().getInt();
+            }
         }
         return DEFAULTHTTPPORT;
     }
@@ -329,22 +350,28 @@ public final class HalcyonSettings {
     public boolean isHTTPS2enabled() {
         ParameterizedSparqlString pss = new ParameterizedSparqlString("ask where {?s hal:HTTPS2enabled true}");
         pss.setNsPrefix("hal", HAL.NS);
-        return QueryExecutionFactory.create(pss.toString(), m).execAsk();
+        try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m)) {
+            return qe.execAsk();
+        }
     }
 
     public boolean isHTTPS3enabled() {
         ParameterizedSparqlString pss = new ParameterizedSparqlString("ask where {?s hal:HTTPS3enabled true}");
         pss.setNsPrefix("hal", HAL.NS);
-        return QueryExecutionFactory.create(pss.toString(), m).execAsk();
+        try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m)) {
+            return qe.execAsk();
+        }
     }
 
     public int GetHTTPSPort() {
         ParameterizedSparqlString pss = new ParameterizedSparqlString("select ?port where {?s hal:HTTPSPort ?port}");
         pss.setNsPrefix("hal", HAL.NS);
-        ResultSet results = QueryExecutionFactory.create(pss.toString(), m).execSelect();
-        if (results.hasNext()) {
-            QuerySolution sol = results.nextSolution();
-            return sol.get("port").asLiteral().getInt();
+        try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m)) {
+            ResultSet results = qe.execSelect();
+            if (results.hasNext()) {
+                QuerySolution sol = results.nextSolution();
+                return sol.get("port").asLiteral().getInt();
+            }
         }
         return DEFAULTHTTPSPORT;
     }

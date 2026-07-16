@@ -123,11 +123,18 @@ public abstract class NodeAdvancedTreePage extends BasePage {
                 """);
                 update.add(pss.toString());
                 UpdateAction.execute(update, provider.getRDFModel());
-                ds.begin(ReadWrite.WRITE);                
-                ds.removeNamedModel(HAL.CollectionsAndResources);
-                ds.addNamedModel(HAL.CollectionsAndResources, provider.getRDFModel());
-                ds.commit();
-                ds.end();
+                // H13: guarded WRITE — a strand here wedges writes process-wide.
+                ds.begin(ReadWrite.WRITE);
+                try {
+                    ds.removeNamedModel(HAL.CollectionsAndResources);
+                    ds.addNamedModel(HAL.CollectionsAndResources, provider.getRDFModel());
+                    ds.commit();
+                } catch (RuntimeException ex) {
+                    ds.abort();
+                    throw ex;
+                } finally {
+                    ds.end();
+                }
                 setResponsePage(Collections.class);
             }}.setDefaultFormProcessing(true)
         );

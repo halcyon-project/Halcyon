@@ -68,10 +68,16 @@ public final class FileManager implements Service {
     
     public void ValidateData() {
         Dataset ds = DataCore.getInstance().getDataset();
+        // H13: guarded end() + a closed QueryExecution. This is the background file
+        // scanner's timer thread rather than a request thread, but a strand kills it
+        // just the same — and the scanner never runs again.
+        ResultSet results;
         ds.begin(ReadWrite.READ);
-        QueryExecution qe = QueryExecutionFactory.create("select distinct ?g where {graph ?g {?g ?p ?o}}", ds);
-        ResultSet results = qe.execSelect().materialise();
-        ds.end();
+        try (QueryExecution qe = QueryExecutionFactory.create("select distinct ?g where {graph ?g {?g ?p ?o}}", ds)) {
+            results = qe.execSelect().materialise();
+        } finally {
+            ds.end();
+        }
         results.forEachRemaining(qs->{
             String r = qs.get("g").toString();
             if (r.startsWith("file:/")) {
@@ -88,10 +94,17 @@ public final class FileManager implements Service {
                             """);
                         pss.setIri("kill", r);
                         request.add(pss.toString());
+                        // H13: guarded WRITE — a strand wedges writes process-wide.
                         ds.begin(ReadWrite.WRITE);
-                        UpdateAction.execute(request, ds);
-                        ds.commit();
-                        ds.end();
+                        try {
+                            UpdateAction.execute(request, ds);
+                            ds.commit();
+                        } catch (RuntimeException ex) {
+                            ds.abort();
+                            throw ex;
+                        } finally {
+                            ds.end();
+                        }
                         System.out.println("DELETED : "+r);
                     }
                 } catch (URISyntaxException ex) {

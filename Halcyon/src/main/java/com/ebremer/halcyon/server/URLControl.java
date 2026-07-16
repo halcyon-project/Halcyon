@@ -1,5 +1,6 @@
 package com.ebremer.halcyon.server;
 
+import com.ebremer.halcyon.gui.PageAccess;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import com.ebremer.lws.config.LwsSettings;
 import java.util.ArrayList;
@@ -12,21 +13,35 @@ import java.util.List;
  */
 public class URLControl {
 
+    /**
+     * URL patterns the pac4j security filter guards (H4).
+     * <p>
+     * The page half is now DERIVED from {@link PageAccess} — the same table
+     * {@code HalcyonApplication} mounts from — so the two cannot drift apart
+     * again. They had: this list guarded {@code /collections} while the page was
+     * mounted at {@code /containers}, and {@code /admin}, {@code /upload},
+     * {@code /viewer}, {@code /stacks}, {@code /ListImages}, {@code /threed} and
+     * {@code /user/account} appeared nowhere, so they were reachable unauthenticated.
+     * <p>
+     * Only the non-page (servlet) entries are still listed by hand below.
+     */
     public static String[] getSecuredURLs() {
-        String[] secured = {
+        List<String> secured = new ArrayList<>(Arrays.asList(
            // "/users/*",
             //"/ldp/*",
-            "/blank",
             "/skunkworks/yay",
             "/f*",
             "/callback",
-            "/about",
             "/iiif*/",
-            "/sparql",
-            "/invalidateSession",
-            "/revisionhistory",
-            "/collections"};
-        return secured;
+            "/invalidateSession"
+        ));
+        secured.addAll(PageAccess.securedPaths());
+        return secured.toArray(String[]::new);
+    }
+
+    /** Mounted paths that additionally require the {@code admin} group (H4). */
+    public static String[] getAdminURLs() {
+        return PageAccess.adminPaths().toArray(String[]::new);
     }
 
     public static String getWicketIgnores() {
@@ -35,7 +50,7 @@ public class URLControl {
             "/ldp",
             "/lws/",
             "/HalcyonStorage",
-            "/raptor",
+            "/savestack",
             "/invalidateSession",
             "/callback",
             "/h2",

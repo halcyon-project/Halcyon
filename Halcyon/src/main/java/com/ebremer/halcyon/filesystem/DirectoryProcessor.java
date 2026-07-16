@@ -69,11 +69,23 @@ public class DirectoryProcessor {
     }
     
     public Model PathInfo(URI childuri) {
-        Model m = ModelFactory.createDefaultModel();        
+        Model m = ModelFactory.createDefaultModel();
         List<String> rootContainers = HalcyonSettings.getSettings().getRootContainers();
         URI npath = childuri;
-        while (!rootContainers.contains(npath.getPath())) {
+        while (!isRootContainer(rootContainers, npath)) {
             URI xparent = HURI.getParent(npath);
+            // M8: stop instead of spinning a core forever. HURI.getParent walks
+            // up by dropping the last path segment, but it can never climb above
+            // an empty path: once the path degrades to "" it returns "" for ever
+            // (""/"/" split to <2 parts, so its loop emits nothing). So a child
+            // that sits under NO configured root container -- including the case
+            // where the only mismatch is a trailing slash, which isRootContainer
+            // now tolerates -- used to loop forever on the ingestion path.
+            if (xparent == null || xparent.equals(npath)
+                    || xparent.getPath() == null || xparent.getPath().isEmpty()) {
+                logger.warn("PathInfo: {} is not under any root container {} — stopping walk", childuri, rootContainers);
+                break;
+            }
             Resource parent = m.createResource(xparent.toString());
             Resource child = m.createResource(npath.toString());
             m.add(parent, LWS.contains, child);
@@ -83,6 +95,37 @@ public class DirectoryProcessor {
             npath = xparent;
         }
         return m;
+    }
+
+    /**
+     * True when {@code uri} IS one of the configured root containers (M8).
+     * <p>
+     * Compares with any trailing slashes stripped from both sides: the walk
+     * produces parents like {@code /lws/} while a root may be configured as
+     * {@code /lws} (or vice versa), and the old exact {@code List.contains}
+     * missed on that alone — so the walk sailed past its own root and reduced
+     * the path to {@code ""}, never terminating.
+     */
+    static boolean isRootContainer(List<String> rootContainers, URI uri) {
+        String path = stripTrailingSlashes(uri.getPath());
+        for (String root : rootContainers) {
+            if (stripTrailingSlashes(root).equals(path)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Drop trailing '/' (keeping a lone "/" intact); null becomes "". */
+    static String stripTrailingSlashes(String path) {
+        if (path == null) {
+            return "";
+        }
+        String p = path;
+        while (p.length() > 1 && p.endsWith("/")) {
+            p = p.substring(0, p.length() - 1);
+        }
+        return p;
     }
 
     public void Traverse(Path src) {
@@ -188,13 +231,22 @@ public class DirectoryProcessor {
                             //m.write(System.out, "TTL");
                             //System.out.println("RESOURCE "+r);
                             logger.trace("opening database for write");
+                            // H13: guarded WRITE. This runs on ForkJoinPool workers
+                            // during ingest — a strand both kills the worker and
+                            // wedges every writer in the process.
                             buffer.begin(ReadWrite.WRITE);
-                            buffer.addNamedModel(HAL.CollectionsAndResources, pathinfo);
-                            buffer.removeNamedModel(r);
-                            buffer.addNamedModel(r, m);
-                            logger.trace("commit data");
-                            buffer.commit();
-                            buffer.end();
+                            try {
+                                buffer.addNamedModel(HAL.CollectionsAndResources, pathinfo);
+                                buffer.removeNamedModel(r);
+                                buffer.addNamedModel(r, m);
+                                logger.trace("commit data");
+                                buffer.commit();
+                            } catch (RuntimeException ex) {
+                                buffer.abort();
+                                throw ex;
+                            } finally {
+                                buffer.end();
+                            }
                             logger.info("Processed : {} {}", r, m.size());
                         });
                 } catch (IOException ex) {
@@ -228,8 +280,11 @@ public class DirectoryProcessor {
             );
             pss.setNsPrefix("", HAL.NS);
             pss.setLiteral("curr", filemetaversion);
-            QueryExecution qe = QueryExecutionFactory.create(pss.toString(),ds);
-            ResultSet results = qe.execSelect().materialise();
+            // H13: close the QueryExecution (end() below is already in a finally).
+            ResultSet results;
+            try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), ds)) {
+                results = qe.execSelect().materialise();
+            }
             while (results.hasNext()) {
                 QuerySolution sol = results.next();
                 if (!cur.containsKey(sol.get("g").asResource())) {

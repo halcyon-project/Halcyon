@@ -30,6 +30,7 @@ import java.util.Set;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.apache.jena.query.ParameterizedSparqlString;
+import org.apache.jena.query.QueryExecution;
 import org.apache.jena.query.QueryExecutionFactory;
 import org.apache.jena.query.ResultSet;
 import org.apache.jena.rdf.model.Model;
@@ -44,6 +45,8 @@ import org.locationtech.jts.geom.Polygon;
  * @author erich
  */
 public class TileEngine implements AutoCloseable {
+    /** M12: fallback when the Builder is not told a tile size (its int fields default to 0). */
+    static final int DEFAULT_TILE_SIZE = 256;
     private final URI uri;
     private final ImageMeta meta;
     private final TileRequestEngine tre;
@@ -68,24 +71,49 @@ public class TileEngine implements AutoCloseable {
         this.StrideX = builder.StrideX;
         this.StrideY = builder.StrideY;
         this.cache = builder.cache;
+        // M12: the borrow must be returned on EVERY path. It used to sit bare between
+        // borrow and returnObject, so any throw in between leaked the pool slot
+        // permanently — and two things here threw readily: the tileSize divide-by-zero
+        // above (Builder left tile sizes at 0), and the hardcoded /dump write below.
+        // The pool is a GenericKeyedObjectPool, so leaked slots do not just waste
+        // memory: once maxTotalPerKey slots are gone, every later borrowObject for
+        // that image blocks until it times out.
         ImageReader ir = ImageReaderPool.getPool().borrowObject(uri);
-        this.meta = ir.getImageMeta();
-        this.maskx = ((int) meta.getWidth()/tileSizeX ) + 1;
-        this.masky = ((int) meta.getHeight()/tileSizeY ) + 1;
-        System.out.println("MASK : "+maskx+" "+masky);
-        BufferedImage thumb = ir.readTile(new ImageRegion(0,0,meta.getWidth(),meta.getHeight()), new Rectangle(maskx,masky));
-        BackgroundDetector.Dump(thumb, Path.of("/dump/thumb.png"));
-        int tolerance = 16;
-        BufferedImage bimask = BackgroundDetector.getMask(thumb, tolerance);
-        BackgroundDetector.Dump(bimask, Path.of("/dump/mask.png"));        
-        this.mask = BackgroundDetector.getBooleanMask(thumb, tolerance);
-        ImageReaderPool.getPool().returnObject(uri, ir);
+        try {
+            this.meta = ir.getImageMeta();
+            this.maskx = ((int) meta.getWidth()/tileSizeX ) + 1;
+            this.masky = ((int) meta.getHeight()/tileSizeY ) + 1;
+            BufferedImage thumb = ir.readTile(new ImageRegion(0,0,meta.getWidth(),meta.getHeight()), new Rectangle(maskx,masky));
+            // M12: the /dump/thumb.png and /dump/mask.png debug dumps are gone. They
+            // wrote to a hardcoded absolute path that exists on no deployment, so on
+            // any machine without a writable /dump they threw here — leaking the
+            // reader — purely to produce a developer's debug artefact.
+            int tolerance = 16;
+            this.mask = BackgroundDetector.getBooleanMask(thumb, tolerance);
+        } finally {
+            ImageReaderPool.getPool().returnObject(uri, ir);
+        }
         tre = TileRequestEngine.getInstance();
     }
-    
+
+    /**
+     * M11: this used to call {@code tre.shutdown()}.
+     * <p>
+     * {@link TileRequestEngine} is a JVM-wide singleton, shared with the live IIIF
+     * path in {@code ImageServer}. Shutting it down here meant one
+     * try-with-resources {@code TileEngine} terminated the virtual-thread executor
+     * for the WHOLE PROCESS: every subsequent tile request — from every user —
+     * would fail with RejectedExecutionException, permanently, with no way back
+     * short of a restart. A borrowed singleton is not ours to close.
+     * <p>
+     * This engine owns no resources of its own: the pool reader is returned in the
+     * constructor and the executor belongs to the singleton. So closing is a no-op,
+     * and {@code AutoCloseable} is kept only so existing try-with-resources callers
+     * still compile.
+     */
     @Override
-    public void close() throws Exception {
-        tre.shutdown();
+    public void close() {
+        // intentionally empty — see above.
     }
     
     private Stream<Pair> streamPairs(Polygon[] polygons, Options options) {
@@ -220,7 +248,11 @@ public class TileEngine implements AutoCloseable {
             """);
         pss.setNsPrefix("geo", GEO.NS);
         pss.setNsPrefix("hal", HAL.NS);
-        ResultSet rs = QueryExecutionFactory.create(pss.toString(),m).execSelect();
+        // H13: in-memory model, but close the execution.
+        ResultSet rs;
+        try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m)) {
+            rs = qe.execSelect().materialise();
+        }
         rs.forEachRemaining(qs->{
             Polygon poly = GeometryTools.WKT2Polygon(qs.get("wkt").asLiteral().getString());
             String classification = qs.get("classification").toString();
@@ -296,6 +328,17 @@ public class TileEngine implements AutoCloseable {
         }        
         
         public TileEngine build() throws Exception {
+            // M12: tileSizeX/tileSizeY are plain ints, so they default to 0 when the
+            // caller does not set them — and the TileEngine ctor divides by both.
+            // Builder.newInstance(file).build() was therefore an ArithmeticException
+            // that ALSO leaked the borrowed pool reader. Default them instead; 256
+            // matches the tile size the readers themselves report.
+            if (tileSizeX <= 0) {
+                tileSizeX = DEFAULT_TILE_SIZE;
+            }
+            if (tileSizeY <= 0) {
+                tileSizeY = DEFAULT_TILE_SIZE;
+            }
             StrideX = (StrideX==0)?tileSizeX:StrideX;
             StrideY = (StrideY==0)?tileSizeY:StrideY;
             return new TileEngine(this);

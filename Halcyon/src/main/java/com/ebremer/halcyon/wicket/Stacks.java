@@ -1,6 +1,7 @@
 package com.ebremer.halcyon.wicket;
 
 import com.ebremer.halcyon.data.DataCore;
+import com.ebremer.halcyon.data.StackStore;
 import com.ebremer.halcyon.datum.HalcyonPrincipal;
 import com.ebremer.halcyon.gui.HalcyonSession;
 import com.ebremer.halcyon.pools.AccessCachePool;
@@ -19,9 +20,6 @@ import org.apache.jena.query.QueryExecutionFactory;
 import org.apache.jena.query.QuerySolution;
 import org.apache.jena.query.ReadWrite;
 import org.apache.jena.query.ResultSet;
-import org.apache.jena.rdf.model.Model;
-import org.apache.jena.rdf.model.ResourceFactory;
-import org.apache.jena.rdf.model.Statement;
 import org.apache.jena.update.UpdateAction;
 import org.apache.jena.vocabulary.SchemaDO;
 import org.apache.jena.vocabulary.WAC;
@@ -101,9 +99,11 @@ public class Stacks extends BasePage {
 
     private List<StackRow> loadStacks() {
         List<StackRow> rows = new ArrayList<>();
+        HalcyonPrincipal principal = currentPrincipal();
         String user = currentUserUri();
         boolean admin = isAdmin();
-        Set<String> writable = writableTargets(user);
+        Set<String> writable = StackStore.writableTargets(user);
+        Set<String> readable = StackStore.readableTargets(user);
         ParameterizedSparqlString pss = new ParameterizedSparqlString(
             """
             select distinct ?s ?g ?name ?creator where {
@@ -127,6 +127,16 @@ public class Stacks extends BasePage {
                 String name = qs.contains("name") ? qs.getLiteral("name").getString() : shortName(s);
                 String creator = (qs.contains("creator") && qs.get("creator").isResource())
                         ? qs.getResource("creator").getURI() : null;
+                // H6: only list stacks this user may READ. The query itself still
+                // runs on the raw dataset ON PURPOSE — it is shaped "graph ?g",
+                // i.e. a VARIABLE graph, which SecuredDatasetGraph answers from
+                // findNG and would gate purely on wac:Read of each stack graph.
+                // Stacks are creator-owned, not ACL-ruled, so that would hide the
+                // user's OWN stacks. Filter with the same admin/creator/wac:Read
+                // model the rest of the stack code uses instead.
+                if (!StackStore.canReadStack(principal, s, g, creator, readable)) {
+                    continue;
+                }
                 boolean canWrite = admin
                         || (user != null && user.equals(creator))
                         || writable.contains(s) || writable.contains(g);
@@ -147,14 +157,14 @@ public class Stacks extends BasePage {
         }
         String user = currentUserUri();
         boolean admin = isAdmin();
-        Set<String> writable = writableTargets(user);
+        Set<String> writable = StackStore.writableTargets(user);
         Dataset ds = DataCore.getInstance().getDataset();
         boolean changed = false;
         ds.begin(ReadWrite.WRITE);
         try {
             for (StackRow row : selected) {
                 if (!admin) {
-                    boolean creatorOk = user != null && user.equals(readCreator(ds, row.graph(), row.subject()));
+                    boolean creatorOk = user != null && user.equals(StackStore.readCreator(ds, row.graph(), row.subject()));
                     boolean aclOk = writable.contains(row.subject()) || writable.contains(row.graph());
                     if (!creatorOk && !aclOk) {
                         logger.warn("Refusing to delete stack {} — user {} lacks write access", row.graph(), user);
@@ -191,73 +201,30 @@ public class Stacks extends BasePage {
         if (changed) {
             // ACL rules moved — refresh the cached security model and per-user caches.
             DataCore.getInstance().ReloadSECM();
-            AccessCachePool.getPool().getKeys().forEach(k -> AccessCachePool.getPool().clear(k));
+            // H5: getKeys() always returned an EMPTY list — this was a no-op.
+            AccessCachePool.getPool().getKeys2().forEach(k -> AccessCachePool.getPool().clear(k));
         }
     }
 
-    /**
-     * URIs the given user has {@code wac:Write} on, per the security model
-     * (agent = the user, a group the user is a {@code so:member} of, or
-     * {@code hal:Anonymous}). Queried against the shared SECM model (security +
-     * groups/users), exactly as {@code WACSecurityEvaluator} does for reads.
-     */
-    private static Set<String> writableTargets(String userUri) {
-        Set<String> targets = new LinkedHashSet<>();
-        if (userUri == null) {
-            return targets;
-        }
-        ParameterizedSparqlString pss = new ParameterizedSparqlString(
-            """
-            select distinct ?target where {
-                ?rule wac:accessTo/so:hasPart* ?target ;
-                      wac:mode wac:Write ;
-                      wac:agent ?agent .
-                { ?agent so:member ?user } union { filter(?agent = ?user) } union { filter(?agent = ?anon) }
-            }
-            """);
-        pss.setNsPrefix("wac", WAC.NS);
-        pss.setNsPrefix("so", SchemaDO.NS);
-        pss.setIri("user", userUri);
-        pss.setIri("anon", HAL.Anonymous.getURI());
-        try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), DataCore.getInstance().getSECM())) {
-            ResultSet rs = qe.execSelect();
-            while (rs.hasNext()) {
-                QuerySolution qs = rs.next();
-                if (qs.get("target") != null && qs.get("target").isResource()) {
-                    targets.add(qs.getResource("target").getURI());
-                }
-            }
-        } catch (Exception ex) {
-            logger.error("Failed to compute writable stacks for {}", userUri, ex);
-        }
-        return targets;
-    }
-
-    /** schema:creator recorded in the stack's own graph (must run inside a txn). */
-    private static String readCreator(Dataset ds, String graph, String subject) {
-        Model m = ds.getNamedModel(graph);
-        Statement st = m.getProperty(m.createResource(subject),
-                ResourceFactory.createProperty(SchemaDO.NS + "creator"));
-        if (st != null && st.getObject().isResource()) {
-            return st.getObject().asResource().getURI();
-        }
-        return null;
-    }
-
-    private static String currentUserUri() {
+    /** The signed-in principal, or null when there is no usable session. */
+    public static HalcyonPrincipal currentPrincipal() {
         try {
             HalcyonPrincipal hp = HalcyonSession.get().getHalcyonPrincipal();
-            return (hp == null || hp.isAnon()) ? null : hp.getUserURI();
+            return (hp == null || hp.isAnon()) ? null : hp;
         } catch (Exception ex) {
             return null;
         }
     }
 
+    private static String currentUserUri() {
+        HalcyonPrincipal hp = currentPrincipal();
+        return (hp == null) ? null : hp.getUserURI();
+    }
+
     /** Members of the {@code admin} group may delete any stack (matches MenuPanel). */
     private static boolean isAdmin() {
         try {
-            HalcyonPrincipal hp = HalcyonSession.get().getHalcyonPrincipal();
-            return hp != null && !hp.isAnon() && hp.getGroups().contains("admin");
+            return StackStore.isAdmin(HalcyonSession.get().getHalcyonPrincipal());
         } catch (Exception ex) {
             return false;
         }

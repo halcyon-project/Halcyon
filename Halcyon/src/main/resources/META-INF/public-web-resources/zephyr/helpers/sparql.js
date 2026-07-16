@@ -1,20 +1,14 @@
-import { cfg } from '../context.js';
 // Helper function to execute SPARQL queries
-async function executeSparqlQuery(query, token, isUpdate = false) {
+async function executeSparqlQuery(query, isUpdate = false) {
   const endpoint = `${window.location.origin}/rdf`;
 
-  if (!token) {
-    // No interactive fallback: the page injects window.token for signed-in
-    // sessions, and prompting for a password here would be a credential-
-    // handling anti-pattern. Fail so callers can degrade gracefully.
-    throw new Error('Not signed in: no bearer token for the /rdf endpoint.');
-  }
-
+  // C5: no bearer token here, and none in the page. The /rdf proxy attaches the
+  // signed-in session's token server-side, so this same-origin fetch just needs
+  // the session cookie. The token no longer exists in the DOM for an XSS to steal.
   const options = {
     method: 'POST',
     headers: {
-      'Content-Type': isUpdate ? 'application/sparql-update' : 'application/sparql-query',
-      'Authorization': `Bearer ${token}`
+      'Content-Type': isUpdate ? 'application/sparql-update' : 'application/sparql-query'
     },
     body: query
   };
@@ -57,7 +51,6 @@ function validateUri(value) {
 
 // Function to set the annotation label
 export function setAnnotationLabel(rdfSubject, newName) {
-  const token = cfg('token');
 
   let sparqlQuery;
   try {
@@ -88,7 +81,7 @@ WHERE {
     return Promise.resolve();
   }
 
-  return executeSparqlQuery(sparqlQuery, token, true)
+  return executeSparqlQuery(sparqlQuery, true)
     .then(result => {
       console.log('Annotation label set successfully:', newName);
     })
@@ -99,7 +92,6 @@ WHERE {
 
 // Function to get the annotation label
 export function getAnnotationLabel(rdfSubject) {
-  const token = cfg('token');
   const subject = validateUri(rdfSubject); // throws; callers handle per-item
 
   const sparqlQuery = `
@@ -111,7 +103,7 @@ SELECT ?name WHERE {
   }
 }`;
 
-  return executeSparqlQuery(sparqlQuery, token)
+  return executeSparqlQuery(sparqlQuery)
     .then(result => {
       // console.log("Raw SPARQL Query Result:", result);
       // Parse the result as JSON

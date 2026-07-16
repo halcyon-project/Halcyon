@@ -68,28 +68,20 @@ public class HalcyonApplication extends VandegraphApplication {
         getApplicationSettings().setUploadProgressUpdatesEnabled(true);
         getResourceSettings().setThrowExceptionOnMissingResource(false);
         getDebugSettings().setAjaxDebugModeEnabled(true);
-        mountPage("/", HomePage.class);
-        mountPage("/admin", AdminPage.class);
-        mountPage("/user/account", AccountPage.class);
-        mountPage("/user/colorclasses", ColorClasses.class);
-        mountPage("/login", Login.class);
-        mountPage("/ListImages", ListImages.class);
-        mountPage("/stacks", Stacks.class);
-        mountPage("/viewer", MultiViewer.class);
-        mountPage("/containers", Collections.class);
-        // The W3C Linked Web Storage browser. Note the path: it must NOT begin with
-        // "W3Clws", because Wicket's ignore list is a raw prefix match, so such a page
-        // would be excluded from Wicket by the very entries that let the LWS servlets
-        // through.
-        mountPage("/storage", com.ebremer.halcyon.lws.StoragePage.class);
-        mountPage("/upload", Upload.class);
-        mountPage("/sparql", Sparql.class);
-        mountPage("/about", About.class);
-        mountPage("/threed", Graph3D.class);
-        mountPage("/revisionhistory", RevisionHistory.class);
-        mountPage("/viewall", ViewAll.class);
-        mountPage("/testviewall", TestViewAll.class);
-        mountPage("/blank", Blank.class);
+        // H4: enforce page access on the page CLASS, so it holds however the page
+        // is reached — mounted path, setResponsePage, or Wicket's default
+        // /wicket/bookmarkable/... URL (which no servlet pattern covers). This is
+        // the real guard; MenuPanel only ever HID the admin link.
+        getSecuritySettings().setAuthorizationStrategy(new HalcyonAuthorizationStrategy());
+        // H4: mount from the single PageAccess table that URLControl also derives
+        // its secured-URL list from, so the mount table and the security filter
+        // cannot drift apart again (they had: the filter guarded "/collections"
+        // while Collections was mounted at "/containers").
+        //
+        // NOTE on /storage: the path must NOT begin with "W3Clws", because Wicket's
+        // ignore list is a raw prefix match, so such a page would be excluded from
+        // Wicket by the very entries that let the LWS servlets through.
+        PageAccess.mounted().forEach(m -> mountPage(m.path(), m.page()));
     }
         
     @Override

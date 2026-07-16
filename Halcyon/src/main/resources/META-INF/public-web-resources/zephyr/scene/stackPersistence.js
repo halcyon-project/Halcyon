@@ -229,12 +229,11 @@ function serializeStackNTriples(registry, stackUri, name) {
 
 async function rdfRequest(body, contentType) {
     const endpoint = `${window.location.origin}/rdf`;
+    // C5: no Authorization header — the /rdf proxy attaches the signed-in
+    // session's bearer token server-side, so the token is never in the DOM.
     const res = await fetch(endpoint, {
         method: 'POST',
-        headers: {
-            'Content-Type': contentType,
-            'Authorization': `Bearer ${cfg('token') || ''}`
-        },
+        headers: { 'Content-Type': contentType },
         body
     });
     if (!res.ok) throw new Error(`/rdf request failed: ${res.status} ${res.statusText}`);
@@ -242,16 +241,25 @@ async function rdfRequest(body, contentType) {
 }
 
 /**
- * Replace the stack's named graph with the current state. DROP SILENT clears the
- * old contents; INSERT DATA writes the new triples into GRAPH <stackUri>.
+ * Persist the stack's named graph with the current state via the authenticated,
+ * WAC-gated server-side endpoint (POST /savestack?graph=<uri>). H1 closed the
+ * raw SPARQL-Update channel on /rdf (that endpoint is now read-only), so the
+ * DROP + INSERT of the stack graph happens server-side, only after it re-checks
+ * that the signed-in user may write this stack (creator / wac:Write / admin) and
+ * stamps schema:creator itself. Auth rides the session cookie — the same way
+ * annotation layers save (helpers/save.js) — so no bearer token is sent here.
  */
 export async function saveStack(stackUri, registry, name) {
     const graph = validateGraphUri(stackUri);
     const triples = serializeStackNTriples(registry, stackUri, name);
-    const update =
-        `DROP SILENT GRAPH <${graph}> ;\n` +
-        `INSERT DATA { GRAPH <${graph}> {\n${triples}} }`;
-    await rdfRequest(update, 'application/sparql-update');
+    const endpoint = `${window.location.origin}/savestack?graph=${encodeURIComponent(graph)}`;
+    const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/n-triples' },
+        body: triples
+    });
+    if (res.redirected) throw new Error('not signed in (redirected to sign-in)');
+    if (!res.ok) throw new Error(`stack save failed: ${res.status} ${res.statusText}`);
     return true;
 }
 

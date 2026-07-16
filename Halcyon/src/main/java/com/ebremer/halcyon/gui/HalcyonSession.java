@@ -22,6 +22,7 @@ import jakarta.ws.rs.core.Response;
 import java.util.HashMap;
 import java.util.Optional;
 import org.apache.jena.query.ParameterizedSparqlString;
+import org.apache.jena.query.QueryExecution;
 import org.apache.jena.query.QueryExecutionFactory;
 import org.apache.jena.query.ResultSet;
 import org.apache.jena.rdf.model.Model;
@@ -107,7 +108,13 @@ public final class HalcyonSession extends VandegraphSession {
                 da.add(ParseGroups(json, map));
                 ParameterizedSparqlString pss = new ParameterizedSparqlString("select distinct ?s where {?s a so:Organization}");
                 pss.setNsPrefix("so", SchemaDO.NS);
-                ResultSet rs = QueryExecutionFactory.create(pss.toString(),da).execSelect();
+                // H13: close the execution. The loop below does HTTP calls per row, so
+                // materialise first and let the QueryExecution go immediately rather
+                // than holding it open across the network I/O.
+                ResultSet rs;
+                try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), da)) {
+                    rs = qe.execSelect().materialise();
+                }
                 rs.forEachRemaining(qs ->{
                     Resource gg = qs.getResource("s");                    
                     System.out.println(gg.getURI());

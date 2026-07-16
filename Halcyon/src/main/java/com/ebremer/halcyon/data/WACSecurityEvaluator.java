@@ -8,14 +8,15 @@ import com.ebremer.halcyon.gui.HalcyonSession;
 import com.ebremer.halcyon.pools.AccessCache;
 import com.ebremer.halcyon.pools.AccessCachePool;
 import com.ebremer.ns.HAL;
+import com.ebremer.ns.LWS;
 import com.ebremer.ns.WAC;
 import java.security.Principal;
-import java.util.HashMap;
 import java.util.Set;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.Triple;
 import org.apache.jena.permissions.SecurityEvaluator;
 import org.apache.jena.query.ParameterizedSparqlString;
+import org.apache.jena.query.QueryExecution;
 import org.apache.jena.query.QueryExecutionFactory;
 import org.apache.jena.vocabulary.SchemaDO;
 import org.apache.shiro.SecurityUtils;
@@ -37,7 +38,38 @@ public final class WACSecurityEvaluator implements SecurityEvaluator {
         if (node.equals(Node.ANY)) {
             return false;
         }
-        if (level == OPEN) {
+        // M1: resolve the WAC mode for this action up front. An action that
+        // cannot be mapped to a mode is a HARD DENY — we must never bind ?mode
+        // to null (which previously left the write-authz ASK either NPE'ing or
+        // matching any rule). Read -> acl:Read; Create/Update/Delete -> acl:Write.
+        String mode = WACUtil.WAC(action);
+        if (mode == null) {
+            return false;
+        }
+        // M5 — this pre-grant is an ENVELOPE grant, not a blanket disclosure, and
+        // it is load-bearing. It only ever fires for the CollectionsAndResources
+        // GRAPH node itself. Its two callers (the ListImages/ListFeatures
+        // collection dropdowns, via getSecuredDataset(OPEN) -> Patterns
+        // .getCollectionRDF2) issue "GRAPH <CollectionsAndResources> {...}" with
+        // the graph bound to a CONSTANT, which ARQ 6.1.0 routes through
+        // SecuredDatasetGraph.getGraph(node) -> Factory.getInstance(...), i.e. a
+        // jena-permissions SECURED graph. Every triple inside is then re-checked
+        // by evaluate(principal, action, graphIRI, triple), which authorizes the
+        // triple's SUBJECT (a urn:uuid: container) under the normal per-agent
+        // ACL — the branch below cannot match a container subject, so per-tenant
+        // filtering still happens. Dropping this grant does NOT tighten anything:
+        // it just empties both dropdowns, because no rule grants acl:Read on the
+        // CollectionsAndResources graph IRI (rules target urn:uuid: containers).
+        //
+        // INVARIANT this depends on: the catalog is only ever read via a CONSTANT
+        // GRAPH pattern. SecuredDatasetGraph.find/findNG hand back base.find*()
+        // RAW once hasReadAccess(g) passes, so an OPEN-level query shaped
+        // "GRAPH ?g {...}" (variable) would bypass the per-triple filter and
+        // expose the whole catalog. Keep catalog reads on a constant graph.
+        //
+        // M1 additionally restricts this to Read, so OPEN can never authorize a
+        // mutation of the catalog.
+        if (level == OPEN && action == Action.Read) {
             if (node.equals(HAL.CollectionsAndResources.asNode())) {
                 return true;
             }
@@ -49,34 +81,57 @@ public final class WACSecurityEvaluator implements SecurityEvaluator {
         } catch (Exception ex) {
             return false;
         }
-        if (ac.getCache().containsKey(node)) {
-            if (ac.getCache().get(node).containsKey(action)) {
-                boolean ha = ac.getCache().get(node).get(action);
-                AccessCachePool.getPool().returnObject(hp.getUserURI(), ac);
-                return ha;
-            }
+        // H5: a hit is only honoured while it is still fresh — AccessCache.lookup
+        // expires it past the per-decision TTL, and the pool has already
+        // refreshed this cache if the SECM was rebuilt since it snapshotted.
+        Boolean cached = ac.lookup(node, action);
+        if (cached != null) {
+            AccessCachePool.getPool().returnObject(hp.getUserURI(), ac);
+            return cached;
         }
-        HashMap<Action,Boolean> set = new HashMap<>();
-        ac.getCache().put(node, set);
+        // H6 — the containment step walks (so:hasPart|lws:contains)*, not just
+        // so:hasPart*. NOTHING in this system ever writes so:hasPart between a
+        // container and its contents: the ingest path (DirectoryProcessor.PathInfo)
+        // links them with lws:contains/lws:partOf and stores that in
+        // CollectionsAndResources — which IS part of the SECM queried here, so the
+        // triples were present all along, just under a predicate this ASK did not
+        // look at. so:hasPart is only ever written between Keycloak GROUPS
+        // (HalcyonSession.ParseLab).
+        //
+        // The consequence was that acl:accessTo/so:hasPart* could only ever match
+        // the rule's own target (the zero-length path), so a Read/Write grant on a
+        // container never reached the images inside it — every image was denied,
+        // which is exactly why every listing still reads the RAW dataset with its
+        // getSecuredDataset(...) line commented out. Inheritance now works, which
+        // is what makes routing those listings through the secured dataset possible.
         ParameterizedSparqlString pss = new ParameterizedSparqlString("""
-            ASK {?rule acl:accessTo/so:hasPart* ?target;
+            ASK {?rule acl:accessTo/(so:hasPart|lws:contains)* ?target;
                         acl:mode ?mode;
                         acl:agent ?group
             }
         """);
         pss.setNsPrefix("acl", WAC.NS);
         pss.setNsPrefix("so", SchemaDO.NS);
+        pss.setNsPrefix("lws", LWS.NS);
         pss.setNsPrefix("hal", HAL.NS);
         pss.setIri("target", node.toString());
-        pss.setIri("mode", WACUtil.WAC(action));
+        pss.setIri("mode", mode);
         pss.setIri("group", HAL.Anonymous.toString());
-        if (QueryExecutionFactory.create(pss.toString(), ac.getSECM()).execAsk()) {
-            set.put(action, true);
+        // H13: the SECM is an in-memory snapshot, so there is no transaction to
+        // strand here — but this is the per-triple authorization path, the
+        // highest-churn query in the system, so an unclosed execution per triple is
+        // the one in-memory instance actually worth fixing.
+        boolean anon;
+        try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), ac.getSECM())) {
+            anon = qe.execAsk();
+        }
+        if (anon) {
+            ac.record(node, action, true);
             AccessCachePool.getPool().returnObject(hp.getUserURI(), ac);
             return true;
         }
         pss = new ParameterizedSparqlString("""
-            ASK {?rule acl:accessTo/so:hasPart* ?target;
+            ASK {?rule acl:accessTo/(so:hasPart|lws:contains)* ?target;
                         acl:mode ?mode;
                         acl:agent ?group .
                 ?group so:member ?member
@@ -84,12 +139,16 @@ public final class WACSecurityEvaluator implements SecurityEvaluator {
         """);
         pss.setNsPrefix("acl", WAC.NS);
         pss.setNsPrefix("so", SchemaDO.NS);
+        pss.setNsPrefix("lws", LWS.NS);
         pss.setNsPrefix("hal", HAL.NS);
         pss.setIri("target", node.toString());
-        pss.setIri("mode", WACUtil.WAC(action));
+        pss.setIri("mode", mode);
         pss.setIri("member", hp.getUserURI());
-        boolean ha = QueryExecutionFactory.create(pss.toString(), ac.getSECM()).execAsk();
-        set.put(action, ha);
+        boolean ha;
+        try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), ac.getSECM())) {
+            ha = qe.execAsk();
+        }
+        ac.record(node, action, ha);
         AccessCachePool.getPool().returnObject(hp.getUserURI(), ac);
         return ha;
 

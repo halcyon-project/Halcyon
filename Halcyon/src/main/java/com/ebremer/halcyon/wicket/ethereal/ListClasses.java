@@ -62,11 +62,17 @@ public class ListClasses extends Panel {
         pss.setNsPrefix("so", SchemaDO.NS);
         //Dataset ds = DatabaseLocator.getDatabase().getSecuredDataset();
         Dataset ds = DatabaseLocator.getDatabase().getDataset();
+        // H13: guarded end() + a closed QueryExecution. ResultSetFormatter.out is a
+        // debug dump that consumes the whole result set inside the transaction, so
+        // any failure in it used to strand the txn on this Wicket worker.
         ds.begin(ReadWrite.READ);
-        QueryExecution qe = QueryExecutionFactory.create(pss.toString(),ds);
-        ResultSetFormatter.out(System.out,qe.execSelect());
-        ds.end();
-        rdfsdf = new SelectDataProvider(ds,pss.toString());
+        try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), ds)) {
+            ResultSetFormatter.out(System.out, qe.execSelect());
+        } finally {
+            ds.end();
+        }
+        // M18: supplier form — see ListImages.
+        rdfsdf = new SelectDataProvider(() -> DatabaseLocator.getDatabase().getDataset(), pss.toString());
         rdfsdf.setQuery(pss.toString());        
         AjaxFallbackDefaultDataTable table = new AjaxFallbackDefaultDataTable<>("table", columns, rdfsdf, 35);
         add(table);

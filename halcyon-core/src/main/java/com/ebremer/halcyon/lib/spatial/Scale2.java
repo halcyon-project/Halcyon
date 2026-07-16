@@ -6,7 +6,7 @@ import java.util.List;
 import org.apache.jena.sparql.expr.ExprList;
 import org.apache.jena.sparql.expr.NodeValue;
 import org.apache.jena.sparql.function.FunctionBase;
-import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.io.WKTWriter;
 
 public class Scale2 extends FunctionBase {
@@ -26,19 +26,22 @@ public class Scale2 extends FunctionBase {
         if (!scalenode.isDouble()) { throw new IllegalArgumentException("Scale expects the scale to a type double argument"); }
         String ppp = nwkt.getString();
         if (POLYGONEMPTY.equals(ppp)) return NodeValue.makeString(POLYGONEMPTY);
-        Polygon polygon = GeometryTools.WKT2Polygon(ppp);
-        if (polygon == null) {
+        // M6: a MULTIPOLYGON used to throw an uncaught ClassCastException here.
+        // scaleAndSimplify scales each part and re-assembles, so a multi-part
+        // annotation survives scaling instead of being dropped.
+        Geometry geometry = GeometryTools.WKT2Geometry(ppp);
+        if (geometry == null) {
             return NodeValue.makeString(POLYGONEMPTY);
         }
-        polygon = GeometryTools.scaleAndSimplifyPolygon(polygon,scalenode.getDouble());
-        if (polygon == null) {
+        Geometry scaled = GeometryTools.scaleAndSimplify(geometry, scalenode.getDouble());
+        if (scaled == null) {
             return NodeValue.makeString(POLYGONEMPTY);
         }
         WKTWriter wktWriter = new WKTWriter();
         try {
-        ppp = wktWriter.write(polygon);
+            ppp = wktWriter.write(scaled);
         } catch (NullPointerException ex) {
-            System.out.println(polygon +"  "+ ex.toString());
+            System.out.println(scaled +"  "+ ex.toString());
         }
         return NodeValue.makeString(ppp);
     }

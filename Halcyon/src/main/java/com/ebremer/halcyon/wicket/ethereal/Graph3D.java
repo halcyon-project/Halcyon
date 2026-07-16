@@ -116,10 +116,14 @@ public class Graph3D extends BasePage {
             pss.setNsPrefix("hal", HAL.NS);
             pss.setNsPrefix("so", SchemaDO.NS);
             pss.setValues("typelist", list);
-            QueryExecution qe = QueryExecutionFactory.create(pss.toString(), xs);
+            // H13: guarded end() + a closed QueryExecution (see FeatureManager).
+            Model m;
             xs.begin(ReadWrite.READ);
-            Model m = qe.execConstruct();
-            xs.end();
+            try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), xs)) {
+                m = qe.execConstruct();
+            } finally {
+                xs.end();
+            }
             System.out.println("=================================================================================");
             RDFDataMgr.write(System.out, m, Lang.TURTLE);
             System.out.println("=================================================================================");
@@ -164,13 +168,21 @@ public class Graph3D extends BasePage {
             pss.setNsPrefix("so", SchemaDO.NS);
             pss.setValues("typelist", list);
             System.out.println("SPARQL :\n"+pss.toString());
-            qe = QueryExecutionFactory.create(pss.toString(), xs);
+            // H13: this used to REASSIGN the `qe` above, so the first execution was
+            // dropped on the floor unclosed, and this one was never closed either.
+            // The debug dump also sat INSIDE the transaction — execConstruct()
+            // materialises into a Model, so it does not need one; it now runs after
+            // end(), which keeps the transaction window as small as possible.
+            Model m2;
             xs.begin(ReadWrite.READ);
-            Model m2 = qe.execConstruct();       
+            try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), xs)) {
+                m2 = qe.execConstruct();
+            } finally {
+                xs.end();
+            }
             System.out.println("=================================================================================");
             RDFDataMgr.write(System.out, m2, Lang.TURTLE);
             System.out.println("=================================================================================");
-            xs.end();
             m.add(m2);
             Dataset ds = DatasetFactory.createGeneral();
             ds.getDefaultModel().add(m);

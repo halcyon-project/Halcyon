@@ -32,7 +32,9 @@ import org.springframework.core.Ordered;
                     srb.addInitParameter("resourceBase", rh.resourceBase().getPath());
                     System.out.println("Add Path --> " + rh.urlPath() + "  " + rh.resourceBase().getPath());
                 }
-                srb.addInitParameter("dirAllowed", "true");
+                // C1: no anonymous directory listing of the stored files (these
+                // trees hold PHI). Serving a known resource still works.
+                srb.addInitParameter("dirAllowed", "false");
                 srb.setServlet(new LWSServer());
                 srb.setUrlMappings(Arrays.asList(rh.urlPath() + "*"));
                 applicationContext.getBeanFactory().registerSingleton(name, srb);
@@ -43,7 +45,8 @@ import org.springframework.core.Ordered;
             srb.setBeanName(name);
             srb.setOrder(Ordered.HIGHEST_PRECEDENCE + 4);
             srb.addInitParameter("resourceBase", "D:/HalcyonStorage/users/");
-            srb.addInitParameter("dirAllowed", "true");
+            // C1: no anonymous directory listing of the users' storage tree.
+            srb.addInitParameter("dirAllowed", "false");
             srb.setServlet(new LWSServer());
             srb.setUrlMappings(Arrays.asList("/users/*"));
             applicationContext.getBeanFactory().registerSingleton(name, srb);

@@ -53,6 +53,7 @@ import org.apache.jena.datatypes.xsd.XSDDatatype;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.DatasetFactory;
 import org.apache.jena.query.ParameterizedSparqlString;
+import org.apache.jena.query.QueryExecution;
 import org.apache.jena.query.QueryExecutionFactory;
 import org.apache.jena.query.ReadWrite;
 import org.apache.jena.rdf.model.Model;
@@ -126,10 +127,19 @@ public class Tools {
                     getLDPMeta(anno,file);
                     m.createResource(name).addProperty( HAL.annotation, anno );
                     Dataset ds = DataCore.getInstance().getDataset();
+                    // H13: a stranded WRITE txn does not just poison this servlet
+                    // thread — TDB2 has a single writer, so it wedges writes for the
+                    // entire process (every other begin(WRITE) blocks forever).
                     ds.begin(ReadWrite.WRITE);
-                    ds.getNamedModel(HAL.CollectionsAndResources).add(m);
-                    ds.commit();
-                    ds.end();
+                    try {
+                        ds.getNamedModel(HAL.CollectionsAndResources).add(m);
+                        ds.commit();
+                    } catch (RuntimeException ex) {
+                        ds.abort();
+                        throw ex;
+                    } finally {
+                        ds.end();
+                    }
                     response.setStatus(HttpServletResponse.SC_OK);
                     response.setContentType("text/html;charset=UTF-8");
                     try (PrintWriter out = response.getWriter()) {
@@ -197,13 +207,15 @@ public class Tools {
         pss.setIri("s", rr.getURI());
         final List<String> types = new ArrayList<>();
         Dataset ds = DataCore.getInstance().getDataset();
+        // H13: guarded end() + a closed QueryExecution (servlet path).
         ds.begin(ReadWrite.READ);
-        QueryExecutionFactory.create(pss.toString(),ds.getUnionModel())
-                .execSelect()
-                .forEachRemaining(qs->{
-                    types.add(qs.get("type").toString());
-                });
-        ds.end();
+        try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), ds.getUnionModel())) {
+            qe.execSelect().forEachRemaining(qs->{
+                types.add(qs.get("type").toString());
+            });
+        } finally {
+            ds.end();
+        }
         return types;
     }  
     
@@ -241,9 +253,14 @@ public class Tools {
         logger.info("getRDF ----> {}",pss.toString());
         System.out.println(pss.toString());
         Dataset ds = DataCore.getInstance().getDataset();
+        // H13: guarded end() + a closed QueryExecution (servlet path).
+        Model k;
         ds.begin(ReadWrite.READ);
-        Model k = QueryExecutionFactory.create(pss.toString(),ds.getUnionModel()).execConstruct();
-        ds.end();
+        try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), ds.getUnionModel())) {
+            k = qe.execConstruct();
+        } finally {
+            ds.end();
+        }
         RDFDataMgr.write(System.out, k, Lang.TURTLE);
         return k.createResource(uri);
     }

@@ -1,5 +1,6 @@
 package com.ebremer.halcyon.gui;
 
+import com.ebremer.halcyon.wicket.JsSafe;
 import org.apache.wicket.markup.head.IHeaderResponse;
 import org.apache.wicket.markup.head.JavaScriptHeaderItem;
 import org.apache.wicket.markup.html.basic.Label;
@@ -20,7 +21,14 @@ public class ViewerPanel extends Panel {
     @Override
     public void renderHead(IHeaderResponse response) {
 	super.renderHead(response);
-        response.render(JavaScriptHeaderItem.forScript(HalcyonSession.get().getMV(), "images"));
+        // C5: getMV() is "var images = [ ...jakarta.json... ]" built in ListImages,
+        // and those objects carry USER-AUTHORED colour-class names. jakarta.json
+        // escapes quotes and backslashes but never '<' or '/', so a class named
+        // "</script><script>…" terminated this inline <script> element and ran.
+        // Harden the HTML-significant characters (they can only occur inside the
+        // payload's string literals, where the escape decodes back to the original).
+        response.render(JavaScriptHeaderItem.forScript(
+                JsSafe.inlineScriptPayload(HalcyonSession.get().getMV()), "images"));
         response.render(JavaScriptHeaderItem.forScript(OPTIONS, "options"));
-    }   
+    }
 }

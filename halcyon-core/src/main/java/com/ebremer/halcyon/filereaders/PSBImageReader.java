@@ -34,36 +34,96 @@ import org.slf4j.LoggerFactory;
 public class PSBImageReader extends AbstractImageReader {
     private static final org.slf4j.Logger logger = LoggerFactory.getLogger(PSBImageReader.class);
     private javax.imageio.ImageReader reader;
+    /** H11: the stream the reader reads from — was a local, so nothing closed it. */
+    private ImageInputStream input;
     private final ImageMeta meta;
     private final URI uri;
     private final URI base;
     private static final int METAVERSION = 0;
     private long sizeInBytes;
 
+    /**
+     * H11: this class was entirely non-functional.
+     * <p>
+     * The constructor declared {@code PSDImageReader reader = ...}, a LOCAL that
+     * SHADOWED the field of the same name. Everything here then used the local,
+     * so construction appeared to work — {@code meta} was built fine — but the
+     * FIELD was left null, and every later call NPE'd on it: {@code readTile}
+     * (via {@code reader.getDefaultReadParam()}) and {@code close()} (via
+     * {@code reader.dispose()}). It is assigned properly now.
+     */
     public PSBImageReader(URI uri, URI base) throws IOException {
         logger.info("PSBImageReader(URI uri, URI base) {} {}", uri, base);
         this.uri = uri;
         this.base = base;
         File file = new File(uri);
         sizeInBytes = file.length();
-        ImageInputStream input = ImageIO.createImageInputStream(file);
+        ImageInputStream in = ImageIO.createImageInputStream(file);
+        if (in == null) {
+            throw new IOException("No ImageInputStream for: " + file);
+        }
+        javax.imageio.ImageReader ir = null;
+        try {
+            ir = psdReader(file);
+            ir.setInput(in);
+            ImageMeta.Builder builder = ImageMeta.Builder.getBuilder(0, ir.getWidth(0), ir.getHeight(0))
+                .setTileSizeX(ir.getTileWidth(0))
+                .setTileSizeY(ir.getTileHeight(0));
+            // H12: start at 0, not 1 — include the base (scale 1) so getBestMatch()
+            // has something to return and can select full resolution, as the other
+            // readers do. A single-image PSD/PSB otherwise yielded ZERO scales and
+            // every read 500'd on scales.get(-1).
+            for (int s=0; s<ir.getNumImages(true); s++) {
+                builder.addScale(s, ir.getWidth(s), ir.getHeight(s));
+            }
+            meta = builder.build();
+            // Assign the FIELDS — this is the whole bug.
+            this.reader = ir;
+            this.input = in;
+        } catch (IOException | RuntimeException ex) {
+            // close() can never run for an object that was never constructed, so
+            // clean up here or the handle leaks on every failed open.
+            if (ir != null) {
+                ir.dispose();
+            }
+            closeQuietly(in);
+            throw ex;
+        }
+    }
+
+    /**
+     * The TwelveMonkeys PSD reader (it handles PSB — Photoshop's large-document
+     * format — through the same plugin), or an exception.
+     * <p>
+     * H11: this was a bare {@code (PSDImageReader) readers.next()} — no
+     * {@code hasNext()} guard, so a realm with no PSD plugin got a
+     * NoSuchElementException, and an unchecked cast that would CCE if the first
+     * "psd" reader were some other implementation. The {@code if (reader == null)}
+     * check that followed was dead: {@code next()} throws, it never returns null.
+     */
+    private static javax.imageio.ImageReader psdReader(File file) throws IOException {
         Iterator<javax.imageio.ImageReader> readers = ImageIO.getImageReadersByFormatName("psd");
-        //while (readers.hasNext()) {
-          //  IO.println("READER ===> "+readers.next().getFormatName());
-        //}
-        PSDImageReader reader = (PSDImageReader) readers.next();
-        if (reader==null) {
-            logger.error("No reader for: {}", file);
-            throw new IllegalArgumentException("No reader for: " + file);
+        while (readers.hasNext()) {
+            javax.imageio.ImageReader candidate = readers.next();
+            logger.debug("Reader --> {}", candidate.getClass().getCanonicalName());
+            if (candidate instanceof PSDImageReader psd) {
+                return psd;
+            }
+            // Not the one we want: ImageIO handed us a live instance, so let it go.
+            candidate.dispose();
         }
-        reader.setInput(input);            
-        ImageMeta.Builder builder = ImageMeta.Builder.getBuilder(0, reader.getWidth(0), reader.getHeight(0))
-            .setTileSizeX(reader.getTileWidth(0))
-            .setTileSizeY(reader.getTileHeight(0));
-        for (int s=1; s<reader.getNumImages(true); s++) {
-            builder.addScale(s, reader.getWidth(s), reader.getHeight(s));
+        logger.error("No PSD/PSB reader for: {}", file);
+        throw new IOException("No TwelveMonkeys PSD reader available for: " + file);
+    }
+
+    private static void closeQuietly(ImageInputStream in) {
+        if (in != null) {
+            try {
+                in.close();
+            } catch (IOException ex) {
+                logger.debug("closing input : {}", ex.getMessage());
+            }
         }
-        meta = builder.build();        
     }
 
     @Override
@@ -94,9 +154,20 @@ public class PSBImageReader extends AbstractImageReader {
         return null;
     }
 
+    /**
+     * H11: dispose the reader AND close its stream — {@code dispose()} alone
+     * leaves the ImageInputStream (and its file handle) open, so the pool leaked
+     * one FD per evicted reader (same defect as H10). Idempotent, and no longer
+     * NPEs on the null field. Matches SVS/NDPI/JPEG2000/JPEGXL.
+     */
     @Override
     public void close() {
-        reader.dispose();
+        if (reader != null) {
+            reader.dispose();
+            reader = null;
+        }
+        closeQuietly(input);
+        input = null;
     }
 
     @Override

@@ -32,13 +32,19 @@ public class SPARQLEndPoint {
     private SPARQLEndPoint() {
         System.out.println("Starting Fuseki...");
         server = FusekiServer.create()
-                //.add("/rdf", DataCore.getInstance().getSecuredDataset())
-                .add("/rdf", DataCore.getInstance().getDataset())
-                // .loopback(true)
-                //  .securityHandler(new HalcyonSecurityHandler())            
+                // H1: serve the WAC-secured dataset (never the raw TDB2 store) and
+                // expose read/query ONLY. The three-arg add(...) with allowUpdate=false
+                // registers just the SPARQL Query + Graph-Store-Protocol-read operations;
+                // the previous two-arg add(...) defaulted allowUpdate=true, which enabled
+                // SPARQL Update / GSP-write directly against the raw named graphs (so any
+                // realm JWT could DROP/read/overwrite every graph, incl. the ACL graphs).
+                .add("/rdf", DataCore.getInstance().getSecuredDataset().asDatasetGraph(), false)
+                // Bind to the loopback interface so the SPARQL port is reachable only
+                // in-process: all external access must go through the authenticated
+                // /rdf proxy on the main application port (see Main.proxyServletRegistrationBean).
+                .loopback(true)
                 .enableCors(true, null)
                 .port(HalcyonSettings.getSettings().GetSPARQLPort())
-                // .addFilter("/*", filter)
                 .build();
         //config.setContext(server.getServletContext());
         //SessionHandler sessionHandler = new SessionHandler();

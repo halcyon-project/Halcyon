@@ -86,19 +86,42 @@ public class ImageServer extends HttpServlet {
         }
         // Output rectangle (tx,ty) lands in new BufferedImage(px,py); reject
         // anything beyond the per-dimension and total-pixel budgets. long math on
-        // the product avoids an int overflow flipping a huge size negative.
+        // the product avoids an int overflow flipping a huge size negative. This
+        // pre-check also keeps normalizePreferredSize's ratio math from
+        // overflowing when it derives the missing side from an absurd one.
         if (i.tx < 0 || i.ty < 0
                 || i.tx > MAX_OUTPUT_DIM || i.ty > MAX_OUTPUT_DIM
                 || (long) i.tx * (long) i.ty > MAX_OUTPUT_PIXELS) {
             reportError(response, HttpServletResponse.SC_BAD_REQUEST, "Requested output size exceeds the maximum allowed");
             return;
         }
+        // C3: IIIF has no "0" size form — "w,h", "w," and "!w,h" all carry at
+        // least one positive dimension. A 0/0 size slipped past the budget above
+        // (0*0 == 0) and normalizePreferredSize then expanded it straight back to
+        // the FULL clamped region, so /full/0,/0/default.jpg on a gigapixel WSI
+        // allocated the whole image.
+        if (i.tx <= 0 && i.ty <= 0) {
+            reportError(response, HttpServletResponse.SC_BAD_REQUEST, "Invalid size: at least one dimension must be positive");
+            return;
+        }
         TileRequest tr = TileRequest.genTileRequest(
-            i.uri, 
-            new ImageRegion(i.x, i.y, i.w, i.h), 
-            new Rectangle(i.tx, i.ty), 
+            i.uri,
+            new ImageRegion(i.x, i.y, i.w, i.h),
+            new Rectangle(i.tx, i.ty),
             true, true, false, i.aspectratio
         );
+        // C3: re-apply the budget to the RESOLVED size. The check above ran on the
+        // requested (tx,ty), where a legitimate one-sided form ("512,") leaves the
+        // other side 0 — so its tx*ty product is 0 and says nothing about the real
+        // allocation. normalizePreferredSize derives the missing side from the
+        // region's aspect, so "20000," on a gigapixel WSI resolves to 20000x16000
+        // = 320M pixels. THIS is the check that actually bounds
+        // new BufferedImage(...) / ScaleBufferedImage.
+        Rectangle out = tr.getPreferredSize();
+        if (!withinOutputBudget(out.width(), out.height())) {
+            reportError(response, HttpServletResponse.SC_BAD_REQUEST, "Requested output size exceeds the maximum allowed");
+            return;
+        }
         Tile tile = null;
         try {
             tile = TileRequestEngine.getInstance().getFutureTile(tr).get(60, TimeUnit.SECONDS);
@@ -108,12 +131,44 @@ public class ImageServer extends HttpServlet {
             }
         } catch (TimeoutException ex) {
             reportError(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Tile generation failed (timed out)");
+            return;
         } catch (InterruptedException ex) {
-            logger.error(ex.getMessage());
+            // M13: restore the flag — swallowing an interrupt silently strands the
+            // request thread's cancellation.
+            Thread.currentThread().interrupt();
+            logger.error("Interrupted waiting for tile {}", tr.getRegion(), ex);
+            reportError(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Tile generation interrupted");
+            return;
         } catch (ExecutionException ex) {
-            logger.error(ex.getMessage());
+            // M13: this is now the NORMAL failure path. TileRequest.call() used to
+            // swallow a failed decode and hand back an imageless Tile; it throws now,
+            // so the executor reports it here. Each of these three catches previously
+            // fell THROUGH to sendTileResponse(tile,...) with tile still null — an
+            // NPE inside the servlet, on top of the response reportError had already
+            // written. Making call() throw would have turned that latent bug into the
+            // common case, so it is fixed here rather than left to be found later.
+            logger.error("Tile generation failed for {}", tr.getRegion(), ex.getCause());
+            reportError(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Tile generation failed");
+            return;
         }
-        sendTileResponse(tile, i.imageformat, response);        
+        sendTileResponse(tile, i.imageformat, response);
+    }
+
+    /**
+     * True when a RESOLVED output rectangle fits the per-dimension and
+     * total-pixel budgets — i.e. when {@code new BufferedImage(w,h)} (and the
+     * second allocation inside {@code ScaleBufferedImage}) is safe to attempt.
+     * <p>
+     * Both sides must be strictly positive: this is applied AFTER
+     * {@code normalizePreferredSize} has filled in any one-sided IIIF form
+     * ("512,"), so a zero here means the size never resolved to a real
+     * rectangle. {@code long} math on the product keeps a huge size from
+     * overflowing int and flipping negative.
+     */
+    static boolean withinOutputBudget(int w, int h) {
+        return w > 0 && h > 0
+            && w <= MAX_OUTPUT_DIM && h <= MAX_OUTPUT_DIM
+            && (long) w * (long) h <= MAX_OUTPUT_PIXELS;
     }
 
     private void handleInfoRequest(IIIFProcessor i, HttpServletRequest request, HttpServletResponse response) {

@@ -82,7 +82,7 @@ public class ListImages extends BasePage implements IPanelChangeListener {
             """
             select distinct ?s ?width ?height #?md5
             where {
-                graph ?car {?collection lws:contains ?s}
+                graph ?car {?collection lws:contains+ ?s}
                 graph ?s {?s a so:ImageObject;
                             owl:sameAs ?md5;
                             exif:width ?width;
@@ -98,9 +98,40 @@ public class ListImages extends BasePage implements IPanelChangeListener {
         pss.setNsPrefix("so", SchemaDO.NS);
         pss.setNsPrefix("exif", EXIF.NS);
         pss.setIri("car", HAL.CollectionsAndResources.getURI());
-        //Dataset ds = DatabaseLocator.getDatabase().getSecuredDataset(OPEN);
-        Dataset ds = DatabaseLocator.getDatabase().getDataset();
-        rdfsdf = new SelectDataProvider(ds,pss.toString());
+        // `lws:contains+` (transitive), not `lws:contains` (one level). Containers
+        // nest — .../utah/HnE/ directly contains only the sub-containers Stack1 and
+        // Stack2, and the images live inside THOSE. With a one-level join, selecting
+        // any parent container listed exactly zero images while its children listed
+        // fine, which reads as "the page is broken" rather than "look one level down".
+        // Verified on live data: HnE gave 0 rows, HnE/Stack1/ gave 5.
+        // This also realigns the listing with the ACL model, which has always treated
+        // containment as transitive — WACSecurityEvaluator grants through
+        // acl:accessTo/(so:hasPart|lws:contains)*, so read access already flows down
+        // the whole subtree. The listing showing only direct children was the odd one
+        // out. Sub-containers matched by the path are dropped by the graph pattern
+        // below (they are not so:ImageObject).
+        // H6: WAC-filtered, not the raw store. Both graph patterns are gated:
+        // "graph <car> {...}" is a CONSTANT graph so it routes through
+        // SecuredDatasetGraph.getGraph -> a jena-permissions secured graph and each
+        // triple is authorized by its subject (the collection); "graph ?s {...}" is
+        // a variable graph, so each image graph is authorized in its own right --
+        // which only started working once the ACL containment chain was fixed to
+        // follow lws:contains (see WACSecurityEvaluator).
+        // M18: pass a SUPPLIER, not a live Dataset.
+        // Wicket serializes this page into the page store; a Jena Dataset is not
+        // serializable, so SelectDataProvider holds it in a `transient` field and
+        // must RE-ACQUIRE it on the next request. It can only do that by itself for
+        // the application dataset — and this is a per-request WAC-secured wrapper,
+        // which is not that. Handed a bare Dataset it therefore throws
+        // IllegalStateException from ds() on the first request after the page is
+        // restored, i.e. the moment you pick a collection (the ajax round-trip):
+        //     "SelectDataProvider was constructed over a dataset that is not the
+        //      application dataset and cannot re-resolve it after page-store
+        //      deserialization."
+        // The supplier form re-wraps the secured dataset per request, which is also
+        // what we want for authorization: the wrapper is rebuilt against the current
+        // principal rather than being pinned to whoever first rendered the page.
+        rdfsdf = new SelectDataProvider(() -> DatabaseLocator.getDatabase().getSecuredDataset(OPEN), pss.toString());
         pss.setIri("collection", "urn:halcyon:nocollections");
         rdfsdf.setQuery(pss.toString());
         table = new AjaxFallbackDefaultDataTable<>("table", columns, rdfsdf, 25);
@@ -115,13 +146,31 @@ public class ListImages extends BasePage implements IPanelChangeListener {
                             try {
                                 HalcyonPrincipal p = HalcyonSession.get().getHalcyonPrincipal();
                                 String uuid = p.getUserURI();
+                                // M16: the review asked for "hold the borrow until done;
+                                // return in finally". That is WRONG HERE, and the original
+                                // return-first shape is load-bearing: the very next call,
+                                // Patterns.getCollectionRDF2, queries the SECURED dataset,
+                                // and every triple it authorizes sends
+                                // WACSecurityEvaluator.evaluate() back into
+                                // borrowObject(<same user key>). Holding the borrow makes
+                                // this method compete with itself for that user's slots
+                                // (maxTotalPerKey=5, blockWhenExhausted, maxWait=1s) — and
+                                // evaluate() turns a borrow failure into `return false`,
+                                // i.e. a SILENT DENY, not an error.
+                                //
+                                // Returning first is safe for the reason the reviewer
+                                // missed: the model handed out below is the AccessCache's
+                                // own `collections`, and the only writer to it is this
+                                // block. The real race the reviewer saw would need two
+                                // concurrent requests for the SAME user, which the pool
+                                // already serialises by handing out distinct instances.
                                 AccessCache ac = AccessCachePool.getPool().borrowObject(uuid);
                                 AccessCachePool.getPool().returnObject(uuid, ac);
                                 if (ac.getCollections().size()==0) {
                                     Dataset dsx = DataCore.getInstance().getSecuredDataset(OPEN);
-                                    ac.getCollections().add(Patterns.getCollectionRDF2(dsx));  
+                                    ac.getCollections().add(Patterns.getCollectionRDF2(dsx));
                                 }
-                                ccc.add(ac.getCollections());                                
+                                ccc.add(ac.getCollections());
                             } catch (Exception ex) {
                                 logger.error(ex.toString());
                             }

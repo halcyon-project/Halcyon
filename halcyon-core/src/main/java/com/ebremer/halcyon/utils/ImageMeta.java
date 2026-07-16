@@ -13,6 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.jena.query.ParameterizedSparqlString;
+import org.apache.jena.query.QueryExecution;
 import org.apache.jena.query.QueryExecutionFactory;
 import org.apache.jena.query.QuerySolution;
 import org.apache.jena.query.ResultSet;
@@ -63,7 +64,11 @@ public class ImageMeta {
         pss.setNsPrefix("so", SchemaDO.NS);
         pss.setNsPrefix("exif", EXIF.NS);
         pss.setNsPrefix("loc", LOC.NS);
-        ResultSet rs = QueryExecutionFactory.create(pss.toString(),tcga).execSelect();
+        // H13: in-memory model, but close the execution.
+        ResultSet rs;
+        try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), tcga)) {
+            rs = qe.execSelect().materialise();
+        }
         while (rs.hasNext()) {
             QuerySolution qs = rs.next();
             String name = qs.getResource("s").getURI();
