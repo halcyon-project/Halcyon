@@ -23,14 +23,15 @@ import java.util.Base64;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
 
 public class KeycloakPublicKeyFetcher {
     private static KeycloakPublicKeyFetcher kpkf = null; 
     private final String oidcConfigurationUrl;
     private static PublicKey publicKey = null;
-        
+    
     public KeycloakPublicKeyFetcher() {
-        oidcConfigurationUrl = HalcyonSettings.getSettings().getProxyHostName() + "/auth/realms/"+HalcyonSettings.realm+"/protocol/openid-connect/certs";
+        oidcConfigurationUrl = HalcyonSettings.getSettings().getProxyHostName() + "/auth/realms/"+HalcyonSettings.REALM+"/protocol/openid-connect/certs";
     }
     
     public PublicKey getPublicKey() {
@@ -59,9 +60,12 @@ public class KeycloakPublicKeyFetcher {
 
     private PublicKey fetchPublicKey() throws IOException, NoSuchAlgorithmException, InvalidKeySpecException, URISyntaxException, Exception {
         URL url = (new URI(oidcConfigurationUrl)).toURL();
+        System.out.println("KeycloakPublicKeyFetcher : "+url.toString());
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         if (connection instanceof HttpsURLConnection httpsConnection) {
-            httpsConnection.setSSLSocketFactory(SslConfig.getSslContext().getSocketFactory());
+            SSLContext ccc = SslConfig.getSslContext();
+            System.out.println("FETCH THAT!!!!!!!!!!!!!!!!!! "+ccc);
+            httpsConnection.setSSLSocketFactory(ccc.getSocketFactory());
         }
         connection.setRequestMethod("GET");
         connection.setRequestProperty("Accept", "application/json");

@@ -1,11 +1,10 @@
 package com.ebremer.halcyon.server;
 
-import com.ebremer.halcyon.filesystem.HURI;
 import com.ebremer.halcyon.lib.OperatingSystemInfo;
-import com.ebremer.halcyon.lib.URITools;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
+import com.ebremer.halcyon.utils.HURI;
 import com.ebremer.ns.HAL;
-import com.ebremer.ns.LDP;
+import com.ebremer.ns.LWS;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -14,8 +13,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.imageio.ImageIO;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.Resource;
@@ -31,14 +32,12 @@ import org.springframework.core.io.ClassPathResource;
  * @author erich
  */
 public class INIT {
-    public static String KEYCLOAKJSONPATH = "keycloak.json";
-    public static String KEYCLOAKREALMCONFIGJSONPATH = "keycloak-realm-config.json";
         
-    public void dump(String src) {
-        if (!(new File(src)).exists()) {
+    public void dump(String src, String dest) {
+        if (!(new File(dest)).exists()) {
             try {
                 ClassPathResource cpr = new ClassPathResource(src); 
-                Files.copy(cpr.getInputStream(), Paths.get(src), StandardCopyOption.REPLACE_EXISTING);
+                Files.copy(cpr.getInputStream(), Paths.get(dest), StandardCopyOption.REPLACE_EXISTING);
             } catch (FileNotFoundException ex) {
                 Logger.getLogger(INIT.class.getName()).log(Level.SEVERE, null, ex);
             } catch (IOException ex) {
@@ -50,7 +49,7 @@ public class INIT {
     public Resource getDefaultSettings() {
         Model m = ModelFactory.createDefaultModel();
         m.setNsPrefix("", HAL.NS);
-        m.setNsPrefix("ldp", LDP.NS);
+        m.setNsPrefix("lws", LWS.NS);
         m.setNsPrefix("xsd", XSD.NS);
         Resource r = m.createResource("http://localhost")
             .addProperty(RDF.type, HAL.HalcyonSettingsFile)
@@ -70,7 +69,7 @@ public class INIT {
         r
             .addProperty(HAL.hasResourceHandler,
                 r.getModel().createResource()
-                    .addProperty(RDF.type, LDP.Container)
+                    .addProperty(RDF.type, LWS.Container)
                     .addProperty(HAL.resourceBase, r.getModel().createResource(HURI.of(Path.of("Storage")).toString()))
                     .addProperty(HAL.urlPath, "/ldp")
             );        
@@ -79,17 +78,25 @@ public class INIT {
     
     public Model getDefaultLinuxSettings() {
         Resource r = getDefaultSettings();
-        r.getModel().createResource(URITools.fix(Paths.get("Storage").toUri()))
-                .addProperty(RDF.type, HAL.StorageLocation)
-                .addProperty(HAL.urlpathprefix, "/Storage");
+        r
+            .addProperty(HAL.hasResourceHandler,
+                r.getModel().createResource()
+                    .addProperty(RDF.type, LWS.Container)
+                    .addProperty(HAL.resourceBase, r.getModel().createResource(HURI.of(Path.of("Storage")).toString()))
+                    .addProperty(HAL.urlPath, "/ldp")
+            );        
         return r.getModel();
     }
     
     public Model getDefaultMacOSXSettings() {
         Resource r = getDefaultSettings();
-        r.getModel().createResource(URITools.fix(Paths.get("Storage").toUri()))
-                .addProperty(RDF.type, HAL.StorageLocation)
-                .addProperty(HAL.urlpathprefix, "/Storage");
+        r
+            .addProperty(HAL.hasResourceHandler,
+                r.getModel().createResource()
+                    .addProperty(RDF.type, LWS.Container)
+                    .addProperty(HAL.resourceBase, r.getModel().createResource(HURI.of(Path.of("Storage")).toString()))
+                    .addProperty(HAL.urlPath, "/ldp")
+            );        
         return r.getModel();
     }
     
@@ -109,11 +116,16 @@ public class INIT {
     
     public void init() {
         JenaSystem.init();
-        // Setup Keycloak initialization files
+        Iterator<javax.imageio.ImageReader> readers = ImageIO.getImageReadersByFormatName("tif");
+        readers.forEachRemaining(ir->{
+            System.out.println("TIF READER LOADED : "+ir.getClass().toGenericString());
+        });
+        dump("defaultapplication.yml","application.yml");
         
+        // Setup Keycloak initialization files        
         if (!(new File("data").exists())) {
             if (!(new File("keycloak-realm-config.json").exists())) {
-                dump("keycloak-realm-config.json");
+                dump("defaultkeycloak-realm-config.json","keycloak-realm-config.json");
             }
         } else {
             File spent = new File("keycloak-realm-config.json");
@@ -121,22 +133,15 @@ public class INIT {
                 spent.delete();
             }
         }
-        dump("keycloak.json");        
+        dump("defaultkeycloak.json","keycloak.json");
+        
         // OS Specific Settings        
         File settings = new File("settings.ttl");
         switch (OperatingSystemInfo.getName()) {
-                case "Windows 11":
-                case "Windows 10":
-                    CreateDefaultSettingsFile(settings,getDefaultWindowsSettings());
-                    break;
-                case "Linux":
-                    CreateDefaultSettingsFile(settings,getDefaultLinuxSettings());
-                    break;
-                case "Mac OS X":
-                    CreateDefaultSettingsFile(settings,getDefaultMacOSXSettings());
-                    break;
-                default:
-                    throw new Error("What Operating System are you running?!  Sorry, but Halcyon does not support it right now...");
+            case "Windows 11", "Windows 10" -> CreateDefaultSettingsFile(settings,getDefaultWindowsSettings());
+            case "Linux" -> CreateDefaultSettingsFile(settings,getDefaultLinuxSettings());
+            case "Mac OS X" -> CreateDefaultSettingsFile(settings,getDefaultMacOSXSettings());
+            default -> throw new Error("What Operating System are you running?!  Sorry, but Halcyon does not support it right now...");
         }
         
         // ensure all TiffReaders are loaded

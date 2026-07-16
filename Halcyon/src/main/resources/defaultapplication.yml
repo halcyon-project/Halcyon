@@ -1,0 +1,63 @@
+keycloak:
+  server:
+    contextPath: /auth
+    username: admin
+    password: admin
+server:
+  port: 8888
+  http2:
+    enabled: true
+  ssl:
+    bundle: server
+    enabled-protocols: TLSv1.3
+  servlet:
+    session:
+      timeout: 900
+  jetty:
+    connection-idle-timeout: 900000    
+spring:
+  main:
+    lazy-initialization: false
+    allow-circular-references: true
+  h2:
+    console:
+      enabled: false
+      path: /h2
+  datasource:
+    username: sa
+    password:
+    url: jdbc:h2:file:./data/keycloak;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+  jpa:
+    defer-datasource-initialization: true
+    properties:
+      hibernate:
+        transaction:
+          jta:
+            platform: org.hibernate.engine.transaction.jta.platform.internal.NoJtaPlatform
+  ssl:
+    bundle:
+      jks:
+        server:
+          key:
+            alias: "halcyon"
+          keystore:
+            location: "./halcyonkeystore.jks"
+            password: "password"
+            type: "JKS"
+          truststore:
+            location: "./halcyontruststore.jks"
+            password: "password"
+            type: "JKS"            
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    
+  file:
+    name: logs/halcyon.log
+    max-size: 100MB
+    max-history: 10
+  level:
+    root: OFF
+    com.ebremer.halcyon.filesystem: OFF

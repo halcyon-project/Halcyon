@@ -1,7 +1,7 @@
 package com.ebremer.halcyon.gui.tree;
 
-import com.ebremer.ethereal.RDFDetachableModel;
-import com.ebremer.ethereal.xNode;
+import com.ebremer.vandegraph.SessionScopedModel;
+import com.ebremer.vandegraph.GraphNode;
 import com.ebremer.halcyon.data.DataCore;
 import com.ebremer.ns.HAL;
 import java.util.ArrayList;
@@ -27,9 +27,9 @@ import org.apache.wicket.model.LoadableDetachableModel;
  *
  * @author erich
  */
-public class NodeProvider implements ITreeProvider<xNode> {
+public class NodeProvider implements ITreeProvider<GraphNode> {
     private static final long serialVersionUID = 1L;
-    private final RDFDetachableModel rdm;
+    private final SessionScopedModel rdm;
     private String collection;
     
     public NodeProvider() {
@@ -39,11 +39,11 @@ public class NodeProvider implements ITreeProvider<xNode> {
         ds.begin(ReadWrite.READ);
         h.add(ds.getNamedModel(HAL.CollectionsAndResources));
         ds.end();
-        rdm = new RDFDetachableModel(h);
+        rdm = new SessionScopedModel(h);
     }
     
     public Model getRDFModel() {
-        return rdm.load();
+        return rdm.getObject();
     }
     
     public String getCollection() {
@@ -126,9 +126,9 @@ public class NodeProvider implements ITreeProvider<xNode> {
     }
     
     @Override
-    public Iterator<xNode> getRoots() {
-        ArrayList<xNode> ar = new ArrayList<>();
-        Model m = rdm.load();
+    public Iterator<GraphNode> getRoots() {
+        ArrayList<GraphNode> ar = new ArrayList<>();
+        Model m = rdm.getObject();
         ParameterizedSparqlString pss = new ParameterizedSparqlString("""
             select ?s where {
                 ?s a so:Dataset; so:hasPart ?o
@@ -139,51 +139,51 @@ public class NodeProvider implements ITreeProvider<xNode> {
         ResultSet rs = QueryExecutionFactory.create(pss.toString(), m).execSelect();
         rs.forEachRemaining(qs->{
             Resource r = qs.getResource("s").asResource();
-            ar.add(new xNode(r.asNode(),rdm));
+            ar.add(new GraphNode(r.asNode(),rdm));
         });
         return ar.iterator();
     }
 
     @Override
-    public boolean hasChildren(xNode node) {
-        Model m = rdm.load();
+    public boolean hasChildren(GraphNode node) {
+        Model m = rdm.getObject();
         Resource r = m.createResource(node.getNode().toString());
         boolean hasChildren = m.getProperty(r, SchemaDO.hasPart) != null;
         return hasChildren;
     }
 
     @Override
-    public Iterator<xNode> getChildren(xNode t) {
-        Model m = rdm.load();
-        ArrayList<xNode> ar = new ArrayList<>();
+    public Iterator<GraphNode> getChildren(GraphNode t) {
+        Model m = rdm.getObject();
+        ArrayList<GraphNode> ar = new ArrayList<>();
         NodeIterator ni = m.listObjectsOfProperty(m.asRDFNode(t.getNode()).asResource(), SchemaDO.hasPart);
         while (ni.hasNext()) {
-            ar.add(new xNode(ni.nextNode().asNode(),rdm));
+            ar.add(new GraphNode(ni.nextNode().asNode(),rdm));
         }
         return ar.iterator();
     }
 
     @Override
-    public IModel<xNode> model(xNode foo) {
+    public IModel<GraphNode> model(GraphNode foo) {
         return new FooModel(foo);
     }
     
     @Override
     public void detach() {}
     
-    private static class FooModel extends LoadableDetachableModel<xNode> {
+    private static class FooModel extends LoadableDetachableModel<GraphNode> {
         private static final long serialVersionUID = 1L;
         private final String id;
-        private final xNode local;
+        private final GraphNode local;
 
-        public FooModel(xNode foo) {
+        public FooModel(GraphNode foo) {
             super(foo);
             id = foo.getURI();
             local = foo;
         }
 
         @Override
-        protected xNode load() {
+        protected GraphNode load() {
             return local;
         }
 

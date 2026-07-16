@@ -3,8 +3,7 @@ package com.ebremer.halcyon.gui;
 import com.ebremer.halcyon.data.DataCore;
 import com.ebremer.halcyon.datum.HalcyonPrincipal;
 import com.ebremer.halcyon.fuseki.shiro.JwtToken;
-import com.ebremer.halcyon.puffin.Block;
-import com.ebremer.halcyon.puffin.UserSessionDataStorage;
+import com.ebremer.vandegraph.VandegraphSession;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import com.ebremer.ns.HAL;
 import jakarta.json.Json;
@@ -44,16 +43,15 @@ import org.pac4j.jee.context.JEEContext;
 import org.pac4j.jee.context.session.JEESessionStore;
 import org.pac4j.oidc.profile.OidcProfile;
 
-public final class HalcyonSession extends WebSession {
+public final class HalcyonSession extends VandegraphSession {
     private String user;
     private String mv;
-   // private final String uuid;
-    //private final String uuidurn;
     private final String userURI;
     private final HalcyonPrincipal principal;
 
     public HalcyonSession(Request request, org.apache.wicket.request.Response response) {
-        super(request);        
+        super(request);
+        System.out.println("Creating Session...");
         ServletWebRequest req = (ServletWebRequest) request;
         HttpServletRequest servletRequest = (HttpServletRequest) req.getContainerRequest();        
         WebResponse webResponse = (WebResponse) response;
@@ -68,26 +66,25 @@ public final class HalcyonSession extends WebSession {
         if (profile.isPresent()) {
             OidcProfile oidcProfile = (OidcProfile) profile.get();
             String jwt = oidcProfile.getAccessToken().getValue();
+            System.out.println("JWT : "+jwt);
             JwtToken haha = new JwtToken(jwt);
-            //uuid = haha.getPrincipal().getUserURI();
-            //uuidurn = haha.getPrincipal().getURNUUID();
+            user = haha.getPrincipal().getPreferredUserName();
             userURI = haha.getPrincipal().getUserURI();
             principal = new HalcyonPrincipal(haha,false);
         } else {
             System.out.println("HalcyonSession Profile not present!!!!");
             userURI = "urn:uuid:"+UUID.randomUUID().toString();
-            //uuidurn = "urn:uuid:"+uuid;
             principal = new HalcyonPrincipal(userURI, true);
         }
-        UserSessionDataStorage.getInstance().put(userURI, new Block());
         if (profile.isPresent()) {
             OidcProfile oidcProfile = (OidcProfile) profile.get();
             String jwt = oidcProfile.getAccessToken().getValue();
             ResteasyClientBuilder builder = (ResteasyClientBuilder) ClientBuilder.newBuilder();
             builder.disableTrustManager();
             ResteasyClient client = builder.build();
-            String cmd = s.getProxyHostName()+"/auth/admin/realms/"+HalcyonSettings.realm+"/users";
+            String cmd = s.getProxyHostName()+"/auth/admin/realms/"+HalcyonSettings.REALM+"/users";
             ResteasyWebTarget target = client.target(cmd);
+            System.out.println("SERVER CLIENT ===> "+cmd);
             Invocation.Builder zam = target.request();
             zam.header("Authorization", "Bearer "+jwt);
             Response r = zam.get();
@@ -98,8 +95,9 @@ public final class HalcyonSession extends WebSession {
             } else {
                 System.out.println("not able to update/Parse users...");
             }            
-            cmd = s.getAuthServer()+"/auth/admin/realms/"+HalcyonSettings.realm+"/groups";
+            cmd = s.getAuthServer()+"/admin/realms/"+HalcyonSettings.REALM+"/groups";
             target = client.target(cmd);
+            System.out.println("SERVER CLIENT ===> "+cmd);
             zam = target.request();
             zam.header("Authorization", "Bearer "+jwt);
             r = zam.get();           
@@ -112,11 +110,11 @@ public final class HalcyonSession extends WebSession {
                 ResultSet rs = QueryExecutionFactory.create(pss.toString(),da).execSelect();
                 rs.forEachRemaining(qs ->{
                     Resource gg = qs.getResource("s");                    
-                    //String cmdx = s.getAuthServer()+"/auth/admin/realms/"+HalcyonSettings.realm+"/groups"+gg.getURI().substring(9)+"/members";
                     System.out.println(gg.getURI());
                     map.forEach((k,v)->{ System.out.println(k+"  "+v);});
-                    String cmdx = s.getAuthServer()+"/auth/admin/realms/"+HalcyonSettings.realm+"/groups/"+map.get(gg.getURI())+"/members";
+                    String cmdx = s.getAuthServer()+"/admin/realms/"+HalcyonSettings.REALM+"/groups/"+map.get(gg.getURI())+"/members";
                     ResteasyWebTarget targetx = client.target(cmdx);
+                    System.out.println("SERVER CLIENT ===> "+cmdx);
                     Invocation.Builder zamx = targetx.request();
                     zamx.header("Authorization", "Bearer "+jwt);
                     Response rr = zamx.get();
@@ -127,8 +125,7 @@ public final class HalcyonSession extends WebSession {
                         JsonReader jr = Json.createReader(new StringReader(json2));
                         JsonArray ja = jr.readArray();
                         ja.forEach(p->{
-                            //Resource pp = da.createResource("urn:uuid:"+p.asJsonObject().getString("id"));
-                            Resource pp = da.createResource(HalcyonSettings.getSettings().getHostName()+"/users/"+p.asJsonObject().getString("username").replace(" ", "%20"));
+                            Resource pp = da.createResource(HalcyonSettings.getSettings().getHostName()+"/user/"+p.asJsonObject().getString("username").replace(" ", "%20"));
                             da.add(gg,SchemaDO.member,pp);
                             da.add(pp,SchemaDO.memberOf,gg);
                         });
@@ -149,24 +146,12 @@ public final class HalcyonSession extends WebSession {
                 System.out.println("not able to update/Parse groups...");
             }
         }
-    }
-    
-    public Block getBlock() {
-        return UserSessionDataStorage.getInstance().get(userURI);
-    }
-    
-    @Override
-    public void onInvalidate() {
-        super.onInvalidate();
-        System.out.println("Invalidating session --> "+userURI);
-        UserSessionDataStorage.getInstance().remove(userURI);
+        System.out.println("Creating Session...Done.");
     }
     
     public Model ParseLab(JsonObject jo, HashMap<String,String> map) {
         Model m = ModelFactory.createDefaultModel();
-        //String uuidx = jo.getString("id");
         String groupid = HalcyonSettings.getSettings().getHostName()+"/groups"+jo.getString("path").replace(" ", "%20");
-        //Resource s = m.createResource("urn:uuid:"+uuidx);
         Resource s = m.createResource(groupid);
         m.add(m.createLiteralStatement(s, SchemaDO.name, jo.getString("name")));
         m.add(m.createLiteralStatement(s, SchemaDO.url, jo.getString("path")));
@@ -186,9 +171,7 @@ public final class HalcyonSession extends WebSession {
 
     public Model ParseUser(JsonObject jo) {
         Model m = ModelFactory.createDefaultModel();
-        //String uuidx = jo.getString("id");
-        //Resource s = m.createResource("urn:uuid:"+uuidx);
-        String userid = HalcyonSettings.getSettings().getHostName()+"/users/"+jo.getString("username").replace(" ", "%20");
+        String userid = HalcyonSettings.getSettings().getHostName()+"/user/"+jo.getString("username").replace(" ", "%20");
         Resource s = m.createResource(userid);
         if (jo.containsKey("lastName")) {
             m.add(m.createLiteralStatement(s, SchemaDO.familyName, jo.getString("lastName")));
@@ -200,6 +183,11 @@ public final class HalcyonSession extends WebSession {
             m.add(m.createLiteralStatement(s, SchemaDO.email,jo.getString("email")));
         }
         m.add(s, RDF.type, SchemaDO.Person);
+        
+        //jo.keySet().forEach(k->{
+//            System.out.println(k+" ---------- "+jo.getString(k));
+  //      });
+        
         if (jo.containsKey("attributes")) {
             JsonObject attributes = jo.getJsonObject("attributes");
             if (attributes.containsKey("webid")) {

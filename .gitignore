@@ -1,4 +1,59 @@
+# Build output
 /ingest/target/
 /target/
-/logs/
 /halcyon-core/target/
+/Halcyon/target/
+/Halcyon/dist/
+
+REVIEW.md
+TODO.md
+
+# Logs
+/logs/
+/Halcyon/logs/
+*.log
+hs_err_pid*
+
+# Runtime RDF state / data
+/Halcyon/tdb2/
+/Halcyon/lws-tdb2/
+/Halcyon/rdfdata/
+/Halcyon/data/
+/Halcyon/*.ttl.gz
+/Halcyon/*.ttl
+/halcyon-core/tdb2/
+
+# Vendored / locally-built jars
+/Halcyon/libs/
+*.jar
+*.war
+
+# Secrets & credentials — never commit
+*.jks
+*.p12
+*.pfx
+*.pem
+*.key
+*.crt
+*.cer
+cacerts
+cacerts.p12
+/Halcyon/keycloak.json
+/Halcyon/keycloak-realm-config.json
+application-local.yml
+application-*.local.yml
+
+# IDE / OS
+.idea/
+*.iml
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Stray dirs created by an unexpanded $SP shell variable (scratchpad path)
+$SP/
+
+# Maven build scratch
+dependency-reduced-pom.xml
+/jena-permissions/target/
+/HalcyonLWS/target/

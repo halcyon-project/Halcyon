@@ -1,0 +1,158 @@
+body {
+  font-family: Verdana, Tahoma, Arial, Helvetica, sans-serif;
+}
+
+/* Close button */
+.close-button {
+  font-size: 20px;
+  line-height: 1;
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  float: right;
+  padding: 0 0 0 10px; /* Add 10px padding to the left side */
+  cursor: pointer;
+  color: #000;
+  border: none;
+  outline: none;
+  background-color: transparent;
+}
+
+.close-button:hover {
+  color: #f00; /* Red color on hover */
+}
+
+.close-button:focus {
+  outline: 2px solid #000; /* Optional focus outline */
+}
+
+/* Drag handle */
+.drag-handle {
+  margin-bottom: 10px;
+  padding: 5px;
+  cursor: move;
+  border-radius: 4px;
+  background-color: #ccc;
+}
+
+/* Annotations div */
+.floating-div {
+  position: fixed;
+  z-index: 1000;
+  top: 30px;
+  left: 30px;
+  width: auto;
+  height: auto;
+  padding: 10px;
+  white-space: nowrap;
+  border: 1px solid #ccc;
+  border-radius: 4px; /* Adds rounded corners */
+  background-color: #fff;
+  box-shadow: 0 0 10px rgba(0, 0, 0, .1);
+}
+
+.floating-div:hover {
+  box-shadow: 0 0 15px rgba(0, 0, 0, .2); /* Slightly larger shadow on hover */
+}
+
+/* Dropdown color preview */
+.dd {
+  position: relative;
+  display: inline-block;
+}
+
+.dd-button {
+  width: 200px;
+  padding: 10px;
+  cursor: pointer;
+  text-align: left;
+  border: 1px solid #ccc;
+  background-color: #f0f0f0;
+}
+
+.dd-content {
+  position: absolute;
+  z-index: 1000 !important;
+  display: none;
+  min-width: 200px;
+  background-color: #f9f9f9;
+  box-shadow: 0 8px 16px 0 rgba(0, 0, 0, .2);
+}
+
+.dd-content div {
+  padding: 10px;
+  cursor: pointer;
+}
+
+.dd-content div:hover {
+  background-color: #ddd;
+}
+
+.color-box {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 10px;
+  border: 1px solid #000;
+}
+
+/* General button styles */
+.annotationBtn,
+.btnOn,
+.layer {
+  font: inherit;
+  display: inline-block;
+  text-decoration: none;
+  border: 1px solid;
+  border-radius: 5px;
+  margin-right: 1px;
+  transition: background 0.3s, box-shadow 0.3s;
+}
+
+/* Button active (on) styles */
+.btnOn {
+  padding: .2em .7em;
+  color: white;
+  border-color: #0046ff;
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  box-shadow: 0 4px 6px rgba(0, 70, 255, 0.3);
+  cursor: pointer;
+}
+
+.btnOn:hover {
+  background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+  box-shadow: 0 6px 8px rgba(0, 70, 255, 0.5);
+}
+
+/* General button hover effects */
+.annotationBtn:hover,
+.layer:hover {
+  background: linear-gradient(135deg, #d7e1ec 0%, #fff 74%);
+  color: #537895;
+  box-shadow: 0 4px 6px rgba(83, 120, 149, 0.3);
+}
+
+/* General button styles */
+.annotationBtn {
+  padding: .2em .7em;
+  cursor: pointer;
+  color: #27374c;
+  border-color: #ddd;
+  background: linear-gradient(135deg, #fff 0%, #d7e1ec 74%);
+  background-color: #fff;
+}
+
+.annotationBtn:active,
+.layer:active {
+  position: relative;
+  top: 1px;
+}
+
+/* Disabled button styles (optional) */
+.annotationBtn:disabled,
+.layer:disabled {
+  background: #f0f0f0;
+  color: #ccc;
+  cursor: not-allowed;
+}
+

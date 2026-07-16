@@ -88,7 +88,7 @@
 
       function processFile(file, filePath) {
         const progressBar = createProgressBar(filePath);
-        const chunkSize = 1024 * 1024 * 5; // 1MB
+        const chunkSize = 10 * 1024 * 1024; // 10 MiB
         let offset = 0;
 
         function uploadChunk() {
@@ -107,8 +107,11 @@
           };
 
           xhr.onload = function() {
+            // Advance PAST the chunk just sent, THEN decide whether to recurse.
+            // Checking the pre-advance offset sent one spurious empty POST at
+            // Chunk-Offset == file.size after the final (partial) chunk.
+            offset += chunkSize;
             if (offset < file.size) {
-              offset += chunkSize;
               uploadChunk();
             } else {
               updateProgressBar(progressBar, 100);

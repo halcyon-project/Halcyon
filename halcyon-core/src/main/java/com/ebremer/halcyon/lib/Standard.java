@@ -1,6 +1,5 @@
 package com.ebremer.halcyon.lib;
 
-import com.ebremer.beakgraph.ng.BG;
 import com.ebremer.ns.EXIF;
 import com.ebremer.ns.HAL;
 import org.apache.jena.shared.PrefixMapping;
@@ -25,7 +24,7 @@ public class Standard {
             .setNsPrefix("oa", OA.NS)
             .setNsPrefix("exif", EXIF.NS)
             .setNsPrefix("hal", HAL.NS)
-            .setNsPrefix("bg", BG.NS)
+         //   .setNsPrefix("bg", BG)
             .setNsPrefix("dcmi", DCTerms.NS);
         return map;
     }

@@ -1,0 +1,86 @@
+keycloak:
+  server:
+    contextPath: /auth
+    username: admin
+    password: admin
+server:
+  port: 8888
+  http2:
+    enabled: true
+  ssl:
+    bundle: server
+    enabled-protocols: TLSv1.3
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 200MB
+      max-request-size: 200MB
+      file-size-threshold: 2MB
+    session:
+      timeout: 900
+  jetty:
+    threads:
+      min: 20
+      max: 200
+      idle-timeout: 60000ms
+      max-queue-capacity: 1024
+    # --- Connection & Throughput ---
+    # Time Jetty waits for a new request on a connection before closing it
+    connection-idle-timeout: 60000ms
+    # Limits the max amount of form content to prevent DoS (IIIF can have complex queries)
+    max-http-form-post-size: 2MB    
+spring:
+  main:
+    keep-alive: true
+    lazy-initialization: false
+    allow-circular-references: true
+  threads:
+    virtual:
+      enabled: true
+#  datasource:
+#    url: jdbc:h2:mem:testdb
+#    driver-class-name: org.h2.Driver
+#    username: sa
+#    password: 
+  h2:
+    console:
+      enabled: true    
+  ssl:
+    bundle:
+      jks:
+        server:
+          key:
+            alias: "halcyon"
+          keystore:
+            location: "./halcyonkeystore.jks"
+            password: "password"
+            type: "JKS"
+          truststore:
+            location: "./halcyontruststore.jks"
+            password: "password"
+            type: "JKS"
+
+logging:
+  file:
+    name: logs/halcyon.log
+    max-size: 100MB
+    max-history: 10
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level %logger{36}.%M - %msg%n"
+    file:    "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level %logger{36}.%M - %msg%n"    
+  level:
+    root: ERROR
+    # The W3C LWS module (HalcyonLWS). Root is ERROR, so without this the storage
+    # is entirely silent: no mount confirmation, no ACP bootstrap warning, no
+    # metadata-scan results.
+    com.ebremer.lws: INFO
+    #com.ebremer.halcyon.filereaders: TRACE
+    #org.pac4j: TRACE
+    #org.eclipse.jetty: TRACE
+    #com.ebremer.halcyon.filesystem.DirectoryProcessor: TRACE
+    #com.ebremer.halcyon.BeakGraphImageReader: TRACE
+    #com.ebremer.beakgraph.pool.BeakGraphPoolFactory: TRACE
+    #com.ebremer.beakgraph: TRACE
+    #com.ebremer.halcyon: TRACE
+    #com.ebremer.halcyon.filereaders.FileReaderFactoryProvider: TRACE
+    

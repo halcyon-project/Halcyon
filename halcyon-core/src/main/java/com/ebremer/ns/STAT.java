@@ -30,20 +30,19 @@ public class STAT {
  *  <p>
  *  <a href="http://www.w3.org/ns/posix/stat>Base URI and namepace</a>.
  */
-
     public static final String NS = "http://www.w3.org/ns/posix/stat#";
-    
-    public static final Property atime = ResourceFactory.createProperty(NS+"atime");
-    public static final Property blksize = ResourceFactory.createProperty(NS+"blksize");
-    public static final Property blocks = ResourceFactory.createProperty(NS+"blocks");
-    public static final Property ctime = ResourceFactory.createProperty(NS+"ctime");
-    public static final Property dev = ResourceFactory.createProperty(NS+"dev");
-    public static final Property gid = ResourceFactory.createProperty(NS+"gid");
-    public static final Property ino = ResourceFactory.createProperty(NS+"ino");
-    public static final Property mode = ResourceFactory.createProperty(NS+"mode");
-    public static final Property mtime = ResourceFactory.createProperty(NS+"mtime");
-    public static final Property nlink = ResourceFactory.createProperty(NS+"nlink");
-    public static final Property rdev = ResourceFactory.createProperty(NS+"rdev");
-    public static final Property size = ResourceFactory.createProperty(NS+"size");
-    public static final Property uid = ResourceFactory.createProperty(NS+"uid");
+
+    public static final Property atime = ResourceFactory.createProperty(NS, "atime");
+    public static final Property blksize = ResourceFactory.createProperty(NS, "blksize");
+    public static final Property blocks = ResourceFactory.createProperty(NS, "blocks");
+    public static final Property ctime = ResourceFactory.createProperty(NS, "ctime");
+    public static final Property dev = ResourceFactory.createProperty(NS, "dev");
+    public static final Property gid = ResourceFactory.createProperty(NS, "gid");
+    public static final Property ino = ResourceFactory.createProperty(NS, "ino");
+    public static final Property mode = ResourceFactory.createProperty(NS, "mode");
+    public static final Property mtime = ResourceFactory.createProperty(NS, "mtime");
+    public static final Property nlink = ResourceFactory.createProperty(NS, "nlink");
+    public static final Property rdev = ResourceFactory.createProperty(NS, "rdev");
+    public static final Property size = ResourceFactory.createProperty(NS, "size");
+    public static final Property uid = ResourceFactory.createProperty(NS, "uid");  
 }

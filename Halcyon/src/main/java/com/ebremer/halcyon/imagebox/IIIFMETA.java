@@ -7,11 +7,9 @@ import com.apicatalog.jsonld.JsonLdVersion;
 import com.apicatalog.jsonld.document.Document;
 import com.apicatalog.jsonld.document.JsonDocument;
 import com.apicatalog.jsonld.document.RdfDocument;
-import com.ebremer.halcyon.filereaders.ROCImageReader;
 import static com.ebremer.halcyon.imagebox.IIIFUtils.IIIFAdjust;
 import com.ebremer.halcyon.lib.ImageMeta;
 import com.ebremer.halcyon.lib.ImageMeta.ImageScale;
-import com.ebremer.halcyon.filereaders.ImageReader;
 import com.ebremer.ns.EXIF;
 import com.ebremer.ns.GEO;
 import com.ebremer.ns.IIIF;
@@ -40,6 +38,7 @@ import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.vocabulary.DCTerms;
 import org.apache.jena.vocabulary.SchemaDO;
+import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -47,7 +46,10 @@ import org.apache.jena.vocabulary.SchemaDO;
  */
 public class IIIFMETA {
     
+    private static final org.slf4j.Logger logger = LoggerFactory.getLogger(IIIFMETA.class);
+    
     public static String GetImageInfo(URI uri, ImageMeta meta) {
+        logger.debug(uri+"  "+meta);
         Model m = ModelFactory.createDefaultModel();
         m.setNsPrefix("so", SchemaDO.NS);
         Resource s = m.createResource(uri.toString());
@@ -100,9 +102,9 @@ public class IIIFMETA {
                 new ByteArrayInputStream((
                     """
                     {
-                    "@context": "http://iiif.io/api/image/2/context.json",
+                    "@context": "https://iiif.io/api/image/2/context.json",
                     "@embed": "@always",
-                    "protocol": "http://iiif.io/api/image",
+                    "protocol": "https://iiif.io/api/image",
                     "profile": {}
                     }
                     """).getBytes())))              
@@ -137,8 +139,8 @@ public class IIIFMETA {
     public static void main(String[] args) throws Exception {
         File file2 = new File("/HalcyonStorage/nuclearsegmentation2019/coad/TCGA-CM-5348-01Z-00-DX1.2ad0b8f6-684a-41a7-b568-26e97675cce9.zip");
         URI uri = file2.toURI();
-        ImageReader ir = new ROCImageReader(uri,null);
-        ImageMeta meta = ir.getImageMeta();
-        System.out.println(GetImageInfo(new URI("https://beak.bmi.stonybrook.edu/iiif/?iiif=https://beak.bmi.stonybrook.edu/Storage/images/tcga_data/ov/TCGA-04-1342-01A-01-TS1.66421418-fc94-4215-9ab1-6398f710f6ca.svs"),meta));
+//        ImageReader ir = new ROCImageReader(uri,null);
+  //      ImageMeta meta = ir.getImageMeta();
+    //    System.out.println(GetImageInfo(new URI("https://beak.bmi.stonybrook.edu/iiif/?iiif=https://beak.bmi.stonybrook.edu/Storage/images/tcga_data/ov/TCGA-04-1342-01A-01-TS1.66421418-fc94-4215-9ab1-6398f710f6ca.svs"),meta));
     }
 }

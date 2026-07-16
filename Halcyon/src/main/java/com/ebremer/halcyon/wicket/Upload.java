@@ -7,7 +7,6 @@ import org.apache.wicket.request.mapper.parameter.PageParameters;
 public class Upload extends BasePage {
     private static final long serialVersionUID = 1L;
     private final String path;
-    
         
     public Upload(final PageParameters parameters) {
         String frag;
@@ -18,11 +17,10 @@ public class Upload extends BasePage {
         }
         path = "const path = '"+frag+"';";
     }
-    
+
     @Override
     public void renderHead(IHeaderResponse response) {
 	super.renderHead(response);        
         response.render(JavaScriptHeaderItem.forScript(path, "path"));
-    }   
-
+    }
 }

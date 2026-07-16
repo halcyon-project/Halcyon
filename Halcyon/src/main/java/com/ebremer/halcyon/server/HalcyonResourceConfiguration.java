@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
+import org.springframework.http.CacheControl;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -41,17 +42,29 @@ public class HalcyonResourceConfiguration implements WebMvcConfigurer {
             registry.addResourceHandler("/talon/**").addResourceLocations("classpath:/META-INF/public-web-resources/talon/");
         }
         String zephyr = HalcyonSettings.getSettings().getZephyrLocation();
+        // In dev mode the viewer modules are served live from source; without
+        // an explicit Cache-Control the browser's heuristic caching keeps
+        // serving stale copies after edits (a recurring dev-loop trap).
+        // no-cache still allows conditional 304s, so unchanged files stay fast.
+        CacheControl zephyrCache = HalcyonSettings.getSettings().isDevMode()
+                ? CacheControl.noCache().mustRevalidate()
+                : null;
+        var zephyrHandler = registry.addResourceHandler("/zephyr/**");
         if (zephyr!=null) {
             if (zephyr.startsWith("file:///")) {
                 zephyr = zephyr.replace("file:///", "file:/");
             }
             logger.info("Using Local Zephyr <"+zephyr+">");
-            registry.addResourceHandler("/zephyr/**").addResourceLocations(zephyr);
+            zephyrHandler.addResourceLocations(zephyr);
         } else {
-            registry.addResourceHandler("/zephyr/**").addResourceLocations("classpath:/META-INF/public-web-resources/zephyr/");
+            zephyrHandler.addResourceLocations("classpath:/META-INF/public-web-resources/zephyr/");
+        }
+        if (zephyrCache != null) {
+            zephyrHandler.setCacheControl(zephyrCache);
         }
         registry.addResourceHandler("/threejs/**").addResourceLocations("classpath:/META-INF/public-web-resources/threejs/");
         registry.addResourceHandler("/images/**").addResourceLocations("classpath:/META-INF/public-web-resources/images/");
+        registry.addResourceHandler("/rdflib/**").addResourceLocations("classpath:/META-INF/public-web-resources/rdflib/");
         registry.addResourceHandler("/favicon.ico").addResourceLocations("classpath:/META-INF/public-web-resources/favicon.ico");
         //registry.addResourceHandler("/HalcyonStorage/**").addResourceLocations("file:/D:/HalcyonStorage/");
     }

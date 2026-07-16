@@ -22,9 +22,9 @@ import org.locationtech.jts.geom.Point;
 public class ConcaveHullExp {
     
     public static void main(String[] args) {
-        int num = 20000;
-        int dim = 300;
-        int dimo = 200;
+        int num = 128;
+        int dim = 2000;
+        int dimo = 1950;
         Random ran = new Random();
         Point point[] = new Point[num];
         GeometryFactory gf = new GeometryFactory();
@@ -58,7 +58,7 @@ public class ConcaveHullExp {
         g2d.setColor(new Color(0, 0, 255, 50));
         g2d.fillPolygon(polygon);
         g2d.dispose();
-        File file = new File("hullImage.png");
+        File file = new File("\\ATAN\\hullImage.png");
         try {
             ImageIO.write(bufferedImage, "PNG", file);
             System.out.println("Polygon image saved to " + file.getAbsolutePath());

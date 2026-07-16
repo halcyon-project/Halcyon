@@ -13,13 +13,12 @@ import org.apache.wicket.request.resource.JavaScriptResourceReference;
  *
  * @author erich
  */
-
-//reference https://triply.cc/docs/yasgui-api
-
+//https://triply.cc/docs/yasgui-api
 public class Sparql extends BasePage {
-    
-    public Sparql() {}
-    
+
+    public Sparql() {
+    }
+
     @Override
     public void renderHead(IHeaderResponse response) {
         super.renderHead(response);
@@ -27,6 +26,30 @@ public class Sparql extends BasePage {
         response.render(JavaScriptHeaderItem.forReference(new JavaScriptResourceReference(Sparql.class, "yasgui.min.js")));
         HalcyonSession hs = HalcyonSession.get();
         HalcyonPrincipal hp = hs.getHalcyonPrincipal();
-        response.render(JavaScriptHeaderItem.forScript("var token = '"+hp.getToken()+"'", "token"));
+        String tokenScript = String.format(
+                """                
+                var token = '%s';
+                var useriri = '%s';
+                var userName = '%s';
+                function isTokenExpired(token) {
+                    const base64Url = token.split('.')[1];
+                    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                    const decodedToken = JSON.parse(window.atob(base64));
+                    const expirationTime = decodedToken.exp * 1000;
+                    return Date.now() > expirationTime;
+                }
+                function checkToken() {
+                    if (isTokenExpired(token)) {
+                        alert('Your session has expired. Please log in again.');
+                        window.location.href = '/invalidateSession';
+                    }
+                }
+                setInterval(checkToken, 60000);
+                """,
+                hp.getToken(),
+                hp.getUserURI(),
+                hp.getPreferredUserName()                
+        );
+        response.render(JavaScriptHeaderItem.forScript(tokenScript, "token-check"));
     }
 }

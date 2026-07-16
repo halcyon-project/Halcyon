@@ -20,24 +20,25 @@
             );
             var tab = yasgui.getTab();
             //tab.setQuery("select *\nwhere {graph ?g {?s ?p ?o}}\nlimit 20");
-            tab.yasqe.addPrefixes({ so: "https://schema.org/" });
-            tab.yasqe.addPrefixes({hal: "https://halcyon.is/ns/" });
+            tab.yasqe.addPrefixes({ sdo: "https://schema.org/" });
+            tab.yasqe.addPrefixes({ hal: "https://halcyon.is/ns/" });
             tab.yasqe.addPrefixes({rdfs: "http://www.w3.org/2000/01/rdf-schema#" });
-            tab.yasqe.addPrefixes({rdf: "http://www.w3.org/1999/02/22-rdf-syntax-ns#" });
+            tab.yasqe.addPrefixes({ rdf: "http://www.w3.org/1999/02/22-rdf-syntax-ns#" });
             tab.yasqe.addPrefixes({exif: "http://www.w3.org/2003/12/exif/ns#" });
-            tab.yasqe.addPrefixes({owl: "http://www.w3.org/2002/07/owl#" });
-            tab.yasqe.addPrefixes({loc: "https://id.loc.gov/vocabulary/preservation/cryptographicHashFunctions/" });
-            tab.yasqe.addPrefixes({geo: "http://www.opengis.net/ont/geosparql#" });
-            tab.yasqe.addPrefixes({dct: "http://purl.org/dc/terms/" });
+            tab.yasqe.addPrefixes({ owl: "http://www.w3.org/2002/07/owl#" });
+            tab.yasqe.addPrefixes({ loc: "https://id.loc.gov/vocabulary/preservation/cryptographicHashFunctions/" });
+            tab.yasqe.addPrefixes({ geo: "http://www.opengis.net/ont/geosparql#" });
+            tab.yasqe.addPrefixes({ dct: "http://purl.org/dc/terms/" });
             tab.yasqe.addPrefixes({prov: "http://www.w3.org/ns/prov#" });
-            tab.yasqe.addPrefixes({xsd: "http://www.w3.org/2001/XMLSchema#" });
+            tab.yasqe.addPrefixes({ xsd: "http://www.w3.org/2001/XMLSchema#" });
             tab.yasqe.addPrefixes({void: "http://rdfs.org/ns/void#" });
-            tab.yasqe.addPrefixes({bg: "https://www.ebremer.com/beakgraph/ns/" });
-            tab.yasqe.addPrefixes({ror: "https://ror.org/" });
-            tab.yasqe.addPrefixes({wac: "http://www.w3.org/ns/auth/acl#" });
-            tab.yasqe.addPrefixes({sno: "http://snomed.info/id/" });
-            tab.yasqe.addPrefixes({ldp: "http://www.w3.org/ns/ldp#" });
+            tab.yasqe.addPrefixes({  bg: "https://www.ebremer.com/beakgraph/ns/" });
+            tab.yasqe.addPrefixes({ ror: "https://ror.org/" });
+            tab.yasqe.addPrefixes({ wac: "http://www.w3.org/ns/auth/acl#" });
+            tab.yasqe.addPrefixes({ sno: "http://snomed.info/id/" });
+            tab.yasqe.addPrefixes({ lws: "https://www.w3.org/ns/lws#" });
             tab.yasqe.addPrefixes({solid: "http://www.w3.org/ns/solid/terms#" });
+            tab.yasqe.addPrefixes({zeph: "https://halcyon.is/zephyr/ns/" });
             tab.yasqe.collapsePrefixes(true);
         </script>
         </wicket:extend>

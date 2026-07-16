@@ -1,31 +1,29 @@
 import * as THREE from "three";
-import { createButton, textInputPopup, turnOtherButtonsOff } from "../helpers/elements.js";
+import { textInputPopup, displayAreaAndPerimeter } from "./elements.js";
+import { calculatePolygonArea, calculatePolygonPerimeter } from "./conversions.js"
+import { activeMicronsPerPixel } from "./annotationTarget.js";
+import { annotationPoints } from "./annotationShapes.js";
 
-export function label(scene, camera, renderer, controls, originalZ) {
-  const labelBtn = createButton({
-    id: "label",
-    innerHtml: "<i class=\"fas fa-tag\"></i>",
-    title: "Label"
-  });
+// Label or area and perimeter
+export function label(manager, type) {
+  const { scene, camera, renderer } = manager.ctx;
 
-  let clicked = false;
   let mouse = new THREE.Vector2();
   let raycaster = new THREE.Raycaster();
   let objects = [];
 
-  labelBtn.addEventListener("click", function () {
-    clicked = !clicked;
-    if (clicked) {
-      // alert("on!");
-      turnOtherButtonsOff(labelBtn);
-      controls.enabled = false;
-      this.classList.replace('annotationBtn', 'btnOn');
+  manager.register({
+    id: type === "label" ? "label" : "area",
+    icon: type === "label"
+      ? "<i class=\"fas fa-tag\"></i>"
+      : "<i class=\"fa fa-ruler-combined\"></i>",
+    title: type === "label" ? "Label" : "Area and Perimeter",
+    cursor: "pointer",
+    onActivate() {
       getAnnotationObjects();
       renderer.domElement.addEventListener('click', onMouseClick, false);
-    } else {
-      // alert("off!");
-      controls.enabled = true;
-      this.classList.replace('btnOn', 'annotationBtn');
+    },
+    onDeactivate() {
       objects = [];
       renderer.domElement.removeEventListener('click', onMouseClick, false);
     }
@@ -34,52 +32,55 @@ export function label(scene, camera, renderer, controls, originalZ) {
   function getAnnotationObjects() {
     objects = []; // Clear objects array to avoid duplicates
     scene.traverse((object) => {
-      if (object.name.includes("annotation")) {
+      // Individual annotation shapes only — never the per-layer container
+      // Group (named 'annotations'), whose bounding box covers everything.
+      if (object.name.includes("annotation")
+          && object.name !== 'annotations'
+          && (object.geometry || (object.userData && object.userData.points))) {
         objects.push(object);
       }
     });
-    // console.log("objects", objects);
+  }
+
+  function expandBoundingBox(geometry, amount) {
+    const box = new THREE.Box3().setFromObject(geometry);
+    box.expandByScalar(amount);
+    return box;
   }
 
   function onMouseClick(event) {
     event.preventDefault();
-
-    // Calculate the distance from the camera to a target point (e.g., the center of the scene)
-    const distance = camera.position.distanceTo(scene.position);
-
-    // Adjust the threshold based on the distance
-    raycaster.params.Line.threshold = calculateThreshold(distance, 100, 1000); // 200/5500
-    // raycaster.params.Line.threshold = 2500;
-    // console.log("raycaster line threshold", raycaster.params.Line.threshold);
 
     const rect = renderer.domElement.getBoundingClientRect();
     mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
     raycaster.setFromCamera(mouse, camera);
 
-    try {
-      const intersects = raycaster.intersectObjects(objects, true);
-      if (intersects.length > 0) {
-        // Sort by distance to the camera
-        // intersects.sort((a, b) => a.distance - b.distance);
-        const selectedMesh = intersects[0].object;
-        // console.log("selectedMesh", selectedMesh);
-        textInputPopup(event, selectedMesh);
+    const intersects = [];
+    for (let i = 0; i < objects.length; i++) {
+      const mesh = objects[i];
+      const expandedBox = expandBoundingBox(mesh, 0.1); // Increase tolerance by 0.1
+      if (raycaster.ray.intersectsBox(expandedBox)) {
+        intersects.push(mesh);
       }
-      // else {
-      //   console.log("nothing");
-      // }
-    } catch (error) {
-      console.error("Intersection error:", error);
     }
-  }
 
-  // Helper function to calculate the threshold based on the distance
-  const minDistance = 200;
-  const maxDistance = originalZ;
-  function calculateThreshold(currentDistance, minThreshold, maxThreshold) {
-    // Clamp currentDistance within the range
-    currentDistance = Math.max(minDistance, Math.min(maxDistance, currentDistance));
-    return maxThreshold + (minThreshold - maxThreshold) * (maxDistance - currentDistance) / (maxDistance - minDistance);
+    if (intersects.length > 0) {
+      const selectedMesh = intersects[0];
+
+        if (type === "label") {
+          textInputPopup(event, selectedMesh);
+        } else {
+          // Calculate area and perimeter (works for fat lines and legacy)
+          let currentPolygonPositions = annotationPoints(selectedMesh);
+          if (!currentPolygonPositions.length) return;
+          const area = calculatePolygonArea(currentPolygonPositions);
+          const perimeter = calculatePolygonPerimeter(currentPolygonPositions);
+
+          // Display the area and perimeter
+          displayAreaAndPerimeter(area, perimeter, activeMicronsPerPixel());
+        }
+        return;
+      }
   }
 }

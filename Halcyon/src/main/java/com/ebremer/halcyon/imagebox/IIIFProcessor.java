@@ -10,17 +10,23 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author Erich Bremer
  */
 public class IIIFProcessor {
-    //private static final Pattern PATTERN1 = Pattern.compile("(.*)?/(\\d*),(\\d*),(\\d*),(\\d*)/(\\d*),/(\\d*)/default.(jpg|png|json|ttl)");
-    private static final Pattern PATTERN1 =   Pattern.compile("(.*)?/(\\d*),(\\d*),(\\d*),(\\d*)/([!0-9,]*)/(\\d*)/default.(jpg|png|json|ttl)");
-    private static final Pattern PATTERN2 = Pattern.compile("(.*)?/full/(\\d*),/(\\d*)/default.(jpg|png|json)");
+    private static final org.slf4j.Logger logger = LoggerFactory.getLogger(IIIFProcessor.class);
+    // One grammar for tile requests: the region is either the IIIF "full"
+    // keyword or x,y,w,h — combined with any supported size form ("w,h",
+    // "w," or best-fit "!w,h"). This lets clients fetch whole-image
+    // renditions (e.g. the Zephyr minimap's /full/!360,270/0/default.jpg)
+    // through the same code path as ordinary tiles; ImageServer swaps the
+    // image's real dimensions in for "full" once metadata is loaded.
+    private static final Pattern TILE = Pattern.compile("(.*)?/(?:(full)|(\\d+),(\\d+),(\\d+),(\\d+))/([!0-9,]*)/(\\d+)/default\\.(jpg|png|json|ttl)");
     private static final Pattern INFO = Pattern.compile("(.*)?/info.json");
-    
+
     private Matcher matcher;
     public URI uri = null;
     public int x;
@@ -39,26 +45,36 @@ public class IIIFProcessor {
     public ImageFormat imageformat;
 
     IIIFProcessor(String url) throws URISyntaxException {
-        matcher = PATTERN1.matcher(url);
-        if (matcher.find()) {
+        matcher = TILE.matcher(url);
+        if (matcher.find() && !matcher.group(7).isEmpty()) {
             tilerequest = true;
             uri = new URI(matcher.group(1).replace(" ", "%20"));
-            x = Integer.parseInt(matcher.group(2));
-            y = Integer.parseInt(matcher.group(3));
-            w = Integer.parseInt(matcher.group(4));
-            h = Integer.parseInt(matcher.group(5));
-            String[] sizes = matcher.group(6).split(",");
+            if (matcher.group(2) != null) {
+                // "full": the entire image. Placeholder extents here — the
+                // servlet clamps them to the image's true width/height.
+                fullrequest = true;
+                x = 0;
+                y = 0;
+                w = Integer.MAX_VALUE;
+                h = Integer.MAX_VALUE;
+            } else {
+                x = Integer.parseInt(matcher.group(3));
+                y = Integer.parseInt(matcher.group(4));
+                w = Integer.parseInt(matcher.group(5));
+                h = Integer.parseInt(matcher.group(6));
+            }
+            String[] sizes = matcher.group(7).split(",");
             if (sizes[0].startsWith("!")) {
-                aspectratio = true;                
+                aspectratio = true;
                 tx = Integer.parseInt(sizes[0].substring(1));
-                ty = Integer.parseInt(sizes[1]);
+                ty = (sizes.length > 1 && !sizes[1].isEmpty()) ? Integer.parseInt(sizes[1]) : tx;
             } else {
                 scalex = true;
                 tx = Integer.parseInt(sizes[0]);
-                ty = (sizes.length>1)?Integer.parseInt(sizes[1]):0;
+                ty = (sizes.length > 1 && !sizes[1].isEmpty()) ? Integer.parseInt(sizes[1]) : 0;
             }
-            rotation = Integer.parseInt(matcher.group(7));
-            imageformat = switch (matcher.group(8)) {
+            rotation = Integer.parseInt(matcher.group(8));
+            imageformat = switch (matcher.group(9)) {
                 case "jpg" -> ImageFormat.JPG;
                 case "png" -> ImageFormat.PNG;
                 case "json" -> ImageFormat.JSON;
@@ -69,39 +85,8 @@ public class IIIFProcessor {
             matcher = INFO.matcher(url);
             if (matcher.find()) {
                 String xw = matcher.group(1);
-                //System.out.println("info request --> "+w);
                 inforequest = true;
                 uri = new URI(xw.replace(" ", "%20"));
-            } else {
-                matcher = PATTERN2.matcher(url);
-                if (matcher.find()) {
-                    System.out.println("it's a default req");
-                    tilerequest = true;
-                    uri = new URI(matcher.group(1));
-                    x = 0;
-                    y = 0;
-                    w = Integer.MAX_VALUE;
-                    h = Integer.MAX_VALUE;
-                    tx = Integer.parseInt(matcher.group(2));
-                    rotation = Integer.parseInt(matcher.group(3));
-                    fullrequest = true;
-                    if (null != matcher.group(4)) switch (matcher.group(4)) {
-                        case "jpg":
-                            imageformat = ImageFormat.JPG;
-                            break;
-                        case "png":
-                            imageformat = ImageFormat.PNG;
-                            break;
-                        case "json":
-                            imageformat = ImageFormat.JSON;
-                            break;
-                        case "ttl":
-                            imageformat = ImageFormat.TTL;
-                            break;    
-                        default:
-                            break;
-                    }
-                }
             }
         }
     }

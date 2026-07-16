@@ -5,8 +5,11 @@ import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.imageio.ImageIO;
 
 public class BackgroundDetector {
@@ -31,18 +34,18 @@ public class BackgroundDetector {
     }
 
     public static boolean isBackgroundColor(BufferedImage image, Color dominant, Color target, int tolerance) {
-        return Math.abs(dominant.getRed() - target.getRed()) <= tolerance &&
-                Math.abs(dominant.getGreen() - target.getGreen()) <= tolerance &&
-                Math.abs(dominant.getBlue() - target.getBlue()) <= tolerance;
+        return ( Math.abs(dominant.getRed() - target.getRed()) ) <= tolerance &&
+               ( Math.abs(dominant.getGreen() - target.getGreen()) ) <= tolerance &&
+               ( Math.abs(dominant.getBlue() - target.getBlue()) ) <= tolerance;
     }
-    
-    public static boolean[][] getBackgroundMask(BufferedImage bi, int a, int b) {
+        
+    public static boolean[][] getBackgroundMask(BufferedImage bi, int a, int b, int tolerance) {
         boolean[][] mask = new boolean[bi.getWidth()][bi.getHeight()];
         Color dominant = getDominantColor(bi);
         System.out.println("Dominant color: " + dominant.toString());
         for (int i = 0; i < bi.getWidth(); i++) {
             for (int j = 0; j < bi.getHeight(); j++) {
-                if (isBackgroundColor(bi, new Color(bi.getRGB(i, j)), dominant, 20)) {
+                if (isBackgroundColor(bi, new Color(bi.getRGB(i, j)), dominant, tolerance)) {
                     bi.setRGB(i, j, Color.BLACK.getRGB());
                 } else {
                     bi.setRGB(i, j, Color.WHITE.getRGB());
@@ -67,7 +70,6 @@ public class BackgroundDetector {
                 if (!mask[i][j]) {
                     mask[i][j]=(mask[i-1][j-1]&&mask[i][j-1]&&mask[i+1][j-1]&&mask[i+1][j]&&mask[i+1][j+1]&&mask[i][j+1]&&mask[i-1][j+1]&&mask[i-1][j]);
                 }
-                //mask[i][j] = mask[i][j]&&(mask[i-1][j-1]||mask[i][j-1]);
                 if (mask[i][j]) {
                     bb.setRGB(i, j, Color.BLACK.getRGB());
                 } else {
@@ -82,28 +84,40 @@ public class BackgroundDetector {
         }
         return mask;
     }
-
-    public static void main(String[] args) {
-        BufferedImage image = null;
-        try {
-            image = ImageIO.read(new File("D:\\ATAN\\src.png"));
-        } catch (IOException e) {
-        }
+    
+    public static BufferedImage getMask(BufferedImage image, int tolerance) {
         Color dominant = getDominantColor(image);
+        BufferedImage bi = new BufferedImage(image.getWidth(), image.getHeight(), image.getType());
         System.out.println("Dominant color: " + dominant.toString());
         for (int i = 0; i < image.getWidth(); i++) {
             for (int j = 0; j < image.getHeight(); j++) {
-                if (isBackgroundColor(image, new Color(image.getRGB(i, j)), dominant, 10)) {
-                    image.setRGB(i, j, Color.BLACK.getRGB());
+                if (isBackgroundColor(image, new Color(image.getRGB(i, j)), dominant, tolerance)) {
+                    bi.setRGB(i, j, Color.WHITE.getRGB());
                 } else {
-                    image.setRGB(i, j, Color.WHITE.getRGB());
+                    bi.setRGB(i, j, Color.BLACK.getRGB());
                 }
             }
         }
+        return bi;
+    }
+    
+    public static boolean[][] getBooleanMask(BufferedImage image, int tolerance) {
+        Color dominant = getDominantColor(image);
+        boolean[][] mask = new boolean[image.getWidth()][image.getHeight()];
+        System.out.println("Dominant color: " + dominant.toString());
+        for (int i = 0; i < image.getWidth(); i++) {
+            for (int j = 0; j < image.getHeight(); j++) {
+                mask[i][j] = !isBackgroundColor(image, new Color(image.getRGB(i, j)), dominant, tolerance);
+            }
+        }
+        return mask;
+    }
+    
+    public static void Dump(BufferedImage bi, Path path) {
         try {
-            File outputfile = new File("D:\\ATAN\\mask.png");
-            ImageIO.write(image, "png", outputfile);
-        } catch (IOException e) {
+            ImageIO.write(bi, "png", path.toFile());
+        } catch (IOException ex) {
+            Logger.getLogger(BackgroundDetector.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
 }

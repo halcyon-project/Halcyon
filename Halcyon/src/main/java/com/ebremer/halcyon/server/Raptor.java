@@ -1,10 +1,10 @@
 package com.ebremer.halcyon.server;
 
-import com.ebremer.beakgraph.ng.BGDatasetGraph;
-import com.ebremer.beakgraph.ng.BeakGraph;
-import com.ebremer.halcyon.beakstuff.BeakGraphPool;
-import com.ebremer.halcyon.filesystem.HURI;
+import com.ebremer.beakgraph.core.BGDatasetGraph;
+import com.ebremer.beakgraph.core.BeakGraph;
+import com.ebremer.beakgraph.pool.BeakGraphPool;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
+import com.ebremer.halcyon.utils.HURI;
 import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
@@ -40,7 +40,12 @@ public class Raptor extends HttpServlet {
     protected void doGet( HttpServletRequest request, HttpServletResponse response ) {
         String hh = hostname+"/"+request.getRequestURI().substring("/raptor/".length());
         URI uri = HURI.of(hh);
-        BeakGraph bg = BeakGraphPool.getPool().borrowObject(uri);
+        BeakGraph bg = null;
+        try {
+            bg = BeakGraphPool.getPool().borrowObject(uri);
+        } catch (Exception ex) {
+            System.getLogger(Raptor.class.getName()).log(System.Logger.Level.ERROR, (String) null, ex);
+        }
         DatasetGraph dsg = new BGDatasetGraph(bg);
         Dataset ds = DatasetFactory.wrap(dsg);
         Query query = QueryFactory.create(request.getParameter("query"));

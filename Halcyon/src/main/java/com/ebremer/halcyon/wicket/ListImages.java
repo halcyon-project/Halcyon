@@ -1,13 +1,12 @@
 package com.ebremer.halcyon.wicket;
 
-import com.ebremer.ethereal.LDModel;
-import com.ebremer.ethereal.RDFDetachableModel;
-import com.ebremer.ethereal.RDFRenderer;
-import com.ebremer.ethereal.SelectDataProvider;
-import com.ebremer.ethereal.Solution;
+import com.ebremer.vandegraph.SessionScopedModel;
+import com.ebremer.vandegraph.NodeLabelRenderer;
+import com.ebremer.vandegraph.SelectDataProvider;
+import com.ebremer.vandegraph.Solution;
 import com.ebremer.halcyon.datum.Patterns;
 import com.ebremer.ns.HAL;
-import com.ebremer.ethereal.NodeColumn;
+import com.ebremer.vandegraph.SparqlVarColumn;
 import com.ebremer.halcyon.data.DataCore;
 import static com.ebremer.halcyon.data.DataCore.Level.OPEN;
 import com.ebremer.halcyon.datum.HalcyonPrincipal;
@@ -15,11 +14,11 @@ import com.ebremer.halcyon.gui.HalcyonSession;
 import com.ebremer.halcyon.pools.AccessCache;
 import com.ebremer.halcyon.pools.AccessCachePool;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
-import com.ebremer.halcyon.server.utils.PathFinder;
 import com.ebremer.halcyon.wicket.ethereal.Zephyr2;
+import com.ebremer.halcyon.wicket.ethereal.Zephyr3;
 import com.ebremer.multiviewer.MultiViewer;
 import com.ebremer.ns.EXIF;
-import com.ebremer.ns.LDP;
+import com.ebremer.ns.LWS;
 import com.ebremer.ns.PROVO;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -68,11 +67,11 @@ public class ListImages extends BasePage implements IPanelChangeListener {
     
     public ListImages() {
         List<IColumn<Solution, String>> columns = new LinkedList<>();
-        columns.add(new NodeColumn<>(Model.of("File URI"),"s","s"));
-        //columns.add(new NodeColumn<>(Model.of("MD5"),"md5","md5"));
-        columns.add(new NodeColumn<>(Model.of("width"),"width","width"));
-        columns.add(new NodeColumn<>(Model.of("height"),"height","height"));
-        //columns.add(new NodeColumn<>(Model.of("Collection"),"collection","collection"));
+        columns.add(new SparqlVarColumn(Model.of("File URI"), "s"));
+        //columns.add(new SparqlVarColumn(Model.of("MD5"), "md5"));
+        columns.add(new SparqlVarColumn(Model.of("width"), "width"));
+        columns.add(new SparqlVarColumn(Model.of("height"), "height"));
+        //columns.add(new SparqlVarColumn(Model.of("Collection"), "collection"));
         columns.add(new AbstractColumn<Solution, String>(Model.of("View")) {
             @Override
             public void populateItem(Item<ICellPopulator<Solution>> cellItem, String componentId, IModel<Solution> model) {
@@ -83,19 +82,19 @@ public class ListImages extends BasePage implements IPanelChangeListener {
             """
             select distinct ?s ?width ?height #?md5
             where {
-                graph ?car {?collection ldp:contains ?s}
+                graph ?car {?collection lws:contains ?s}
                 graph ?s {?s a so:ImageObject;
                             owl:sameAs ?md5;
                             exif:width ?width;
                             exif:height ?height
                 }
-            }
+            } order by ?s
             """
         );
         selected = "urn:halcyon:nocollections";
         pss.setNsPrefix("owl", OWL.NS);
         pss.setNsPrefix("hal", HAL.NS);
-        pss.setNsPrefix("ldp", LDP.NS);
+        pss.setNsPrefix("lws", LWS.NS);
         pss.setNsPrefix("so", SchemaDO.NS);
         pss.setNsPrefix("exif", EXIF.NS);
         pss.setIri("car", HAL.CollectionsAndResources.getURI());
@@ -103,13 +102,12 @@ public class ListImages extends BasePage implements IPanelChangeListener {
         Dataset ds = DatabaseLocator.getDatabase().getDataset();
         rdfsdf = new SelectDataProvider(ds,pss.toString());
         pss.setIri("collection", "urn:halcyon:nocollections");
-        rdfsdf.SetSPARQL(pss.toString());
+        rdfsdf.setQuery(pss.toString());
         table = new AjaxFallbackDefaultDataTable<>("table", columns, rdfsdf, 25);
         add(table);
-        RDFDetachableModel rdg = new RDFDetachableModel(Patterns.getALLCollectionRDF());
-        LDModel ldm = new LDModel(rdg);
+        SessionScopedModel rdg = new SessionScopedModel(Patterns.getALLCollectionRDF());
         ddc = 
-            new DropDownChoice<>("collection", ldm,
+            new DropDownChoice<>("collection", new Model<>(),
                     new LoadableDetachableModel<List<Node>>() {
                         @Override
                         protected List<Node> load() {
@@ -130,7 +128,11 @@ public class ListImages extends BasePage implements IPanelChangeListener {
                             return Patterns.getCollectionList45X(ccc);
                         }
                     },
-                    new RDFRenderer(rdg)
+                    new NodeLabelRenderer(rdg, n -> switch (n.toString()) {
+                        case "urn:halcyon:nocollections" -> "not specified";
+                        case "urn:halcyon:allcollections" -> "All";
+                        default -> n.toString();
+                    })
                 );
         Form<?> form = new Form("form");
         add(form);
@@ -166,7 +168,7 @@ public class ListImages extends BasePage implements IPanelChangeListener {
             logger.debug(q.toString());
             rdfsdf.setQuery(q);                  
         } else {
-            rdfsdf.SetSPARQL(pss.toString());
+            rdfsdf.setQuery(pss.toString());
         }
     }
     
@@ -190,7 +192,7 @@ public class ListImages extends BasePage implements IPanelChangeListener {
                 public void onClick() {
                     HashSet<String>[] ff = lf.getFeatures();                    
                     Solution s = model.getObject();
-                    String g = s.getMap().get("s").getURI();
+                    String g = s.get("s").getURI();
                     String mv = "var images = ["+FeatureManager.getFeatures(ff[0],g)+"]";
                     HalcyonSession.get().SetMV(mv);
                     setResponsePage(new MultiViewer(1,1,1600,800));
@@ -201,7 +203,7 @@ public class ListImages extends BasePage implements IPanelChangeListener {
                 public void onClick() {
                     HashSet<String>[] ff = lf.getFeatures();                    
                     Solution s = model.getObject();
-                    String g = s.getMap().get("s").getURI();
+                    String g = s.get("s").getURI();
                     String mv = "var images = ["+FeatureManager.getFeatures(ff[0],g)+","+FeatureManager.getFeatures(ff[0],g)+"]";
                     HalcyonSession.get().SetMV(mv);
                     setResponsePage(new MultiViewer(1,2,750,750));
@@ -212,7 +214,7 @@ public class ListImages extends BasePage implements IPanelChangeListener {
                 public void onClick() {
                     HashSet<String>[] ff = lf.getFeatures();                    
                     Solution s = model.getObject();
-                    String g = s.getMap().get("s").getURI();
+                    String g = s.get("s").getURI();
                     String mv = "var images = ["+FeatureManager.getFeatures(ff[0],g)+","+FeatureManager.getFeatures(ff[0],g)+","+FeatureManager.getFeatures(ff[0],g)+","+FeatureManager.getFeatures(ff[0],g)+"]";
                     HalcyonSession.get().SetMV(mv);
                     setResponsePage(new MultiViewer(2,2,640,480));
@@ -222,13 +224,30 @@ public class ListImages extends BasePage implements IPanelChangeListener {
                 @Override
                 public void onClick() {
                     Solution s = model.getObject();
-                    String g = s.getMap().get("s").getURI();
-                    System.out.println("RAH ---> "+PathFinder.LocalPath2IIIFURL(g));
-                    setResponsePage(new Zephyr2(PathFinder.LocalPath2IIIFURL(g)));
+                    String g = s.get("s").getURI();
+                    // Pass the bare image identifier. Zephyr's CreateImageViewer
+                    // prepends the /iiif/?iiif= service prefix itself (matching
+                    // FeatureManager.getFeatures). Do NOT wrap g with
+                    // PathFinder.LocalPath2IIIFURL here or the URL double-wraps.
+                    setResponsePage(new Zephyr2(g));
                 }
             };
             add(zephyr);
-            zephyr.setVisible(HalcyonSettings.getSettings().isDevMode());
+            Link zephyr3 = new Link<Void>("zephyr3") {
+                @Override
+                public void onClick() {
+                    Solution s = model.getObject();
+                    String g = s.get("s").getURI();
+                    // Create a new stack seeded with this image as layer 0.
+                    // Zephyr3 mints the stack URI and the viewer lets the user
+                    // add layers and Save it to its own named graph.
+                    setResponsePage(new Zephyr3(g));
+                }
+            };
+            add(zephyr3);
+            
+            // Zephyr3 (experimental RDF stack viewer) stays dev-only; Zephyr2 ships to all authenticated users.
+            zephyr3.setVisible(HalcyonSettings.getSettings().isDevMode());
         }
     }
 }

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<wicket:head>
+  <style> body {
+    margin: 0;
+  } </style>
+  <link href="/zephyr/fontawesome-free-6.6.0-web/css/all.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="/zephyr/css/main.css">
+  <script src="/zephyr/js/jsts.min.js"></script>
+</wicket:head>
+<body>
+
+<wicket:extend>
+<div id="output"></div>
+ <script type="importmap">
+    {
+        "imports": {
+            "three": "/threejs/build/three.module.js",
+            "three/addons/": "/threejs/examples/jsm/",
+            "zephyr": "/zephyr/zephyr.js",
+            "zephyrRDF": "/zephyr/zephyrRDF.js"
+        }
+    }
+  </script>
+  <script type="module">
+    import * as THREE from 'three';
+    import Stats from 'three/addons/libs/stats.module.js';
+    import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+    import { TrackballControls } from 'three/addons/controls/TrackballControls.js';
+    import * as ZEPHYR from 'zephyr';
+    import * as ZEPHRDF from 'zephyrRDF';
+    import { toolbar } from '/zephyr/toolbar.js';
+    import * as rdf from '/rdflib/rdflib.min.js';
+
+    function onWindowResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      camera.updateProjectionMatrix();
+    }
+    
+    const store = $rdf.graph();
+    const fetcher = new $rdf.Fetcher(store);
+    const timeout = 5000; // 5 seconds timeout
+    const endpoint = 'https://localhost:8888/sparql';
+    const baseURI = window.baseURI || 'https://localhost:8888/lws/utah/HnE/Stack2/';
+        
+    window.onload = function() {
+        ZEPHRDF.ParseTTL(scenegraph, store, baseURI);
+        ZEPHRDF.DumpTTL(store, baseURI);
+        var ha = ZEPHRDF.ListElements(store, baseURI);
+        ZEPHRDF.ListImages(store, baseURI);
+        ha.forEach(e => {               
+            we.add(e);
+        });
+    };
+
+    THREE.Cache.enabled = true;
+    const scene = new THREE.Scene();
+    const we = new ZEPHRDF.WE(scene,store);
+
+    const camera = window._camera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 1, 80000);
+    camera.position.z = 71000;
+
+    const originalZ = camera.position.z;
+    camera.lookAt(new THREE.Vector3(0, 0, 0));
+    scene.add(camera);
+
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      preserveDrawingBuffer: true // Preserve the drawing buffer to capture the image later
+    });
+
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    window.addEventListener('resize', onWindowResize);
+
+    let controls = new TrackballControls(camera, renderer.domElement);
+    controls.dynamicDampingFactor = 0.2; // To offer a smooth yet responsive control feel
+    ZEPHYR.DrawAxis(scene);
+    console.log(options);
+
+    // Frame the camera to the stack once every layer has loaded and been placed.
+    // Layer world extents depend on image pixel dimensions (only known after
+    // info.json resolves), so the fixed camera above is just a placeholder.
+    document.addEventListener('zephyr:stackready', (e) => {
+      let box = e.detail && e.detail.bounds;
+      if (!box || box.isEmpty()) {
+        box = new THREE.Box3().setFromObject(scene);
+      }
+      if (box.isEmpty()) return;
+      const size = box.getSize(new THREE.Vector3());
+      const center = box.getCenter(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y) || 1000;
+      const dist = maxDim * 1.2 + size.z;
+      camera.near = Math.max(1, dist / 2000);
+      camera.far = (dist + size.z) * 8 + maxDim * 4;
+      camera.position.set(center.x, center.y, center.z + dist);
+      camera.up.set(0, 1, 0);
+      camera.lookAt(center);
+      camera.updateProjectionMatrix();
+      if (controls.target) controls.target.copy(center);
+      controls.update();
+    });
+    
+    // Initialize toolbar with config
+    toolbar(scene, camera, renderer, controls, originalZ, config);
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();    
+    
+
+    function animate() {
+      controls.update();
+      renderer.render(scene, camera);
+      requestAnimationFrame(animate);
+    }
+
+    animate();
+  </script>
+</wicket:extend>
+</body>
+</html>

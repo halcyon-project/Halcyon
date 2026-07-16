@@ -7,6 +7,7 @@ import com.ebremer.halcyon.lib.XMP;
 import com.ebremer.halcyon.utils.ImageTools;
 import com.ebremer.ns.EXIF;
 import com.ebremer.ns.HAL;
+import com.ebremer.ns.LWS;
 import com.twelvemonkeys.imageio.metadata.tiff.Rational;
 import com.twelvemonkeys.imageio.metadata.tiff.TIFF;
 import com.twelvemonkeys.imageio.plugins.tiff.TIFFImageMetadata;
@@ -32,34 +33,37 @@ import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.SchemaDO;
 import org.apache.jena.vocabulary.XSD;
+import org.slf4j.LoggerFactory;
 
 public class TiffImageReader extends AbstractImageReader {
+    private static final org.slf4j.Logger logger = LoggerFactory.getLogger(TiffImageReader.class);
     private javax.imageio.ImageReader reader;
     private final ImageMeta meta;
     private final URI uri;
+    private final URI base;
     private static final int METAVERSION = 0;
+    private long sizeInBytes;
 
     public TiffImageReader(URI uri, URI base) throws IOException {
+        logger.info("TiffImageReader(URI uri, URI base) {} {}", uri, base);
         this.uri = uri;
+        this.base = base;
         File file = new File(uri);
- 
+        sizeInBytes = file.length();
         ImageInputStream input = ImageIO.createImageInputStream(file);
         Iterator<javax.imageio.ImageReader> readers = ImageIO.getImageReadersByFormatName("tif");
         javax.imageio.ImageReader ir = null;
-        while (readers.hasNext()) {
+        while (readers.hasNext()) {            
             ir = readers.next();
-            System.out.println("IMAGE CLASS --> "+ir.getClass().getCanonicalName());
+            logger.info("Reader --> {}",ir, ir.getClass().toGenericString());
             if ("com.twelvemonkeys.imageio.plugins.tiff.TIFFImageReader".equals(ir.getClass().getCanonicalName())) {
-                System.out.println("YES! : "+ir.getClass().getCanonicalName());
                 reader = ir;
-            } else {
-                System.out.println("NOPE : "+ir.getClass().getCanonicalName());
             }
         }
         if (ir==null) {
+            logger.error("No reader for: {}", file);
             throw new IllegalArgumentException("No reader for: " + file);
         }
-        System.out.println("READER IS ---> "+reader.getClass().getCanonicalName());
         reader.setInput(input);            
         ImageMeta.Builder builder = ImageMeta.Builder.getBuilder(0, reader.getWidth(0), reader.getHeight(0))
             .setTileSizeX(reader.getTileWidth(0))
@@ -114,33 +118,45 @@ public class TiffImageReader extends AbstractImageReader {
         m.setNsPrefix("sdo", SchemaDO.NS);
         m.setNsPrefix("hal", HAL.NS);
         m.setNsPrefix("xsd", XSD.getURI());
-        Resource root = m.createResource(URITools.fix(xuri))                
-            .addLiteral(HAL.filemetaversion, (Integer) METAVERSION)
-            .addLiteral(EXIF.width, meta.getWidth())
-            .addLiteral(EXIF.height, meta.getHeight())
-            .addProperty(RDF.type, SchemaDO.ImageObject);        
+        Resource bnode = m.createResource();
+        Resource root = m.createResource(URITools.fix(base))              
+            .addProperty(LWS.representation, bnode)
+            .addLiteral(HAL.filemetaversion, m.createTypedLiteral( METAVERSION, XSD.integer.getURI()))
+            .addLiteral(EXIF.width, m.createTypedLiteral(meta.getWidth(), XSD.integer.getURI()))
+            .addLiteral(EXIF.height, m.createTypedLiteral(meta.getHeight(), XSD.integer.getURI()))
+            .addProperty(RDF.type, LWS.DataResource)
+            .addProperty(RDF.type, SchemaDO.ImageObject);
+        bnode
+            .addProperty(LWS.mediaType, "image/tiff")
+            .addLiteral(LWS.sizeInBytes, sizeInBytes);
         TIFFImageReader rr = (TIFFImageReader) reader;        
         TIFFImageMetadata td;
         try {
             td = (TIFFImageMetadata) rr.getImageMetadata(0);
-            Object xr = td.getTIFFField(TIFF.TAG_X_RESOLUTION).getValue();
-            Object yr = td.getTIFFField(TIFF.TAG_Y_RESOLUTION).getValue();
-            Object id = td.getTIFFField(TIFF.TAG_IMAGE_DESCRIPTION).getValue();
-            Object xmp = td.getTIFFField(TIFF.TAG_XMP).getValue();
-            String xml = new String((byte[]) xmp);
-            m.add(XMP.getXMP(root.getURI(), xml));
-            if (id instanceof String desc) {
-                if (!desc.trim().isEmpty()) {
-                    root.addLiteral(EXIF.imageDescription, desc.trim());
+            if (td.getTIFFField(TIFF.TAG_XMP)!=null) {
+                String xml = new String((byte[]) td.getTIFFField(TIFF.TAG_XMP).getValue());
+                m.add(XMP.getXMP(root.getURI(), xml));
+            }
+            if(td.getTIFFField(TIFF.TAG_IMAGE_DESCRIPTION)!=null) {
+                if (td.getTIFFField(TIFF.TAG_IMAGE_DESCRIPTION).getValue() instanceof String desc) {
+                    if (!desc.trim().isEmpty()) {
+                        root.addLiteral(EXIF.imageDescription, desc.trim());
+                    }
                 }
             }
-            if (xr instanceof Rational r) {               
-                root.addLiteral(EXIF.xResolution, r.longValue());
+            if (td.getTIFFField(TIFF.TAG_X_RESOLUTION)!=null) {
+                if (td.getTIFFField(TIFF.TAG_X_RESOLUTION).getValue() instanceof Rational r) {
+                    root.addLiteral(EXIF.xResolution, r.longValue());
+                }
             }
-            if (yr instanceof Rational r) {
-                root.addLiteral(EXIF.yResolution, r.longValue());
+            if (td.getTIFFField(TIFF.TAG_Y_RESOLUTION)!=null) {
+                if (td.getTIFFField(TIFF.TAG_Y_RESOLUTION).getValue() instanceof Rational r) {
+                    root.addLiteral(EXIF.yResolution, r.longValue());
+                }
             }
-            root.addLiteral(EXIF.resolutionUnit, Short.valueOf(td.getTIFFField(TIFF.TAG_RESOLUTION_UNIT).getValueAsString()));
+            if (td.getTIFFField(TIFF.TAG_RESOLUTION_UNIT)!=null) {
+                root.addLiteral(EXIF.resolutionUnit, Short.valueOf(td.getTIFFField(TIFF.TAG_RESOLUTION_UNIT).getValueAsString()));
+            }
         } catch (IOException ex) {
             Logger.getLogger(TiffImageReader.class.getName()).log(Level.SEVERE, null, ex);
         }        

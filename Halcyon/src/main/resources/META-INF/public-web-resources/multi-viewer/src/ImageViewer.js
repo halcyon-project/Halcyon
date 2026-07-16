@@ -40,8 +40,11 @@ class ImageViewer {
       tileSources,
       crossOriginPolicy: 'Anonymous',
       blendTime: 0,
+      timeout: 60000,
+      loadTilesWithAjax: true,
+      imageLoaderLimit: 16,
       minZoomImageRatio: 1,
-      maxZoomPixelRatio: 1, // when the user zooms all the way in they are at 100%
+      maxZoomPixelRatio: 1 // when the user zooms all the way in they are at 100%
     });
     this.viewer = viewer; // SET THIS VIEWER
 

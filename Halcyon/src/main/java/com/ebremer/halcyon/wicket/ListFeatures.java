@@ -1,11 +1,10 @@
 package com.ebremer.halcyon.wicket;
 
-import com.ebremer.ethereal.LDModel;
-import com.ebremer.ethereal.Solution;
-import com.ebremer.ethereal.NodeColumn;
-import com.ebremer.ethereal.RDFDetachableModel;
-import com.ebremer.ethereal.RDFRenderer;
-import com.ebremer.ethereal.SelectDataProvider;
+import com.ebremer.vandegraph.Solution;
+import com.ebremer.vandegraph.SparqlVarColumn;
+import com.ebremer.vandegraph.SessionScopedModel;
+import com.ebremer.vandegraph.NodeLabelRenderer;
+import com.ebremer.vandegraph.SelectDataProvider;
 import com.ebremer.halcyon.data.DataCore;
 import static com.ebremer.halcyon.data.DataCore.Level.OPEN;
 import com.ebremer.halcyon.datum.HalcyonPrincipal;
@@ -16,7 +15,7 @@ import com.ebremer.halcyon.pools.AccessCachePool;
 import com.ebremer.ns.EXIF;
 import com.ebremer.ns.GEO;
 import com.ebremer.ns.HAL;
-import com.ebremer.ns.LDP;
+import com.ebremer.ns.LWS;
 import com.ebremer.ns.PROVO;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -31,7 +30,6 @@ import org.apache.jena.query.ResultSet;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.vocabulary.DCTerms;
 import org.apache.jena.vocabulary.OWL;
-import org.apache.jena.vocabulary.SchemaDO;
 import org.apache.wicket.MarkupContainer;
 import org.apache.wicket.ajax.AjaxRequestTarget;
 import org.apache.wicket.ajax.form.AjaxFormComponentUpdatingBehavior;
@@ -54,13 +52,18 @@ import org.apache.wicket.util.resource.IResourceStream;
 import org.apache.wicket.util.resource.StringResourceStream;
 import org.slf4j.LoggerFactory;
 
+/**
+ * This class creates a panel that displays a table of features, allowing the 
+ * user to select specific features from a dropdown list of collections.
+ */
 public class ListFeatures extends Panel {
+
     private static final long serialVersionUID = 1L;
     private SelectDataProvider rdfsdf;
     private HashSet<String> selected1;
     private IPanelChangeListener changeListener;
     private static final org.slf4j.Logger logger = LoggerFactory.getLogger(ListFeatures.class);
-    
+
     public ListFeatures(String id, IPanelChangeListener changeListener) {
         super(id);
         this.changeListener = changeListener;
@@ -73,20 +76,20 @@ public class ListFeatures extends Panel {
                 cellItem.add(new ActionPanel(componentId, model));
             }
         });
-        columns.add(new NodeColumn<>(Model.of("Feature Collection"),"name","name"));
+        columns.add(new SparqlVarColumn(Model.of("Feature Collection"), "name"));
         ParameterizedSparqlString pss = new ParameterizedSparqlString(
             """
             select distinct ?name ?creator
             where {
-                graph ?car {?collection ldp:contains ?s}
+                graph ?car {?collection lws:contains ?s}
               	graph ?s {?fc a geo:FeatureCollection; dct:title ?name ; prov:wasGeneratedBy/prov:wasAssociatedWith ?creator}
             }
             """
-        );        
+        );
         pss.setNsPrefix("owl", OWL.NS);
         pss.setNsPrefix("geo", GEO.NS);
         pss.setNsPrefix("hal", HAL.NS);
-        pss.setNsPrefix("ldp", LDP.NS);
+        pss.setNsPrefix("lws", LWS.NS);
         pss.setNsPrefix("dct", DCTerms.NS);
         pss.setNsPrefix("exif", EXIF.NS);
         pss.setNsPrefix("prov", PROVO.NS);
@@ -94,63 +97,76 @@ public class ListFeatures extends Panel {
         //Dataset ds = DatabaseLocator.getDatabase().getSecuredDataset();
         Dataset ds = DatabaseLocator.getDatabase().getDataset();
         logger.debug(pss.toString());
-        rdfsdf = new SelectDataProvider(ds,pss.toString());
+        rdfsdf = new SelectDataProvider(ds, pss.toString());
         ParameterizedSparqlString pss2 = rdfsdf.getPSS();
         pss2.setIri("collection", "urn:halcyon:nothing");
-        rdfsdf.SetSPARQL(pss2.toString());
+        rdfsdf.setQuery(pss2.toString());
         AjaxFallbackDefaultDataTable table = new AjaxFallbackDefaultDataTable<>("table", columns, rdfsdf, 25);
         add(table);
         Form<?> form = new Form("form");
         add(form);
-        RDFDetachableModel rdg = new RDFDetachableModel(Patterns.getALLCollectionRDF());
-        LDModel ldm = new LDModel(rdg);
-        DropDownChoice<Node> ddc = 
-            new DropDownChoice<>("collection", ldm,
-                    new LoadableDetachableModel<List<Node>>() {
-                        @Override
-                        protected List<Node> load() {
-                            org.apache.jena.rdf.model.Model ccc = ModelFactory.createDefaultModel();
-                            try {
-                                HalcyonPrincipal p = HalcyonSession.get().getHalcyonPrincipal();
-                                String uuid = p.getUserURI();
-                                AccessCache ac = AccessCachePool.getPool().borrowObject(uuid);
-                                AccessCachePool.getPool().returnObject(uuid, ac);
-                                if (ac.getCollections().size()==0) {
-                                    Dataset dsx = DataCore.getInstance().getSecuredDataset(OPEN);
-                                    org.apache.jena.rdf.model.Model cc = Patterns.getCollectionRDF2(dsx);
-                                    ac.getCollections().add(cc);  
-                                }
-                                ccc.add(ac.getCollections());                                
-                            } catch (Exception ex) {
-                                logger.error(ex.toString());
+        SessionScopedModel rdg = new SessionScopedModel(Patterns.getALLCollectionRDF());
+        DropDownChoice<Node> ddc
+                = new DropDownChoice<>("collection", new Model<>(),
+                        new LoadableDetachableModel<List<Node>>() {
+                    @Override
+                    protected List<Node> load() {
+                        org.apache.jena.rdf.model.Model ccc = ModelFactory.createDefaultModel();
+                        try {
+                            HalcyonPrincipal p = HalcyonSession.get().getHalcyonPrincipal();
+                            String uuid = p.getUserURI();
+                            AccessCache ac = AccessCachePool.getPool().borrowObject(uuid);
+                            AccessCachePool.getPool().returnObject(uuid, ac);
+                            if (ac.getCollections().size() == 0) {
+                                Dataset dsx = DataCore.getInstance().getSecuredDataset(OPEN);
+                                org.apache.jena.rdf.model.Model cc = Patterns.getCollectionRDF2(dsx);
+                                ac.getCollections().add(cc);
                             }
-                            List<Node> list = Patterns.getCollectionList45X(ccc);
-                            list.add(NodeFactory.createURI("urn:halcyon:nocollections"));
-                            //list.add(NodeFactory.createURI("urn:halcyon:allcollections"));
-                            return list;
+                            ccc.add(ac.getCollections());
+                        } catch (Exception ex) {
+                            logger.error(ex.toString());
                         }
-                    },
-                    new RDFRenderer(rdg)
+                        List<Node> list = new LinkedList<>();
+                        list.add(NodeFactory.createLiteralByValue("-- Select one --"));  // Placeholder literal
+                        list.addAll(Patterns.getCollectionList45X(ccc));
+                        list.add(NodeFactory.createURI("urn:halcyon:nocollections"));
+                        return list;
+                    }
+                },
+                        new NodeLabelRenderer(rdg, n -> switch (n.toString()) {
+                            case "urn:halcyon:nocollections" -> "not specified";
+                            case "urn:halcyon:allcollections" -> "All";
+                            default -> n.toString();
+                        })
                 );
+
         form.add(ddc);
+
         ddc.add(new AjaxFormComponentUpdatingBehavior("change") {
             @Override
             protected void onUpdate(AjaxRequestTarget target) {
+                // Check if the first item (index 0) is selected
+                if (ddc.getChoices().indexOf(ddc.getModelObject()) == 0) {
+                    // Do nothing if the placeholder is selected
+                    return;
+                }
+
                 ParameterizedSparqlString pss = rdfsdf.getPSS();
                 pss.setIri("collection", ddc.getModelObject().toString());
                 if ("urn:halcyon:nocollections".equals(ddc.getModelObject().toString())) {
                     clearSelectedFeatures();
                 }
                 logger.debug(pss.toString());
-                rdfsdf.SetSPARQL(pss.toString());
+                rdfsdf.setQuery(pss.toString());
                 if (ListFeatures.this.changeListener != null) {
                     ListFeatures.this.changeListener.onChange(target);
                 }
                 target.add(table);
             }
         });
+
     }
-    
+
     public List<Node> getAllFeatures() {
         LinkedList<Node> list = new LinkedList<>();
         Query q = rdfsdf.getQuery();
@@ -158,32 +174,35 @@ public class ListFeatures extends Panel {
         ds.begin();
         ResultSet rs = QueryExecutionFactory.create(q, ds).execSelect().materialise();
         ds.end();
-        rs.forEachRemaining(c->{
+        rs.forEachRemaining(c -> {
             list.add(c.get("creator").asNode());
         });
         return list;
     }
-    
+
     public void clearSelectedFeatures() {
         selected1.clear();
     }
-    
+
     public HashSet getSelectedFeatures() {
         HashSet<Node> list = new HashSet<>();
-        selected1.forEach(f->{ list.add(NodeFactory.createURI(f));});
+        selected1.forEach(f -> {
+            list.add(NodeFactory.createURI(f));
+        });
         return list;
     }
-    
+
     public HashSet<String>[] getFeatures() {
         HashSet<String>[] f = new HashSet[4];
         f[0] = selected1;
         return f;
     }
-    
+
     private class ActionPanel extends Panel implements IMarkupResourceStreamProvider {
+
         public ActionPanel(String id, IModel<Solution> model) {
             super(id, model);
-            String key = model.getObject().getMap().get("creator").toString();
+            String key = model.getObject().get("creator").toString();
             CheckBox ds1 = new CheckBox("checkbox1", Model.of(selected1.contains(key)));
             ds1.add(new OnChangeAjaxBehavior() {
                 @Override
@@ -195,7 +214,7 @@ public class ListFeatures extends Panel {
                     } else {
                         if (selected1.contains(key)) {
                             selected1.remove(key);
-                        }                        
+                        }
                     }
                     if (ListFeatures.this.changeListener != null) {
                         ListFeatures.this.changeListener.onChange(target);
@@ -204,7 +223,7 @@ public class ListFeatures extends Panel {
             });
             add(ds1);
         }
-        
+
         @Override
         public IResourceStream getMarkupResourceStream(MarkupContainer container, Class<?> containerClass) {
             return new StringResourceStream("""

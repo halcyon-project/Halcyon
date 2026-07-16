@@ -9,7 +9,7 @@ import org.apache.wicket.request.cycle.RequestCycle;
 import org.apache.wicket.request.mapper.parameter.PageParameters;
 import org.apache.wicket.util.resource.IResourceStream;
 import org.apache.wicket.util.resource.StringResourceStream;
-import org.keycloak.KeycloakSecurityContext;
+//import org.keycloak.KeycloakSecurityContext;
 
 /**
  *
@@ -18,19 +18,16 @@ import org.keycloak.KeycloakSecurityContext;
 public class Login extends WebPage implements IMarkupResourceStreamProvider {
     
     public Login(PageParameters parameters) {
-         super(parameters);
-         
-         System.out.println("Login : "+parameters.getIndexedCount());
-        add(new LoginForm("loginForm"));
-        
-        
-                    ServletWebRequest request = (ServletWebRequest) RequestCycle.get().getRequest();
-            HttpServletRequest containerRequest = request.getContainerRequest();
-            KeycloakSecurityContext securityContext = (KeycloakSecurityContext) containerRequest.getAttribute(KeycloakSecurityContext.class.getName());
+        //super(parameters);         
+//        System.out.println("Login : "+parameters.getIndexedCount());
+  //      add(new LoginForm("loginForm"));               
+    //    ServletWebRequest request = (ServletWebRequest) RequestCycle.get().getRequest();
+      //      HttpServletRequest containerRequest = request.getContainerRequest();
+        //    KeycloakSecurityContext securityContext = (KeycloakSecurityContext) containerRequest.getAttribute(KeycloakSecurityContext.class.getName());
             System.out.println("===============");
-            System.out.println(securityContext!=null);
+//            System.out.println(securityContext!=null);
             System.out.println("===============");
-            getSession().invalidate();
+  //          getSession().invalidate();
     }
     
     

@@ -44,4 +44,6 @@ target/*
 data/*
 dist/*
 tdb2/*
+lws-tdb2/*
 logs/*
+libs/*

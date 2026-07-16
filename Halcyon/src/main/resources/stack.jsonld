@@ -1,0 +1,37 @@
+{
+	"@id": "",
+	"@type": "Stack",
+	"layers": [
+		{ "src": "Stack0.tif" },
+		{ "src": "Stack1.tif" },
+		{ "src": "Stack2.tif" },
+		{ "src": "Stack3.tif" },
+		{ "src": "Stack4.tif" },
+		{ "src": "Stack5.tif" },
+                { "src": "Stack6.tif" }
+	],
+	"@context": {
+		"xsd": "http://www.w3.org/2001/XMLSchema#",
+		"zeph": "https://halcyon.is/zephyr/ns/",
+		"src": {
+			"@id": "zeph:src",
+			"@type": "@id"
+		},
+		"scalex": "zeph:scalex",
+		"scaley": "zeph:scaley",
+		"zorder": "zeph:zorder",
+		"pixelsizeX": "zeph:pixelsizeX",
+		"pixelsizeY": "zeph:pixelsizeY",
+		"offsetx": "zeph:offsetx",
+		"offsety": "zeph:offsety",
+		"x": "zeph:x",
+		"y": "zeph:y",
+		"layers": {
+			"@id": "zeph:layers",
+			"@container": "@list"
+		},
+		"FeatureLayer": "zeph:FeatureLayer",
+		"ImageLayer": "zeph:ImageLayer",
+		"Stack": "zeph:Stack"
+	}
+}

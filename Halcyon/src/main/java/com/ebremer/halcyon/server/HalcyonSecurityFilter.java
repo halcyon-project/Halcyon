@@ -5,9 +5,6 @@ import jakarta.servlet.FilterConfig;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.val;
 import org.pac4j.core.adapter.FrameworkAdapter;
 import org.pac4j.core.config.Config;
 import org.pac4j.core.util.Pac4jConstants;
@@ -16,16 +13,12 @@ import org.pac4j.core.util.security.SecurityEndpointBuilder;
 import org.pac4j.jee.config.AbstractConfigFilter;
 import org.pac4j.jee.context.JEEFrameworkParameters;
 import java.io.IOException;
-import org.pac4j.core.resource.SpringResourceHelper;
 
 /**
  * <p>This filter protects an URL.</p>
  *
- * @author Jerome Leleu, Michael Remond
- * @since 1.0.0
+ * @author Erich Bremer
  */
-@Getter
-@Setter
 public class HalcyonSecurityFilter extends AbstractConfigFilter implements SecurityEndpoint {
     private String clients;
     private String authorizers;
@@ -66,22 +59,29 @@ public class HalcyonSecurityFilter extends AbstractConfigFilter implements Secur
         this.matchers = getStringParam(filterConfig, Pac4jConstants.MATCHERS, this.matchers);
     }
 
-    /**
-     *
-     * @param request
-     * @param response
-     * @param filterChain
-     * @throws IOException
-     * @throws ServletException
-     */
     @Override
     protected final void internalFilter( final HttpServletRequest request, final HttpServletResponse response, final FilterChain filterChain ) throws IOException, ServletException {
-        val config = getSharedConfig();
+        var config = getSharedConfig();
         FrameworkAdapter.INSTANCE.applyDefaultSettingsIfUndefined(config);
         config.getSecurityLogic().perform(config, (ctx, session, profiles) -> {
             // if no profiles are loaded, pac4j is not concerned with this request
             filterChain.doFilter(profiles.isEmpty() ? request : new HalcyonPac4JHttpServletRequestWrapper(request, profiles), response);
             return null;
         }, clients, authorizers, matchers, new JEEFrameworkParameters(request, response));
+    }
+
+    @Override
+    public void setClients(String clients) {
+        this.clients = clients;
+    }
+
+    @Override
+    public void setAuthorizers(String authorizers) {
+        this.authorizers = authorizers;
+    }
+
+    @Override
+    public void setMatchers(String matchers) {
+        this.matchers = matchers;
     }
 }

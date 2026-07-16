@@ -1,6 +1,6 @@
 package com.ebremer.halcyon.gui.tree;
 
-import com.ebremer.ethereal.xNode;
+import com.ebremer.vandegraph.GraphNode;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.HashSet;
@@ -9,7 +9,7 @@ import java.util.Set;
 import org.apache.wicket.MetaDataKey;
 import org.apache.wicket.Session;
 
-public class NodeExpansion implements Set<xNode>, Serializable {
+public class NodeExpansion implements Set<GraphNode>, Serializable {
     private static final long serialVersionUID = 1L;
     
     private static final MetaDataKey<NodeExpansion> KEY = new MetaDataKey<>() {
@@ -30,7 +30,7 @@ public class NodeExpansion implements Set<xNode>, Serializable {
     }
 
     @Override
-    public boolean add(xNode foo) {
+    public boolean add(GraphNode foo) {
         if (inverse) {
             return ids.remove(foo.getNode().getURI());
         } else {
@@ -40,7 +40,7 @@ public class NodeExpansion implements Set<xNode>, Serializable {
 
     @Override
     public boolean remove(Object o) {
-        xNode foo = (xNode)o;
+        GraphNode foo = (GraphNode)o;
         if (inverse) {
             return ids.add(foo.getNode().getURI());
         } else {
@@ -50,7 +50,7 @@ public class NodeExpansion implements Set<xNode>, Serializable {
 
     @Override
     public boolean contains(Object o)   {
-	xNode foo = (xNode)o;
+	GraphNode foo = (GraphNode)o;
 	if (inverse) {
             return !ids.contains(foo.getNode().getURI());
 	} else {
@@ -79,7 +79,7 @@ public class NodeExpansion implements Set<xNode>, Serializable {
     }
 
     @Override
-    public Iterator<xNode> iterator() {
+    public Iterator<GraphNode> iterator() {
 	throw new UnsupportedOperationException();
     }
 
@@ -94,7 +94,7 @@ public class NodeExpansion implements Set<xNode>, Serializable {
     }
 
     @Override
-    public boolean addAll(Collection<? extends xNode> c) {
+    public boolean addAll(Collection<? extends GraphNode> c) {
 	throw new UnsupportedOperationException();
     }
 

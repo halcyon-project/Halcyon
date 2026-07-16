@@ -1,6 +1,6 @@
 package com.ebremer.halcyon.gui.tree.content;
 
-import com.ebremer.ethereal.xNode;
+import com.ebremer.vandegraph.GraphNode;
 import org.apache.wicket.Component;
 import org.apache.wicket.extensions.markup.html.repeater.tree.AbstractTree;
 import org.apache.wicket.extensions.markup.html.repeater.tree.ITreeProvider;
@@ -10,9 +10,9 @@ import org.apache.wicket.model.IModel;
 
 public class NodeCheckedFolderContent extends NodeContent {
     private static final long serialVersionUID = 1L;
-    private ProviderSubset<xNode> checked;
+    private ProviderSubset<GraphNode> checked;
 
-    public NodeCheckedFolderContent(ITreeProvider<xNode> provider) {
+    public NodeCheckedFolderContent(ITreeProvider<GraphNode> provider) {
 	checked = new ProviderSubset<>(provider, false);
     }
 
@@ -21,11 +21,11 @@ public class NodeCheckedFolderContent extends NodeContent {
 	checked.detach();
     }
 
-    protected boolean isChecked(xNode foo) {
+    protected boolean isChecked(GraphNode foo) {
 	return checked.contains(foo);
     }
 
-    protected void check(xNode foo, boolean check) {
+    protected void check(GraphNode foo, boolean check) {
 	if (check) {
             checked.add(foo);
 	} else {
@@ -34,12 +34,12 @@ public class NodeCheckedFolderContent extends NodeContent {
     }
 
     @Override
-    public Component newContentComponent(String id, final AbstractTree<xNode> tree, IModel<xNode> model) {
-	return new CheckedFolder<xNode>(id, tree, model) {
+    public Component newContentComponent(String id, final AbstractTree<GraphNode> tree, IModel<GraphNode> model) {
+	return new CheckedFolder<GraphNode>(id, tree, model) {
             private static final long serialVersionUID = 1L;
 
             @Override
-            protected IModel<Boolean> newCheckBoxModel(final IModel<xNode> model) {
+            protected IModel<Boolean> newCheckBoxModel(final IModel<GraphNode> model) {
 		return new IModel<Boolean>() {
                     private static final long serialVersionUID = 1L;
 

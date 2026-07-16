@@ -1,5 +1,7 @@
 package com.ebremer.halcyon.lib;
 
+import java.awt.Graphics2D;
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.HashSet;
 import org.locationtech.jts.geom.Coordinate;
@@ -16,6 +18,74 @@ import org.locationtech.jts.io.WKTReader;
  * @author erich
  */
 public class GeometryTools {
+    
+    public static BufferedImage copyBufferedImage(BufferedImage original) {
+        // Create a new BufferedImage with the same dimensions and type as the original
+        BufferedImage copy = new BufferedImage(original.getWidth(), original.getHeight(), original.getType());
+
+        // Get the Graphics2D object from the copy
+        Graphics2D g2d = copy.createGraphics();
+
+        // Draw the original image onto the copy
+        g2d.drawImage(original, 0, 0, null);
+
+        // Dispose the Graphics2D object to release resources
+        g2d.dispose();
+
+        return copy;
+    }
+
+    public static Polygon lumpPolygon(Polygon polygon, int tileSizeX, int tileSizeY) {
+        Coordinate[] originalCoords = polygon.getCoordinates();
+        Coordinate[] translatedCoords = new Coordinate[originalCoords.length];
+        for (int i = 0; i < originalCoords.length; i++) {
+            translatedCoords[i] = new Coordinate(
+                ((int) originalCoords[i].x /tileSizeX),
+            ((int) originalCoords[i].y/tileSizeY)
+            );
+        }
+        GeometryFactory geometryFactory = new GeometryFactory();
+        LinearRing shell = geometryFactory.createLinearRing(translatedCoords);
+        return geometryFactory.createPolygon(shell, null);
+    }  
+    
+    public static Polygon getPolygon(int x, int y, int w, int h) {
+        GeometryFactory geometryFactory = new GeometryFactory();
+        Coordinate[] squareCoordinates = new Coordinate[] {
+            new Coordinate(x,y),
+            new Coordinate(x+w,y),
+            new Coordinate(x+w,y+h),
+            new Coordinate(x,y+h),
+            new Coordinate(x,y)
+        };
+        LinearRing squareRing = geometryFactory.createLinearRing(squareCoordinates);
+        return new Polygon(squareRing, null, geometryFactory);
+    }
+    
+    public static Polygon translatePolygon(Polygon polygon, double translateX, double translateY) {
+        Coordinate[] originalCoords = polygon.getCoordinates();
+        Coordinate[] translatedCoords = new Coordinate[originalCoords.length];
+        for (int i = 0; i < originalCoords.length; i++) {
+            translatedCoords[i] = new Coordinate(
+                originalCoords[i].x - translateX,
+                originalCoords[i].y - translateY
+            );
+        }
+        GeometryFactory geometryFactory = new GeometryFactory();
+        LinearRing shell = geometryFactory.createLinearRing(translatedCoords);
+        return geometryFactory.createPolygon(shell, null);
+    }  
+    
+   public static java.awt.Polygon convertJTSToAWTPolygon(Polygon jtsPolygon) {
+        Coordinate[] coordinates = jtsPolygon.getCoordinates();
+        int[] xpoints = new int[coordinates.length];
+        int[] ypoints = new int[coordinates.length];
+        for (int i = 0; i < coordinates.length; i++) {
+            xpoints[i] = (int) coordinates[i].x;
+            ypoints[i] = (int) coordinates[i].y;
+        }
+        return new java.awt.Polygon(xpoints, ypoints, coordinates.length);
+    } 
     
     public static Polygon WKT2Polygon(String swkt) {
         if ("POLYGON EMPTY".equals(swkt)) return null;

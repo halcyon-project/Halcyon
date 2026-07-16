@@ -1,0 +1,6 @@
+PREFIX : <https://halcyon.is/ns/>
+
+<http://localhost>  a      :HalcyonSettingsFile;
+        :RDFStoreLocation  "tdb2";
+        :SPARQLport        "8887"^^<http://www.w3.org/2001/XMLSchema#int>;
+        :mode              "dev" .

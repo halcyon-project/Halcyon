@@ -10,7 +10,7 @@ import org.apache.wicket.markup.html.panel.Panel;
  * @author erich
  */
 public class ViewerPanel extends Panel {
-    private static final String options = "const options = {filterOn: true, toolbarOn: true, paintbrushColor: '#0ff', viewerOpts: {showFullPageControl: true,showHomeControl: true,showZoomControl: true}}";
+    private static final String OPTIONS = "const options = {filterOn: true, toolbarOn: true, paintbrushColor: '#0ff', viewerOpts: {showFullPageControl: true, showHomeControl: true, showZoomControl: true, timeout: 60000}}";
     
     public ViewerPanel(String id, int numx, int numy, int w, int h) {
         super(id);
@@ -21,6 +21,6 @@ public class ViewerPanel extends Panel {
     public void renderHead(IHeaderResponse response) {
 	super.renderHead(response);
         response.render(JavaScriptHeaderItem.forScript(HalcyonSession.get().getMV(), "images"));
-        response.render(JavaScriptHeaderItem.forScript(options, "options"));
+        response.render(JavaScriptHeaderItem.forScript(OPTIONS, "options"));
     }   
 }

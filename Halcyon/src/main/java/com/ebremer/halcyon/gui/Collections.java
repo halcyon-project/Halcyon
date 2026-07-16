@@ -1,17 +1,16 @@
 package com.ebremer.halcyon.gui;
 
-import com.ebremer.ethereal.SelectDataProvider;
+import com.ebremer.vandegraph.SelectDataProvider;
 import com.ebremer.halcyon.wicket.BasePage;
 import com.ebremer.halcyon.wicket.ListFeatures;
-import com.ebremer.ethereal.Solution;
+import com.ebremer.vandegraph.Solution;
 import com.ebremer.halcyon.wicket.DatabaseLocator;
-import com.ebremer.ethereal.NodeColumn;
+import com.ebremer.vandegraph.SparqlVarColumn;
 import com.ebremer.halcyon.data.DataCore;
 import com.ebremer.halcyon.datum.HalcyonFactory;
-import com.ebremer.halcyon.gui.tree.NodeNestedTreePage;
 import com.ebremer.halcyon.wicket.Upload;
 import com.ebremer.ns.HAL;
-import com.ebremer.ns.LDP;
+import com.ebremer.ns.LWS;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -45,6 +44,9 @@ import org.apache.wicket.request.mapper.parameter.PageParameters;
 import org.apache.wicket.request.resource.CssResourceReference;
 
 /**
+ * Displays a table of LDP containers (collections), allows creating new
+ * collections, and provides actions to access, delete, and add files to
+ * existing collections.
  *
  * @author erich
  */
@@ -57,29 +59,30 @@ public class Collections extends BasePage {
             @Override
             public void populateItem(Item<ICellPopulator<Solution>> cellItem, String componentId, IModel<Solution> model) {
                 Solution s = model.getObject();
-                cellItem.add(new ActionPanel(componentId, model, s.getMap().get("s").getURI()));
+                cellItem.add(new ActionPanel(componentId, model, s.get("s").getURI()));
             }
         });
-        columns.add(new NodeColumn<>(Model.of("Container Name"),"ContainerName","ContainerName"));
-        columns.add(new NodeColumn<>(Model.of("URI"),"s","s"));       
+        columns.add(new SparqlVarColumn(Model.of("Container Name"), "ContainerName"));
+        columns.add(new SparqlVarColumn(Model.of("URI"), "s"));       
         ParameterizedSparqlString pss = new ParameterizedSparqlString();
         pss.setCommandText("""
             select ?ContainerName ?s
             where {graph ?car {
-                ?s a ldp:Container .
+                ?s a lws:Container .
                 optional { ?s dct:title ?ContainerName}
                 }
             } order by ?s
         """);
-        pss.setNsPrefix("ldp", LDP.NS);
+        pss.setNsPrefix("lws", LWS.NS);
         pss.setNsPrefix("dct", DCTerms.NS);
         pss.setIri("car", HAL.CollectionsAndResources.getURI());
         Dataset ds = DatabaseLocator.getDatabase().getDataset();
         SelectDataProvider rdfsdf = new SelectDataProvider(ds,pss.toString());
-        rdfsdf.SetSPARQL(pss.toString());
+        rdfsdf.setQuery(pss.toString());
         add(new AjaxFallbackDefaultDataTable<>("table", columns, rdfsdf,35)); 
         
         Button button = new Button("newCollection");
+//        button.setVisible(false);
         button.add(new AjaxEventBehavior("click") {
             @Override
             protected void onEvent(AjaxRequestTarget target) {
@@ -93,13 +96,14 @@ public class Collections extends BasePage {
                 ParameterizedSparqlString pss = new ParameterizedSparqlString(
                         """
                         insert {
-                            graph ?g {?s a so:Collection}
+                            graph ?g {?s a lws:Container}
                         }
                         where {
-                            graph ?s {?s a so:Collection}
+                            graph ?s {?s a lws:Container}
                         }
                         """
-                );                                                              
+                );
+                pss.setNsPrefix("lws", LWS.NS);
                 pss.setNsPrefix("so", SchemaDO.NS);
                 pss.setIri("g", HAL.CollectionsAndResources.getURI());
                 UpdateRequest updateRequest = UpdateFactory.create(pss.toString());

@@ -63,14 +63,14 @@ public final class HilbertSpace {
     
     public boolean inRange(Ranges rr, Point p, Byte neighbor) {
         switch (neighbor) {
-            case N: return contains(rr,p.x,p.y-1);
-            case NE: return contains(rr,p.x+1,p.y-1);
-            case E: return contains(rr,p.x+1,p.y);
-            case SE: return contains(rr,p.x+1,p.y+1);
-            case S: return contains(rr,p.x,p.y+1);
-            case SW: return contains(rr,p.x-1,p.y+1);
-            case W: return contains(rr,p.x-1,p.y);
-            case NW: return contains(rr,p.x-1,p.y-1);
+            case N -> contains(rr,p.x,p.y-1);
+            case NE -> contains(rr,p.x+1,p.y-1);
+            case E -> contains(rr,p.x+1,p.y);
+            case SE -> contains(rr,p.x+1,p.y+1);
+            case S -> contains(rr,p.x,p.y+1);
+            case SW -> contains(rr,p.x-1,p.y+1);
+            case W -> contains(rr,p.x-1,p.y);
+            case NW ->contains(rr,p.x-1,p.y-1);
         }
         return false;
     }
@@ -282,7 +282,7 @@ public final class HilbertSpace {
         return bi;
     }
     
-    public BufferedImage GetBIbyProbility(int px, int py, int width, int height, HashMap<Integer,LinkedList<Range>> ranges, HashMap<Integer,Float> values) {
+    public BufferedImage GetBIbyProbability(int px, int py, int width, int height, HashMap<Integer,LinkedList<Range>> ranges, HashMap<Integer,Float> values) {
         BufferedImage bi = new BufferedImage(width,height,BufferedImage.TYPE_INT_ARGB);
         Graphics2D g2 = bi.createGraphics();
         g2.setColor(new Color(128,0,128,128));

@@ -5,33 +5,27 @@ import com.ebremer.halcyon.filereaders.FileReader;
 import com.ebremer.halcyon.filereaders.FileReaderFactory;
 import com.ebremer.halcyon.filereaders.FileReaderFactoryProvider;
 import com.ebremer.halcyon.filereaders.ImageReader;
+import com.ebremer.halcyon.filereaders.RDFFileReader;
 import com.ebremer.halcyon.lib.FileUtils;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import com.ebremer.halcyon.server.utils.PathMapper;
-import com.ebremer.halcyon.utils.HashTools;
-import com.ebremer.halcyon.utils.HashTools.Hashes;
+import com.ebremer.halcyon.utils.HURI;
 import com.ebremer.ns.HAL;
-import com.ebremer.ns.LDP;
-import com.ebremer.ns.LOC;
+import com.ebremer.ns.LWS;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.NoSuchAlgorithmException;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import static java.util.stream.Collectors.toList;
-import java.util.stream.Stream;
 import org.apache.jena.datatypes.xsd.XSDDatatype;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.ParameterizedSparqlString;
@@ -45,12 +39,11 @@ import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.ResourceFactory;
-import org.apache.jena.riot.Lang;
-import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.vocabulary.DCTerms;
 import org.apache.jena.vocabulary.OWL;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.SchemaDO;
+import org.apache.jena.vocabulary.XSD;
 import org.slf4j.LoggerFactory;
 
 /**
@@ -58,18 +51,21 @@ import org.slf4j.LoggerFactory;
  * @author erich
  */
 public class DirectoryProcessor {
+    private static final org.slf4j.Logger logger = LoggerFactory.getLogger(DirectoryProcessor.class);
     public final int cores;
     private final Dataset buffer;
     private record FileMeta(long fileLastModified) {};
     private final ConcurrentHashMap<Resource, FileMeta> list;
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-    private static final org.slf4j.Logger logger = LoggerFactory.getLogger(DirectoryProcessor.class);
     private static final Integer filemetaversion = 0;
     
-    public DirectoryProcessor(Dataset buffer) {
+    public DirectoryProcessor(Dataset buffer, int cores) {
         this.buffer = buffer;
-        list = GetExisting();
-        cores = 4;
+        this.list = GetExisting();
+        this.cores = cores;
+        list.forEach((k,v)->{
+            IO.println("EXISTS : "+k);
+        });
     }
     
     public Model PathInfo(URI childuri) {
@@ -80,115 +76,133 @@ public class DirectoryProcessor {
             URI xparent = HURI.getParent(npath);
             Resource parent = m.createResource(xparent.toString());
             Resource child = m.createResource(npath.toString());
-            m.add(parent, LDP.contains, child);
+            m.add(parent, LWS.contains, child);
+            m.add(child, LWS.partOf, parent);
             m.add(parent, DCTerms.title, (new File(xparent.getPath()).getName()));
-            m.add(parent, RDF.type, LDP.BasicContainer);
-            m.add(parent, RDF.type, LDP.Container);
+            m.add(parent, RDF.type, LWS.Container);
             npath = xparent;
         }
         return m;
     }
 
     public void Traverse(Path src) {
-        try {
-            Stream<Path> yay = Files.walk(src);
-            ForkJoinPool fjp = null;
-            try {
-                fjp = new ForkJoinPool(cores);
-                fjp.submit(()->yay.collect(toList()).parallelStream()
-                    .filter(Objects::nonNull)
-                    .filter(fff -> fff.toFile().isFile())                     
-                    .filter(fx->{
-                        Optional<URI> rrz = PathMapper.getPathMapper().file2http(fx.toUri());
-                        if (rrz.isPresent()) {
-                            Resource target = ResourceFactory.createResource(rrz.get().toString());
-                            if (list.containsKey(target)) {
-                                return fx.toFile().lastModified() != list.get(target).fileLastModified();
-                            } else {
-                                return true;
-                            } 
-                        }
-                        System.out.println("Problem with : "+fx.toString());
-                        return false;
-                    })
-                    .filter(fff->FileReaderFactoryProvider.hasReaderFor(fff))
-                    .forEach(fx -> {
-                        Optional<URI> rrz = PathMapper.getPathMapper().file2http(fx.toUri());
-                        URI httpuri;                       
-                        if (rrz.isPresent()) {
-                            httpuri = rrz.get();
-                        } else {
-                            throw new Error("ACK!!!!");
-                        }                        
-                        System.out.println("Processing ---> "+fx+"  "+httpuri.toString());
-                        Model m = ModelFactory.createDefaultModel();
-                        Resource r = m.createResource(httpuri.toString());
-                        r
-                            .addProperty(RDF.type, LDP.NonRDFSource)
-                            .addProperty(RDF.type, SchemaDO.ImageObject)
-                            .addProperty(OWL.sameAs, m.createResource(HURI.of(fx).toString()));
-                        File file = fx.toFile();
-                        FileReaderFactory frf = FileReaderFactoryProvider.getReaderForFormat(r);
-                        try (FileReader fr = frf.create(fx.toUri(), httpuri)){
-                            Model xxx = fr.getMeta(httpuri);
-                            m.add(xxx);
-                            if (fr instanceof ImageReader) {
-                                m.add(r, SchemaDO.fileFormat, FileUtils.getExtension(fr.getFormat()));
+        try (ForkJoinPool fjp = new ForkJoinPool(cores)) {
+            fjp.submit(()->{
+                try {
+                    Files.walk(src)
+                        .filter(f->f.toFile().isFile())
+                      //  .parallel()                  
+                        .filter(fx->{
+                            logger.trace("Processing this {}", fx);
+                            Optional<URI> rrz = PathMapper.getPathMapper().file2http(fx.toUri());
+                            if (rrz.isPresent()) {
+                                logger.trace("Has PathMapper {}", fx);
+                                Resource target = ResourceFactory.createResource(rrz.get().toString());
+                                if (list.containsKey(target)) {
+                                    return fx.toFile().lastModified() != list.get(target).fileLastModified();
+                                } else {
+                                    return true;
+                                }
                             }
-                            m.addLiteral(r, HAL.validFile, true);
-                        } catch (Exception ex) {
-                            m.addLiteral(r, HAL.validFile, false);
-                            m.addLiteral(r, HAL.filemetaversion, filemetaversion);
-                        }
-                        Model pathinfo;
+                            logger.trace("Mapping not found for {}", fx.toString());
+                            return false;
+                        })                        
+                        .filter(fff->FileReaderFactoryProvider.hasReaderFor(fff))
+                        .forEach(fx -> {
+                            Optional<URI> rrz = PathMapper.getPathMapper().file2http(fx.toUri());
+                            URI httpuri;
+                            if (rrz.isPresent()) {
+                                httpuri = rrz.get();
+                            } else {
+                                throw new Error("ACK!!!!");
+                            }
+                            logger.info("Processing ---> "+fx+"  "+httpuri.toString());
+                            Model m = ModelFactory.createDefaultModel();
+                            Resource r = m.createResource(httpuri.toString());
+                            r.addProperty(OWL.sameAs, m.createResource(HURI.of(fx).toString()));
+                           // File file = fx.toFile();
+                            FileReaderFactory frf = FileReaderFactoryProvider.getReaderForFormat(r);
+                            logger.info("Reader {}", frf);
+                            try (FileReader fr = frf.create(fx.toUri(), httpuri)){
+                                //logger.info("A");
+                                Model xxx;                                
+                                
+                                //if (fr instanceof RDFFileReader rdf) {
+                                  //  xxx = fr.getMeta();
+                                //} else {
+                                    xxx = fr.getMeta();
+                                //}
+                                /*
+                                    RDFFileReaderFactory rdff = (RDFFileReaderFactory) FileReaderFactoryProvider.getReaderForFormat(r);
+                                    RDFFileReader za = (RDFFileReader) rdff.create(httpuri, PathMapper.getPathMapper());
+                                    xxx = za.getMeta();
+                                } else {
+                                    xxx = fr.getMeta();
+                                }*/
+                                //Model xxx = fr.getMeta();
+                                //logger.info("B");
+                                m.add(xxx);
+                                //logger.info("C");
+                                if (fr instanceof ImageReader) {
+                                    //logger.info("D");
+                                    r.addProperty(SchemaDO.fileFormat, FileUtils.getExtension(fr.getFormat()));
+                                    //logger.info("E");
+                                }
+                                //logger.info("F");
+                                r.addLiteral(HAL.validFile, true);
+                                //logger.info("G");
+                            } catch (Exception ex) {
+                                logger.info("WHAT?!?! {} {}", fx, ex.getMessage());
+                                r.addLiteral(HAL.validFile, false);
+                                r.addLiteral(HAL.filemetaversion, m.createTypedLiteral(filemetaversion, XSD.integer.getURI()));
+                            }
+                            Model pathinfo;
                             ZonedDateTime dateTime = ZonedDateTime.now();
                             dateTime.format(formatter);
                             Literal dateLiteral = m.createTypedLiteral(dateTime.format(formatter), XSDDatatype.XSDdateTime);
-                            m.add(r, DCTerms.dateAccepted, dateLiteral);
-                            m.add(r, DCTerms.modified, dateLiteral);
-                            m.add(r, DCTerms.title, r.getLocalName());
-                            m.addLiteral(r,SchemaDO.contentSize,file.length());
-                            m.add(r,SchemaDO.instrument, HalcyonSettings.HALCYONAGENT);
-                            m.add(r,HAL.halcyonVersion, HalcyonSettings.VERSION);
-                            m.addLiteral(r, HAL.fileLastModified, file.lastModified());
-                            long now = System.nanoTime();
-                            Hashes hashes;
-                            
+                            r.addProperty(DCTerms.dateAccepted, dateLiteral);
+                            r.addProperty(DCTerms.modified, dateLiteral);
+                            r.addProperty(DCTerms.title, r.getLocalName());
+                            r.addProperty(HAL.halcyonVersion, HalcyonSettings.VERSION);
+                            //long now = System.nanoTime();
+                            /*
+                            Hashes hashes;                                    
                             try {
                                 hashes = HashTools.calculateHashes(file);
-                                m.add(r,LOC.md5,hashes.MD5());
-                                m.add(r, OWL.sameAs, m.createResource("urn:md5:"+hashes.MD5()));
-                                m.add(r, LOC.sha256, hashes.SHA256());
-                                m.add(r, OWL.sameAs, m.createResource("urn:sha256:"+hashes.SHA256()));
+                                r.addProperty(LOC.md5,hashes.MD5());
+                                r.addProperty(OWL.sameAs, m.createResource("urn:md5:"+hashes.MD5()));
+                                r.addProperty(LOC.sha256, hashes.SHA256());
+                                r.addProperty(OWL.sameAs, m.createResource("urn:sha256:"+hashes.SHA256()));
                             } catch (NoSuchAlgorithmException ex) {
-                                Logger.getLogger(DirectoryProcessor.class.getName()).log(Level.SEVERE, null, ex);
+                                logger.error(ex.toString());
                             } catch (FileNotFoundException ex) {
-                                Logger.getLogger(DirectoryProcessor.class.getName()).log(Level.SEVERE, null, ex);
+                                logger.error(ex.toString());
                             } catch (IOException ex) {
-                                Logger.getLogger(DirectoryProcessor.class.getName()).log(Level.SEVERE, null, ex);
-                            }
-                            System.out.println("Time = "+((System.nanoTime()-now)/1000000000d));
+                                logger.error(ex.toString());
+                            }*/
+                            //System.out.println("Time = "+((System.nanoTime()-now)/1000000000d));
                             pathinfo = PathInfo(httpuri);
+                            //System.out.println("============== PATHINFO =====================");
+                            //pathinfo.write(System.out, "TTL");
+                            //System.out.println("============== DATA =====================");
+                            //m.write(System.out, "TTL");
+                            //System.out.println("RESOURCE "+r);
+                            logger.trace("opening database for write");
                             buffer.begin(ReadWrite.WRITE);
                             buffer.addNamedModel(HAL.CollectionsAndResources, pathinfo);
                             buffer.removeNamedModel(r);
-                            System.out.println("VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV");
-                            RDFDataMgr.write(System.out, m, Lang.TURTLE);
-                            System.out.println("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
                             buffer.addNamedModel(r, m);
+                            logger.trace("commit data");
                             buffer.commit();
                             buffer.end();
-                        System.out.println("Processed : "+r);
-                    })
-                ).get();
-            } catch (InterruptedException | ExecutionException ex) {
-                logger.error(ex.toString());
-            } finally {
-                if (fjp != null) {
-                    fjp.shutdown();
+                            logger.info("Processed : {} {}", r, m.size());
+                        });
+                } catch (IOException ex) {
+                    Logger.getLogger(DirectoryProcessor.class.getName()).log(Level.SEVERE, null, ex);
                 }
             }
-        } catch (IOException ex) {
+            ).get();
+        } catch (InterruptedException | ExecutionException ex) {
             logger.error(ex.toString());
         }
     }

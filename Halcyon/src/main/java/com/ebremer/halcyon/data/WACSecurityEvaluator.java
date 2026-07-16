@@ -17,9 +17,9 @@ import org.apache.jena.graph.Triple;
 import org.apache.jena.permissions.SecurityEvaluator;
 import org.apache.jena.query.ParameterizedSparqlString;
 import org.apache.jena.query.QueryExecutionFactory;
-import org.apache.jena.shared.AuthenticationRequiredException;
 import org.apache.jena.vocabulary.SchemaDO;
 import org.apache.shiro.SecurityUtils;
+import org.apache.shiro.UnavailableSecurityManagerException;
 
 /**
  * 
@@ -35,12 +35,10 @@ public final class WACSecurityEvaluator implements SecurityEvaluator {
     @Override
     public boolean evaluate(Object principal, Action action, Node node) {
         if (node.equals(Node.ANY)) {
-            return false; // all wild cards are false
+            return false;
         }
-        //return true;
-        
         if (level == OPEN) {
-            if (node.matches(HAL.CollectionsAndResources.asNode())) {
+            if (node.equals(HAL.CollectionsAndResources.asNode())) {
                 return true;
             }
         }
@@ -146,7 +144,7 @@ public final class WACSecurityEvaluator implements SecurityEvaluator {
     public Principal getPrincipal() {
         try {
             return ((JwtToken) SecurityUtils.getSubject().getPrincipal()).getPrincipal();
-        } catch (org.apache.shiro.UnavailableSecurityManagerException ex) {
+        } catch (UnavailableSecurityManagerException ex) {
             // assume and try for a Keycloak Servlet Filter Auth
         }
         //return new HalcyonPrincipal("https://ebremer.com/profile#me");

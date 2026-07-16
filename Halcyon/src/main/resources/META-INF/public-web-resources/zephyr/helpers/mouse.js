@@ -9,7 +9,7 @@ export function getMousePosition(clientX, clientY, canvas, camera) {
   mouse.x = ((clientX - domRect.left) / domRect.width) * 2 - 1;
   mouse.y = -((clientY - domRect.top) / domRect.height) * 2 + 1;
 
-  // Initialize our Raycaster
+  // Initialize Raycaster
   let raycaster = new THREE.Raycaster();
   raycaster.setFromCamera(mouse, camera); // set raycaster's origin and direction
 

@@ -1,3 +1,6 @@
+import { invalidate } from "../renderLoop.js";
+import { formatLength, formatArea } from "./conversions.js";
+
 export function createButton(options) {
   let myButton = document.createElement("button");
   myButton.id = options.id;
@@ -18,8 +21,10 @@ export function createSlider({ id, title, min, max, step, value }) {
   const slider = document.createElement('input');
 
   sliderContainer.className = 'slider-container';
+  // The container is what gets inserted into the DOM, so it carries a
+  // removable id (toolbar destroy targets "<id>Container").
+  sliderContainer.id = `${id}Container`;
   sliderLabel.htmlFor = id;
-  // sliderLabel.textContent = title;
   sliderLabel.innerHTML = title;
   slider.type = 'range';
   slider.id = id;
@@ -33,7 +38,7 @@ export function createSlider({ id, title, min, max, step, value }) {
 
   // Apply CSS to make the container inline-block
   sliderContainer.style.display = 'inline-block';
-  sliderContainer.style.marginRight = '10px'; // add some space between sliders
+  sliderContainer.style.marginRight = '2px'; // add some space between sliders
 
   let canvas = document.querySelector('canvas');
   document.body.insertBefore(sliderContainer, canvas);
@@ -59,8 +64,8 @@ export function textInputPopup(event, object) {
 
   const input = document.createElement('input');
   input.type = 'text';
-  if (object.userData.text && object.userData.text !== '') {
-    input.value = object.userData.text;
+  if (object.userData.cancerType && object.userData.cancerType !== '') {
+    input.value = object.userData.cancerType;
   } else {
     input.placeholder = 'Enter text for the shape';
   }
@@ -111,8 +116,7 @@ export function textInputPopup(event, object) {
   // Handle text input and saving
   button.addEventListener('click', () => {
     if (input.value) {
-      object.userData.text = input.value; // Store text in the object's userData
-      // You can now access the text using object.userData.text
+      object.userData.cancerType = input.value; // Store the data
     }
     popup.remove(); // Remove the popup
   });
@@ -134,9 +138,9 @@ function timeStamp() {
  */
 export function screenCapture(renderer) {
   let downloadButton = createButton({
-    id: "download",
+    id: "screenCapture",
     innerHtml: "<i class=\"fas fa-camera\"></i>",
-    title: "Download"
+    title: "Screen Capture"
   });
 
   downloadButton.addEventListener('click', () => {
@@ -154,41 +158,7 @@ export function screenCapture(renderer) {
   });
 }
 
-export function deleteIcon(event, mesh, scene) {
-  // Calculate the position to place the div icon near the cursor
-  const divPosX = event.clientX;
-  const divPosY = event.clientY;
-
-  // Create the div and set its position
-  const iconDiv = document.createElement('div');
-  iconDiv.innerHTML = '<i class="fa fa-trash" style="color: #0000ff;"></i>';
-  iconDiv.style.position = 'absolute';
-  iconDiv.style.left = `${divPosX}px`;
-  iconDiv.style.top = `${divPosY}px`;
-  document.body.appendChild(iconDiv);
-
-  // Add click event listener to the icon for deletion
-  iconDiv.addEventListener('click', function() {
-    // Dispose of the rectangle's geometry and material before removing it
-    if (mesh.geometry) mesh.geometry.dispose();
-    if (mesh.material) {
-      // If the material is an array (multi-materials), dispose each one
-      if (Array.isArray(mesh.material)) {
-        mesh.material.forEach(material => material.dispose());
-      } else {
-        mesh.material.dispose();
-      }
-    }
-
-    // Remove the mesh from the Three.js scene
-    scene.remove(mesh);
-
-    // Remove the div from the DOM
-    document.body.removeChild(iconDiv);
-  });
-}
-
-export function removeObject(obj) {
+export function removeObject(obj, scene) {
   if (obj.parent) {
     obj.parent.remove(obj); // Ensure the object is removed from its parent
   } else {
@@ -203,16 +173,65 @@ export function removeObject(obj) {
       obj.material.dispose();
     }
   }
+  invalidate();
 }
 
-export function turnOtherButtonsOff(activeButton) {
-  // Ensure only one button is "active" at any given moment.
-  const buttons = document.querySelectorAll('button');
-  buttons.forEach(button => {
-    if (button.id !== activeButton.id) {
-      if (button.classList.contains('btnOn')) {
-        button.click(); // shut it off
-      }
-    }
+// turnOtherButtonsOff is gone (#30): tool exclusion is ToolManager state,
+// not synthetic DOM clicks — see toolManager.js.
+
+/**
+ * Show a measurement result. `area`/`perimeter` are in image pixels of the
+ * measured layer; pass its micronsPerPixel (um/px) to display physical units,
+ * or null to report pixels.
+ */
+export function displayAreaAndPerimeter(area, perimeter, micronsPerPixel = null) {
+  const areaText = micronsPerPixel
+    ? formatArea(area * micronsPerPixel * micronsPerPixel)
+    : `${area.toFixed(2)} pixels²`;
+  const perimeterText = micronsPerPixel
+    ? formatLength(perimeter * micronsPerPixel)
+    : `${perimeter.toFixed(2)} pixels`;
+
+  let div = document.createElement("div");
+  div.classList.add("floating-div");
+
+  // Close button
+  let closeButton = document.createElement("span");
+  closeButton.innerHTML = '&times;';
+  closeButton.classList.add('close-button');
+  closeButton.addEventListener('click', () => {
+    div.remove();
   });
+
+  // Auto-dismiss: remove (not just hide) so repeated measurements don't
+  // accumulate orphaned divs in the DOM.
+  setTimeout(() => {
+    div.remove();
+  }, 5000);
+
+  div.innerHTML = `Area: ${areaText}<br>Perimeter: ${perimeterText}`;
+  div.appendChild(closeButton);
+  document.body.appendChild(div);
+  // console.log(area.toFixed(2), perimeter.toFixed(2));
+}
+
+export function findObjectsByName(object, name) {
+  let result = [];
+
+  // Define a recursive function to traverse the scene graph
+  function traverse(obj) {
+    if (obj.name === name) {
+      result.push(obj);
+    }
+
+    // Recursively search for children
+    for (let i = 0; i < obj.children.length; i++) {
+      traverse(obj.children[i]);
+    }
+  }
+
+  // Start the traversal from the root object
+  traverse(object);
+
+  return result;
 }

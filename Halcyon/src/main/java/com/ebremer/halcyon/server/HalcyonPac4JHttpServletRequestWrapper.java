@@ -10,7 +10,6 @@ import org.pac4j.core.profile.ProfileHelper;
 import org.pac4j.core.profile.UserProfile;
 import org.pac4j.oidc.profile.keycloak.KeycloakOidcProfile;
 
-
 public class HalcyonPac4JHttpServletRequestWrapper extends HttpServletRequestWrapper {
 
     private final Collection<UserProfile> profiles;

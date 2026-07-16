@@ -1,5 +1,9 @@
 package com.ebremer.halcyon.lib;
 
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.LinearRing;
+import org.locationtech.jts.geom.Polygon;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,6 +27,19 @@ public class ImageRegion {
     
     public int getX() {
         return x;
+    }
+    
+    public Polygon getPolygon() {
+        GeometryFactory geometryFactory = new GeometryFactory();
+        Coordinate[] squareCoordinates = new Coordinate[] {
+            new Coordinate(x,y),
+            new Coordinate(x+width,y),
+            new Coordinate(x+width,y+height),
+            new Coordinate(x,y+height),
+            new Coordinate(x,y)
+        };
+        LinearRing squareRing = geometryFactory.createLinearRing(squareCoordinates);
+        return new Polygon(squareRing, null, geometryFactory);
     }
     
     public ImageRegion scaleRegion(double ratio) {

@@ -1,4 +1,6 @@
+// Conversions and calculations
 import * as THREE from 'three';
+import { getActiveEntry } from "./annotationTarget.js";
 
 /**
  * Convert three.js coordinates to image coordinates
@@ -33,31 +35,39 @@ export function worldToImageCoordinates(positionArray, scene) {
   return imageCoordinates;
 }
 
-function getDims(scene) {
-  let imageWidth, imageHeight;
-  let children = scene.children;
-  for (let i = 0; i < children.length; i++) {
-    const child = children[i];
-    if (child instanceof THREE.LOD) {
-      imageWidth = child.imageWidth;
-      imageHeight = child.imageHeight;
-      break;
-    }
-  }
-  return { imageWidth, imageHeight }
+/**
+ * Find the first tiled ImageViewer (THREE.LOD) anywhere under `object`. Unlike
+ * the old direct-children scan this recurses, because in a stack the LODs are
+ * nested inside layer groups rather than being direct children of the scene.
+ */
+function findLOD(object) {
+  let found = null;
+  object.traverse(o => { if (!found && o instanceof THREE.LOD && o.url) found = o; });
+  return found;
 }
 
-export function getUrl(scene) {
-  let url;
-  let children = scene.children;
-  for (let i = 0; i < children.length; i++) {
-    const child = children[i];
-    if (child instanceof THREE.LOD) {
-      url = child.url;
-      break;
-    }
+/**
+ * Get dimensions of the active image (the layer annotations target), falling
+ * back to the first LOD in the scene for the single-image / pre-selection case.
+ */
+function getDims(scene) {
+  const e = getActiveEntry();
+  if (e && e.imageWidth && e.imageHeight) {
+    return { imageWidth: e.imageWidth, imageHeight: e.imageHeight };
   }
-  return url;
+  const lod = findLOD(scene);
+  return lod ? { imageWidth: lod.imageWidth, imageHeight: lod.imageHeight } : {};
+}
+
+/**
+ * Get the active image's IIIF identifier (bare id), falling back to the first
+ * LOD in the scene.
+ */
+export function getUrl(scene) {
+  const e = getActiveEntry();
+  if (e && e.src) return e.src;
+  const lod = findLOD(scene);
+  return lod ? lod.url : undefined;
 }
 
 /**
@@ -107,3 +117,62 @@ export function pixelsToMicrons(length_in_px) {
 export function pixelsToMicrometers(pixels, micronsPerPixel) {
   return pixels * micronsPerPixel;
 }
+
+/** Human-friendly physical length from micrometres (um -> mm -> cm). */
+export function formatLength(microns) {
+  if (microns >= 10000) return `${(microns / 10000).toFixed(2)} cm`;
+  if (microns >= 1000) return `${(microns / 1000).toFixed(2)} mm`;
+  return `${microns.toFixed(2)} µm`;
+}
+
+/** Human-friendly physical area from square micrometres. */
+export function formatArea(squareMicrons) {
+  if (squareMicrons >= 1e8) return `${(squareMicrons / 1e8).toFixed(2)} cm²`;
+  if (squareMicrons >= 1e6) return `${(squareMicrons / 1e6).toFixed(2)} mm²`;
+  return `${squareMicrons.toFixed(2)} µm²`;
+}
+
+/**
+ * Calculate the area of a polygon in square image pixels.
+ *
+ * `positions` is a flat x,y,z array in the annotation layer's local space,
+ * whose units ARE image pixels — so the Shoelace formula on the raw
+ * coordinates is exact, independent of zoom, camera, and devicePixelRatio.
+ * Works for both open rings and closed rings (last vertex == first): the
+ * wrap-around term of a closed ring is zero.
+ */
+export function calculatePolygonArea(positions) {
+  // The Shoelace formula (or Gauss's area formula)
+  let area = 0;
+  const n = positions.length / 3;
+
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    const x1 = positions[3 * i];
+    const y1 = positions[3 * i + 1];
+    const x2 = positions[3 * j];
+    const y2 = positions[3 * j + 1];
+    area += (x1 * y2 - x2 * y1);
+  }
+  return Math.abs(area) / 2;
+}
+
+/**
+ * Calculate the perimeter of a polygon in image pixels (same coordinate
+ * conventions as calculatePolygonArea).
+ */
+export function calculatePolygonPerimeter(positions) {
+  // The sum of the distances between each pair of consecutive vertices,
+  // including the closing edge back to the first vertex.
+  let perimeter = 0;
+  const n = positions.length / 3;
+
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    const dx = positions[3 * j] - positions[3 * i];
+    const dy = positions[3 * j + 1] - positions[3 * i + 1];
+    perimeter += Math.sqrt(dx * dx + dy * dy);
+  }
+  return perimeter;
+}
+

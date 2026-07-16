@@ -18,7 +18,7 @@ public class ImageMeta {
     private final int tileSizeX;
     private final int tileSizeY;
     private final Double magnification;
-    private final float aspectratio;
+    //private final float aspectratio;
     private final Model meta;
     private static final Logger logger = LoggerFactory.getLogger(ImageMeta.class);
     
@@ -30,7 +30,7 @@ public class ImageMeta {
         this.tileSizeY = builder.tileSizeY;
         this.magnification = builder.magnification;
         this.scales = builder.scales;
-        this.aspectratio = builder.aspectratio;
+        //this.aspectratio = builder.aspectratio;
         this.meta = builder.meta;
     }
     
@@ -43,12 +43,13 @@ public class ImageMeta {
     }
     
     public ImageScale getBestMatch(double ratio) {
+        int iratio = (int) Math.round(ratio);
         int c = scales.size();
         ImageScale scale;
         do {            
             c--;
             scale = scales.get(c);
-        } while ((c>0)&&(ratio<=scale.scale));
+        } while ((c>0)&&(iratio<scale.scale));
         return scale;
     }
 
@@ -93,7 +94,7 @@ public class ImageMeta {
         }
         
         public ImageRegion Validate(ImageRegion region) {
-           if (((region.getX()+region.getWidth()) < width)&&((region.getY()+region.getHeight()) < height)) {
+            if (((region.getX()+region.getWidth()) < width)&&((region.getY()+region.getHeight()) < height)) {
                 return region;
             }
             int w = region.getX()+region.getWidth();
@@ -124,7 +125,6 @@ public class ImageMeta {
             this.aspectratio = ((float)width)/((float)height);
             useWidth = (width>=height);
             scales = new ArrayList<>();
-            //scales.add(new ImageScale(0,1,width,height,((float)width)/((float)height)));
         }
         
         public Builder setSeries(int series) {
@@ -167,13 +167,10 @@ public class ImageMeta {
             float ratio = ((float)width)/((float)height);
             float d = Math.abs(ratio-aspectratio);
             d = d/aspectratio;
-            //System.out.println(d);
             if (!filter||(d<0.04)) {                
                 logger.trace("Adding Scale "+series+"  "+d+"  "+ratio+"  "+scales.size()+" "+width+" x "+height);
-               // System.out.println("Adding Scale "+series+"  "+d+"  "+ratio+"  "+scales.size()+" "+width+" x "+height);
                 scales.add(new ImageScale(series,scale,width,height,ratio));
             } else {
-               // System.out.println("Aspect Ratio different "+series+"  "+d+"  "+ratio+"  "+scales.size()+" "+width+" x "+height);
                 logger.trace("Aspect Ratio different "+series+"  "+d+"  "+ratio+"  "+scales.size()+" "+width+" x "+height);
             }
             return this;
@@ -188,4 +185,3 @@ public class ImageMeta {
         }
     }
 }
-

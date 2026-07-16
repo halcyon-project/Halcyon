@@ -47,7 +47,14 @@ public class FeatureGeneration {
         );
         pssx.setNsPrefix("geo", GEO.NS);
         pssx.setNsPrefix("hal", HAL.NS);
-        UpdateAction.parseExecute(pssx.toString(), m);
+        try {
+            UpdateAction.parseExecute(pssx.toString(), m);
+        } catch (Exception ex) {
+            System.out.println("AddAreas -> "+ex.getMessage());
+        } catch ( Throwable t ) {
+            t.printStackTrace();
+        }
+        System.out.println("Done adding areas...");
 //        Display(m);
     }
     

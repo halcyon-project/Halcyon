@@ -1,0 +1,44 @@
+name: Generate Changelog and Contributors
+
+on:
+  workflow_dispatch: # Trigger the workflow manually
+  # push:
+  #   branches:
+  #     - master
+
+jobs:
+  generate_changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Generate Changelog and Contributors
+        run: |
+          # Install necessary tools
+          sudo apt-get update
+          sudo apt-get install -y git
+          # Get the latest commit hash
+          git rev-parse HEAD > latest_commit.txt
+          # Get the last tag
+          last_tag=$(git describe --tags --abbrev=0 --match="v*" | tail -n 1)
+          # Generate the changelog
+          if [ -n "$last_tag" ]; then
+            echo "Tag found. Generating changelog since last tag."
+            git log --pretty=format:'%ad | %an | %s' --no-merges --since="$last_tag" > changelog.md
+          else
+            echo "No tag found. Generating changelog for all commits."
+            git log --pretty=format:'%ad | %an | %s' --no-merges > changelog.md
+          fi
+          # Generate a list of contributors
+          output=$(git log --format='%aN' | sort -u)
+          echo "$output" > contributors.txt
+          
+      - name: Commit and Push Changes
+        run: |
+          git config --local user.name "github-actions[bot]"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git add changelog.md contributors.txt
+          git commit -m "chore: update changelog and contributors"
+          git push origin HEAD:${{ github.ref }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

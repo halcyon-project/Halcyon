@@ -13,7 +13,7 @@ public class DASH {
      * The namespace of the vocabulary as a string
      */
     
-    public static final String NS ="https://datashapes.org/dash#";
+    public static final String NS ="http://datashapes.org/dash#";
     public static final Resource ValueTableViewer   = ResourceFactory.createResource( NS + "ValueTableViewer" );
     public static final Property editor             = ResourceFactory.createProperty( NS + "editor" );
     

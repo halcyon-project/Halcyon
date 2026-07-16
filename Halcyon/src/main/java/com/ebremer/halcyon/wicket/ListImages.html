@@ -1,6 +1,109 @@
 <html>
 <body>    
 <wicket:extend>
+            <style>
+            body {
+                font-family: Arial, sans-serif !important;
+                color: #333;
+                background-color: #f4f4f9;
+            }
+            form {
+                margin-bottom: 20px;
+                padding: 10px;
+                border: 1px solid #ddd;
+                border-radius: 8px;
+                background-color: #fff;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, .1);
+            }
+            label,
+            select {
+                font-size: 14px;
+                display: inline-block;
+                margin-bottom: 10px;
+            }
+            select {
+                padding: 8px;
+                border: 1px solid #ddd;
+                border-radius: 5px;
+            }
+            h3 {
+                margin-top: 20px;
+                color: #0000ab !important;
+            }
+            table {
+                font-size: 14px;
+                margin: 20px 0;
+                border-collapse: collapse;
+            }
+            th,
+            td {
+                padding: 10px;
+                text-align: left;
+                border-bottom: 1px solid #ddd;
+            }
+            th {
+                color: #0000ab;
+                background-color: #f9f9f9;
+            }
+            table.dataview tr.even {
+                background-color: #f4f4f9;
+            }
+            table.dataview tr.odd {
+                background-color: #fff;
+            }
+            .headers {
+                color: white;
+                background-color: #0000ab;
+            }
+            .norecords-tr {
+                background-color: #f9f9f9 !important;
+            }
+            .navigatorLabel,
+            .navigator {
+                display: inline-block;
+                margin-right: 10px;
+            }
+            td[wicket\:id="cells"] div[wicket\:id="cell"] a {
+                margin-right: 5px;
+                text-decoration: none;
+                color: #0000ab;
+            }
+
+            td[wicket\:id="cells"] div[wicket\:id="cell"] a:hover {
+                text-decoration: underline;
+            }
+
+            td[wicket\:id="cells"] div[wicket\:id="cell"] a.disabled {
+                color: #ccc;
+                cursor: not-allowed;
+            }
+            /* Styling for the navigator links in the pagination toolbar */
+            thead[wicket\:id="topToolbars"] .navigator a {
+                margin-right: 5px;
+                text-decoration: none;
+                color: #0000ab;
+            }
+
+            thead[wicket\:id="topToolbars"] .navigator a:hover {
+                text-decoration: underline;
+            }
+
+            thead[wicket\:id="topToolbars"] .navigator a.disabled {
+                color: #ccc;
+                cursor: not-allowed;
+            }
+
+            /* Styling for the table headers */
+            thead[wicket\:id="topToolbars"] th a {
+                color: #0000ab;
+                text-decoration: none;
+            }
+
+            thead[wicket\:id="topToolbars"] th a:hover {
+                text-decoration: underline;
+            }
+
+        </style>
 <form wicket:id="form">Collection :
     <select wicket:id="collection">Ether</select>
 </form>

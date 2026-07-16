@@ -41,6 +41,7 @@ public class GEO {
     public static final Resource GeometryCollection = m.createResource(NS+"GeometryCollection");
     public static final Resource SpatialObject = m.createResource(NS+"SpatialObject");
     public static final Resource SpatialObjectCollection = m.createResource(NS+"SpatialObjectCollection");
+    public static final Resource wktLiteral = m.createResource(NS+"wktLiteral");
     public static final Property asDGGS = m.createProperty(NS+"asDGGS");
     public static final Property asGML = m.createProperty(NS+"asGML");
     public static final Property asGeoJSON = m.createProperty(NS+"asGeoJSON");

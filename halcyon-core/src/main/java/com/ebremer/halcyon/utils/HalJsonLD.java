@@ -3,14 +3,10 @@ package com.ebremer.halcyon.utils;
 import com.apicatalog.jsonld.JsonLd;
 import com.apicatalog.jsonld.JsonLdError;
 import com.apicatalog.jsonld.JsonLdOptions;
-import com.apicatalog.jsonld.api.CompactionApi;
 import com.apicatalog.jsonld.api.FramingApi;
 import com.apicatalog.jsonld.document.Document;
 import com.apicatalog.jsonld.document.JsonDocument;
-import com.apicatalog.jsonld.document.RdfDocument;
 import com.apicatalog.jsonld.lang.Keywords;
-import com.apicatalog.jsonld.processor.FromRdfProcessor;
-import com.apicatalog.rdf.RdfDataset;
 import com.ebremer.ns.GEO;
 import com.ebremer.ns.HAL;
 import com.ebremer.ns.SNO;
@@ -22,12 +18,9 @@ import jakarta.json.JsonStructure;
 import jakarta.json.JsonWriter;
 import jakarta.json.JsonWriterFactory;
 import jakarta.json.stream.JsonGenerator;
-import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.OutputStream;
-import java.math.BigDecimal;
-import static java.nio.charset.StandardCharsets.UTF_8;
 import java.util.Collections;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -37,7 +30,7 @@ import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
-import org.apache.jena.riot.system.JenaTitanium;
+import org.apache.jena.riot.system.jsonld.JenaToTitanium;
 import org.apache.jena.sparql.core.DatasetGraph;
 import org.apache.jena.vocabulary.XSD;
 
@@ -68,13 +61,11 @@ public class HalJsonLD {
                     .add(Keywords.ID, "hal:classification")
                     .add(Keywords.TYPE, Keywords.ID)
             );
-            RdfDataset ds = JenaTitanium.convert(dsg);
-            Document doc = RdfDocument.of(ds);
             JsonLdOptions options = new JsonLdOptions();
             options.setOrdered(false);
             options.setUseNativeTypes(true);
             options.setOmitGraph(true);
-            JsonArray array = FromRdfProcessor.fromRdf(doc, options);
+            JsonArray array = JenaToTitanium.convert(dsg, options);
             JsonObject frame = Json.createObjectBuilder()
                     .add(Keywords.CONTEXT, cxt)
                     .add(Keywords.EMBED, Keywords.ALWAYS)
@@ -96,7 +87,7 @@ public class HalJsonLD {
             Logger.getLogger(HalJsonLD.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
-
+    
     public static void main(String args[]) throws FileNotFoundException, JsonLdError {
         Model mx = ModelFactory.createDefaultModel();
         FileInputStream fis = new FileInputStream("sample.ttl");

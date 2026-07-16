@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <artifactId>HalcyonLWS</artifactId>
+    <packaging>jar</packaging>
+    <name>Halcyon Linked Web Storage</name>
+    <description>An implementation of the W3C Linked Web Storage Protocol (lws10-core, lws10-notifications, lws10-searchindex)</description>
+
+    <parent>
+        <groupId>com.ebremer.HalcyonProject</groupId>
+        <artifactId>HalcyonProject</artifactId>
+        <version>1.1.0</version>
+    </parent>
+
+    <properties>
+        <jjwt.version>0.13.0</jjwt.version>
+    </properties>
+
+    <dependencies>
+        <!-- Jena + TDB2. The module owns its own TDB2 instance, separate from
+             Halcyon's DataCore. -->
+        <dependency>
+            <groupId>org.apache.jena</groupId>
+            <artifactId>apache-jena-libs</artifactId>
+            <type>pom</type>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.jena</groupId>
+            <artifactId>jena-querybuilder</artifactId>
+            <type>jar</type>
+        </dependency>
+
+        <!-- Authorization is ACP enforced through the in-house jena-permissions
+             fork (see the root pom). -->
+        <dependency>
+            <groupId>com.ebremer.HalcyonProject</groupId>
+            <artifactId>jena-permissions</artifactId>
+            <type>jar</type>
+        </dependency>
+
+        <!-- halcyon-core supplies:
+               - com.ebremer.halcyon.filereaders.*  (the metadata-extraction SPI
+                 and every format reader: TIFF/SVS/NDPI/DICOM/JPEG2000/JPEGXL/PSB/RDF)
+                 which the LWS metadata scanner drives, and
+               - com.ebremer.halcyon.server.utils.HalcyonSettings for the shared
+                 host/realm/auth-server values.
+             It does NOT drag in the Halcyon webapp: the dependency arrow points
+             halcyon-core -> HalcyonLWS -> Halcyon. -->
+        <dependency>
+            <groupId>com.ebremer.HalcyonProject</groupId>
+            <artifactId>halcyon-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- The LWS server is a raw Jakarta servlet. It cannot be a Spring
+             @RestController: Spring's RequestMethod enum has no QUERY, and
+             FrameworkServlet routes unknown methods to HttpServlet.service(),
+             which answers 501. See LwsServlet.service(). -->
+        <dependency>
+            <groupId>jakarta.servlet</groupId>
+            <artifactId>jakarta.servlet-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- application/lws+json documents are built natively rather than through
+             a JSON-LD processor: the normative @context URI
+             (https://www.w3.org/ns/lws/v1) is not published yet and returns 404,
+             so nothing may dereference it at runtime. -->
+        <dependency>
+            <groupId>jakarta.json</groupId>
+            <artifactId>jakarta.json-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.parsson</groupId>
+            <artifactId>parsson</artifactId>
+        </dependency>
+
+        <!-- Bearer access-token validation against the Keycloak realm JWKS. -->
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-api</artifactId>
+            <version>${jjwt.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-impl</artifactId>
+            <version>${jjwt.version}</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-jackson</artifactId>
+            <version>${jjwt.version}</version>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Unit tests for the pure logic that a live-server harness cannot pin down cheaply:
+             the ACP mode algebra, slug sanitisation, content negotiation, media-type mapping.
+             JUnit 5; surefire is pinned below since the reactor configures none. -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>5.11.4</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <!-- The reactor root attaches a shade execution to every module.
+                     This is a library, not an executable: shading it would bundle
+                     all of Jena into the jar and then again into Halcyon's. -->
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>libraryshade</id>
+                        <phase>none</phase>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <!-- The reactor root pins no surefire version, and the default binding does not
+                     run JUnit 5. Pin a version that detects the junit-platform engine. -->
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.5.2</version>
+            </plugin>
+        </plugins>
+    </build>
+</project>

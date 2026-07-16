@@ -8,7 +8,5 @@ import com.ebremer.halcyon.wicket.BasePage;
  */
 public class About extends BasePage {
     
-    public About() {
-        
-    }
+    public About() {}
 }

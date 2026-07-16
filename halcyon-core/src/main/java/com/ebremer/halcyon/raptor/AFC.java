@@ -11,10 +11,7 @@ import com.apicatalog.jsonld.api.CompactionApi;
 import com.apicatalog.jsonld.api.FramingApi;
 import com.apicatalog.jsonld.document.Document;
 import com.apicatalog.jsonld.document.JsonDocument;
-import com.apicatalog.jsonld.document.RdfDocument;
 import com.apicatalog.jsonld.lang.Keywords;
-import com.apicatalog.jsonld.processor.FromRdfProcessor;
-import com.apicatalog.rdf.RdfDataset;
 import jakarta.json.Json;
 import jakarta.json.JsonArray;
 import jakarta.json.JsonObjectBuilder;
@@ -36,7 +33,7 @@ import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.riot.RDFFormat;
 import org.apache.jena.riot.RDFWriter;
 import org.apache.jena.riot.RDFWriterBuilder;
-import org.apache.jena.riot.system.JenaTitanium;
+import org.apache.jena.riot.system.jsonld.JenaToTitanium;
 import org.apache.jena.riot.system.PrefixMap;
 import org.apache.jena.riot.writer.JsonLD11Writer;
 import org.apache.jena.sparql.core.DatasetGraph;
@@ -91,8 +88,6 @@ public class AFC {
         dsx.getPrefixMapping().setNsPrefix("hasProbability", "hal:hasProbability");
         dsx.getPrefixMapping().setNsPrefix("classification", "hal:classification");
         DatasetGraph dsg = dsx.asDatasetGraph();
-        RdfDataset ds = JenaTitanium.convert(dsg);
-        Document doc = RdfDocument.of(ds);
         JsonLdOptions options = new JsonLdOptions();
             options.setOrdered(false);
             options.setUseNativeTypes(true);
@@ -100,7 +95,7 @@ public class AFC {
             options.setExplicit(true);
             options.setRequiredAll(false);
             options.setEmbed(JsonLdEmbed.ALWAYS);
-        JsonArray ja = FromRdfProcessor.fromRdf(doc, options);
+        JsonArray ja = JenaToTitanium.convert(dsg, options);
         jakarta.json.JsonObject writeRdf = Json.createObjectBuilder()
                 .add(Keywords.GRAPH, ja)
                 .build();

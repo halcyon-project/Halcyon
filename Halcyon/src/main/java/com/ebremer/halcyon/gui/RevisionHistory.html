@@ -1,44 +1,106 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
     <body>
-        <wicket:extend>
-            <style>
-                #banner {
-                    position: relative;
-                    left: 30px;
-                    top: 30px;
-                    width:800px;
-                    background-color: #EEEEEE;
-                    border: 3px solid #0000AB;
-                    padding-top: 15px;
-                    padding-right: 20px;
-                    padding-bottom: 20px;
-                    padding-left: 20px;
-                }
-            </style>
-            <div id="banner">
-                <h1><center>Halcyon</center></h1>
-            <h4><center>Version 0.8.0</center></h4>
+    <wicket:extend>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                background-color: #f4f4f9;
+                margin: 20px;
+                color: #333;
+            }
+
+            #banner {
+                max-width: 800px;
+                margin: 30px auto;
+                padding: 20px;
+                background-color: #eeeeee;
+                border: 3px solid #0000ab;
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+                border-radius: 10px;
+            }
+
+            #banner h1,
+            #banner h4 {
+                text-align: center;
+                margin: 0;
+            }
+
+            hr {
+                border: 0;
+                border-top: 1px solid #0000ab;
+                margin: 20px 0;
+            }
+
+            h3 {
+                color: #0000ab;
+            }
+
+            ul {
+                margin: 10px 0 20px 20px;
+                list-style-type: disc;
+            }
+
+            h2 {
+                color: #0000ab;
+                margin-top: 30px;
+            }
+
+            p {
+                margin: 10px 0;
+                line-height: 1.6;
+            }
+
+            .definition {
+                margin-left: 20px;
+                line-height: 1.6;
+            }
+
+            .similar-words,
+            .opposite-words {
+                margin-top: 10px;
+                font-style: italic;
+            }
+
+            .similar-words::before {
+                content: "Similar: ";
+                font-weight: bold;
+            }
+
+            .opposite-words::before {
+                content: "Opposite: ";
+                font-weight: bold;
+            }
+        </style>
+        <div id="banner">
+            <h1>Halcyon</h1>
+            <h4>Version 0.8.0</h4>
             <hr>
-        <br>
-       <h3>Version 1.1.0</h3>
-            ??/??/2024<br>
+            <br>
+            <h3>Version 1.1.0</h3>
+            <p>??/??/2024</p>
             <ul>
-                <li></li>
+                <li>Release notes will go here.</li>
             </ul>
             <hr>
-
-            <hr>
             <h2>noun:</h2>
+            <div class="definition">
                 1. a tropical Asian and African kingfisher with brightly colored plumage.<br>
-                2. a mythical bird said by ancient writers to breed in a nest floating at sea at the winter solstice, charming the wind and waves into calm.<br>
-                3. a software system to manage, annotate, and display Whole Slide Images and their Deep Learning Pipeline results.
-            <h2>adjective:</h2>
-                denoting a period of time in the past that was idyllically happy and peaceful.
-                "the halcyon days of the mid-1980s, when profits were soaring"
-
-                Similar - serene, calm, pleasant, balmy, tranquil, peaceful, temperate, mild, quiet, gentle, placid, still, windless, stormless, happy, carefree, blissful, golden, joyful, joyous, contented, idyllic, palmy, flourishing, thriving, prosperous, successful
-                Opposite - stormy, troubled
+                2. a mythical bird said by ancient writers to breed in a nest floating at sea at the winter solstice,
+                charming the wind and waves into calm.<br>
+                3. a software system to manage, annotate, and display Whole Slide Images and Deep Learning Pipeline
+                results.
             </div>
-        </wicket:extend>
-    </body>
+            <h2>adjective:</h2>
+            <div class="definition">
+                denoting a period of time in the past that was idyllically happy and peaceful.<br>
+                "the halcyon days of the mid-1980s, when profits were soaring"
+                <div class="similar-words">serene, calm, pleasant, balmy, tranquil, peaceful, temperate, mild, quiet,
+                    gentle, placid, still, windless, stormless, happy, carefree, blissful, golden, joyful, joyous,
+                    contented, idyllic, palmy, flourishing, thriving, prosperous, successful</div>
+                <div class="opposite-words">stormy, troubled</div>
+            </div>
+        </div>
+    </wicket:extend>
+</body>
 </html>
