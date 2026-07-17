@@ -11,9 +11,12 @@ import com.ebremer.halcyon.fuseki.SPARQLEndPoint;
 import com.ebremer.halcyon.wicket.AccountPage;
 import com.ebremer.halcyon.wicket.AdminPage;
 import com.ebremer.halcyon.wicket.Upload;
+import com.ebremer.halcyon.lws.ZephyrMediaPanel;
 import com.ebremer.halcyon.wicket.ethereal.Graph3D;
 import com.ebremer.multiviewer.MultiViewer;
+import com.ebremer.ns.HAL;
 import com.ebremer.vandegraph.VandegraphApplication;
+import com.ebremer.vandegraph.media.MediaBindings;
 import org.apache.jena.query.Dataset;
 import org.apache.wicket.RuntimeConfigurationType;
 import org.apache.wicket.Session;
@@ -119,6 +122,29 @@ public class HalcyonApplication extends VandegraphApplication {
         // ignore list is a raw prefix match, so such a page would be excluded from
         // Wicket by the very entries that let the LWS servlets through.
         PageAccess.mounted().forEach(m -> mountPage(m.path(), m.page()));
+        // Halcyon's media layer on top of the vandegraph defaults: register
+        // the Zephyr wrapper (code — what an IRI does) and overlay the
+        // binding shapes (data — which media types get it). Bindings can only
+        // select registered viewers, never conjure one.
+        getMediaViewers().register(HAL.ZephyrViewer, ZephyrMediaPanel::new);
+        getMediaViewers().register(HAL.ZephyrEditor, ZephyrMediaPanel::new);
+        setMediaBindings(MediaBindings.parseWithDefaults(halcyonMediaBindings()));
+    }
+
+    /** Halcyon's {@code vg:MediaBinding} overlay (classpath {@code halcyon/media-bindings.ttl}). */
+    private static org.apache.jena.rdf.model.Model halcyonMediaBindings() {
+        org.apache.jena.rdf.model.Model m = org.apache.jena.rdf.model.ModelFactory.createDefaultModel();
+        try (java.io.InputStream in = Thread.currentThread().getContextClassLoader()
+                .getResourceAsStream("halcyon/media-bindings.ttl")) {
+            if (in == null) {
+                logger.warn("halcyon/media-bindings.ttl not on the classpath; vandegraph defaults only");
+            } else {
+                org.apache.jena.riot.RDFDataMgr.read(m, in, org.apache.jena.riot.Lang.TURTLE);
+            }
+        } catch (java.io.IOException e) {
+            logger.warn("could not read halcyon media bindings", e);
+        }
+        return m;
     }
         
     @Override

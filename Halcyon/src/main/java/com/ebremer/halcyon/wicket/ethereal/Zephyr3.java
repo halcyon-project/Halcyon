@@ -22,6 +22,7 @@ import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.wicket.markup.head.IHeaderResponse;
 import org.apache.wicket.markup.head.JavaScriptHeaderItem;
+import org.apache.wicket.request.mapper.parameter.PageParameters;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.wicket.request.http.flow.AbortWithHttpErrorCodeException;
@@ -56,6 +57,36 @@ public class Zephyr3 extends BasePage {
     /** New stack seeded from an image (called from the image list). */
     public Zephyr3(String imageIri) {
         this(imageIri, Mode.NEW_FROM_IMAGE);
+    }
+
+    /**
+     * Bookmarkable entry — how the {@code hal:ZephyrViewer} media wrapper
+     * (an iframe in the LWSContainers preview) reaches the viewer:
+     * {@code ?stack=<uri>} opens an existing stack, {@code ?image=<uri>}
+     * seeds a fresh one. No new authority: access is enforced on the page
+     * CLASS however it is reached (PageAccess: AUTHENTICATED), OPEN_STACK
+     * still runs the H6 read check in {@link #loadGraph}, and Save still
+     * authorizes through StackStore.
+     */
+    public Zephyr3(PageParameters params) {
+        this(targetOf(params), hasStack(params) ? Mode.OPEN_STACK : Mode.NEW_FROM_IMAGE);
+    }
+
+    private static boolean hasStack(PageParameters params) {
+        String s = params.get("stack").toOptionalString();
+        return s != null && !s.isBlank();
+    }
+
+    private static String targetOf(PageParameters params) {
+        if (hasStack(params)) {
+            return params.get("stack").toOptionalString();
+        }
+        String image = params.get("image").toOptionalString();
+        if (image != null && !image.isBlank()) {
+            return image;
+        }
+        throw new AbortWithHttpErrorCodeException(HttpServletResponse.SC_BAD_REQUEST,
+                "a stack or image parameter is required");
     }
 
     public Zephyr3(String uri, Mode mode) {

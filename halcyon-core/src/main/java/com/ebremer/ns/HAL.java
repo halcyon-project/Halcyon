@@ -23,6 +23,11 @@ public class HAL {
     public static final Resource ColorViewer  = m.createResource( NS + "ColorViewer" );
     public static final Resource ColorEditor  = m.createResource( NS + "ColorEditor" );
     public static final Resource SNOMEDEditor = m.createResource(NS+"SNOMEDEditor");
+    // Media viewer/editor IRIs for the Zephyr stack viewer — registered in the
+    // vandegraph MediaRegistry and selected by vg:MediaBinding shapes data
+    // (halcyon/media-bindings.ttl).
+    public static final Resource ZephyrViewer = m.createResource(NS+"ZephyrViewer");
+    public static final Resource ZephyrEditor = m.createResource(NS+"ZephyrEditor");
     public static final Resource SHACLForm = m.createResource(NS+"SHACLForm");
     public static final Resource ValidationReport = m.createResource(NS+"ValidationReport");
     public static final Resource AnnotationClass = m.createResource(NS+"AnnotationClass");

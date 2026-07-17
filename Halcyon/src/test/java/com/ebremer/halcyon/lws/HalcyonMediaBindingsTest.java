@@ -1,0 +1,64 @@
+package com.ebremer.halcyon.lws;
+
+import com.ebremer.ns.HAL;
+import com.ebremer.ns.VG;
+import com.ebremer.ns.ZEPH;
+import com.ebremer.vandegraph.media.MediaBindings;
+import java.io.InputStream;
+import java.util.Set;
+import org.apache.jena.rdf.model.Model;
+import org.apache.jena.rdf.model.ModelFactory;
+import org.apache.jena.riot.Lang;
+import org.apache.jena.riot.RDFDataMgr;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+/**
+ * Pins Halcyon's media-binding overlay ({@code halcyon/media-bindings.ttl}):
+ * Zephyr is the default viewer/editor for whole-slide TIFFs and zeph:Stack
+ * resources, the plain image viewer survives as a listed alternate, and the
+ * vandegraph defaults stay untouched for everything else.
+ */
+class HalcyonMediaBindingsTest {
+
+    private static MediaBindings bindings() {
+        Model overlay = ModelFactory.createDefaultModel();
+        try (InputStream in = Thread.currentThread().getContextClassLoader()
+                .getResourceAsStream("halcyon/media-bindings.ttl")) {
+            assertNotNull(in, "halcyon/media-bindings.ttl not on the classpath");
+            RDFDataMgr.read(overlay, in, Lang.TURTLE);
+        } catch (java.io.IOException e) {
+            throw new RuntimeException(e);
+        }
+        return MediaBindings.parseWithDefaults(overlay);
+    }
+
+    @Test
+    void wholeSlideTiffsOpenInZephyr() {
+        MediaBindings.Resolved r = bindings().resolve("image/tiff", Set.of());
+        assertEquals(HAL.ZephyrViewer.asNode(), r.viewer(),
+                "exact image/tiff beats the defaults' image/* pattern");
+        assertTrue(r.alternates().contains(VG.HtmlImageViewer.asNode()),
+                "the plain image viewer stays listed as an alternate");
+        assertEquals(HAL.ZephyrEditor.asNode(), r.editor());
+    }
+
+    @Test
+    void zephyrStacksOpenInZephyrByRdfType() {
+        MediaBindings.Resolved r = bindings().resolve(null,
+                Set.of(ZEPH.NS + "Stack"));
+        assertNotNull(r, "the zeph:Stack rdf:type selector matches without a media type");
+        assertEquals(HAL.ZephyrViewer.asNode(), r.viewer());
+        assertEquals(HAL.ZephyrEditor.asNode(), r.editor());
+    }
+
+    @Test
+    void ordinaryImagesKeepTheDefaultViewer() {
+        MediaBindings.Resolved r = bindings().resolve("image/png", Set.of());
+        assertEquals(VG.HtmlImageViewer.asNode(), r.viewer(),
+                "the overlay must not disturb the vandegraph defaults");
+    }
+}

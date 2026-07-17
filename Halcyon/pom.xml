@@ -479,6 +479,16 @@
             <scope>runtime</scope>
         </dependency>
         <dependency>
+            <!-- BEFORE BeakGraph on purpose: BeakGraph's jar bundles stale
+                 copies of com.ebremer.ns classes (HAL, LWS, EXIF, GEO, GEOF,
+                 PYR). The classpath resolves duplicate classes in dependency
+                 order, so halcyon-core — the canonical vocabulary — must come
+                 first or new vocabulary constants silently fail to resolve. -->
+            <groupId>${project.groupId}</groupId>
+            <artifactId>halcyon-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
             <groupId>com.ebremer</groupId>
             <artifactId>BeakGraph</artifactId>
             <exclusions>
@@ -503,11 +513,6 @@
         <dependency>
             <groupId>com.apicatalog</groupId>
             <artifactId>titanium-json-ld</artifactId>
-        </dependency>        
-        <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>halcyon-core</artifactId>
-            <version>${project.version}</version>
         </dependency>
         <dependency>
             <!-- W3C Linked Web Storage server. Halcyon depends on it only to

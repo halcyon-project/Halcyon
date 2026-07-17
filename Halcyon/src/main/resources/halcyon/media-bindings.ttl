@@ -1,0 +1,22 @@
+@prefix dash: <http://datashapes.org/dash#> .
+@prefix vg:   <urn:vandegraph:ns:> .
+@prefix hal:  <https://halcyon.is/ns/> .
+@prefix zeph: <https://halcyon.is/zephyr/ns/> .
+
+# Halcyon's overlay on the vandegraph default media bindings — this file is
+# where the default viewer/editor per media type is specified, and where
+# alternates are listed. Exact media type beats the defaults' image/*
+# pattern, so whole-slide TIFFs open in Zephyr while ordinary images keep
+# the plain <img> viewer (which stays offered as an alternate here).
+
+hal:WholeSlideImageBinding a vg:MediaBinding ;
+    vg:mediaType "image/tiff" ;
+    dash:viewer hal:ZephyrViewer ;
+    vg:alternateViewers ( vg:HtmlImageViewer ) ;
+    dash:editor hal:ZephyrEditor .
+
+# Resources the LWS readers typed as Zephyr stacks open as that stack.
+hal:ZephyrStackBinding a vg:MediaBinding ;
+    vg:rdfType zeph:Stack ;
+    dash:viewer hal:ZephyrViewer ;
+    dash:editor hal:ZephyrEditor .
