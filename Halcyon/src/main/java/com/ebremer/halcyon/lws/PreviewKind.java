@@ -14,6 +14,12 @@ import java.util.Locale;
  * the application's own origin, i.e. hand any uploader a stored XSS. Rendering
  * them stays possible via the direct "open" link, where the storage answers on
  * its own terms.
+ *
+ * <p>Since the vandegraph {@code vg:MediaBinding} shapes took over <em>viewer
+ * selection</em>, this enum's remaining job is the part that must never be
+ * data: the relay whitelist ({@link #relayable()}) and the text-preview
+ * heuristic. Bindings decide what to show; this decides what the relay will
+ * serve.
  */
 public enum PreviewKind {
     IMAGE, VIDEO, AUDIO, PDF, TEXT, NONE;

@@ -3,14 +3,12 @@
     <div class="uri" wicket:id="vuri"></div>
     <div class="lws-vbar">
         <span class="lws-vmedia" wicket:id="vmedia"></span>
+        <form wicket:id="vform" style="display:inline">
+            <label>open with <select wicket:id="openWith"></select></label>
+        </form>
         <a wicket:id="vopen" target="_blank" rel="noopener"
            title="Open directly from the storage in a new tab">open ↗</a>
     </div>
-    <img wicket:id="vimage" alt="preview"/>
-    <video wicket:id="vvideo" controls></video>
-    <audio wicket:id="vaudio" controls></audio>
-    <iframe wicket:id="vpdf" title="PDF preview"></iframe>
-    <pre class="lws-vtext" wicket:id="vtext"></pre>
-    <div class="lws-note" wicket:id="vtrunc"></div>
+    <div wicket:id="vcontent"></div>
     <div class="lws-note" wicket:id="vnote"></div>
 </wicket:panel>

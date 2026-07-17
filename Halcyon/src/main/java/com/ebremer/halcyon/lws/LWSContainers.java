@@ -4,6 +4,10 @@ import com.ebremer.halcyon.datum.HalcyonPrincipal;
 import com.ebremer.halcyon.gui.HalcyonSession;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import com.ebremer.halcyon.wicket.BasePage;
+import com.ebremer.ns.VG;
+import com.ebremer.vandegraph.VandegraphApplication;
+import com.ebremer.vandegraph.media.MediaBindings;
+import com.ebremer.vandegraph.media.MediaViewContext;
 import com.ebremer.lws.config.LwsSettings;
 import com.ebremer.lws.config.LwsStorageConfig;
 import com.ebremer.lws.http.LinkHeader;
@@ -27,6 +31,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
+import org.apache.jena.graph.Node;
+import org.apache.jena.graph.NodeFactory;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
@@ -122,6 +128,8 @@ public class LWSContainers extends BasePage {
     private final AbstractDefaultAjaxBehavior properties;
     /** The resource the right-hand preview panel currently shows, or {@code null}. */
     private String selectedUri;
+    /** The viewer IRI the user picked from the alternates, or {@code null} for the default. */
+    private String chosenViewer;
 
     /**
      * Streams a selected resource to the browser for the native viewers (img /
@@ -456,9 +464,14 @@ public class LWSContainers extends BasePage {
      */
     public record LwsNode(String uri, Kind kind) implements Serializable {}
 
-    /** One member of a container listing, as the listing described it. */
+    /**
+     * One member of a container listing, as the listing described it.
+     * {@code types} are the reader-discovered RDF types beyond the structural
+     * Container/DataResource — the {@code vg:rdfType} selector of a media
+     * binding matches against these.
+     */
     public record Entry(String uri, boolean container, String mediaType, Long size,
-            String modified) implements Serializable {}
+            String modified, Set<String> types) implements Serializable {}
 
     /** What has been fetched of one container, and where its UI window sits. */
     private static final class ContainerState implements Serializable {
@@ -529,12 +542,17 @@ public class LWSContainers extends BasePage {
         } else if (t != null && t.getValueType() == JsonValue.ValueType.STRING) {
             types.add(((JsonString) t).getString());
         }
+        boolean container = types.contains("Container");
+        // Keep the reader-discovered types (full IRIs; the structural terms are
+        // implied by the icon) — media bindings can select on them.
+        types.removeIf(x -> "Container".equals(x) || "DataResource".equals(x));
         return new Entry(
                 o.getString("id", ""),
-                types.contains("Container"),
+                container,
                 o.getString("mediaType", ""),
                 o.containsKey("size") ? o.getJsonNumber("size").longValue() : null,
-                o.getString("modified", ""));
+                o.getString("modified", ""),
+                Set.copyOf(types));
     }
 
     /** The RFC 9457 problem a failed listing came back with, rendered plainly. */
@@ -713,6 +731,7 @@ public class LWSContainers extends BasePage {
                 @Override
                 public void onClick(AjaxRequestTarget target) {
                     selectedUri = node.uri();
+                    chosenViewer = null;   // a new selection starts on its default viewer
                     replaceViewer(target);
                 }
             };
@@ -810,10 +829,14 @@ public class LWSContainers extends BasePage {
 
     /**
      * The right-hand preview: shows the selected resource's media type (as the
-     * listing reported it, per the LWS vocabulary) and renders it with a
-     * default viewer chosen by {@link PreviewKind} — native img/video/audio/PDF
-     * through the token-carrying relay, text-like types as a bounded, escaped
-     * server-side fetch, and everything else as metadata plus the direct link.
+     * listing reported it, per the LWS vocabulary) and renders it with the
+     * viewer the {@code vg:MediaBinding} shapes resolve for that type — the
+     * default first, with the alternates offered in an "open with" picker.
+     * Which viewers apply is RDF data; which components exist is code
+     * ({@code MediaRegistry}), and this host stays the security authority:
+     * the relay {@code src} is handed only to
+     * {@linkplain PreviewKind#relayable() passive media}, whatever the
+     * bindings say, and text content is fetched bounded, server-side.
      */
     private final class ViewerPanel extends Panel {
         private static final long serialVersionUID = 1L;
@@ -825,8 +848,8 @@ public class LWSContainers extends BasePage {
             setOutputMarkupId(true);
             boolean has = selectedUri != null;
             Entry e = has ? entryIndex.get(selectedUri) : null;
-            PreviewKind kind = e == null ? PreviewKind.NONE : PreviewKind.of(e.mediaType());
             String mediaType = e == null || e.mediaType() == null ? "" : e.mediaType();
+            Set<String> rdfTypes = e == null ? Set.of() : e.types();
 
             add(new Label("vname", has ? displayName(selectedUri) : "Preview"));
             add(new Label("vuri", has ? selectedUri : "").setVisible(has));
@@ -837,44 +860,104 @@ public class LWSContainers extends BasePage {
             add(new Label("vmedia", meta).setVisible(has && !meta.isEmpty()));
             add(new ExternalLink("vopen", has ? selectedUri : "about:blank").setVisible(has));
 
-            String relay = has ? relayUrl(selectedUri) : "";
-            WebMarkupContainer image = new WebMarkupContainer("vimage");
-            image.add(AttributeModifier.replace("src", relay));
-            image.setVisible(kind == PreviewKind.IMAGE);
-            add(image);
-            WebMarkupContainer video = new WebMarkupContainer("vvideo");
-            video.add(AttributeModifier.replace("src", relay));
-            video.setVisible(kind == PreviewKind.VIDEO);
-            add(video);
-            WebMarkupContainer audio = new WebMarkupContainer("vaudio");
-            audio.add(AttributeModifier.replace("src", relay));
-            audio.setVisible(kind == PreviewKind.AUDIO);
-            add(audio);
-            WebMarkupContainer pdf = new WebMarkupContainer("vpdf");
-            pdf.add(AttributeModifier.replace("src", relay));
-            pdf.setVisible(kind == PreviewKind.PDF);
-            add(pdf);
-
-            boolean isText = has && kind == PreviewKind.TEXT;
-            String text = "";
-            boolean truncated = false;
-            if (isText) {
-                LwsClient.Preview p = client().preview(selectedUri, TEXT_PREVIEW_BYTES);
-                text = p.ok() ? p.text() : "HTTP " + p.status() + "\n" + p.text();
-                truncated = p.truncated();
+            VandegraphApplication app = VandegraphApplication.get();
+            MediaBindings.Resolved resolved = has
+                    ? app.getMediaBindings().resolve(mediaType, rdfTypes) : null;
+            List<String> options = new ArrayList<>();
+            if (resolved != null) {
+                if (app.getMediaViewers().has(resolved.viewer())) {
+                    options.add(resolved.viewer().getURI());
+                }
+                for (Node alt : resolved.alternates()) {
+                    if (app.getMediaViewers().has(alt)) {
+                        options.add(alt.getURI());
+                    }
+                }
             }
-            add(new Label("vtext", text).setVisible(isText));
-            add(new Label("vtrunc", "… preview truncated (first 256 kB)")
-                    .setVisible(isText && truncated));
+            String active = chosenViewer != null && options.contains(chosenViewer)
+                    ? chosenViewer
+                    : options.isEmpty() ? null : options.get(0);
+
+            Form<Void> vform = new Form<>("vform");
+            vform.setVisible(options.size() > 1);
+            add(vform);
+            DropDownChoice<String> openWith = new DropDownChoice<>("openWith",
+                    Model.of(active), options, new IChoiceRenderer<String>() {
+                        private static final long serialVersionUID = 1L;
+
+                        @Override
+                        public Object getDisplayValue(String iri) {
+                            return viewerLabel(iri);
+                        }
+
+                        @Override
+                        public String getIdValue(String iri, int index) {
+                            return iri;
+                        }
+
+                        @Override
+                        public String getObject(String id,
+                                IModel<? extends List<? extends String>> choices) {
+                            return id;
+                        }
+                    });
+            openWith.add(new AjaxFormComponentUpdatingBehavior("change") {
+                private static final long serialVersionUID = 1L;
+
+                @Override
+                protected void onUpdate(AjaxRequestTarget target) {
+                    chosenViewer = openWith.getModelObject();
+                    replaceViewer(target);
+                }
+            });
+            vform.add(openWith);
+
+            Component content = null;
+            if (active != null) {
+                Node chosen = NodeFactory.createURI(active);
+                // Host security policy, independent of what bindings claim:
+                // the token relay serves passive media only, and text content
+                // is fetched bounded on the server with the session's token.
+                String src = PreviewKind.of(mediaType).relayable() ? relayUrl(selectedUri) : null;
+                String text = null;
+                boolean truncated = false;
+                if (VG.HtmlTextViewer.asNode().equals(chosen)) {
+                    LwsClient.Preview p = client().preview(selectedUri, TEXT_PREVIEW_BYTES);
+                    text = p.ok() ? p.text() : "HTTP " + p.status() + "\n" + p.text();
+                    truncated = p.truncated();
+                }
+                content = app.getMediaViewers().create("vcontent", chosen,
+                        new MediaViewContext(selectedUri, mediaType, rdfTypes, src, text, truncated));
+            }
+            if (content == null) {
+                content = new WebMarkupContainer("vcontent").setVisible(false);
+            }
+            add(content);
 
             String note = !has ? "Select a resource in the tree to preview it here."
-                    : kind == PreviewKind.NONE
+                    : options.isEmpty()
                             ? (mediaType.isBlank()
                                     ? "The listing reports no media type for this resource."
-                                    : "No inline viewer for " + mediaType + " — use \"open ↗\".")
+                                    : "No viewer is bound for " + mediaType + " — use \"open ↗\".")
                             : "";
             add(new Label("vnote", note).setVisible(!note.isEmpty()));
         }
+    }
+
+    /** A human label for a viewer IRI: {@code vg:HtmlImageViewer} → "Image". */
+    private static String viewerLabel(String iri) {
+        String s = iri;
+        int i = Math.max(s.lastIndexOf('#'), Math.max(s.lastIndexOf('/'), s.lastIndexOf(':')));
+        if (i >= 0 && i < s.length() - 1) {
+            s = s.substring(i + 1);
+        }
+        if (s.startsWith("Html")) {
+            s = s.substring(4);
+        }
+        if (s.endsWith("Viewer") && s.length() > "Viewer".length()) {
+            s = s.substring(0, s.length() - "Viewer".length());
+        }
+        return s;
     }
 
     // --- The Properties dialogs ---------------------------------------------
