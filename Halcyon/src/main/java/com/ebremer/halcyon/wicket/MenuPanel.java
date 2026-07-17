@@ -11,12 +11,15 @@ import org.apache.wicket.markup.html.link.ExternalLink;
 import org.apache.wicket.markup.html.link.Link;
 import org.apache.wicket.markup.html.panel.Panel;
 import org.apache.wicket.request.resource.CssResourceReference;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author erich
  */
 public class MenuPanel extends Panel {
+    private static final Logger logger = LoggerFactory.getLogger(MenuPanel.class);
     
     public MenuPanel(String id) {
         super(id);
@@ -78,7 +81,7 @@ public class MenuPanel extends Panel {
             // permits them, so gating it by role here would be redundant.
             storage.setVisible(true);
             hp.getGroups().forEach(k->{
-                System.out.println("GROUP : "+k);
+                logger.debug("GROUP : {}", k);
             });
             if (hp.getGroups().contains("admin")) {
                 security.setVisible(true);

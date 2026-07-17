@@ -99,10 +99,25 @@ export function polygon(manager) {
   }
 
   function onEscape() {
-    if (currentPolygon) {
-      removeAnnotation(scene, currentPolygon);
-    }
+    dropTempPolygon();
     resetDrawingState();
+  }
+
+  // L13: the in-progress polygon leaked its geometry AND material on every path
+  // that discarded it (finalise, discard, escape). removeAnnotation only detaches
+  // from the parent — three.js frees neither on its own — so drawing and escaping
+  // repeatedly grew the GPU-side allocation each time.
+  function dropTempPolygon() {
+    if (!currentPolygon) return;
+    const geometry = currentPolygon.geometry;
+    const material = currentPolygon.material;
+    removeAnnotation(scene, currentPolygon);
+    if (geometry) geometry.dispose();
+    if (material) {
+      if (Array.isArray(material)) material.forEach(m => m && m.dispose());
+      else material.dispose();
+    }
+    currentPolygon = null;
   }
 
   function finalizeCurrentPolygon() {
@@ -115,9 +130,9 @@ export function polygon(manager) {
       });
       addAnnotation(scene, line);
       pushCommand(commandCreate(line));
-      removeAnnotation(scene, currentPolygon);
+      dropTempPolygon();
     } else if (currentPolygon) {
-      removeAnnotation(scene, currentPolygon);
+      dropTempPolygon();
     }
     resetDrawingState();
   }

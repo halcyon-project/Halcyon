@@ -1,5 +1,7 @@
 package com.ebremer.halcyon.wicket.ethereal;
 
+import com.ebremer.halcyon.gui.CspNonce;
+import org.apache.wicket.markup.html.WebMarkupContainer;
 import com.ebremer.halcyon.wicket.JsSafe;
 import com.ebremer.halcyon.datum.HalcyonPrincipal;
 import com.ebremer.halcyon.gui.HalcyonSession;
@@ -41,5 +43,18 @@ public class Zephyr2 extends BasePage {
         response.render(JavaScriptHeaderItem.forScript(
                 "var useriri = " + JsSafe.jsString(hp.getUserURI())
                 + "; var userName = " + JsSafe.jsString(hp.getPreferredUserName()) + ";", "token"));
+    }
+
+    /**
+     * C5: bind the inline <script> tags in this page's markup so they receive the
+     * request's CSP nonce. Done in onInitialize rather than a constructor because
+     * these classes have several constructors that do not delegate to one another —
+     * onInitialize runs exactly once whichever was used.
+     */
+    @Override
+    protected void onInitialize() {
+        super.onInitialize();
+        add(new WebMarkupContainer("cspImportMap").add(new CspNonce()));
+        add(new WebMarkupContainer("cspModule").add(new CspNonce()));
     }
 }

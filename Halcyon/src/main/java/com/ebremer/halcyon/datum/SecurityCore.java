@@ -19,23 +19,30 @@ public class SecurityCore {
     private static Model m = null;
     private static HalcyonSettings hs = null;
     
+    /**
+     * L6: the eager connect here was guarded by {@code if (!f.exists())} — i.e. it
+     * connected only when the store did NOT exist, and left {@code ds} null for
+     * every store that did. The condition is gone rather than inverted: {@code
+     * TDB2Factory.connectDataset} creates-or-connects on its own, so the
+     * exists() test could not have been right either way, and {@link #getDataset()}
+     * already connects lazily.
+     */
     private SecurityCore() {
         hs = HalcyonSettings.getSettings();
-        File f = new File(hs.getRDFSecurityStoreLocation());
-        if (!f.exists()) {
-            ds = TDB2Factory.connectDataset(hs.getRDFSecurityStoreLocation());
-        }
     }
-    
+
     public synchronized static SecurityCore getInstance2() {
         if (core==null) {
             core = new SecurityCore();
         }
         return core;
     }
-    
+
     public synchronized void shutdown() {
-        ds.close();
+        if (ds != null) {
+            ds.close();
+            ds = null;
+        }
     }
     
     public synchronized Dataset getDataset() {

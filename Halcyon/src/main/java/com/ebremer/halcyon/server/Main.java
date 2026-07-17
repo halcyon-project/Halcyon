@@ -140,7 +140,7 @@ public class Main {
         logger.info("Starting Halcyon...");
         Iterator<javax.imageio.ImageReader> readers = ImageIO.getImageReadersByFormatName("tif");
         readers.forEachRemaining(ir->{
-            System.out.println("TIF READER LOADED : "+ir.getClass().toGenericString());
+            logger.debug("TIF READER LOADED : {}", ir.getClass().toGenericString());
         });
         INIT i = new INIT();
         i.init();
@@ -183,6 +183,6 @@ public class Main {
         app.setAdditionalProfiles("production");
         app.setBannerMode(Mode.CONSOLE);
         app.run(args);
-        System.out.println("===================== Welcome to Halcyon!");
+        logger.debug("===================== Welcome to Halcyon!");
     }
 }

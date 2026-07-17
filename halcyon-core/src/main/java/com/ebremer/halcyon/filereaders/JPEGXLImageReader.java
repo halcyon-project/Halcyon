@@ -168,7 +168,7 @@ public class JPEGXLImageReader extends AbstractImageReader {
     public static void main(String[] args) throws IOException {
         File file = new File("D:\\HalcyonStorage\\jxl\\sample.jxl");
         try (JPEGXLImageReader reader = new JPEGXLImageReader(file.toURI(), file.toURI())) {
-            System.out.println(reader.getImageMeta());
+            logger.debug("{}", reader.getImageMeta());
             RDFDataMgr.write(System.out, reader.getMeta(), Lang.TURTLE);
         } catch (Exception ex) {
             Logger.getLogger(JPEGXLImageReader.class.getName()).log(Level.SEVERE, null, ex);

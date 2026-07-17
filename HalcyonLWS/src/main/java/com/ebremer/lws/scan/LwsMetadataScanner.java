@@ -58,10 +58,14 @@ public final class LwsMetadataScanner {
     /**
      * Virtual threads, not {@code StructuredTaskScope}.
      *
-     * <p>The reactor compiles with {@code --enable-preview} but <em>nothing passes it to
-     * the runtime</em> — so touching any preview API would mark these class files as
-     * preview-flagged and the JVM would refuse to load them. Virtual threads have been
-     * final since 21 and carry no such hazard.
+     * <p>M27: this used to warn that the reactor compiled with {@code --enable-preview}
+     * while <em>nothing passed it to the runtime</em>, so touching any preview API would
+     * mark these class files preview-flagged and the JVM would refuse to load them. That
+     * warning was exactly right, and the flag is now gone from the compiler: nothing in
+     * the codebase used a preview feature, so it bought nothing while arming precisely
+     * the trap described here. The reasoning still applies in general — a preview API
+     * would need the flag on BOTH sides, including the jpackage {@code javaOptions}.
+     * Virtual threads have been final since 21 and carry no such hazard.
      */
     private static final ExecutorService POOL =
             Executors.newVirtualThreadPerTaskExecutor();

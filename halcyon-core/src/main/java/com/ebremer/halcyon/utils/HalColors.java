@@ -1,12 +1,15 @@
 package com.ebremer.halcyon.utils;
 
 import java.util.LinkedList;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author erich
  */
 public final class HalColors {
+    private static final Logger logger = LoggerFactory.getLogger(HalColors.class);
     private final LinkedList<HalColor> colors;
     
     public HalColors() {
@@ -60,7 +63,7 @@ public final class HalColors {
     
     public static void main(String[] args) {
         HalColors c = new HalColors();
-        System.out.println(c);
+        logger.debug("{}", c);
         
     }
 }

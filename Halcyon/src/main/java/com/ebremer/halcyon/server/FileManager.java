@@ -105,10 +105,10 @@ public final class FileManager implements Service {
                         } finally {
                             ds.end();
                         }
-                        System.out.println("DELETED : "+r);
+                        logger.debug("DELETED : {}", r);
                     }
                 } catch (URISyntaxException ex) {
-                    System.out.println("NG --> "+r);
+                    logger.debug("NG --> {}", r);
                     logger.error(ex.getMessage());
                 }
             }

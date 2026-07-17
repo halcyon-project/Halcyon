@@ -17,12 +17,15 @@ import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.riot.RDFFormat;
 import org.apache.jena.vocabulary.SchemaDO;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author erich
  */
 public class UserColorsAndClasses {
+    private static final Logger logger = LoggerFactory.getLogger(UserColorsAndClasses.class);
     private record Bundle(String name, String color) {};
     private final HashMap<Resource,Bundle> types;
         
@@ -66,7 +69,7 @@ public class UserColorsAndClasses {
             }
         }
         types.forEach((k,v)->{
-            System.out.println(k+" ---> "+v);
+            logger.debug("{}", k+" ---> "+v);
         });
     }
     

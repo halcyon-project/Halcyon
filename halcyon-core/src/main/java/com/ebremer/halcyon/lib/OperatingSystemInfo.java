@@ -1,6 +1,9 @@
 package com.ebremer.halcyon.lib;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class OperatingSystemInfo {
+    private static final Logger logger = LoggerFactory.getLogger(OperatingSystemInfo.class);
        
     public static String getName() {
         return System.getProperty("os.name");
@@ -27,8 +30,8 @@ public class OperatingSystemInfo {
     }
 
     public static void main(String[] args) {
-        System.out.println("Operating System Name: " + OperatingSystemInfo.getName());
-        System.out.println("Operating System Version: " + OperatingSystemInfo.getVersion());
-        System.out.println("Operating System Architecture: " + OperatingSystemInfo.getArchitecture());
+        logger.debug("Operating System Name: {}", OperatingSystemInfo.getName());
+        logger.debug("Operating System Version: {}", OperatingSystemInfo.getVersion());
+        logger.debug("Operating System Architecture: {}", OperatingSystemInfo.getArchitecture());
     }
 }

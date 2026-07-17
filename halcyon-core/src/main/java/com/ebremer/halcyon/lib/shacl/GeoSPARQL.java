@@ -21,6 +21,7 @@ import org.apache.jena.shacl.lib.ShLib;
  * @author erich
  */
 public class GeoSPARQL {
+    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(GeoSPARQL.class);
     private Shapes shapes = null;
     private final Model shacl;
     
@@ -50,7 +51,7 @@ public class GeoSPARQL {
         FileInputStream fis = new FileInputStream(file);
         Model test = ModelFactory.createDefaultModel();
         RDFDataMgr.read(test, fis, Lang.TURTLE);
-        System.out.println(test.size());
+        logger.debug("{}", test.size());
         geosparql.validate(test);
     }
     

@@ -53,6 +53,7 @@ import org.apache.wicket.request.resource.CssResourceReference;
  * @author erich
  */
 public class Collections extends BasePage {
+    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Collections.class);
     
     public Collections() {
     
@@ -170,7 +171,7 @@ public class Collections extends BasePage {
             add(new Link<Void>("Delete") {
                 @Override
                 public void onClick() {
-                    System.out.println("Delete not implemented yet");
+                    logger.debug("Delete not implemented yet");
                 }
             });
             /*

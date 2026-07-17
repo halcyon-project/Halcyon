@@ -1,5 +1,7 @@
 package com.ebremer.halcyon.wicket.ethereal;
 
+import com.ebremer.halcyon.gui.CspNonce;
+import org.apache.wicket.markup.html.WebMarkupContainer;
 import com.apicatalog.jsonld.JsonLd;
 import com.apicatalog.jsonld.JsonLdError;
 import com.apicatalog.jsonld.JsonLdOptions;
@@ -47,6 +49,7 @@ import org.apache.wicket.markup.html.form.Button;
  * @author erich
  */
 public class Graph3D extends BasePage {
+    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Graph3D.class);
     private static final long serialVersionUID = 102163948377788566L;
     
     public Graph3D() {
@@ -57,7 +60,7 @@ public class Graph3D extends BasePage {
             @Override
             protected void onEvent(AjaxRequestTarget target) {
                 String zam = getData(cc.getClasses());
-                System.out.println(zam);
+                logger.debug("{}", zam);
                 target.appendJavaScript("console.log(\"UPDATE GRAPH\"); Graph.graphData("+zam+");");
             }
         });
@@ -124,9 +127,9 @@ public class Graph3D extends BasePage {
             } finally {
                 xs.end();
             }
-            System.out.println("=================================================================================");
+            logger.debug("=================================================================================");
             RDFDataMgr.write(System.out, m, Lang.TURTLE);
-            System.out.println("=================================================================================");
+            logger.debug("=================================================================================");
             pss = new ParameterizedSparqlString(
                 """
                 construct {
@@ -167,7 +170,7 @@ public class Graph3D extends BasePage {
             pss.setNsPrefix("hal", HAL.NS);
             pss.setNsPrefix("so", SchemaDO.NS);
             pss.setValues("typelist", list);
-            System.out.println("SPARQL :\n"+pss.toString());
+            logger.debug("SPARQL :\n{}", pss.toString());
             // H13: this used to REASSIGN the `qe` above, so the first execution was
             // dropped on the floor unclosed, and this one was never closed either.
             // The debug dump also sat INSIDE the transaction — execConstruct()
@@ -180,9 +183,9 @@ public class Graph3D extends BasePage {
             } finally {
                 xs.end();
             }
-            System.out.println("=================================================================================");
+            logger.debug("=================================================================================");
             RDFDataMgr.write(System.out, m2, Lang.TURTLE);
-            System.out.println("=================================================================================");
+            logger.debug("=================================================================================");
             m.add(m2);
             Dataset ds = DatasetFactory.createGeneral();
             ds.getDefaultModel().add(m);
@@ -223,11 +226,24 @@ public class Graph3D extends BasePage {
             JsonObject jo = JsonLd.frame(JsonDocument.of(ja), contextDocument).options(options).get();
             out.writeObject(jo);
             String yay = new String(baos.toByteArray());
-            System.out.println("RESULTS :\n"+yay);
+            logger.debug("RESULTS :\n{}", yay);
             return yay;
         } catch (JsonLdError ex) {
             Logger.getLogger(Graph3D.class.getName()).log(Level.SEVERE, null, ex);
             return null;
         }
+    }
+
+    /**
+     * C5: bind the inline <script> tags in this page's markup so they receive the
+     * request's CSP nonce. Done in onInitialize rather than a constructor because
+     * these classes have several constructors that do not delegate to one another —
+     * onInitialize runs exactly once whichever was used.
+     */
+    @Override
+    protected void onInitialize() {
+        super.onInitialize();
+        add(new WebMarkupContainer("cspImportMap").add(new CspNonce()));
+        add(new WebMarkupContainer("cspModule").add(new CspNonce()));
     }
 }

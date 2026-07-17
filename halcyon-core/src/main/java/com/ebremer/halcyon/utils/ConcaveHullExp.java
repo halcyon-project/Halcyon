@@ -14,12 +14,15 @@ import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author erich
  */
 public class ConcaveHullExp {
+    private static final Logger logger = LoggerFactory.getLogger(ConcaveHullExp.class);
     
     public static void main(String[] args) {
         int num = 128;
@@ -37,10 +40,10 @@ public class ConcaveHullExp {
         cch.setHolesAllowed(false);
         Geometry hull = cch.getHull();
         for (int i = 0; i < 5; i++) {
-            System.out.println(hull.covers(point[i]));
+            logger.debug("{}", hull.covers(point[i]));
         }
         for (Coordinate c: hull.getCoordinates()) {
-            System.out.println(c);
+            logger.debug("{}", c);
         }
         
         Polygon polygon = new Polygon();
@@ -61,9 +64,9 @@ public class ConcaveHullExp {
         File file = new File("\\ATAN\\hullImage.png");
         try {
             ImageIO.write(bufferedImage, "PNG", file);
-            System.out.println("Polygon image saved to " + file.getAbsolutePath());
+            logger.debug("Polygon image saved to {}", file.getAbsolutePath());
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("Unhandled exception", e);
         }
         
         

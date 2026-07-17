@@ -1,0 +1,65 @@
+name: ci
+
+# F2: the whole point of this file. Before it, the ONLY workflows were
+# main.yml (`on: release`) and publish.yml (`on: workflow_dispatch`) — so nothing
+# was built or tested until a release was cut, and a broken tree could sit on
+# develop indefinitely. That is exactly how the JDK-21-vs-`--release 25` breakage
+# (H15) survived: no build ever ran to notice it.
+on:
+  push:
+    branches: [ master, develop ]
+  pull_request:
+    branches: [ master, develop ]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Least privilege: this workflow only reads the repo. It needs no token scope,
+# and deliberately holds no Maven credentials — it must never publish.
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: mvn verify (JDK 25)
+    runs-on: ubuntu-latest
+    # A hung surefire fork would otherwise burn the 6-hour default.
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      # M27/H15: must match <maven.compiler.release> in the root pom. javac cannot
+      # target a release newer than the JDK running it, and the root pom's
+      # requireJavaVersion enforcer fails fast if these drift apart.
+      - name: Set up JDK 25
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4.8.0
+        with:
+          distribution: temurin
+          java-version: '25'
+          # M28: cache ~/.m2 so a green build does not re-pull every artifact.
+          # This is not only speed: the private repo (cursus) answers 403 under
+          # request pressure, so a cold full download is itself a failure mode.
+          cache: maven
+
+      # The first-party artifacts (BeakGraph, dcm2rdf, cygnus, vandegraph) live on
+      # the Halcyon repo, which serves them anonymously — no credentials needed to
+      # BUILD, only to publish. If this step starts failing on 403s for random
+      # artifacts, that is the rate limiter, not the poms (see M28).
+      #
+      # -C (--strict-checksums) fails on a checksum mismatch rather than warning and
+      # using the artifact anyway, which is Maven's default (M28).
+      - name: Build and test
+        run: mvn -B -C -ntp verify
+
+      - name: Upload surefire reports
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: surefire-reports
+          # Multi-module: reports live under each module's target/, never at the root.
+          path: '**/target/surefire-reports'
+          if-no-files-found: warn
+          retention-days: 7

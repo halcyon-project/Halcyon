@@ -31,8 +31,11 @@ import org.apache.wicket.markup.html.link.Link;
 import org.apache.wicket.model.IModel;
 import org.apache.wicket.request.mapper.parameter.PageParameters;
 import org.apache.wicket.request.resource.CssResourceReference;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public abstract class NodeAdvancedTreePage extends BasePage {
+    private static final Logger logger = LoggerFactory.getLogger(NodeAdvancedTreePage.class);
     private static final long serialVersionUID = 1L;
     private Behavior theme = new WindowsTheme();
     private final AbstractTree<GraphNode> tree;
@@ -78,7 +81,7 @@ public abstract class NodeAdvancedTreePage extends BasePage {
 	form.add(new Link<Void>("clearAll") {
             @Override
             public void onClick() {
-		System.out.println("Clear All");
+		logger.debug("Clear All");
                 provider.DeselectAll(collection);
                 provider.SetSelected(collection);
             }

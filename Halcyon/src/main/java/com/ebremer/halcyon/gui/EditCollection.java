@@ -33,6 +33,8 @@ import org.apache.wicket.model.IModel;
 import org.apache.wicket.request.mapper.parameter.PageParameters;
 import org.apache.jena.rdf.model.Statement;
 import org.apache.jena.rdf.model.Literal;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A page for editing a collection, where it creates a form with fields to edit
@@ -42,6 +44,7 @@ import org.apache.jena.rdf.model.Literal;
  * @author erich
  */
 public class EditCollection extends BasePage {
+    private static final Logger logger = LoggerFactory.getLogger(EditCollection.class);
 
     private SessionScopedModel mod;
 
@@ -90,7 +93,7 @@ public class EditCollection extends BasePage {
                     ds.commit();
                 } catch (Exception e) {
                     ds.abort();
-                    System.out.println(e.getMessage());
+                    logger.debug("{}", e.getMessage());
                 } finally {
                     ds.end();
                 }
@@ -149,7 +152,7 @@ public class EditCollection extends BasePage {
         }
         pss.setNsPrefix("wac", WAC.NS);
         pss.setIri("SecurityGraph", HAL.SecurityGraph.getURI());
-        System.out.println(pss.toString());
+        logger.debug("{}", pss.toString());
 
         // M18: supplier form — see ListImages. NOTE this is the RAW dataset, but it is
         // still not VandegraphApplication.getDataset() (HalcyonApplication does not

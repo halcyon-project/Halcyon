@@ -133,8 +133,13 @@ public class PathMapper {
             pathmapper = new PathMapper(settings);            
         }
         
-        pathmapper.sortByFile.forEach(p->System.out.println("by file ---> "+p));
-        pathmapper.sortByHttp.forEach(p->System.out.println("by http ---> "+p));
+        // L1: these dumped the whole path map to stdout on EVERY call to a plain
+        // getter, and println ignores the configured log level, so there was no
+        // way to turn them off short of a rebuild.
+        if (logger.isDebugEnabled()) {
+            pathmapper.sortByFile.forEach(p->logger.debug("by file ---> {}", p));
+            pathmapper.sortByHttp.forEach(p->logger.debug("by http ---> {}", p));
+        }
         
         return pathmapper;
     }    

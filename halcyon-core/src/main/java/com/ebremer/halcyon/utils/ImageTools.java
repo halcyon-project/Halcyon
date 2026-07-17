@@ -1,5 +1,6 @@
 package com.ebremer.halcyon.utils;
 
+import java.awt.Graphics2D;
 import com.ebremer.halcyon.lib.Rectangle;
 import java.awt.geom.AffineTransform;
 import java.awt.image.AffineTransformOp;
@@ -69,10 +70,27 @@ public class ImageTools {
                 px=(int) (((double) bi.getWidth())*sx);
             }
         }
+        // L9: identity short-circuit. Every tile is scaled TWICE — once inside
+        // TiffImageReader.readTile (which hardcodes aspectratio=true) and again in
+        // TileRequest immediately after — and with no early exit the second pass
+        // paid for a full-size allocation plus a bilinear resample to produce a
+        // pixel-for-pixel copy. Guarded on getType() too, because type 0
+        // (TYPE_CUSTOM) is the one case where this method is also doing a format
+        // conversion to TYPE_3BYTE_BGR and must not be skipped.
+        if (sx == 1.0d && sy == 1.0d && bi.getWidth() == px && bi.getHeight() == py && bi.getType() != 0) {
+            return bi;
+        }
         at.scale(sx,sy);
         AffineTransformOp scaleOp =  new AffineTransformOp(at, AffineTransformOp.TYPE_BILINEAR);
         BufferedImage target = new BufferedImage(px,py,(bi.getType()==0)?TYPE_3BYTE_BGR:bi.getType());
-        target.createGraphics().drawImage(bi, scaleOp, (px - (int) Math.round(bi.getWidth() * sx)) / 2, (py - (int) Math.round(bi.getHeight() * sy)) / 2);
+        // dispose(): createGraphics() was called and dropped on the floor, twice per
+        // tile, holding native resources until the GC got round to the finalizer.
+        Graphics2D g = target.createGraphics();
+        try {
+            g.drawImage(bi, scaleOp, (px - (int) Math.round(bi.getWidth() * sx)) / 2, (py - (int) Math.round(bi.getHeight() * sy)) / 2);
+        } finally {
+            g.dispose();
+        }
         return target;
     }
 

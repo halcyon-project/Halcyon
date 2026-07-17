@@ -1,12 +1,15 @@
 package com.ebremer.halcyon.geometry;
 
 import java.util.Arrays;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author erich
  */
 public class Point {
+    private static final Logger logger = LoggerFactory.getLogger(Point.class);
     public int x;
     public int y;
     
@@ -70,8 +73,8 @@ public class Point {
         Point a = new Point(122,213);
         Point b = new Point(122,213);
         Point c = new Point(22,113);
-        System.out.println(a.equals(b));
-        System.out.println(a.equals(c));
-        System.out.println(b.equals(c));
+        logger.debug("{}", a.equals(b));
+        logger.debug("{}", a.equals(c));
+        logger.debug("{}", b.equals(c));
     }
 }

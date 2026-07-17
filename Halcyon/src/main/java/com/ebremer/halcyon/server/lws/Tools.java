@@ -251,7 +251,7 @@ public class Tools {
             pss.setValues("includes", prefer.get().include());
         }
         logger.info("getRDF ----> {}",pss.toString());
-        System.out.println(pss.toString());
+        logger.debug("{}", pss.toString());
         Dataset ds = DataCore.getInstance().getDataset();
         // H13: guarded end() + a closed QueryExecution (servlet path).
         Model k;
@@ -284,7 +284,7 @@ public class Tools {
     }
 
     public static void AnnotationClasses2JSONLD(Optional<Tools.Prefer> prefer, Resource ha, OutputStream xout) {
-        System.out.println("AnnotationClasses2JSONLD =====> "+getHalcyonType(ha.getURI()));
+        logger.debug("AnnotationClasses2JSONLD =====> {}", getHalcyonType(ha.getURI()));
         try {
             Model m = ha.getModel();
             m.setNsPrefix("hal", HAL.NS);

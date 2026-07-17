@@ -19,18 +19,21 @@ import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.session.DefaultSessionIdManager;
 import org.eclipse.jetty.session.SessionHandler;
 import org.eclipse.jetty.session.SessionIdManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * 
  * @author erich
  */
 public class SPARQLEndPoint {
+    private static final Logger logger = LoggerFactory.getLogger(SPARQLEndPoint.class);
 
     private static SPARQLEndPoint sep = null;
     private static FusekiServer server = null;
 
     private SPARQLEndPoint() {
-        System.out.println("Starting Fuseki...");
+        logger.debug("Starting Fuseki...");
         server = FusekiServer.create()
                 // H1: serve the WAC-secured dataset (never the raw TDB2 store) and
                 // expose read/query ONLY. The three-arg add(...) with allowUpdate=false
@@ -43,7 +46,18 @@ public class SPARQLEndPoint {
                 // in-process: all external access must go through the authenticated
                 // /rdf proxy on the main application port (see Main.proxyServletRegistrationBean).
                 .loopback(true)
-                .enableCors(true, null)
+                // M26: CORS OFF here. `enableCors(true, null)` used Fuseki's default
+                // policy, which answers every origin with a wildcard — and that header
+                // was then forwarded verbatim through HalcyonProxyServlet to browsers.
+                //
+                // Loopback binding does not make this moot: any web page can make the
+                // visitor's own browser issue requests to 127.0.0.1, and a wildcard is
+                // exactly what lets that page READ the reply. Nothing legitimate needs
+                // CORS on this port — it is reachable only in-process, and the one real
+                // client (the /rdf proxy) is server-side, where CORS does not apply. The
+                // externally reachable surface is the proxy, and it applies the
+                // configured allow-list to the response itself.
+                .enableCors(false, null)
                 .port(HalcyonSettings.getSettings().GetSPARQLPort())
                 .build();
         //config.setContext(server.getServletContext());

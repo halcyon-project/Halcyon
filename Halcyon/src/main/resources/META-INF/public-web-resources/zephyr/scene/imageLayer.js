@@ -156,8 +156,13 @@ function makeTile(src, x, y, w, h, tilex, tiley, scale, hasAlpha) {
     if ((w < 1) || (h < 1)) {
         // Out-of-range stub — this tile row/column doesn't exist and renders
         // nothing (Square leaves its material invisible).
+        // L13: 1x1, not TileSize. This canvas is never drawn; it exists only so a
+        // texture handle is available when the material is built. At TileSize it
+        // was 512*512*4 = 1 MB of backing store per stub, and a slide's right and
+        // bottom edges produce one of these per row and column at every pyramid
+        // level.
         const canvas = document.createElement('canvas');
-        canvas.width = canvas.height = TileSize;
+        canvas.width = canvas.height = 1;
         const texture = new Texture(canvas);
         texture.userData.empty = true;
         texture.needsUpdate = true;

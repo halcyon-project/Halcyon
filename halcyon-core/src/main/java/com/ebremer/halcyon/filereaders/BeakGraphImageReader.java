@@ -350,7 +350,7 @@ public class BeakGraphImageReader extends AbstractImageReader {
                     }            
                 }  catch (Exception ex) {
                     logger.error(wkt+"  "+ex.getMessage());                   
-                    ex.printStackTrace();
+                    logger.error("Unhandled exception", ex);
                 } finally {
                     if (bg != null) {
                         try {

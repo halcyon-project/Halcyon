@@ -14,6 +14,7 @@ import org.locationtech.jts.io.ParseException;
 import org.locationtech.jts.io.WKTReader;
 
 public class Intersects extends FunctionBase {
+    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Intersects.class);
 
     @Override
     public NodeValue exec(List<NodeValue> args) {
@@ -54,7 +55,7 @@ public class Intersects extends FunctionBase {
         } catch (ParseException ex) {
             Logger.getLogger(Intersects.class.getName()).log(Level.SEVERE, null, ex);
         } catch (IllegalArgumentException ex) {
-            System.out.println("RUNT : "+nwkt.getString());
+            logger.debug("RUNT : {}", nwkt.getString());
         }
         return NodeValue.makeBoolean(false);
     }

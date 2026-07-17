@@ -15,6 +15,8 @@ import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -23,6 +25,7 @@ import org.springframework.core.Ordered;
 
 @Configuration
 public class Cool {
+    private static final Logger logger = LoggerFactory.getLogger(Cool.class);
 
     /** Name the admin-only filter refers to; registered on the pac4j Config (H4). */
     static final String ADMIN_AUTHORIZER = "halcyonAdmin";
@@ -107,7 +110,7 @@ public class Cool {
             keyconfig.setSslSocketFactory(defaultSslBundleRegistry.getBundle("server").createSslContext().getSocketFactory());
         }
         KeycloakOidcClient keycloakclient = new KeycloakOidcClient(keyconfig);
-        System.out.println("HACK : "+keycloakclient);
+        logger.debug("HACK : {}", keycloakclient);
         final Clients clients = new Clients(HalcyonSettings.getSettings().getProxyHostName()+"/callback", keycloakclient);
         Config config = new Config(clients);
         // H4: the (now group-based) admin authorizer, used only by adminSecurityFilter.

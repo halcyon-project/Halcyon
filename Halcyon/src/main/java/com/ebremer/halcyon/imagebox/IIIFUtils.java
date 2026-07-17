@@ -35,10 +35,21 @@ public class IIIFUtils {
 
         stuff.addProperty(IIIF.supports, "canonicalLinkHeader");
         stuff.addProperty(IIIF.supports, "profileLinkHeader");
-        stuff.addProperty(IIIF.supports, "mirroring");
-        stuff.addProperty(IIIF.supports, "rotationArbitrary");
-        stuff.addProperty(IIIF.supports, "sizeAboveFull");
-        stuff.addProperty(IIIF.supports, "regionSquare");
+        // L9: this is the capabilities document clients plan their requests from, and
+        // it was advertising four features none of which exist. Each promise was a
+        // request a conforming client would build and we would then get wrong:
+        //   mirroring          -> "!90" does not even match the request grammar (400)
+        //   rotationArbitrary  -> rotation is parsed and discarded; now refused
+        //   regionSquare       -> the region alternation is only full|x,y,w,h (400)
+        //   sizeAboveFull      -> the size is clamped to the image (ImageServer)
+        // Claiming a capability we do not have is worse than not having it: it turns
+        // our bug into the client's confusion. They are removed rather than
+        // implemented; add them back the same day the code does.
+        //
+        // The level2 profile below is likewise more than we implement — level 2
+        // requires rotationBy90s — but is left as-is deliberately: dropping to level1
+        // is a client-visible contract change that deserves a decision, not a
+        // drive-by, and level1 has its own requirements to audit against first.
         m.add(s,IIIF.profile, m.createResource("http://iiif.io/api/image/2/level2.json"));
         m.add(s,IIIF.profile, stuff);
         m.add(s,IIIF.protocol,"http://iiif.io/api/image");

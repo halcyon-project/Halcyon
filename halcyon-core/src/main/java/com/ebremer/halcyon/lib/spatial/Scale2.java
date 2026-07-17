@@ -8,8 +8,11 @@ import org.apache.jena.sparql.expr.NodeValue;
 import org.apache.jena.sparql.function.FunctionBase;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.io.WKTWriter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class Scale2 extends FunctionBase {
+    private static final Logger logger = LoggerFactory.getLogger(Scale2.class);
     
     public static final String POLYGONEMPTY = "POLYGON EMPTY";
 
@@ -41,7 +44,7 @@ public class Scale2 extends FunctionBase {
         try {
             ppp = wktWriter.write(scaled);
         } catch (NullPointerException ex) {
-            System.out.println(scaled +"  "+ ex.toString());
+            logger.debug("{}", scaled +"  "+ ex.toString());
         }
         return NodeValue.makeString(ppp);
     }

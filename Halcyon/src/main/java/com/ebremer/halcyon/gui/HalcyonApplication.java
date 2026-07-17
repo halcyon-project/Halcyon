@@ -1,5 +1,7 @@
 package com.ebremer.halcyon.gui;
 
+import org.apache.wicket.csp.CSPDirective;
+import org.apache.wicket.csp.CSPDirectiveSrcValue;
 import com.ebremer.halcyon.sparql.Sparql;
 import com.ebremer.halcyon.wicket.ListImages;
 import com.ebremer.halcyon.wicket.Stacks;
@@ -27,7 +29,7 @@ public class HalcyonApplication extends VandegraphApplication {
     private static final Logger logger = LoggerFactory.getLogger(HalcyonApplication.class);
 
     public HalcyonApplication() {
-        System.out.println("Starting Halcyon UI...");
+        logger.debug("Starting Halcyon UI...");
         datacore = DataCore.getInstance();
         sep = SPARQLEndPoint.getSPARQLEndPoint();
     }
@@ -64,7 +66,42 @@ public class HalcyonApplication extends VandegraphApplication {
 	super.init();
         this.getRequestLoggerSettings().setRequestLoggerEnabled(true);
         this.getRequestLoggerSettings().setRecordSessionSize(true);
-        getCspSettings().blocking().disabled();
+        // C5: CSP is ON. It was `blocking().disabled()`, which removed the browser's
+        // last line of defence against an injected <script>.
+        //
+        // The policy is deliberately narrow — `script-src 'nonce-<per-request>' 'self'`
+        // and nothing else — because this finding is about SCRIPT injection. Locking
+        // down style-src/img-src/connect-src/frame-src as well would be a much larger
+        // change (YASGUI injects styles, the viewers fetch tiles from configured hosts,
+        // AdminPage frames the Keycloak console) and would trade a real, verified win
+        // for a broad risk of breaking pages. Those directives are worth doing next,
+        // deliberately, one at a time.
+        //
+        // What this buys: an injected inline <script> cannot run, because it cannot
+        // guess the nonce. That is exactly the C5 chain — the Zephyr3 stored-Turtle and
+        // Upload reflected sinks are already fixed, so this is the defence-in-depth
+        // layer that catches the NEXT sink instead of the account being taken over.
+        //
+        // Why not Wicket's strict(): it emits 'strict-dynamic', which makes browsers
+        // IGNORE 'self' — every one of the ~40 external <script src="/..."> tags in the
+        // markup would then need a nonce too. 'self' + nonce keeps those working while
+        // still refusing anything inline that we did not stamp.
+        //
+        // Inline scripts in MARKUP get the nonce via CspNonce (Wicket only nonces the
+        // header items it renders itself). All 9 are bound: Sparql, Upload, DWVPanel,
+        // and the importmap/module pair in each of Zephyr2, Zephyr3 and Graph3D.
+        //
+        // KNOWN CASUALTY — Graph3D (/threed): its importmap and module load three.js and
+        // three-spritetext from //unpkg.com, which 'self' does not cover, so those
+        // imports will now be blocked. That page is already unreachable (MenuPanel does
+        // `threed.setVisible(false)` and the admin re-enable is commented out), and
+        // allow-listing a CDN app-wide to serve one hidden page — while pulling
+        // unpinned code from it at runtime — is a bad trade. To bring /threed back:
+        // point its importmap at the local /threejs/build/three.module.js (already
+        // vendored, and what Zephyr2/3 use) and vendor three-spritetext beside it.
+        getCspSettings().blocking()
+                .disabled()
+                .add(CSPDirective.SCRIPT_SRC, CSPDirectiveSrcValue.NONCE, CSPDirectiveSrcValue.SELF);
         getApplicationSettings().setUploadProgressUpdatesEnabled(true);
         getResourceSettings().setThrowExceptionOnMissingResource(false);
         getDebugSettings().setAjaxDebugModeEnabled(true);

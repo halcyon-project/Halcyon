@@ -58,6 +58,8 @@ public class URLControl {
             "/login",
             "/auth",
             "/three.js/",
+            // L18: Graph3D's vendored libraries — Wicket must not try to route these.
+            "/graph3d/",
             "/multi-viewer/",
             "/iiif/",
             "/halcyon/",

@@ -19,6 +19,7 @@ import org.apache.jena.query.QueryExecutionFactory;
 import org.apache.jena.query.QueryFactory;
 import org.apache.jena.query.QuerySolution;
 import org.apache.jena.query.ResultSet;
+import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.Property;
@@ -77,12 +78,12 @@ public final class HalcyonSettings {
         http2fileMappings = new HashMap<>();
         file2httpMappings = new HashMap<>();
         if (!f.exists()) {
-            System.out.println("no config file found!");
+            logger.debug("no config file found!");
             GenerateDefaultSettings();
         } else {
-            System.out.println("loading configuration file : " + f);
+            logger.debug("loading configuration file : {}", f);
             m = RDFDataMgr.loadModel(f.toString(), Lang.TTL);
-            System.out.println("# of triples " + m.size());
+            logger.debug("# of triples {}", m.size());
             GetMasterID();
         }
         // Define the properties for the settings
@@ -304,6 +305,55 @@ public final class HalcyonSettings {
         return list;
     }
 
+    /**
+     * Origins allowed to read image / SPARQL-proxy responses cross-origin (M26).
+     * <p>
+     * Configure with one or more {@code hal:corsAllowedOrigin} literals in
+     * settings.ttl, each an exact scheme+host+port with no trailing slash, e.g.
+     * {@code :corsAllowedOrigin "https://viewer.example.org"}. The single value
+     * {@code "*"} restores the old wildcard for every listed surface — deliberately
+     * explicit, so it is a decision someone made rather than a default nobody noticed.
+     * <p>
+     * The default (no setting present) is this deployment's own origin, i.e.
+     * same-origin only. That is what the first-party viewers need: Zephyr and the
+     * IIIF endpoints are served from this same host, so they never send an Origin
+     * that has to be approved. **If you publish IIIF to third-party viewers**
+     * (Mirador/OpenSeadragon hosted elsewhere), list those origins here — a IIIF
+     * Image API endpoint is often meant to be read cross-origin, and this default
+     * intentionally does not assume that for you.
+     *
+     * @return exact origins to allow; never null, never empty
+     */
+    public List<String> getCorsAllowedOrigins() {
+        ParameterizedSparqlString pss = new ParameterizedSparqlString(
+                "select ?origin where { ?s :corsAllowedOrigin ?origin }");
+        pss.setNsPrefix("", HAL.NS);
+        List<String> list = new ArrayList<>();
+        try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m)) {
+            qe.execSelect().forEachRemaining(qs -> {
+                RDFNode n = qs.get("origin");
+                if (n != null && n.isLiteral()) {
+                    String v = n.asLiteral().getLexicalForm().trim();
+                    if (!v.isEmpty()) {
+                        // Normalise away a trailing slash: an Origin header never has one,
+                        // so "https://x/" in config would silently match nothing.
+                        list.add(v.endsWith("/") ? v.substring(0, v.length() - 1) : v);
+                    }
+                }
+            });
+        } catch (RuntimeException ex) {
+            logger.error("Unreadable hal:corsAllowedOrigin setting — falling back to same-origin only", ex);
+            list.clear();
+        }
+        if (list.isEmpty()) {
+            String self = getProxyHostName();
+            if (self != null && !self.isBlank()) {
+                list.add(self.endsWith("/") ? self.substring(0, self.length() - 1) : self);
+            }
+        }
+        return list;
+    }
+
     public List<String> getRootContainers() {
         ParameterizedSparqlString pss = new ParameterizedSparqlString(
                 """
@@ -384,9 +434,15 @@ public final class HalcyonSettings {
         return null;
     }
 
+    /**
+     * L6: this tested for {@code RDFSecurityStoreLocation} but then read
+     * {@code HAL.RDFStoreLocation} — so configuring a separate security store
+     * silently handed back the path of the MAIN store, and the two would have
+     * been opened on top of each other.
+     */
     public String getRDFSecurityStoreLocation() {
         if (m.contains(Master, m.createProperty(HAL.NS + "RDFSecurityStoreLocation"))) {
-            return m.getProperty(Master, HAL.RDFStoreLocation).getString();
+            return m.getProperty(Master, m.createProperty(HAL.NS + "RDFSecurityStoreLocation")).getString();
         }
         return null;
     }

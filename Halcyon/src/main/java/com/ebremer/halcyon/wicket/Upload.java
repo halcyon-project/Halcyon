@@ -1,5 +1,7 @@
 package com.ebremer.halcyon.wicket;
 
+import com.ebremer.halcyon.gui.CspNonce;
+import org.apache.wicket.markup.html.WebMarkupContainer;
 import java.util.regex.Pattern;
 import org.apache.wicket.markup.head.IHeaderResponse;
 import org.apache.wicket.markup.head.JavaScriptHeaderItem;
@@ -44,5 +46,17 @@ public class Upload extends BasePage {
     public void renderHead(IHeaderResponse response) {
 	super.renderHead(response);        
         response.render(JavaScriptHeaderItem.forScript(path, "path"));
+    }
+
+    /**
+     * C5: bind the inline <script> tags in this page's markup so they receive the
+     * request's CSP nonce. Done in onInitialize rather than a constructor because
+     * these classes have several constructors that do not delegate to one another —
+     * onInitialize runs exactly once whichever was used.
+     */
+    @Override
+    protected void onInitialize() {
+        super.onInitialize();
+        add(new WebMarkupContainer("cspUpload").add(new CspNonce()));
     }
 }

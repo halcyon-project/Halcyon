@@ -9,12 +9,15 @@ import org.apache.jena.query.ResultSet;
 import org.apache.jena.query.ResultSetFormatter;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.update.UpdateAction;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author erich
  */
 public class FeatureGeneration {
+    private static final Logger logger = LoggerFactory.getLogger(FeatureGeneration.class);
     
     public static void AddPerimeters(Model m) {
         ParameterizedSparqlString pssx = new ParameterizedSparqlString(
@@ -51,11 +54,11 @@ public class FeatureGeneration {
         try {
             UpdateAction.parseExecute(pssx.toString(), m);
         } catch (Exception ex) {
-            System.out.println("AddAreas -> "+ex.getMessage());
+            logger.debug("AddAreas -> {}", ex.getMessage());
         } catch ( Throwable t ) {
-            t.printStackTrace();
+            logger.error("Unhandled exception", t);
         }
-        System.out.println("Done adding areas...");
+        logger.debug("Done adding areas...");
 //        Display(m);
     }
     
@@ -72,7 +75,7 @@ public class FeatureGeneration {
         // H13: in-memory model, but close the execution.
         try (QueryExecution qe = QueryExecutionFactory.create(pssx.toString(), m)) {
             ResultSet rs = qe.execSelect();
-            System.out.println("results --> "+rs.hasNext());
+            logger.debug("results --> {}", rs.hasNext());
             ResultSetFormatter.out(System.out, rs);
         }
         int c = 0;

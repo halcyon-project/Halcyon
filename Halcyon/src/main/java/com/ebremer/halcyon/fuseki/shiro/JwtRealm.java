@@ -8,20 +8,23 @@ import org.apache.shiro.authz.AuthorizationInfo;
 import org.apache.shiro.realm.AuthorizingRealm;
 import org.apache.shiro.subject.PrincipalCollection;
 import org.apache.shiro.subject.SimplePrincipalCollection;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class JwtRealm extends AuthorizingRealm {
+    private static final Logger logger = LoggerFactory.getLogger(JwtRealm.class);
     
     public JwtRealm() {}
 
     @Override
     public boolean supports(AuthenticationToken token) {
-        System.out.println("supports");
+        logger.debug("supports");
         return token instanceof JwtToken;
     }
 
     @Override
     protected AuthorizationInfo doGetAuthorizationInfo(PrincipalCollection principals) {
-        System.out.println("Implement your authorization logic here based on the user's roles and permissions.");
+        logger.debug("Implement your authorization logic here based on the user's roles and permissions.");
         return null;
     }
 

@@ -37,9 +37,20 @@ public final class JsSafe {
      * A complete, quoted JS string literal for {@code value} that cannot break
      * out of either the literal or the enclosing {@code <script>} element. Use
      * this instead of concatenating a raw value between quotes.
+     * <p>
+     * The backtick and {@code ${} escaping is belt-and-braces: the returned
+     * literal is double-quoted, so template-literal syntax inside it is already
+     * inert, and no caller nests it in a template literal today. It is done
+     * anyway because the one that DID — Zephyr3 pasting saved Turtle between
+     * backticks — is the whole reason C5 exists, and the escape costs nothing:
+     * every character of {@code value} is inside the quoted literal by
+     * construction, and {@code \\u0060} / {@code \\u0024} decode back to the
+     * originals. This is only safe here, not in {@link #inlineScriptPayload}.
      */
     public static String jsString(String value) {
-        return harden(Json.createValue(value == null ? "" : value).toString());
+        return harden(Json.createValue(value == null ? "" : value).toString())
+                .replace("`", "\\u0060")
+                .replace("${", "\\u0024{");
     }
 
     /**
@@ -48,6 +59,11 @@ public final class JsSafe {
      * JSON/JS — it escapes the HTML-significant characters wherever they appear,
      * which is safe because in such a payload they only occur inside string
      * literals.
+     * <p>
+     * Do NOT extend this with the backtick / {@code ${} escaping that
+     * {@link #jsString} applies. The argument here is CODE, not a string literal
+     * ({@code getMV()} is "var images = [...]"), so a {@code \\u0060} landing
+     * outside a literal is a syntax error rather than an escape.
      */
     public static String inlineScriptPayload(String payload) {
         return payload == null ? "" : harden(payload);

@@ -140,7 +140,7 @@ public class EditContainer extends BasePage {
         pss.setIri("item", uuid);
         pss.setNsPrefix("wac", WAC.NS);
         pss.setIri("SecurityGraph", HAL.SecurityGraph.getURI());
-        System.out.println(pss.toString());
+        logger.debug("{}", pss.toString());
         // M18: supplier form — see ListImages / EditCollection.
         SelectDataProvider rdfsdf = new SelectDataProvider(() -> DatabaseLocator.getDatabase().getDataset(), pss.toString());
         rdfsdf.setQuery(pss.toString());

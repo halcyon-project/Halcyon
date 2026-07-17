@@ -29,7 +29,7 @@
       line-height: 20px;
     }
   </style>
-  <script>
+  <script wicket:id="cspUpload">
     document.addEventListener('DOMContentLoaded', function () {
       const dropArea = document.getElementById('dropArea');
 
@@ -124,11 +124,24 @@
         uploadChunk();
       }
 
+      // L14: the filename went into innerHTML, so a file named
+      // "<img src=x onerror=alert(1)>.svs" executed on drop. Self-XSS only — it
+      // is your own filename in your own session — but it is also gratuitous: the
+      // name is text and nothing here needs it parsed as markup. textContent
+      // cannot execute, and the structure is built from real elements.
       function createProgressBar(fileName) {
         const wrapper = document.createElement('div');
-        wrapper.innerHTML = `<div>${fileName}</div><div class="progress-bar"><div class="progress"></div></div>`;
+        const label = document.createElement('div');
+        label.textContent = fileName;
+        const bar = document.createElement('div');
+        bar.className = 'progress-bar';
+        const progress = document.createElement('div');
+        progress.className = 'progress';
+        bar.appendChild(progress);
+        wrapper.appendChild(label);
+        wrapper.appendChild(bar);
         document.body.appendChild(wrapper);
-        return wrapper.querySelector('.progress');
+        return progress;
       }
 
       function updateProgressBar(progressBar, value) {

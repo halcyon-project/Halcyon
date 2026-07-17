@@ -4,6 +4,8 @@ import com.ebremer.halcyon.data.DataCore;
 import com.ebremer.halcyon.datum.HalcyonPrincipal;
 import com.ebremer.halcyon.fuseki.shiro.JwtToken;
 import com.ebremer.vandegraph.VandegraphSession;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import com.ebremer.ns.HAL;
 import jakarta.json.Json;
@@ -45,6 +47,7 @@ import org.pac4j.jee.context.session.JEESessionStore;
 import org.pac4j.oidc.profile.OidcProfile;
 
 public final class HalcyonSession extends VandegraphSession {
+    private static final Logger logger = LoggerFactory.getLogger(HalcyonSession.class);
     private String user;
     private String mv;
     private final String userURI;
@@ -52,7 +55,7 @@ public final class HalcyonSession extends VandegraphSession {
 
     public HalcyonSession(Request request, org.apache.wicket.request.Response response) {
         super(request);
-        System.out.println("Creating Session...");
+        logger.debug("Creating session");
         ServletWebRequest req = (ServletWebRequest) request;
         HttpServletRequest servletRequest = (HttpServletRequest) req.getContainerRequest();        
         WebResponse webResponse = (WebResponse) response;
@@ -67,13 +70,12 @@ public final class HalcyonSession extends VandegraphSession {
         if (profile.isPresent()) {
             OidcProfile oidcProfile = (OidcProfile) profile.get();
             String jwt = oidcProfile.getAccessToken().getValue();
-            System.out.println("JWT : "+jwt);
             JwtToken haha = new JwtToken(jwt);
             user = haha.getPrincipal().getPreferredUserName();
             userURI = haha.getPrincipal().getUserURI();
             principal = new HalcyonPrincipal(haha,false);
         } else {
-            System.out.println("HalcyonSession Profile not present!!!!");
+            logger.debug("No pac4j profile present; anonymous session");
             userURI = "urn:uuid:"+UUID.randomUUID().toString();
             principal = new HalcyonPrincipal(userURI, true);
         }
@@ -85,7 +87,7 @@ public final class HalcyonSession extends VandegraphSession {
             ResteasyClient client = builder.build();
             String cmd = s.getProxyHostName()+"/auth/admin/realms/"+HalcyonSettings.REALM+"/users";
             ResteasyWebTarget target = client.target(cmd);
-            System.out.println("SERVER CLIENT ===> "+cmd);
+            logger.debug("Keycloak admin request: {}", cmd);
             Invocation.Builder zam = target.request();
             zam.header("Authorization", "Bearer "+jwt);
             Response r = zam.get();
@@ -94,11 +96,11 @@ public final class HalcyonSession extends VandegraphSession {
                 String json = r.readEntity(String.class);
                 da.add(ParseUsers(json));    
             } else {
-                System.out.println("not able to update/Parse users...");
+                logger.warn("Unable to update/parse users from Keycloak (HTTP {})", r.getStatus());
             }            
             cmd = s.getAuthServer()+"/admin/realms/"+HalcyonSettings.REALM+"/groups";
             target = client.target(cmd);
-            System.out.println("SERVER CLIENT ===> "+cmd);
+            logger.debug("Keycloak admin request: {}", cmd);
             zam = target.request();
             zam.header("Authorization", "Bearer "+jwt);
             r = zam.get();           
@@ -117,18 +119,14 @@ public final class HalcyonSession extends VandegraphSession {
                 }
                 rs.forEachRemaining(qs ->{
                     Resource gg = qs.getResource("s");                    
-                    System.out.println(gg.getURI());
-                    map.forEach((k,v)->{ System.out.println(k+"  "+v);});
                     String cmdx = s.getAuthServer()+"/admin/realms/"+HalcyonSettings.REALM+"/groups/"+map.get(gg.getURI())+"/members";
                     ResteasyWebTarget targetx = client.target(cmdx);
-                    System.out.println("SERVER CLIENT ===> "+cmdx);
+                    logger.debug("Keycloak admin request: {}", cmdx);
                     Invocation.Builder zamx = targetx.request();
                     zamx.header("Authorization", "Bearer "+jwt);
                     Response rr = zamx.get();
-                    System.out.println(rr.getStatus());
                     if (rr.getStatus()==200) {
                         String json2 = rr.readEntity(String.class);
-                        System.out.println(json2);
                         JsonReader jr = Json.createReader(new StringReader(json2));
                         JsonArray ja = jr.readArray();
                         ja.forEach(p->{
@@ -143,17 +141,19 @@ public final class HalcyonSession extends VandegraphSession {
                     .addProperty(SchemaDO.name, "Anonymous Sessions");
                 DataCore dc = DataCore.getInstance();
                 if (dc.getDataset()!=null) {
-                    System.out.println("DataCore online....\nUpdating Groups and Users...");
-                    da.write(System.out, "TURTLE");
+                    // L1: da.write(System.out, "TURTLE") dumped the entire assembled
+                    // users+groups graph — every name, email and membership in the realm —
+                    // to stdout on every authenticated session creation.
+                    logger.debug("DataCore online; updating groups and users");
                     DataCore.getInstance().replaceNamedGraph(HAL.GroupsAndUsers, da);
                 } else {
-                    System.out.println("DataCore NOT online....");
+                    logger.warn("DataCore not online; groups and users not updated");
                 }
             } else {
-                System.out.println("not able to update/Parse groups...");
+                logger.warn("Unable to update/parse groups from Keycloak (HTTP {})", r.getStatus());
             }
         }
-        System.out.println("Creating Session...Done.");
+        logger.debug("Creating session... done");
     }
     
     public Model ParseLab(JsonObject jo, HashMap<String,String> map) {
@@ -204,8 +204,9 @@ public final class HalcyonSession extends VandegraphSession {
         return m;
     }
     
+    // L1: the Keycloak /users payload was printed verbatim — the entire realm
+    // directory (username, firstName, email, webid) to stdout on every session.
     public Model ParseUsers(String json) {
-        System.out.println(json);
         JsonReader jr = Json.createReader(new StringReader(json));
         JsonArray ja = jr.readArray();
         Model m = ModelFactory.createDefaultModel(); 
@@ -215,8 +216,8 @@ public final class HalcyonSession extends VandegraphSession {
         return m;
     }
 
+    // L1: as ParseUsers — this printed the whole groups payload.
     public Model ParseGroups(String json, HashMap<String,String> map) {
-        System.out.println(json);
         JsonArray ja = Json.createReader(new StringReader(json)).readArray();
         Model m = ModelFactory.createDefaultModel();
         for (int i=0; i<ja.size(); i++) {

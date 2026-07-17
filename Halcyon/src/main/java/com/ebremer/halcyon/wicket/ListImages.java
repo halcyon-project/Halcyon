@@ -202,7 +202,7 @@ public class ListImages extends BasePage implements IPanelChangeListener {
         HashSet<Node> features = lf.getSelectedFeatures();
         ParameterizedSparqlString pss = rdfsdf.getPSS();
         pss.setIri("collection", selected);
-        System.out.println(pss.toString());
+        logger.debug("{}", pss.toString());
         Query q = QueryFactory.create(pss.toString());
         if (!features.isEmpty()) {
             WhereHandler wh = new WhereHandler(q);

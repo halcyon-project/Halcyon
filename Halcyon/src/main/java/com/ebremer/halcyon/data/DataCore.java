@@ -18,12 +18,15 @@ import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.riot.RDFFormat;
 import org.apache.jena.tdb2.TDB2Factory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author erich
  */
 public final class DataCore {
+    private static final Logger logger = LoggerFactory.getLogger(DataCore.class);
     private static DataCore core = null;
     private static Dataset ds = null;
     private static HalcyonSettings hs = null;
@@ -34,7 +37,7 @@ public final class DataCore {
 
     private DataCore() {
         hs = HalcyonSettings.getSettings();
-        System.out.println("Starting TDB2...");
+        logger.debug("Starting TDB2...");
         ds = TDB2Factory.connectDataset(hs.getRDFStoreLocation());
         secm = ModelFactory.createDefaultModel();
         ReloadSECM();

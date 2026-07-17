@@ -13,12 +13,15 @@ import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.util.AffineTransformation;
 import org.locationtech.jts.io.ParseException;
 import org.locationtech.jts.io.WKTReader;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author erich
  */
 public class GeometryTools {
+    private static final Logger logger = LoggerFactory.getLogger(GeometryTools.class);
     
     public static BufferedImage copyBufferedImage(BufferedImage original) {
         // Create a new BufferedImage with the same dimensions and type as the original
@@ -102,9 +105,9 @@ public class GeometryTools {
         try {
             return new WKTReader().read(swkt);
         } catch (ParseException ex) {
-            System.out.println("Parse Exception --> "+swkt);
+            logger.debug("Parse Exception --> {}", swkt);
         } catch (IllegalArgumentException ex) {
-            System.out.println("ARGH --> "+swkt);
+            logger.debug("ARGH --> {}", swkt);
         }
         return null;
     }
@@ -125,7 +128,7 @@ public class GeometryTools {
         if (geometry instanceof Polygon polygon) {
             return polygon;
         }
-        System.out.println("WKT2Polygon: not a POLYGON ("+geometry.getGeometryType()+") --> "+swkt);
+        logger.debug("WKT2Polygon: not a POLYGON ({}) --> {}", geometry.getGeometryType(), swkt);
         return null;
     }
     

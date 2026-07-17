@@ -32,6 +32,7 @@ import org.springframework.core.io.ClassPathResource;
  * @author erich
  */
 public class INIT {
+    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(INIT.class);
         
     public void dump(String src, String dest) {
         if (!(new File(dest)).exists()) {
@@ -118,7 +119,7 @@ public class INIT {
         JenaSystem.init();
         Iterator<javax.imageio.ImageReader> readers = ImageIO.getImageReadersByFormatName("tif");
         readers.forEachRemaining(ir->{
-            System.out.println("TIF READER LOADED : "+ir.getClass().toGenericString());
+            logger.debug("TIF READER LOADED : {}", ir.getClass().toGenericString());
         });
         dump("defaultapplication.yml","application.yml");
         

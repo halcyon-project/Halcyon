@@ -38,12 +38,15 @@ import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.XSD;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author erich
  */
 public class XMP {
+    private static final Logger logger = LoggerFactory.getLogger(XMP.class);
     private BigDecimal magnification = null;
     private BigDecimal ppsx = null;
     private BigDecimal ppsy = null;
@@ -189,7 +192,7 @@ public class XMP {
                     .parse(xmp);                   
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("Unhandled exception", e);
         }
         return xmp;
     }
@@ -219,30 +222,30 @@ public class XMP {
             XPathExpression expr = xpath.compile(expression);
             Node node = (Node) expr.evaluate(doc, XPathConstants.NODE);
             if (node != null) {
-                System.out.println("Found node: " + node.getNodeName());
+                logger.debug("Found node: {}", node.getNodeName());
                 StringWriter writer = new StringWriter();
                 Transformer transformer = TransformerFactory.newInstance().newTransformer();
                 transformer.transform(new DOMSource(node), new StreamResult(writer));                
-                System.out.println(writer.toString());
+                logger.debug("{}", writer.toString());
                 byte[] byteArray = writer.toString().getBytes(StandardCharsets.UTF_8);
                 return new ByteArrayInputStream(byteArray);                
             } else {
-                System.out.println("Node not found.");
+                logger.debug("Node not found.");
                 return new FileInputStream("xmp.xml");
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("Unhandled exception", e);
         }
         return null;
     }
 
     public static void main(String args[]) throws FileNotFoundException {                 
-        System.out.println("YAY !!!!=========================================================================================");
+        logger.debug("YAY !!!!=========================================================================================");
         XMP xmp = new XMP();
         xmp.setMagnification(BigDecimal.valueOf(40.4));
         xmp.setSizePerPixelXinMM(BigDecimal.valueOf(0.2468d).divide(BigDecimal.valueOf(1000000)));
         xmp.setSizePerPixelYinMM(BigDecimal.valueOf(0.2468d).divide(BigDecimal.valueOf(1000000)));
         xmp.setExposureTime(BigDecimal.valueOf(0.0041234d));
-        System.out.println(xmp.getXMPString());
+        logger.debug("{}", xmp.getXMPString());
     }
 }

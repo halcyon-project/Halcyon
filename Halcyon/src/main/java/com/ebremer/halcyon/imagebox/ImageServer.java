@@ -7,6 +7,7 @@ import com.ebremer.halcyon.lib.Rectangle;
 import com.ebremer.halcyon.lib.Tile;
 import com.ebremer.halcyon.lib.TileRequest;
 import com.ebremer.halcyon.lib.TileRequestEngine;
+import com.ebremer.halcyon.server.CorsPolicy;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import com.ebremer.halcyon.server.utils.ImageReaderPool;
 import jakarta.servlet.ServletOutputStream;
@@ -45,7 +46,7 @@ public class ImageServer extends HttpServlet {
         try {
             IIIFProcessor i = new IIIFProcessor(iiifParam);
             if (i.tilerequest) {
-                handleTileRequest(i, response);
+                handleTileRequest(i, request, response);
             } else if (i.inforequest) {
                 handleInfoRequest(i, request, response);
             } else {
@@ -53,13 +54,20 @@ public class ImageServer extends HttpServlet {
             }
         } catch (URISyntaxException ex) {
             reportError(response, HttpServletResponse.SC_BAD_REQUEST, "Invalid IIIF URI format");
+        } catch (BadIIIFRequestException ex) {
+            // L9: a client error is a 400, and is logged at debug — not an ERROR with
+            // a stack trace. "/full/,/0/default.jpg" used to reach the catch-all below
+            // and report 500, so any unauthenticated caller could run up the error
+            // rate and fill the log at will.
+            logger.debug("Rejected IIIF request: {}", ex.getMessage());
+            reportError(response, HttpServletResponse.SC_BAD_REQUEST, ex.getMessage());
         } catch (Exception ex) {
             logger.error("Unhandled ImageServer error", ex);
             reportError(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Internal Server Error");
         }
     }
 
-    private void handleTileRequest(IIIFProcessor i, HttpServletResponse response) {
+    private void handleTileRequest(IIIFProcessor i, HttpServletRequest request, HttpServletResponse response) {
         ImageMeta meta = fetchMetadata(i.uri);
         if (meta == null) {
             reportError(response, HttpServletResponse.SC_NOT_FOUND, "Resource not found or metadata unavailable");
@@ -104,11 +112,24 @@ public class ImageServer extends HttpServlet {
             reportError(response, HttpServletResponse.SC_BAD_REQUEST, "Invalid size: at least one dimension must be positive");
             return;
         }
+        // L9: the retrieve flags follow the requested FORMAT; they used to be the
+        // constants `true, true, false`. A /default.ttl or /default.json asks for
+        // metadata, and was answered by decoding the full region into a
+        // BufferedImage and bilinearly resampling it twice — maximum cost, then the
+        // pixels were thrown away. retrieveMeta was hardcoded false at the same
+        // time, so Tile.meta() lazily fetched the model on the servlet's response
+        // thread instead (the very thing M13 says it removed).
+        //
+        // This is only safe together with TileRequest's cache key now including
+        // these two flags: otherwise .jpg and .ttl for the same uri+region+size
+        // collide and serve each other's tiles. See TileRequest.hashCode.
+        boolean wantsMeta = i.imageformat == Enums.ImageFormat.TTL
+                         || i.imageformat == Enums.ImageFormat.JSON;
         TileRequest tr = TileRequest.genTileRequest(
             i.uri,
             new ImageRegion(i.x, i.y, i.w, i.h),
             new Rectangle(i.tx, i.ty),
-            true, true, false, i.aspectratio
+            true, !wantsMeta, wantsMeta, i.aspectratio
         );
         // C3: re-apply the budget to the RESOLVED size. The check above ran on the
         // requested (tx,ty), where a legitimate one-sided form ("512,") leaves the
@@ -125,7 +146,11 @@ public class ImageServer extends HttpServlet {
         Tile tile = null;
         try {
             tile = TileRequestEngine.getInstance().getFutureTile(tr).get(60, TimeUnit.SECONDS);
-            if (tile == null || (tile.getBufferedImage() == null && i.imageformat != Enums.ImageFormat.TTL)) {
+            // L9: `wantsMeta`, not `!= TTL`. A metadata request no longer carries a
+            // BufferedImage at all now that retrieveBufferedImage follows the format,
+            // and JSON is a metadata format too — the old TTL-only exemption would
+            // have turned every /default.json into a 500.
+            if (tile == null || (tile.getBufferedImage() == null && !wantsMeta)) {
                 reportError(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Tile generation failed timeout)");
                 return;
             }
@@ -151,7 +176,7 @@ public class ImageServer extends HttpServlet {
             reportError(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Tile generation failed");
             return;
         }
-        sendTileResponse(tile, i.imageformat, response);
+        sendTileResponse(tile, i.imageformat, request, response);
     }
 
     /**
@@ -178,7 +203,9 @@ public class ImageServer extends HttpServlet {
             return;
         }
         response.setContentType("application/json");
-        response.setHeader("Access-Control-Allow-Origin", "*");
+        // M26: allow-list instead of "*" (see CorsPolicy). info.json is IIIF metadata —
+        // if third-party viewers consume it, list their origins in settings.ttl.
+        CorsPolicy.apply(request, response);
         try (PrintWriter writer = response.getWriter()) {
             String proxyBase = HalcyonSettings.getSettings().getProxyHostName() + request.getRequestURI() + "?" + request.getQueryString();
             String cleanURI = proxyBase.replaceAll("/info\\.json/?$", "");
@@ -191,8 +218,11 @@ public class ImageServer extends HttpServlet {
         }
     }
 
-    private void sendTileResponse(Tile tile, Enums.ImageFormat format, HttpServletResponse response) {
-        response.setHeader("Access-Control-Allow-Origin", "*");        
+    private void sendTileResponse(Tile tile, Enums.ImageFormat format,
+                                  HttpServletRequest request, HttpServletResponse response) {
+        // M26: allow-list instead of "*" — the policy needs the request's Origin, which
+        // is why this method now takes the request.
+        CorsPolicy.apply(request, response);
         try (ServletOutputStream sos = response.getOutputStream()) {
             switch (format) {
                 case JPG -> {

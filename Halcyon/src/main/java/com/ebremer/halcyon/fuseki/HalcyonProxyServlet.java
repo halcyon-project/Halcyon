@@ -1,6 +1,7 @@
 package com.ebremer.halcyon.fuseki;
 
 import com.ebremer.halcyon.datum.HalcyonPrincipal;
+import com.ebremer.halcyon.server.CorsPolicy;
 import com.ebremer.halcyon.server.RequestPrincipal;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -60,9 +61,36 @@ public class HalcyonProxyServlet extends ProxyServlet {
         proxyRequest.addHeader("X-Forwarded-Proto", "https");        
         proxyRequest.addHeader("X-Forwarded-Host", "localhost");
         proxyRequest.addHeader("X-Forwarded-Port", "8888");
-        proxyRequest.addHeader("Access-Control-Allow-Origin", "*");
-        proxyRequest.addHeader("Access-Control-Allow-Headers", "Content-type, Authorization, X-Requested-With, DPop");
-    }    
+        // M26: the two CORS headers that used to be added here are gone.
+        //
+        // They never did what they look like they did: `proxyRequest` is the request
+        // being sent UPSTREAM to Fuseki, and Access-Control-Allow-Origin /
+        // Access-Control-Allow-Headers are RESPONSE headers. Setting them on an
+        // outbound request is meaningless — Fuseki ignores them, and the browser never
+        // sees them. The wildcard the browser actually received came from Fuseki's own
+        // `enableCors(true, null)`, forwarded back through this proxy; that is now
+        // disabled at the source (SPARQLEndPoint) and the response policy is applied
+        // here instead, in copyResponseHeaders below.
+    }
+
+    /**
+     * M26: decide cross-origin access on the way BACK, which is the only place it can
+     * be decided. Fuseki's own CORS is off (see SPARQLEndPoint), so whatever policy is
+     * configured for this deployment is applied here to the proxied response.
+     */
+    @Override
+    protected void copyResponseHeaders(HttpResponse proxyResponse,
+                                       HttpServletRequest servletRequest,
+                                       HttpServletResponse servletResponse) {
+        super.copyResponseHeaders(proxyResponse, servletRequest, servletResponse);
+        // Replace, don't append: setHeader overwrites any Access-Control-Allow-Origin
+        // that came back from upstream, then the policy re-adds one only if the caller's
+        // Origin is allowed. (Fuseki's CORS is off now, so upstream should not be
+        // sending one at all — this stays defensive because a wildcard leaking through
+        // here would silently undo the whole change.)
+        servletResponse.setHeader("Access-Control-Allow-Origin", null);
+        CorsPolicy.apply(servletRequest, servletResponse);
+    }
     
     @Override
     protected String rewritePathInfoFromRequest(HttpServletRequest servletRequest) {

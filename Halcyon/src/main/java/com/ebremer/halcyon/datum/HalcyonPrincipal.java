@@ -9,12 +9,15 @@ import java.io.Serializable;
 import java.security.Principal;
 import java.util.ArrayList;
 import org.pac4j.oidc.profile.keycloak.KeycloakOidcProfile;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author erich
  */
 public class HalcyonPrincipal implements Principal, Serializable {
+    private static final Logger logger = LoggerFactory.getLogger(HalcyonPrincipal.class);
     private final String URNuuid;
     private final String uuid;
     private final String useruri;
@@ -79,21 +82,27 @@ public class HalcyonPrincipal implements Principal, Serializable {
         } else {
             firstname = "";
         }
-        if (claims.keySet().contains("preferred_username")) {
-            preferred_username = (String) claims.get("preferred_username");
-        } else {
-            preferred_username = "";
+        // L7: fail closed on a missing username. This value is the ACL identity —
+        // it becomes `<host>/user/<name>` below and is what wac:agent is matched
+        // against. Defaulting it to "" collapsed EVERY token lacking a
+        // preferred_username onto the single identity `<host>/user/`, so those
+        // users silently shared one ACL subject and inherited each other's grants.
+        // An unusable identity must not be a usable one.
+        if (!claims.keySet().contains("preferred_username")) {
+            throw new IllegalArgumentException("JWT has no preferred_username; refusing to build an ACL identity");
+        }
+        preferred_username = (String) claims.get("preferred_username");
+        if (preferred_username == null || preferred_username.isBlank()) {
+            throw new IllegalArgumentException("JWT preferred_username is blank; refusing to build an ACL identity");
         }
         this.useruri = HalcyonSettings.getSettings().getHostName()+"/user/"+preferred_username;
         if (claims.keySet().contains("groups")) {
-            System.out.println("GROUPS DETECTED!!!");
             ArrayList<String> ha = (ArrayList) claims.get("groups");
-            ha.forEach(g->System.out.println(g));
             groups.addAll(ha);
-        } else {
-            firstname = "";
-            System.out.println("NNOOOOOOOOOOOOOOOOOOOOOOOO GROUPS DETECTED!!!");
         }
+        // L7: the no-groups branch used to also do `firstname = ""`, silently
+        // wiping a given_name that had just been read two blocks up. Having no
+        // groups says nothing about your first name.
         if (!anonymous) {
             name = firstname+" "+lastname;
         }
@@ -105,7 +114,7 @@ public class HalcyonPrincipal implements Principal, Serializable {
             // M4: the verifier picks the signing key by the token's own `kid`.
             claimsx = new JwtVerifier().verify(tokenx);
         } catch (Exception ex) {
-            System.out.println(ex.toString());
+            logger.debug("{}", ex.toString());
         }
         return claimsx;
     }

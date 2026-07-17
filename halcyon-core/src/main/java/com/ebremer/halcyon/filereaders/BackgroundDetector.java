@@ -9,8 +9,11 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import javax.imageio.ImageIO;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class BackgroundDetector {
+    private static final Logger logger = LoggerFactory.getLogger(BackgroundDetector.class);
 
     public static Color getDominantColor(BufferedImage image) {
         Map<Color, Integer> colorCount = new HashMap<>();
@@ -40,7 +43,7 @@ public class BackgroundDetector {
     public static boolean[][] getBackgroundMask(BufferedImage bi, int a, int b) {
         boolean[][] mask = new boolean[bi.getWidth()][bi.getHeight()];
         Color dominant = getDominantColor(bi);
-        System.out.println("Dominant color: " + dominant.toString());
+        logger.debug("Dominant color: {}", dominant.toString());
         for (int i = 0; i < bi.getWidth(); i++) {
             for (int j = 0; j < bi.getHeight(); j++) {
                 if (isBackgroundColor(bi, new Color(bi.getRGB(i, j)), dominant, 20)) {
@@ -91,7 +94,7 @@ public class BackgroundDetector {
         } catch (IOException e) {
         }
         Color dominant = getDominantColor(image);
-        System.out.println("Dominant color: " + dominant.toString());
+        logger.debug("Dominant color: {}", dominant.toString());
         for (int i = 0; i < image.getWidth(); i++) {
             for (int j = 0; j < image.getHeight(); j++) {
                 if (isBackgroundColor(image, new Color(image.getRGB(i, j)), dominant, 10)) {

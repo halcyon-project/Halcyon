@@ -15,7 +15,20 @@ public class ViewerPanel extends Panel {
     
     public ViewerPanel(String id, int numx, int numy, int w, int h) {
         super(id);
-        add(new Label("inlineScript", "<script>pageSetup('contentDiv', images, "+(numx*numy)+", "+numx+", "+numy+", "+w+", "+h+", options);</script>").setEscapeModelStrings(false));
+        // C5: the <script> element comes from the markup now and carries the request's
+        // nonce (CspNonce); this Label supplies only its BODY. It previously built the
+        // whole "<script>…</script>" string here, which Wicket renders verbatim — the
+        // nonce decorator only stamps tags Wicket itself renders, so that script had
+        // none and script-src blocked it, leaving the viewer blank.
+        //
+        // setEscapeModelStrings(false) is still required: the body contains quotes, and
+        // a <script> element's content is raw text, so an escaped &#039; would be a JS
+        // syntax error rather than an apostrophe. Safe because every value interpolated
+        // below is an int.
+        add(new Label("inlineScript",
+                "pageSetup('contentDiv', images, "+(numx*numy)+", "+numx+", "+numy+", "+w+", "+h+", options);")
+                .setEscapeModelStrings(false)
+                .add(new CspNonce()));
     }
     
     @Override

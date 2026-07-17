@@ -548,14 +548,14 @@ public class DICOMImageReader extends AbstractImageReader {
     public static void main(String[] args) throws Exception {
         File file = new File("D:\\HalcyonStorage\\tcga\\coad\\dicom\\TCGA-CM-6162-01Z-00-DX1.806a99a3-cda2-4dde-8d13-d22912b44d49_0_0.dcm");
         try (DICOMImageReader reader = new DICOMImageReader(file.toURI(), file.toURI())) {
-            System.out.println(reader.getImageMeta());
+            logger.debug("{}", reader.getImageMeta());
             RDFDataMgr.write(System.out, reader.getMeta(), Lang.TURTLE);
             BufferedImage thumb = reader.readTile(
                 new ImageRegion(0, 0, reader.getImageMeta().getWidth(), reader.getImageMeta().getHeight()),
                 new com.ebremer.halcyon.lib.Rectangle(1024, 1024));
             File out = new File("D:\\HalcyonStorage\\tcga\\coad\\dicomrdf\\_thumb.png");
             ImageIO.write(thumb, "png", out);
-            System.out.println("wrote " + out + " " + thumb.getWidth() + "x" + thumb.getHeight());
+            logger.debug("wrote {} {}x{}", out, thumb.getWidth(), thumb.getHeight());
         }
     }
 }

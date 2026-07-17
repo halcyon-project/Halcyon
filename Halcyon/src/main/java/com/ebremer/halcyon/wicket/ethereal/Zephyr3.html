@@ -12,7 +12,7 @@
 
 <wicket:extend>
 <div id="output"></div>
- <script type="importmap">
+ <script type="importmap" wicket:id="cspImportMap">
     {
         "imports": {
             "three": "/threejs/build/three.module.js",
@@ -22,7 +22,7 @@
         }
     }
   </script>
-  <script type="module">
+  <script type="module" wicket:id="cspModule">
     import * as THREE from 'three';
     import Stats from 'three/addons/libs/stats.module.js';
     import { GUI } from 'three/addons/libs/lil-gui.module.min.js';

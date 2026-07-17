@@ -7,6 +7,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
@@ -19,49 +20,86 @@ import java.util.logging.Logger;
  * @author erich
  */
 public class HashTools {
-    public static String MD5 = "MD5";
-    public static String SHA256 = "SHA-256";
-    public static String SHA512 = "SHA-512";
+    // final: these were writable statics, so any caller could repoint MD5 at
+    // another algorithm for the whole JVM.
+    public static final String MD5 = "MD5";
+    public static final String SHA256 = "SHA-256";
+    public static final String SHA512 = "SHA-512";
     public record Hashes(String MD5, String SHA256) {};
 
     public static String hash(byte[] src, String algo) {
         try {
             MessageDigest md = MessageDigest.getInstance(algo);
             md.update(src);
-            byte[] digest = md.digest();
-            StringBuilder sb = new StringBuilder();        
-            for (int i=0; i < digest.length; i++) {
-                sb.append(Integer.toString((digest[i]&0xff)+0x100,16).substring(1));
-            }
-            return sb.toString();
+            return hex(md.digest());
         } catch (NoSuchAlgorithmException ex) {
             Logger.getLogger(HashTools.class.getName()).log(Level.SEVERE, null, ex);
         }
         return null;
     }
-       
+
+    /**
+     * Hash the bytes between {@code position} and {@code limit}, without
+     * disturbing the caller's buffer.
+     * <p>
+     * The {@code src.array()} this replaces was wrong three ways: it hashed the
+     * WHOLE backing array, ignoring position/limit (so a slice or a partially
+     * filled read buffer hashed the wrong bytes — including stale trailing
+     * bytes), and it throws {@code UnsupportedOperationException} for a direct
+     * buffer (no accessible backing array) and {@code ReadOnlyBufferException}
+     * for a read-only one. {@code MessageDigest.update(ByteBuffer)} honours the
+     * position/limit window and works for every buffer kind; the
+     * {@code duplicate()} keeps this a pure function, since update() would
+     * otherwise advance the caller's position to the limit.
+     */
+    public static String hash(ByteBuffer src, String algo) {
+        try {
+            MessageDigest md = MessageDigest.getInstance(algo);
+            md.update(src.duplicate());
+            return hex(md.digest());
+        } catch (NoSuchAlgorithmException ex) {
+            Logger.getLogger(HashTools.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        return null;
+    }
+
+    private static String hex(byte[] digest) {
+        StringBuilder sb = new StringBuilder(digest.length * 2);
+        for (byte b : digest) {
+            sb.append(Integer.toString((b & 0xff) + 0x100, 16).substring(1));
+        }
+        return sb.toString();
+    }
+
     public static String MD5(ByteBuffer src) {
-        return hash(src.array(), MD5);
+        return hash(src, MD5);
     }
 
     public static String MD5(byte[] src) {
-        return hash(src, "MD5");
+        return hash(src, MD5);
     }
-    
+
     public static String MD5(String src) {
-        return hash(src.getBytes(),MD5);
+        return hash(src.getBytes(StandardCharsets.UTF_8), MD5);
     }
 
     public static String SHA512(ByteBuffer src) {
-        return hash(src.array(), SHA512);
+        return hash(src, SHA512);
     }
 
     public static String SHA512(byte[] src) {
         return hash(src, SHA512);
     }
-    
+
+    /**
+     * UTF-8, explicitly: {@code getBytes()} used the platform default charset, so
+     * the same string hashed to different digests on different machines (and
+     * silently changed digest the moment a JVM's default changed — e.g. the
+     * Windows-1252 dev box vs the UTF-8 container). A hash that is not stable
+     * across hosts is not a hash.
+     */
     public static String SHA512(String src) {
-        return hash(src.getBytes(),SHA512);
+        return hash(src.getBytes(StandardCharsets.UTF_8), SHA512);
     }
     
     public static String GetMD5(String file) throws Exception {

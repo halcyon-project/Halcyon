@@ -10,12 +10,15 @@ import org.springframework.boot.web.servlet.ServletRegistrationBean;
 import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.core.Ordered;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author Erich Bremer
  */
     public class ServletInitializer implements ApplicationContextInitializer<ConfigurableApplicationContext> {
+    private static final Logger logger = LoggerFactory.getLogger(ServletInitializer.class);
 
         @Override
         public void initialize(ConfigurableApplicationContext applicationContext) {
@@ -27,10 +30,10 @@ import org.springframework.core.Ordered;
                 srb.setOrder(Ordered.HIGHEST_PRECEDENCE + 4);
                 if (OperatingSystemInfo.ifWindows()) {
                     srb.addInitParameter("resourceBase", rh.resourceBase().getPath().substring(1));
-                    System.out.println("Add Path --> " + rh.urlPath() + "  " + rh.resourceBase().getPath().substring(1));
+                    logger.debug("Add Path --> {}  {}", rh.urlPath(), rh.resourceBase().getPath().substring(1));
                 } else {                
                     srb.addInitParameter("resourceBase", rh.resourceBase().getPath());
-                    System.out.println("Add Path --> " + rh.urlPath() + "  " + rh.resourceBase().getPath());
+                    logger.debug("Add Path --> {}  {}", rh.urlPath(), rh.resourceBase().getPath());
                 }
                 // C1: no anonymous directory listing of the stored files (these
                 // trees hold PHI). Serving a known resource still works.

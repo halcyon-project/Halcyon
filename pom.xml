@@ -102,6 +102,7 @@
         <jts.version>1.20.0</jts.version>
         <twelvemonkeys.version>3.13.1</twelvemonkeys.version>
         <cygnus.version>0.1.0-SNAPSHOT</cygnus.version>
+        <maven-surefire-plugin.version>3.5.3</maven-surefire-plugin.version>
         <maven-compiler-plugin.version>3.15.0</maven-compiler-plugin.version>
         <maven-shade-plugin.version>3.6.2</maven-shade-plugin.version>
         <maven-enforcer-plugin.version>3.6.3</maven-enforcer-plugin.version>
@@ -373,8 +374,12 @@
             <url>https://cursus.bmi.stonybrookmedicine.edu/releases</url>
             <!-- H15: releases-only, stated explicitly. This is also Maven's default
                  for a <repository> with no <snapshots> element, which is precisely
-                 why the cygnus SNAPSHOTs below were never resolvable from here. -->
-            <releases><enabled>true</enabled></releases>
+                 why the cygnus SNAPSHOTs below were never resolvable from here.
+                 M28: checksumPolicy=fail. Maven's DEFAULT is `warn` — on a checksum
+                 MISMATCH it logs a line and uses the artifact anyway, which is not a
+                 policy so much as the absence of one. Every artifact this repo serves
+                 publishes a .sha1 (verified), so failing closed costs nothing. -->
+            <releases><enabled>true</enabled><checksumPolicy>fail</checksumPolicy></releases>
             <snapshots><enabled>false</enabled></snapshots>
         </repository>
         <!-- H15: the cygnus ImageIO plug-ins (svs, ndpi, jpeg2000, jpegxl — see
@@ -388,12 +393,19 @@
             <name>Halcyon Snapshots</name>
             <url>https://cursus.bmi.stonybrookmedicine.edu/snapshots</url>
             <releases><enabled>false</enabled></releases>
-            <snapshots><enabled>true</enabled></snapshots>
+            <!-- M28: fail on a checksum mismatch (see the release repo above). This
+                 matters MORE here than there: a SNAPSHOT is refetched as it changes,
+                 so it is the one artifact whose bytes can move under a build. -->
+            <snapshots><enabled>true</enabled><checksumPolicy>fail</checksumPolicy></snapshots>
         </repository>
         <repository>
             <id>dcm4che</id>
             <name>dcm4che Repository</name>
             <url>https://www.dcm4che.org/maven2</url>
+            <!-- M28: as above. This is the one third-party repo besides Central, and
+                 the only one not operated by either us or Sonatype. -->
+            <releases><enabled>true</enabled><checksumPolicy>fail</checksumPolicy></releases>
+            <snapshots><enabled>false</enabled></snapshots>
         </repository>
     </repositories>
     <distributionManagement>
@@ -458,6 +470,17 @@
                     </execution>
                 </executions>
             </plugin>
+            <!-- F1: pin surefire for the whole reactor. Maven's DEFAULT surefire
+                 binding does not detect the JUnit 5 platform, so an unpinned module
+                 runs its tests silently as zero — the failure mode HalcyonLWS worked
+                 around locally. Pinned here once instead. `mvn test` across the reactor
+                 is green at the time of writing (29,019 jena-permissions + 57 LWS), so
+                 wiring CI to it (see .github/workflows/ci.yml) is safe. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>${maven-surefire-plugin.version}</version>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -478,40 +501,33 @@
                      Restoring it means also adding the runtime flag to the jpackage
                      javaOptions and pinning the runtime to one exact JDK. -->
             </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
-                <version>${maven-shade-plugin.version}</version>
-                <executions>
-                    <execution>
-                        <id>libraryshade</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>shade</goal>
-                        </goals>
-                        <configuration>
-                            <filters>
-                                <filter>
-                                    <artifact>*:*</artifact>
-                                    <excludes>
-                                        <exclude>META-INF/*.SF</exclude>
-                                        <exclude>META-INF/*.DSA</exclude>
-                                        <exclude>META-INF/*.RSA</exclude>
-                                    </excludes>
-                                </filter>
-                            </filters>
-                            <transformers>
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"></transformer>
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <manifestEntries>
-                                        <Multi-Release>true</Multi-Release>
-                                    </manifestEntries>
-                                </transformer>
-                            </transformers>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
+            <!--
+              L17: the maven-shade-plugin execution that used to sit here has been
+              removed. It lived in <build><plugins>, so EVERY module inherited it,
+              and the result was measurable rather than theoretical:
+
+                * it ran on this parent POM itself (packaging=pom) and cheerfully
+                  logged "Replacing original artifact with shaded artifact";
+                * jena-permissions shipped 2,230 foreign org.apache.jena classes it
+                  should only have DEPENDED on (14 MB);
+                * Halcyon was shaded and THEN spring-boot-repackaged, so the 483 MB
+                  jar carried 288 nested jars in BOOT-INF/lib AND the same
+                  dependencies a second time, flattened into BOOT-INF/classes.
+
+              Nothing here needs shade: the app is made executable by
+              spring-boot-maven-plugin (see Halcyon/pom.xml), and the rest are
+              libraries, which should stay thin and let Maven resolve their
+              dependencies. HalcyonLWS had already reached this conclusion on its own
+              and pinned libraryshade to <phase>none</phase> to escape the
+              inheritance; that override has been removed along with what it escaped.
+
+              NOTE: there is no <pluginManagement> entry for shade to fall back on.
+              The <dependency> entries for maven plugins up in <dependencyManagement>
+              look like version pins but are inert — dependencyManagement does not
+              manage plugin versions. The version lived ONLY in the block that was
+              here, so any module that genuinely needs shading must declare its own
+              version (or a real <pluginManagement> entry should be added first).
+            -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-deploy-plugin</artifactId>

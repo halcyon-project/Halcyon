@@ -21,12 +21,15 @@ import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Polygon;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author erich
  */
 public class Test {
+    private static final Logger logger = LoggerFactory.getLogger(Test.class);
     public static int TileSizeX = 200;
     public static int TileSizeY = 200;
     public static int width = 112231;
@@ -40,11 +43,11 @@ public class Test {
     public static HashMap<Pair,Set<Anno>> annos = new HashMap<>();
     
     public static void main(String args[]) throws Exception {
-        System.out.println(nx+" "+ny);
+        logger.debug("{}", nx+" "+ny);
         
         Model m = ModelFactory.createDefaultModel();
         RDFDataMgr.read(m, "E:\\tcga\\cvpr-data\\rdf\\coad\\TCGA-CM-5348-01Z-00-DX1.2ad0b8f6-684a-41a7-b568-26e97675cce9.ttl.gz", Lang.TURTLE);
-        System.out.println(m.size());
+        logger.debug("{}", m.size());
         ParameterizedSparqlString pss = new ParameterizedSparqlString(
             """
             select ?classification ?wkt
@@ -91,7 +94,7 @@ public class Test {
         });
 
         annos.forEach((k,v)->{
-            System.out.println(k+" "+v.size());
+            logger.debug("{}", k+" "+v.size());
         });
         //ResultSetFormatter.out(System.out, rs);
         

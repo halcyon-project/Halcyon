@@ -121,9 +121,18 @@ export function enableDrawing(manager) {
 
   function dropTempLine() {
     if (line) {
+      // L13: the material leaked. removeAnnotation only detaches from the parent —
+      // it disposes nothing — and the geometry was being cleaned up here while the
+      // material was not, so every stroke left one behind (and a stroke happens on
+      // every mouse-up, not once per session).
       const geometry = line.geometry;
+      const material = line.material;
       removeAnnotation(scene, line);
-      geometry.dispose();
+      if (geometry) geometry.dispose();
+      if (material) {
+        if (Array.isArray(material)) material.forEach(m => m && m.dispose());
+        else material.dispose();
+      }
       line = null;
     }
   }

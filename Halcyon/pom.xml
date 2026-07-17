@@ -560,10 +560,39 @@
             <groupId>org.jboss.logging</groupId>
             <artifactId>jboss-logging</artifactId>
         </dependency>
-        <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-fileupload2-core</artifactId>
-            <version>2.0.0-M4</version>
+        <!--
+          L15: commons-fileupload2-core is deliberately NOT declared here.
+
+          It used to be pinned to 2.0.0-M4, and no first-party code imports
+          fileupload at all — the only thing that needs it is Wicket's multipart
+          handling, which arrives as wicket-util -> commons-fileupload2-jakarta-servlet5.
+          Wicket 10.9.1 brings servlet5:2.0.0-M5, whose own core dependency is
+          2.0.0-M5; because our declaration was DIRECT it won Maven's nearest-wins
+          and downgraded it ("omitted for conflict with 2.0.0-M4" in the tree).
+          Production multipart therefore ran servlet5-M5 against core-M4 — two
+          different milestones of one library mixed, i.e. a LinkageError waiting
+          for whichever method moved between them.
+
+          Removing the declaration lets the matched M5/M5 pair resolve. The
+          review's prescription ("move to GA") is not available and would
+          re-create the same split: Wicket 10.9.1 is compiled against the M5 line,
+          so forcing core to a GA 2.0.0 would mismatch it in the other direction.
+          The version to track is Wicket's; revisit when Wicket moves to GA.
+        -->
+            <dependency>
+            <!-- F1: version comes from the junit-bom managed in the reactor root. -->
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
         </dependency>
-    </dependencies>
+        <dependency>
+            <!-- C5: WicketTester renders a real page through the real CSP settings, so
+                 the nonce plumbing can be asserted instead of reasoned about. Version
+                 tracks wicket-core, which Wicket's own BOM manages. -->
+            <groupId>org.apache.wicket</groupId>
+            <artifactId>wicket-tester</artifactId>
+            <version>${wicket.ver}</version>
+            <scope>test</scope>
+        </dependency>
+</dependencies>
 </project>

@@ -1,6 +1,9 @@
 package com.ebremer.halcyon.utils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class StopWatch {
+    private static final Logger logger = LoggerFactory.getLogger(StopWatch.class);
 
 private long startTime = 0;
 private long stopTime = 0;
@@ -41,13 +44,13 @@ public StopWatch() {
 
   public String getTime(String message) {
     String stat = "Elapsed: "+getElapsedTimeSecs()+" - "+message;
-    System.out.println(stat);
+    logger.debug("{}", stat);
     return stat;
   }
   
   public String getLapseTime(String message) {
     String stat = "Elapsed: "+getElapsedTimeSecs()+" - "+message;
-    System.out.println(stat);
+    logger.debug("{}", stat);
     this.startTime = System.nanoTime();
     return stat;
   }

@@ -199,14 +199,25 @@ public final class WACSecurityEvaluator implements SecurityEvaluator {
         return SecurityEvaluator.super.evaluateUpdate(principal, graphIRI, from, to);
     }
 
+    /**
+     * L4: the cast used to be unguarded, and only
+     * {@code UnavailableSecurityManagerException} was caught — so a Shiro subject
+     * whose principal was anything other than a {@code JwtToken} threw
+     * {@code ClassCastException}, and one with no principal at all threw NPE,
+     * straight out of the evaluator that every WAC decision runs through. The
+     * fall-through to the session principal was already the intended path for
+     * the Keycloak servlet-filter case; an unexpected principal type now takes
+     * it too instead of escaping as an unrelated exception.
+     */
     @Override
     public Principal getPrincipal() {
         try {
-            return ((JwtToken) SecurityUtils.getSubject().getPrincipal()).getPrincipal();
+            if (SecurityUtils.getSubject().getPrincipal() instanceof JwtToken jwt) {
+                return jwt.getPrincipal();
+            }
         } catch (UnavailableSecurityManagerException ex) {
             // assume and try for a Keycloak Servlet Filter Auth
         }
-        //return new HalcyonPrincipal("https://ebremer.com/profile#me");
         return HalcyonSession.get().getHalcyonPrincipal();
     }
 

@@ -2,24 +2,29 @@ name: Publish project to Maven repository
 # Trigger workflow manually
 on: workflow_dispatch
 
+# L16: this job only reads the repo — it publishes to the Maven server using
+# MAVEN_NAME/MAVEN_SECRET, not the GITHUB_TOKEN — so the token gets read-only.
+permissions:
+  contents: read
+
 jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
       # Checkout code from the repository
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
       # Set up JDK
       # H15: must match <maven.compiler.release> in the root pom (25) — see main.yml.
       - name: Set up JDK
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4.8.0
         with:
           java-version: '25'
           distribution: 'temurin'
 
       # Set up the Maven settings (credentials)
       - name: Configure Maven settings
-        uses: s4u/maven-settings-action@v3.0.0
+        uses: s4u/maven-settings-action@7802f6aec16c9098b4798ad1f1d8ac75198194bd # v3.0.0
         with:
           servers: |
             [{
@@ -30,8 +35,9 @@ jobs:
 
       # Build and package the Maven project
       - name: Build Maven Project
-        run: mvn -B package --file pom.xml
+        # M28: -C = --strict-checksums (see main.yml).
+        run: mvn -B -C package --file pom.xml
 
       # Deploy to the repository
       - name: Deploy with Maven
-        run: mvn deploy
+        run: mvn -B -C deploy

@@ -188,12 +188,32 @@ public class TileRequest implements Callable<Tile> {
     // ------------------------------------------------------------------------
     // Consistent equals / hashCode contract (required for Caffeine cache)
     // ------------------------------------------------------------------------
+    /**
+     * L9: {@code retrieveBufferedImage} / {@code retrieveMeta} are part of the
+     * identity, because they decide WHAT the resulting Tile contains.
+     * <p>
+     * They were omitted, which was survivable only because the single caller
+     * passed them as compile-time constants — every request looked the same. The
+     * moment {@code ImageServer} started deriving them from the output format (so
+     * that a {@code .ttl} request stops decoding the whole image), {@code
+     * /default.jpg} and {@code /default.ttl} for the same uri+region+size became
+     * EQUAL keys, and whichever arrived first would win the Caffeine entry: the
+     * .jpg caller could be handed a meta-only Tile with a null image and 500, or
+     * the .ttl caller silently get the full decode back. Ordering-dependent, so it
+     * would have shown up as an intermittent bug long after the change.
+     * <p>
+     * {@code cachethis} is deliberately NOT included: it governs whether the entry
+     * is stored, not what it holds, so two otherwise-identical requests should
+     * still share one entry.
+     */
     @Override
     public int hashCode() {
         int result = uri.hashCode();
         result = 31 * result + Boolean.hashCode(aspectratio);
         result = 31 * result + region.hashCode();
         result = 31 * result + preferredsize.hashCode();
+        result = 31 * result + Boolean.hashCode(retrieveBufferedImage);
+        result = 31 * result + Boolean.hashCode(retrieveMeta);
         return result;
     }
 
@@ -207,6 +227,8 @@ public class TileRequest implements Callable<Tile> {
         return uri.equals(other.uri) &&
                aspectratio == other.aspectratio &&
                region.equals(other.region) &&
-               preferredsize.equals(other.preferredsize);
+               preferredsize.equals(other.preferredsize) &&
+               retrieveBufferedImage == other.retrieveBufferedImage &&
+               retrieveMeta == other.retrieveMeta;
     }
 }

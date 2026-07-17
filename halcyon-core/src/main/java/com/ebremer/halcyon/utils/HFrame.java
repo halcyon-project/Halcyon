@@ -16,6 +16,7 @@ import jakarta.json.stream.JsonGenerator;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.StringReader;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -91,14 +92,30 @@ public class HFrame {
         return null;
     }
     
+    /**
+     * L11: guards the two nulls this walked straight into. {@code null} json NPE'd
+     * in {@code new StringReader(null)}, and — the one that actually happened —
+     * input without a {@code haslayer} key made {@code getJsonArray} return null,
+     * which {@code writeArray(null)} then NPE'd on. Live via {@code FeatureManager},
+     * so a feature set that simply had no layers took the caller down. An absent
+     * layer list is an empty layer list, not a failure.
+     */
     public static String wow(String json) {
-        JsonReader jr = Json.createReader(new StringReader(json));
-        JsonObject jo = jr.readObject();
-        JsonArray ja = jo.getJsonArray("haslayer");
+        if (json == null || json.isBlank()) {
+            return "[]";
+        }
+        JsonArray ja;
+        try (JsonReader jr = Json.createReader(new StringReader(json))) {
+            ja = jr.readObject().getJsonArray("haslayer");
+        }
+        if (ja == null) {
+            return "[]";
+        }
         JsonWriterFactory writerFactory = Json.createWriterFactory(Collections.singletonMap(JsonGenerator.PRETTY_PRINTING, true));
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        JsonWriter out = writerFactory.createWriter(baos);
-        out.writeArray(ja);
-        return new String(baos.toByteArray());
+        try (JsonWriter out = writerFactory.createWriter(baos)) {
+            out.writeArray(ja);
+        }
+        return baos.toString(StandardCharsets.UTF_8);
     }
 }

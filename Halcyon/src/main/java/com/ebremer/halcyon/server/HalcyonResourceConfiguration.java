@@ -63,6 +63,10 @@ public class HalcyonResourceConfiguration implements WebMvcConfigurer {
             zephyrHandler.setCacheControl(zephyrCache);
         }
         registry.addResourceHandler("/threejs/**").addResourceLocations("classpath:/META-INF/public-web-resources/threejs/");
+        // L18: Graph3D's libraries, vendored instead of pulled from unpkg at runtime.
+        // Separate from /threejs/ on purpose — that is three r160 for Zephyr, and
+        // 3d-force-graph 1.80.0 requires three >=0.179.
+        registry.addResourceHandler("/graph3d/**").addResourceLocations("classpath:/META-INF/public-web-resources/graph3d/");
         registry.addResourceHandler("/images/**").addResourceLocations("classpath:/META-INF/public-web-resources/images/");
         registry.addResourceHandler("/rdflib/**").addResourceLocations("classpath:/META-INF/public-web-resources/rdflib/");
         registry.addResourceHandler("/favicon.ico").addResourceLocations("classpath:/META-INF/public-web-resources/favicon.ico");

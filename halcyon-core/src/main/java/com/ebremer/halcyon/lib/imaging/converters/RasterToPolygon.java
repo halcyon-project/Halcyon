@@ -22,8 +22,11 @@ import org.apache.jena.rdf.model.Model;
 import org.apache.jena.riot.RDFFormat;
 import org.apache.jena.riot.RDFWriter;
 import org.apache.jena.riot.RIOT;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class RasterToPolygon {
+    private static final Logger logger = LoggerFactory.getLogger(RasterToPolygon.class);
 
     /**
      * Convert black regions of a BufferedImage into JTS Polygons.
@@ -200,15 +203,15 @@ public class RasterToPolygon {
                 }
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("Unhandled exception", e);
         } finally {
             g2d.dispose();
         }
         try {
             ImageIO.write(img, "png", outFile);
-                System.out.println("Saved image with polygons to " + outFile.getAbsolutePath());
+                logger.debug("Saved image with polygons to {}", outFile.getAbsolutePath());
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.error("Unhandled exception", e);
         }
     }
 
@@ -239,16 +242,16 @@ public class RasterToPolygon {
             if (image == null) {
                 throw new IOException("Failed to load image, file is not a valid PNG.");
             }
-            System.out.println("Image loaded: " + image.getWidth() + "x" + image.getHeight());
+            logger.debug("Image loaded: {}x{}", image.getWidth(), image.getHeight());
             return image;
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.error("Unhandled exception", e);
         }
         return null;
     }
     
     public static void writeTurtle(String baseUri, Model model, File outputFile) throws IOException {
-        System.out.println("Writing Turtle..."+model.size()+ " triples...");
+        logger.debug("Writing Turtle...{} triples...", model.size());
         // Ensure parent directories exist to prevent FileNotFoundException
         if (outputFile.getParentFile() != null) {
             outputFile.getParentFile().mkdirs();
@@ -278,8 +281,8 @@ public class RasterToPolygon {
         g.fillRect(30, 30, 40, 40);
         g.dispose();
         String wkt = RasterToPolygon.toWKT(img, 32);
-        System.out.println("Resulting WKT:");
-        System.out.println(wkt);
+        logger.debug("Resulting WKT:");
+        logger.debug("{}", wkt);
     }
 
     public static void main(String[] args) throws IOException, Exception {

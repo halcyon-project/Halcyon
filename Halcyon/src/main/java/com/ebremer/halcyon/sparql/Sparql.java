@@ -1,5 +1,7 @@
 package com.ebremer.halcyon.sparql;
 
+import com.ebremer.halcyon.gui.CspNonce;
+import org.apache.wicket.markup.html.WebMarkupContainer;
 import com.ebremer.halcyon.datum.HalcyonPrincipal;
 import com.ebremer.halcyon.fuseki.shiro.JwtVerifier;
 import com.ebremer.halcyon.gui.HalcyonSession;
@@ -74,5 +76,17 @@ public class Sparql extends BasePage {
             logger.debug("Could not read token expiry: {}", ex.getMessage());
         }
         return 0L;
+    }
+
+    /**
+     * C5: bind the inline <script> tags in this page's markup so they receive the
+     * request's CSP nonce. Done in onInitialize rather than a constructor because
+     * these classes have several constructors that do not delegate to one another —
+     * onInitialize runs exactly once whichever was used.
+     */
+    @Override
+    protected void onInitialize() {
+        super.onInitialize();
+        add(new WebMarkupContainer("cspSparql").add(new CspNonce()));
     }
 }

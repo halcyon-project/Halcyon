@@ -8,13 +8,16 @@ import org.apache.wicket.markup.html.WebPage;
 import org.apache.wicket.markup.html.basic.Label;
 import org.apache.wicket.util.resource.IResourceStream;
 import org.apache.wicket.util.resource.StringResourceStream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class DICOM extends WebPage implements IMarkupResourceStreamProvider, IMarkupCacheKeyProvider {
+    private static final Logger logger = LoggerFactory.getLogger(DICOM.class);
 
         private static final long serialVersionUID = 1L;
 
         public DICOM() {
-            System.out.println("DICOM View");
+            logger.debug("DICOM View");
             final Label l = new Label("msg", "Halcyon DICOM Integration");
             add(l);
             DWVPanel dwv = new DWVPanel("viewer1", "GRAH!");
