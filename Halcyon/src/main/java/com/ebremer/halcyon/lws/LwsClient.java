@@ -5,6 +5,7 @@ import jakarta.json.JsonObject;
 import jakarta.json.JsonReader;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.Serializable;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -12,6 +13,11 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
@@ -59,14 +65,141 @@ public final class LwsClient implements Serializable {
     }
 
     /** What a request came back with, without throwing on a 4xx the UI wants to render. */
-    public record Result(int status, JsonObject body, String location) {
+    public record Result(int status, JsonObject body, String location, Map<String, String> links) {
         public boolean ok() {
             return status >= 200 && status < 300;
+        }
+
+        /**
+         * The target of the response's {@code Link} header with this relation type
+         * ({@code "first"}, {@code "prev"}, {@code "next"}, {@code "last"}, ...), or
+         * {@code null}. Container pagination is carried entirely in these links — the
+         * cursors are opaque and HMAC-sealed, so a client follows them rather than
+         * building page URIs of its own, and this accessor is how the UI follows.
+         */
+        public String link(String rel) {
+            return links.get(rel);
         }
     }
 
     public Result get(String uri) {
         return send(builder(uri).GET().header("Accept", LWS_JSON).build());
+    }
+
+    /**
+     * Headers only — how the UI discovers a resource's {@code rel="acl"} and
+     * linkset links without pulling a possibly-huge representation.
+     */
+    public Result head(String uri) {
+        return send(builder(uri)
+                .method("HEAD", HttpRequest.BodyPublishers.noBody())
+                .header("Accept", LWS_JSON)
+                .build());
+    }
+
+    /**
+     * A raw (non-JSON) representation with its validator — the shape of the ACP
+     * access control resource, which the storage serves only as Turtle.
+     */
+    public record Text(int status, String body, String etag, Map<String, String> links) {
+        public boolean ok() {
+            return status >= 200 && status < 300;
+        }
+
+        public String link(String rel) {
+            return links.get(rel);
+        }
+    }
+
+    /** GET a representation verbatim under an explicit {@code Accept}. */
+    public Text getText(String uri, String accept) {
+        try {
+            HttpResponse<byte[]> r = http.send(
+                    builder(uri).GET().header("Accept", accept).build(),
+                    HttpResponse.BodyHandlers.ofByteArray());
+            return new Text(r.statusCode(),
+                    r.body() == null ? "" : new String(r.body(), StandardCharsets.UTF_8),
+                    r.headers().firstValue("ETag").orElse(null),
+                    parseLinks(r.headers().allValues("Link")));
+        } catch (IOException e) {
+            return new Text(0, "the storage could not be reached: " + e.getMessage(), null, Map.of());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return new Text(0, "interrupted", null, Map.of());
+        }
+    }
+
+    /**
+     * A representation opened for streaming: status, negotiated content type,
+     * declared length ({@code -1} when unknown), and the open body. The caller
+     * owns the stream and must close it — closing early aborts the transfer,
+     * which is exactly what a bounded preview wants.
+     */
+    public record Stream(int status, String contentType, long length, InputStream body) {
+        public boolean ok() {
+            return status >= 200 && status < 300;
+        }
+    }
+
+    /** GET a representation as a stream — how the preview relay avoids buffering blobs. */
+    public Stream stream(String uri) {
+        try {
+            HttpResponse<InputStream> r = http.send(
+                    builder(uri).GET().header("Accept", "*/*").build(),
+                    HttpResponse.BodyHandlers.ofInputStream());
+            return new Stream(r.statusCode(),
+                    r.headers().firstValue("Content-Type").orElse("application/octet-stream"),
+                    r.headers().firstValueAsLong("Content-Length").orElse(-1),
+                    r.body());
+        } catch (IOException e) {
+            return new Stream(0, "text/plain", -1, InputStream.nullInputStream());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return new Stream(0, "text/plain", -1, InputStream.nullInputStream());
+        }
+    }
+
+    /** A bounded text preview: at most {@code maxBytes} of the representation. */
+    public record Preview(int status, String contentType, String text, boolean truncated) {
+        public boolean ok() {
+            return status >= 200 && status < 300;
+        }
+    }
+
+    /**
+     * Read at most {@code maxBytes} of a representation as UTF-8 text, then
+     * abort the transfer — a text preview of a huge file must not pull the
+     * whole file through the JVM.
+     */
+    public Preview preview(String uri, int maxBytes) {
+        Stream s = stream(uri);
+        try (InputStream in = s.body()) {
+            byte[] buf = in.readNBytes(maxBytes + 1);
+            boolean truncated = buf.length > maxBytes;
+            String text = new String(truncated ? java.util.Arrays.copyOf(buf, maxBytes) : buf,
+                    StandardCharsets.UTF_8);
+            return new Preview(s.status(), s.contentType(), text, truncated);
+        } catch (IOException e) {
+            return new Preview(0, "text/plain", "could not read: " + e.getMessage(), false);
+        }
+    }
+
+    /**
+     * Replace a representation. {@code ifMatch} carries the entity tag of what
+     * the caller read — the storage's conditional-write protection, exactly the
+     * guard the ACR editor wants against clobbering a concurrent policy change.
+     */
+    public Result put(String uri, String contentType, byte[] body, String ifMatch) {
+        HttpRequest.Builder b = builder(uri)
+                .PUT(HttpRequest.BodyPublishers.ofByteArray(body == null ? new byte[0] : body))
+                .header("Accept", LWS_JSON);
+        if (contentType != null) {
+            b.header("Content-Type", contentType);
+        }
+        if (ifMatch != null) {
+            b.header("If-Match", ifMatch);
+        }
+        return send(b.build());
     }
 
     /** Create a resource. A null {@code slug} lets the server name it. */
@@ -182,13 +315,44 @@ public final class LwsClient implements Serializable {
                 }
             }
             return new Result(r.statusCode(), body,
-                    r.headers().firstValue("Location").orElse(null));
+                    r.headers().firstValue("Location").orElse(null),
+                    parseLinks(r.headers().allValues("Link")));
         } catch (IOException e) {
-            return new Result(0, error(e.getMessage()), null);
+            return new Result(0, error(e.getMessage()), null, Map.of());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            return new Result(0, error("interrupted"), null);
+            return new Result(0, error("interrupted"), null, Map.of());
         }
+    }
+
+    // RFC 8288 link-values — the same grammar the storage's own LinkHeader emits and parses.
+    private static final Pattern LINK_VALUE = Pattern.compile("<([^>]*)>\\s*((?:;[^,;]*)*)");
+    private static final Pattern REL_PARAM = Pattern.compile(
+            ";\\s*rel\\s*=\\s*(?:\"([^\"]*)\"|([^;,\\s]+))", Pattern.CASE_INSENSITIVE);
+
+    /**
+     * Flatten the response's {@code Link} headers to a rel → target map (first
+     * occurrence of a rel wins). Malformed values are skipped, not rejected.
+     */
+    static Map<String, String> parseLinks(List<String> headers) {
+        Map<String, String> out = new LinkedHashMap<>();
+        for (String header : headers) {
+            Matcher m = LINK_VALUE.matcher(header);
+            while (m.find()) {
+                String target = m.group(1).trim();
+                String params = m.group(2) == null ? "" : m.group(2);
+                Matcher r = REL_PARAM.matcher(params);
+                while (r.find()) {
+                    String rel = r.group(1) != null ? r.group(1) : r.group(2);
+                    for (String one : rel.trim().split("\\s+")) {
+                        if (!one.isEmpty()) {
+                            out.putIfAbsent(one.toLowerCase(java.util.Locale.ROOT), target);
+                        }
+                    }
+                }
+            }
+        }
+        return out;
     }
 
     private static JsonObject error(String detail) {

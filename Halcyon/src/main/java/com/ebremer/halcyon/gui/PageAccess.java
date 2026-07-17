@@ -1,5 +1,6 @@
 package com.ebremer.halcyon.gui;
 
+import com.ebremer.halcyon.lws.LWSContainers;
 import com.ebremer.halcyon.lws.StoragePage;
 import com.ebremer.halcyon.sparql.Sparql;
 import com.ebremer.halcyon.gui.tree.NodeNestedTreePage;
@@ -78,6 +79,10 @@ public final class PageAccess {
         new Mount("/threed", Graph3D.class, Access.AUTHENTICATED),
         new Mount("/user/account", AccountPage.class, Access.AUTHENTICATED),
         new Mount("/user/colorclasses", ColorClasses.class, Access.AUTHENTICATED),
+        // The LWS container tree browser. Unlike /storage (PUBLIC + a friendly
+        // signed-out message), this page exists only to browse with the user's
+        // own token, so it requires sign-in outright.
+        new Mount("/lwscontainers", LWSContainers.class, Access.AUTHENTICATED),
 
         // ---- unmounted, but still reachable bookmarkable ----------------------
         new Mount(null, Zephyr2.class, Access.AUTHENTICATED),

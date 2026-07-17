@@ -1,0 +1,80 @@
+<html>
+<body>
+<wicket:extend>
+    <style>
+        body { font-family: Arial, sans-serif; color: #333; background-color: #f4f4f9; }
+        h3 { margin: 20px 10px; color: #0000ab; }
+        .lws-toolbar { margin: 10px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+        .lws-toolbar label { color: #0000ab; font-size: 14px; }
+        .lws-toolbar select { padding: 4px 6px; font-size: 14px; }
+        .lws-toolbar a { color: #0000ab; font-size: 14px; text-decoration: none; }
+        .lws-toolbar a:hover { text-decoration: underline; }
+        .lws-none { margin: 10px; color: #b00020; }
+        .lws-main { display: flex; gap: 14px; align-items: flex-start; margin: 10px; }
+        .lws-tree { padding: 10px; background: #fff; border: 1px solid #ddd;
+                    border-radius: 4px; font-size: 14px; flex: 1 1 46%; min-width: 340px; }
+        .lws-viewerbox { flex: 1 1 50%; background: #fff; border: 1px solid #ddd;
+                         border-radius: 4px; padding: 12px; font-size: 14px;
+                         position: sticky; top: 8px; max-height: 88vh; overflow: auto; }
+        .lws-viewerbox h4 { margin: 0 0 4px 0; color: #0000ab; word-break: break-all; }
+        .lws-viewerbox .uri { color: #888; font-size: 12px; word-break: break-all; }
+        .lws-vbar { margin: 6px 0 10px 0; display: flex; gap: 12px; align-items: baseline; }
+        .lws-vmedia { color: #0000ab; font-size: 13px; font-family: monospace; }
+        .lws-viewerbox img, .lws-viewerbox video { max-width: 100%; }
+        .lws-viewerbox iframe { width: 100%; height: 70vh; border: 1px solid #eee; }
+        .lws-vtext { background: #f7f7fb; padding: 8px; overflow: auto;
+                     font-size: 12px; max-height: 62vh; white-space: pre-wrap; }
+        .lws-tree a { color: #0000ab; text-decoration: none; }
+        .lws-tree a:hover { text-decoration: underline; }
+        .lws-meta { color: #888; font-size: 12px; margin-left: 8px; }
+        .lws-note { color: #888; font-style: italic; }
+        .lws-pager a { margin: 0 4px; }
+        .lws-pager a.off { color: #bbb; pointer-events: none; }
+        .lws-ctx { position: fixed; z-index: 1000; background: #fff; border: 1px solid #bbb;
+                   border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,.25); font-size: 14px; }
+        .lws-ctx-item { padding: 6px 16px; cursor: pointer; color: #0000ab; }
+        .lws-ctx-item:hover { background: #eef; }
+        .lws-modal { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 900;
+                     display: flex; align-items: flex-start; justify-content: center; padding-top: 8vh; }
+        .lws-dialog { background: #fff; border-radius: 6px; padding: 18px 22px; min-width: 560px;
+                      max-width: 82vw; max-height: 80vh; overflow: auto; position: relative;
+                      box-shadow: 0 4px 24px rgba(0,0,0,.35); font-size: 14px; }
+        .lws-dialog h4 { margin: 0 0 6px 0; color: #0000ab; }
+        .lws-dialog .uri { color: #888; font-size: 12px; word-break: break-all; margin-bottom: 8px; }
+        .lws-close { position: absolute; top: 8px; right: 12px; color: #888;
+                     text-decoration: none; font-size: 16px; }
+        .lws-rows table { border-collapse: collapse; margin: 10px 0; }
+        .lws-rows th, .lws-rows td { padding: 4px 8px; border-bottom: 1px solid #eee;
+                                     text-align: left; font-size: 13px; }
+        .lws-msg { margin: 8px 0; color: #0000ab; }
+        .lws-err { margin: 8px 0; color: #b00020; }
+        .lws-dialog textarea { width: 100%; min-height: 220px; font-family: monospace; font-size: 12px; }
+        .lws-dialog pre { background: #f7f7fb; padding: 8px; overflow: auto; font-size: 11px; }
+        .lws-actions { margin-top: 10px; display: flex; gap: 12px; align-items: center; }
+        button.lws-save { background: #0000ab; color: #fff; border: none; padding: 6px 14px;
+                          border-radius: 4px; cursor: pointer; }
+        .lws-dialog label { margin-right: 12px; }
+    </style>
+    <h3>LWS Containers</h3>
+    <form wicket:id="controls" class="lws-toolbar">
+        <label>Storage: <select wicket:id="storage"></select></label>
+        <label>Media type: <select wicket:id="media"></select></label>
+        <label>Per page: <select wicket:id="pageSize"></select></label>
+        <a wicket:id="refresh" title="Drop the fetched listings and re-read them from the storage">Refresh</a>
+    </form>
+    <div class="lws-none" wicket:id="none"></div>
+    <div class="lws-main">
+        <div class="lws-tree">
+            <div wicket:id="tree"></div>
+        </div>
+        <div class="lws-viewerbox" wicket:id="viewer"></div>
+    </div>
+    <div class="lws-modal" wicket:id="modal">
+        <div class="lws-dialog">
+            <a class="lws-close" wicket:id="close" href="#" title="Close">✕</a>
+            <div wicket:id="content"></div>
+        </div>
+    </div>
+</wicket:extend>
+</body>
+</html>

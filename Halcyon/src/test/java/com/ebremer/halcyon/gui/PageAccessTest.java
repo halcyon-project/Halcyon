@@ -90,6 +90,7 @@ class PageAccessTest {
         assertEquals(Access.PUBLIC, PageAccess.accessFor(Login.class));
         assertEquals(Access.AUTHENTICATED, PageAccess.accessFor(com.ebremer.halcyon.wicket.ListImages.class));
         assertEquals(Access.AUTHENTICATED, PageAccess.accessFor(com.ebremer.halcyon.wicket.Stacks.class));
+        assertEquals(Access.AUTHENTICATED, PageAccess.accessFor(com.ebremer.halcyon.lws.LWSContainers.class));
     }
 
     @Test

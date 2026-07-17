@@ -1,0 +1,20 @@
+<wicket:panel xmlns:wicket="http://wicket.apache.org">
+    <h4>Request access</h4>
+    <div class="uri" wicket:id="target"></div>
+    <p>You do not manage this item's access. You can file an LWS access request with the
+        storage's Data Sharing Service; it grants nothing by itself — a storage controller
+        reviews it and can answer with a grant.</p>
+    <form wicket:id="form">
+        <div>
+            <label><input type="checkbox" wicket:id="read"/> read</label>
+            <label><input type="checkbox" wicket:id="modify"/> modify</label>
+            <label><input type="checkbox" wicket:id="create"/> create</label>
+            <label><input type="checkbox" wicket:id="delete"/> delete</label>
+        </div>
+        <div style="margin-top:8px">Requesting as: <span class="uri" wicket:id="webid"></span></div>
+        <div class="lws-actions">
+            <button class="lws-save" wicket:id="submit" type="submit">Send request</button>
+            <span class="lws-msg" wicket:id="message"></span>
+        </div>
+    </form>
+</wicket:panel>
