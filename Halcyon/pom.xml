@@ -426,13 +426,9 @@
             <version>${wicket.ver}</version>
         </dependency>
         <dependency>
-            <!-- The standalone vandegraph library (Wicket+Jena+SHACL forms);
-                 replaces the old in-tree com.ebremer.vandegraph prototype.
-                 Currently resolved from the local Maven repository until a
-                 release lands on the same repo as the Halcyon artifacts. -->
             <groupId>com.ebremer</groupId>
             <artifactId>vandegraph</artifactId>
-            <version>0.9.0-SNAPSHOT</version>
+            <version>${vandegraph.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.jena</groupId>
