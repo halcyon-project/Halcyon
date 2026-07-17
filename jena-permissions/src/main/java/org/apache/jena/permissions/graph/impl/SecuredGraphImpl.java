@@ -18,11 +18,13 @@
 package org.apache.jena.permissions.graph.impl;
 
 import org.apache.commons.collections4.IteratorUtils;
+import org.apache.jena.atlas.lib.Sync;
 import org.apache.jena.graph.Graph;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.TransactionHandler;
 import org.apache.jena.graph.Triple;
 import org.apache.jena.graph.impl.GraphWithPerform;
+import org.apache.jena.sparql.core.NamedGraph;
 import org.apache.jena.permissions.SecurityEvaluator;
 import org.apache.jena.permissions.SecurityEvaluator.Action;
 import org.apache.jena.permissions.graph.SecuredGraph;
@@ -43,8 +45,11 @@ import org.apache.jena.util.iterator.ExtendedIterator;
  */
 public class SecuredGraphImpl extends SecuredItemImpl implements SecuredGraph, GraphWithPerform {
 
-    // the prefixMapping for this graph.
-    private SecuredPrefixMapping prefixMapping;
+    // the prefixMapping for this graph. Initialized eagerly: this used to be
+    // lazily double-checked-locked on a non-volatile field, which under the
+    // JMM lets a second thread observe a non-null but not-yet-fully-published
+    // reference (L12).
+    private final SecuredPrefixMapping prefixMapping;
     // the item holder that contains this SecuredGraph
     private final ItemHolder<Graph, SecuredGraphImpl> holder;
 
@@ -63,6 +68,8 @@ public class SecuredGraphImpl extends SecuredItemImpl implements SecuredGraph, G
         this.holder = holder;
         this.eventManager = new SecuredGraphEventManager(this, holder.getBaseItem(),
                 holder.getBaseItem().getEventManager());
+        this.prefixMapping = org.apache.jena.permissions.graph.impl.Factory.getInstance(this,
+                holder.getBaseItem().getPrefixMapping());
     }
 
     /**
@@ -279,22 +286,36 @@ public class SecuredGraphImpl extends SecuredItemImpl implements SecuredGraph, G
         return eventManager;
     }
 
+    /**
+     * The base graph's name when the base is a {@link NamedGraph} (e.g. a TDB2
+     * GraphView). Pure metadata — the name is the identifier the caller
+     * already used to reach this graph, carrying no triple data — so no
+     * permission check applies. Declared here because the proxy exposes every
+     * base interface and the invoker fails closed (L12) on methods the secured
+     * wrapper does not implement.
+     */
+    public Node getGraphName() {
+        return ((NamedGraph) holder.getBaseItem()).getGraphName();
+    }
+
     @Override
     public SecuredPrefixMapping getPrefixMapping() {
-        if (prefixMapping == null) {
-            synchronized (this) {
-                if (prefixMapping == null) {
-                    prefixMapping = org.apache.jena.permissions.graph.impl.Factory.getInstance(this,
-                            holder.getBaseItem().getPrefixMapping());
-                }
-            }
-        }
         return prefixMapping;
     }
 
     @Override
     public TransactionHandler getTransactionHandler() {
         return holder.getBaseItem().getTransactionHandler();
+    }
+
+    /**
+     * Flush the base graph to stable storage when the base supports
+     * {@link Sync} (e.g. TDB-backed graphs). Operational only — it neither
+     * reads nor mutates triple data — so no permission check applies; declared
+     * for the same fail-closed-invoker reason as {@link #getGraphName()}.
+     */
+    public void sync() {
+        ((Sync) holder.getBaseItem()).sync();
     }
 
     @Override

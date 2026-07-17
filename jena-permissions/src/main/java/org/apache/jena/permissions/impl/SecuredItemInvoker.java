@@ -105,12 +105,21 @@ public class SecuredItemInvoker implements InvocationHandler {
                 }
             }
         } catch (final NoSuchMethodException e2) {
-            // acceptable
+            // not implemented by the secured wrapper — fall through to the
+            // fail-closed guard below.
         }
 
-        // if we get here then the method is not being proxied so call the
-        // original method on the base item.
-        return method.invoke(securedItem.getBaseItem(), args);
-
+        // L12: this used to invoke the method on securedItem.getBaseItem() —
+        // silently executing, against the UNSECURED base object, any interface
+        // method the Secured* implementation does not declare. The proxy
+        // exposes every interface of the base item (ItemHolder.setSecuredItem),
+        // so a base class or a Jena upgrade introducing one new interface
+        // method would open an unchecked read/write path with no compile-time
+        // signal. Fail closed instead; coverage of the interfaces actually
+        // proxied for the standard Jena types is pinned at build time by
+        // SecuredItemInvokerCoverageTest.
+        throw new UnsupportedOperationException(
+                String.format("%s.%s is not implemented by %s: refusing to forward the call to the unsecured base item",
+                        method.getDeclaringClass().getName(), method.getName(), securedItem.getClass().getName()));
     }
 }

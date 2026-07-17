@@ -528,8 +528,13 @@ public class SecuredContainerImpl extends SecuredResourceImpl implements Secured
                     result.add(stmt);
                 }
             }
+            // removalChecked: StatementRemovingIterator removes via the secured
+            // statement, which enforces Update + Delete on the exact membership
+            // triple — so SecuredNodeIterator.remove() must not additionally
+            // demand blanket delete rights (M2), or per-triple principals would
+            // lose the container removal H3 restored.
             return new SecuredNodeIterator<>(getModel(),
-                    new StatementRemovingIterator(result.iterator()).mapWith(s -> s.getObject()));
+                    new StatementRemovingIterator(result.iterator()).mapWith(s -> s.getObject()), true);
         } finally {
             iter.close();
         }
@@ -584,6 +589,35 @@ public class SecuredContainerImpl extends SecuredResourceImpl implements Secured
         }
         holder.getBaseItem().remove(s);
         return holder.getSecuredItem();
+    }
+
+    /**
+     * Remove the member {@code object} at slot {@code index}.
+     * <p>
+     * This is Jena's package-private {@code impl.ContainerRemove} mixin, which
+     * every base container implements and the secured proxy therefore exposes.
+     * It used to fall through {@code SecuredItemInvoker} to the raw base — an
+     * unchecked membership delete around every permission check — until the
+     * invoker was made fail-closed (L12); this implementation restores the
+     * call on the checked path. In Jena 6.1.0 the base operation is equivalent
+     * to {@code remove(createStatement(this, rdf:li(index), object))} for
+     * Bag/Alt and Seq alike (SeqImpl pre-deletes the named triple, but its
+     * {@code remove(Statement)} begins with the same idempotent
+     * {@code model.remove}), so it is routed through the secured
+     * {@link #remove(Statement)} above.
+     *
+     * @sec.graph Update
+     * @sec.triple Delete/Create on every membership triple the renumbering
+     *             mutates (see {@link #remove(Statement)})
+     * @throws UpdateDeniedException
+     * @throws DeleteDeniedException
+     * @throws AddDeniedException
+     * @throws AuthenticationRequiredException if user is not authenticated and
+     *                                         is required to be.
+     */
+    public SecuredContainer remove(final int index, final RDFNode object)
+            throws UpdateDeniedException, DeleteDeniedException, AddDeniedException, AuthenticationRequiredException {
+        return remove(holder.getBaseItem().getModel().createStatement(holder.getBaseItem(), RDF.li(index), object));
     }
 
     /**

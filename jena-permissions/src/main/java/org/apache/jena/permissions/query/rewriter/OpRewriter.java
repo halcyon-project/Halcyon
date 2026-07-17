@@ -519,18 +519,19 @@ public class OpRewriter implements OpVisitor {
     }
 
     /**
-     * rewrites the subop of proc.
+     * Returns the procedure or denies.
      */
     @Override
     public void visit(final OpProcedure opProc) {
         if (LOG.isDebugEnabled()) {
             LOG.debug("Starting visiting OpProc");
         }
-        if (opProc.getProcId() != null) {
-            addOp(new OpProcedure(opProc.getProcId(), opProc.getArgs(), rewriteOp1(opProc)));
-        } else {
-            addOp(new OpProcedure(opProc.getURI(), opProc.getArgs(), rewriteOp1(opProc)));
-        }
+        // M3: a procedure is opaque executable logic with unconstrained access
+        // to the dataset; rewriting only its sub-op (as this used to do) leaves
+        // whatever the procedure itself reads and binds outside every
+        // SecuredFunction filter. Like OpExt, it cannot be filtered per-triple,
+        // so pass it through only for a principal that may read every triple.
+        passThroughOrDeny(opProc);
     }
 
     /**
@@ -545,15 +546,25 @@ public class OpRewriter implements OpVisitor {
     }
 
     /**
-     * rewrites the subop of propFunc.
+     * Returns the propFunc or denies.
      */
     @Override
     public void visit(final OpPropFunc opPropFunc) {
         if (LOG.isDebugEnabled()) {
             LOG.debug("Starting visiting OpPropFunc");
         }
-        addOp(new OpPropFunc(opPropFunc.getProperty(), opPropFunc.getSubjectArgs(), opPropFunc.getObjectArgs(),
-                rewriteOp1(opPropFunc)));
+        // M3: a property function reads graph data of its own choosing (e.g.
+        // list:member walks rdf:first/rdf:rest chains) and binds the results
+        // directly, so those reads are never routed through a per-triple
+        // SecuredFunction filter; rewriting only the sub-op (as this used to
+        // do) secures nothing about the function itself. Fail closed unless
+        // the principal may read the whole graph, exactly as OpPath does.
+        // (Note: on the live SecuredQueryEngine path property functions are
+        // still plain BGP triples when the rewriter runs — ARQ extracts them
+        // in the optimizer afterwards, where they execute against the secured
+        // graph proxy and its Read-filtered find(). This handler matters for
+        // algebra that arrives already transformed.)
+        passThroughOrDeny(opPropFunc);
     }
 
     /**

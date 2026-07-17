@@ -27,8 +27,11 @@ import org.apache.jena.shared.ReadDeniedException;
 import org.apache.jena.sparql.algebra.Op;
 import org.apache.jena.sparql.algebra.op.OpBGP;
 import org.apache.jena.sparql.algebra.op.OpFilter;
+import org.apache.jena.sparql.algebra.op.OpProcedure;
+import org.apache.jena.sparql.algebra.op.OpPropFunc;
 import org.apache.jena.sparql.core.BasicPattern;
 import org.apache.jena.sparql.expr.ExprList;
+import org.apache.jena.sparql.pfunction.PropFuncArg;
 import org.apache.jena.vocabulary.RDF;
 import org.junit.Assert;
 import org.junit.Before;
@@ -102,6 +105,71 @@ public class OpRewriterTest {
         } catch (ReadDeniedException e) {
             // expected
         }
+    }
+
+    private OpPropFunc propFuncOp() {
+        return new OpPropFunc(NodeFactory.createURI("http://example.com/propertyFunction"),
+                new PropFuncArg(NodeFactory.createVariable("s")), new PropFuncArg(NodeFactory.createVariable("o")),
+                new OpBGP(BasicPattern.wrap(Arrays.asList(triples))));
+    }
+
+    private OpProcedure procedureOp() {
+        return new OpProcedure(NodeFactory.createURI("http://example.com/procedure"), new ExprList(),
+                new OpBGP(BasicPattern.wrap(Arrays.asList(triples))));
+    }
+
+    /**
+     * M3: a property function reads graph data of its own choosing and binds
+     * the results without ever passing a per-triple SecuredFunction filter, so
+     * the rewriter must fail closed for a principal without blanket read
+     * (exactly as OpPath does) instead of passing it through with only the
+     * sub-op rewritten.
+     */
+    @Test
+    public void testPropFuncDeniedWithoutBlanketRead() {
+        // forceTripleChecks=true makes evaluate(Read, graph, Triple.ANY) false
+        SecurityEvaluator securityEvaluator = new MockSecurityEvaluator(true, true, true, true, true, true, true);
+        rewriter = new OpRewriter(securityEvaluator, "http://example.com/dummy");
+        try {
+            rewriter.visit(propFuncOp());
+            Assert.fail("Should have thrown ReadDeniedException");
+        } catch (ReadDeniedException e) {
+            // expected
+        }
+    }
+
+    @Test
+    public void testPropFuncPassesThroughWithBlanketRead() {
+        SecurityEvaluator securityEvaluator = new MockSecurityEvaluator(true, true, true, true, true, false, true);
+        rewriter = new OpRewriter(securityEvaluator, "http://example.com/dummy");
+        OpPropFunc opPropFunc = propFuncOp();
+        rewriter.visit(opPropFunc);
+        Assert.assertSame("A blanket-read principal gets the op unchanged", opPropFunc, rewriter.getResult());
+    }
+
+    /**
+     * M3: a procedure is opaque executable logic; like OpExt it cannot be
+     * filtered per-triple and must fail closed for a restricted principal.
+     */
+    @Test
+    public void testProcedureDeniedWithoutBlanketRead() {
+        SecurityEvaluator securityEvaluator = new MockSecurityEvaluator(true, true, true, true, true, true, true);
+        rewriter = new OpRewriter(securityEvaluator, "http://example.com/dummy");
+        try {
+            rewriter.visit(procedureOp());
+            Assert.fail("Should have thrown ReadDeniedException");
+        } catch (ReadDeniedException e) {
+            // expected
+        }
+    }
+
+    @Test
+    public void testProcedurePassesThroughWithBlanketRead() {
+        SecurityEvaluator securityEvaluator = new MockSecurityEvaluator(true, true, true, true, true, false, true);
+        rewriter = new OpRewriter(securityEvaluator, "http://example.com/dummy");
+        OpProcedure opProcedure = procedureOp();
+        rewriter.visit(opProcedure);
+        Assert.assertSame("A blanket-read principal gets the op unchanged", opProcedure, rewriter.getResult());
     }
 
 }
