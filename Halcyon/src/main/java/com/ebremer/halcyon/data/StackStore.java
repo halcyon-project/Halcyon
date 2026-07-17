@@ -133,10 +133,22 @@ public final class StackStore {
         if (principal == null || principal.isAnon()) {
             return false;
         }
-        if (isAdmin(principal)) {
+        return canReadStack(isAdmin(principal), principal.getUserURI(), subject, graph, creator, readable);
+    }
+
+    /**
+     * Principal-free form of {@link #canReadStack(HalcyonPrincipal, String,
+     * String, String, Set)} for callers that must capture serializable page
+     * state — the {@code Stacks} page hands this to a vandegraph
+     * {@code SolutionFilter}, which lives in the Wicket page store where a
+     * session-bound principal must not. Same rule, with the admin/user
+     * facts pre-resolved by the caller.
+     */
+    public static boolean canReadStack(boolean admin, String user, String subject, String graph,
+                                       String creator, Set<String> readable) {
+        if (admin) {
             return true;
         }
-        String user = principal.getUserURI();
         if (user != null && user.equals(creator)) {
             return true;
         }

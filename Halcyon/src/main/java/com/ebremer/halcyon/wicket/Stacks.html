@@ -4,39 +4,24 @@
     <style>
         body { font-family: Arial, sans-serif; color: #333; background-color: #f4f4f9; }
         h3 { margin: 20px 10px; color: #0000ab; }
-        table { font-size: 14px; margin: 10px; border-collapse: collapse; min-width: 60%; }
-        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
-        th { color: #0000ab; background-color: #f9f9f9; }
-        td a { color: #0000ab; text-decoration: none; }
-        td a:hover { text-decoration: underline; }
-        .uri { color: #888; font-size: 12px; }
+        table.stacks { font-size: 14px; margin: 10px; border-collapse: collapse; min-width: 60%; }
+        table.stacks th, table.stacks td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
+        table.stacks th { color: #0000ab; background-color: #f9f9f9; }
+        table.stacks th a { color: #0000ab; text-decoration: none; }
+        table.stacks td a { color: #0000ab; text-decoration: none; }
+        table.stacks td a:hover { text-decoration: underline; }
+        table.stacks caption { caption-side: bottom; text-align: left; padding: 6px 0; color: #888; }
         .toolbar { margin: 10px; }
         .danger { background: #b00020; color: #fff; border: none; padding: 8px 14px;
                   border-radius: 4px; cursor: pointer; font-size: 14px; }
         .danger:hover { background: #8a0019; }
-        .sel { width: 1em; text-align: center; }
     </style>
     <h3>Stacks</h3>
     <form wicket:id="stackForm">
         <div class="toolbar">
             <button wicket:id="deleteSelected" type="submit" class="danger">Delete selected</button>
         </div>
-        <table>
-            <thead>
-                <tr>
-                    <th class="sel"><input type="checkbox" wicket:id="selectAll" title="Select / clear all"/></th>
-                    <th>Name</th>
-                    <th>Graph URI</th>
-                </tr>
-            </thead>
-            <tbody wicket:id="group">
-                <tr wicket:id="rows">
-                    <td class="sel"><input type="checkbox" wicket:id="check"/></td>
-                    <td><a wicket:id="view"><span wicket:id="name">stack name</span></a></td>
-                    <td class="uri"><span wicket:id="uri">uri</span></td>
-                </tr>
-            </tbody>
-        </table>
+        <table wicket:id="stacks" class="stacks"></table>
     </form>
 </wicket:extend>
 </body>
