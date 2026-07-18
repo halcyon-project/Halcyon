@@ -126,6 +126,8 @@ public class LWSContainers extends BasePage {
     private final WebMarkupContainer modal;
     /** The ajax endpoint the context menu's "Properties…" entry calls back to. */
     private final AbstractDefaultAjaxBehavior properties;
+    /** The ajax endpoint the context menu's "Delete…" entry calls back to. */
+    private final AbstractDefaultAjaxBehavior deleteAction;
     /** The resource the right-hand preview panel currently shows, or {@code null}. */
     private String selectedUri;
     /** The viewer IRI the user picked from the alternates, or {@code null} for the default. */
@@ -347,6 +349,27 @@ public class LWSContainers extends BasePage {
             }
         };
         add(properties);
+
+        deleteAction = new AbstractDefaultAjaxBehavior() {
+            private static final long serialVersionUID = 1L;
+
+            @Override
+            protected void respond(AjaxRequestTarget target) {
+                var params = RequestCycle.get().getRequest().getRequestParameters();
+                String uri = params.getParameterValue("uri").toOptionalString();
+                String kind = params.getParameterValue("kind").toString("resource");
+                if (uri == null || uri.isBlank()) {
+                    return;
+                }
+                // Destructive, so a dialog confirms first. Whether the user may
+                // delete is the storage's ACP decision on the DELETE itself — a
+                // refusal is rendered verbatim.
+                modal.addOrReplace(new DeletePanel("content", uri, "container".equals(kind)));
+                modal.setVisible(true);
+                target.add(modal);
+            }
+        };
+        add(deleteAction);
     }
 
     @Override
@@ -358,9 +381,20 @@ public class LWSContainers extends BasePage {
               if (!menu) {
                 menu = document.createElement('div');
                 menu.id = 'lwsCtx'; menu.className = 'lws-ctx'; menu.style.display = 'none';
-                var item = document.createElement('div');
-                item.className = 'lws-ctx-item'; item.textContent = 'Properties\\u2026';
-                menu.appendChild(item); document.body.appendChild(menu);
+                var mk = function(label, cbKey){
+                  var item = document.createElement('div');
+                  item.className = 'lws-ctx-item'; item.textContent = label;
+                  item.addEventListener('click', function(){
+                    if (!menu.dataset.uri) { return; }
+                    Wicket.Ajax.get({u: menu.dataset[cbKey]
+                        + '&uri=' + encodeURIComponent(menu.dataset.uri)
+                        + '&kind=' + encodeURIComponent(menu.dataset.kind)});
+                  });
+                  menu.appendChild(item);
+                };
+                mk('Properties\\u2026', 'cb');
+                mk('Delete\\u2026', 'cbDel');
+                document.body.appendChild(menu);
                 document.addEventListener('contextmenu', function(ev){
                   var it = ev.target.closest('.lws-item');
                   if (!it) { menu.style.display = 'none'; return; }
@@ -373,16 +407,11 @@ public class LWSContainers extends BasePage {
                 document.addEventListener('click', function(){ menu.style.display = 'none'; });
                 document.addEventListener('keydown', function(ev){
                   if (ev.key === 'Escape') { menu.style.display = 'none'; } });
-                item.addEventListener('click', function(){
-                  if (!menu.dataset.uri) { return; }
-                  Wicket.Ajax.get({u: menu.dataset.cb
-                      + '&uri=' + encodeURIComponent(menu.dataset.uri)
-                      + '&kind=' + encodeURIComponent(menu.dataset.kind)});
-                });
               }
               menu.dataset.cb = '%s';
+              menu.dataset.cbDel = '%s';
             })();
-            """.formatted(properties.getCallbackUrl());
+            """.formatted(properties.getCallbackUrl(), deleteAction.getCallbackUrl());
         response.render(OnDomReadyHeaderItem.forScript(js));
     }
 
@@ -593,6 +622,43 @@ public class LWSContainers extends BasePage {
         if (storageRoot != null) {
             expansion.add(new LwsNode(storageRoot, Kind.CONTAINER));
         }
+    }
+
+    /** The parent container of a member URI (containers end with a slash). */
+    private static String parentOf(String uri) {
+        String s = uri.endsWith("/") ? uri.substring(0, uri.length() - 1) : uri;
+        int i = s.lastIndexOf('/');
+        return i >= 0 ? s.substring(0, i + 1) : uri;
+    }
+
+    /**
+     * Fold a successful DELETE into the page state: forget the member (and, for
+     * a container, everything fetched beneath it), then drop the parent's
+     * fetched listing so the branch re-reads fresh from the storage. The user's
+     * page in the parent is kept — {@link #childrenOf} clamps it if the
+     * membership shrank past it.
+     */
+    private void afterDelete(String uri, boolean container, AjaxRequestTarget target) {
+        entryIndex.remove(uri);
+        if (container) {
+            // A container URI ends with '/', so the prefix cannot catch a sibling.
+            containers.keySet().removeIf(k -> k.startsWith(uri));
+            entryIndex.keySet().removeIf(k -> k.startsWith(uri));
+            expansion.removeIf(n -> n.uri().startsWith(uri));
+        }
+        String parent = parentOf(uri);
+        ContainerState old = containers.remove(parent);
+        if (old != null && old.page > 0) {
+            ContainerState fresh = new ContainerState();
+            fresh.page = old.page;
+            containers.put(parent, fresh);
+        }
+        if (selectedUri != null
+                && (selectedUri.equals(uri) || (container && selectedUri.startsWith(uri)))) {
+            selectedUri = null;
+            replaceViewer(target);
+        }
+        target.add(tree, mediaChoice);
     }
 
     // --- The tree -----------------------------------------------------------
@@ -960,7 +1026,7 @@ public class LWSContainers extends BasePage {
         return s;
     }
 
-    // --- The Properties dialogs ---------------------------------------------
+    // --- The context-menu dialogs -------------------------------------------
 
     /**
      * Admin view: WHO HAS ACCESS. Edits the resource's own Access Control
@@ -1243,6 +1309,65 @@ public class LWSContainers extends BasePage {
                     ? "Request recorded" + (r.location() != null ? " as " + r.location() : "")
                             + ". A storage controller can now answer it with a grant."
                     : problem(r);
+        }
+    }
+
+    /**
+     * The context menu's "Delete…": states plainly what will be destroyed, then
+     * issues the LWS {@code DELETE}. The entity tag is read first because the
+     * storage answers 428 to an unconditional delete, and a container goes with
+     * {@code Depth: infinity} — without it a non-empty container is a 409.
+     * Whether the user <em>may</em> delete is the storage's ACP decision alone;
+     * a refusal is rendered verbatim. The storage root gets no button at all —
+     * the storage would refuse anyway, so the dialog says so up front.
+     */
+    private final class DeletePanel extends Panel {
+        private static final long serialVersionUID = 1L;
+
+        private final String uri;
+        private final boolean container;
+        private String message = "";
+
+        private DeletePanel(String id, String uri, boolean container) {
+            super(id);
+            this.uri = uri;
+            this.container = container;
+            setOutputMarkupId(true);
+            boolean root = uri.equals(storageRoot);
+            add(new Label("target", uri));
+            add(new Label("warning", root
+                    ? "This is the storage root — it cannot be deleted."
+                    : container
+                            ? "This deletes the container and everything inside it, permanently."
+                            : "This deletes the resource permanently."));
+            Form<Void> form = new Form<>("form");
+            form.setVisible(!root);
+            add(form);
+            form.add(new AjaxButton("delete") {
+                private static final long serialVersionUID = 1L;
+
+                @Override
+                protected void onSubmit(AjaxRequestTarget target) {
+                    doDelete(target);
+                }
+            });
+            form.add(new Label("message", new PropertyModel<>(this, "message")));
+        }
+
+        private void doDelete(AjaxRequestTarget target) {
+            LwsClient c = client();
+            // The storage answers 428 to an unconditional delete, so the entity
+            // tag is read first — its protection against destroying what changed
+            // underneath this dialog.
+            LwsClient.Result r = c.delete(uri, c.etag(uri), container);
+            if (r.ok()) {
+                modal.setVisible(false);
+                target.add(modal);
+                afterDelete(uri, container, target);
+            } else {
+                message = problem(r);
+                target.add(DeletePanel.this);
+            }
         }
     }
 }
