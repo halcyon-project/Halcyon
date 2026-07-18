@@ -34,6 +34,13 @@ public record LwsStorageConfig(
     public static final String ACCESS_GRANTS = ".access/grants";
 
     /**
+     * The IIIF Image service endpoint. Present (and advertised in the storage
+     * description) only when the hosting application installs an
+     * {@link com.ebremer.lws.iiif.IiifService} implementation.
+     */
+    public static final String IIIF = ".iiif";
+
+    /**
      * Suffix of a resource's linkset (its metadata resource).
      *
      * <p>Reserved by its <em>trailing</em> form, which is a different problem from the
@@ -115,6 +122,10 @@ public record LwsStorageConfig(
 
     public String accessGrantsUri() {
         return baseUri() + "/" + ACCESS_GRANTS;
+    }
+
+    public String iiifUri() {
+        return baseUri() + "/" + IIIF;
     }
 
     /**

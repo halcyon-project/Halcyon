@@ -8,6 +8,7 @@ import com.ebremer.lws.auth.AgentContext;
 import com.ebremer.lws.auth.BearerTokenValidator;
 import com.ebremer.lws.config.LwsSettings;
 import com.ebremer.lws.config.LwsStorageConfig;
+import com.ebremer.lws.iiif.IiifService;
 import com.ebremer.lws.json.LinksetJson;
 import com.ebremer.lws.json.LwsJson;
 import com.ebremer.lws.json.LwsRdf;
@@ -42,6 +43,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -173,8 +175,23 @@ public class LwsServlet extends HttpServlet {
     private transient Notifications notify;
     private transient com.ebremer.lws.sharing.AccessSharing sharing;
 
+    /** The imaging half of the {@code .iiif} endpoint; {@code null} = no image service. */
+    private final IiifService iiif;
+
     public LwsServlet(LwsStorageConfig cfg) {
+        this(cfg, null);
+    }
+
+    /**
+     * @param iiif the imaging half of the storage's IIIF Image service, or
+     *     {@code null} for a storage without one. When present, the reserved
+     *     {@code .iiif} endpoint serves (ACP-authorized) tile and info
+     *     requests through it, and the storage description advertises the
+     *     capability; when absent the endpoint 404s and nothing is advertised.
+     */
+    public LwsServlet(LwsStorageConfig cfg, IiifService iiif) {
         this.cfg = cfg;
+        this.iiif = iiif;
     }
 
     @Override
@@ -572,7 +589,7 @@ public class LwsServlet extends HttpServlet {
             // webhook verification key is published in it.
             case DESCRIPTION -> {
                 resp.setHeader("Cache-Control", "public, max-age=60");
-                sendJson(req, resp, LwsJson.storageDescription(cfg), body);
+                sendJson(req, resp, LwsJson.storageDescription(cfg, iiif != null), body);
             }
             case TYPE_INDEX -> typeIndex(rq, req, resp, body);
             // The GET form of Type Search: ?type=A,B&type=C. Superseded by QUERY in
@@ -581,6 +598,7 @@ public class LwsServlet extends HttpServlet {
             case TYPE_SEARCH -> typeSearch(rq, LwsQuery.fromQueryString(req.getParameterMap()),
                     req, resp, body);
             case ACR -> getAcr(rq, t, req, resp, body);
+            case IIIF -> serveIiif(rq, req, resp, body);
             case LINKSET -> getLinkset(rq, t, req, resp, body);
             // Only the subscriber may see their own subscription. It carries their inbox --
             // the webhook delivery target -- and their topic URIs, which disclose that those
@@ -690,6 +708,71 @@ public class LwsServlet extends HttpServlet {
             return;
         }
         sendJson(req, resp, LwsJson.container(r.uri(), v.total(), v.items()), body);
+    }
+
+    /**
+     * The storage's IIIF Image service: {@code GET {storage}/.iiif?iiif={iiifUrl}},
+     * where {@code {iiifUrl}} is a full IIIF Image API URL whose image identity is
+     * a data resource <em>of this storage</em> —
+     * {@code {imageUri}/{region}/{size}/{rotation}/{quality}.{format}} or
+     * {@code {imageUri}/info.json}. The servlet owns the policy: the identifier is
+     * confined to this storage (the image service is a storage capability, not an
+     * open proxy), {@code acl:Read} on the resource is demanded through ACP, and
+     * the resource's bytes are resolved in the content store. The imaging itself
+     * is the installed {@link IiifService}'s job.
+     */
+    private void serveIiif(Req rq, HttpServletRequest req, HttpServletResponse resp, boolean body)
+            throws IOException {
+        if (iiif == null) {
+            throw Problem.notFound("this storage has no image service");
+        }
+        if (!body) {
+            throw Problem.methodNotAllowed("HEAD is not defined on the image service");
+        }
+        String param = req.getParameter("iiif");
+        if (param == null || param.isBlank()) {
+            throw Problem.badRequest("the iiif parameter is required: "
+                    + "?iiif={imageUri}/{region}/{size}/{rotation}/{quality}.{format} or {imageUri}/info.json");
+        }
+        String imageUri = iiifImageUri(param);
+        if (imageUri == null || !imageUri.startsWith(cfg.baseUri() + "/")) {
+            throw Problem.badRequest("the IIIF image identity must be a data resource of this storage");
+        }
+        record Src(Path content, String ext) {
+        }
+        Src src = store.read(() -> {
+            LwsResource r = known(rq, imageUri);
+            demandOn(rq, r, AccessMode.READ);
+            if (r.isContainer() || r.storageKey() == null) {
+                throw Problem.badRequest("the identified resource has no content to image");
+            }
+            return new Src(content.pathFor(r.storageKey(), r.ext()), r.ext());
+        });
+        iiif.serve(req, resp, imageUri, src.content(), src.ext());
+    }
+
+    /**
+     * The image identity inside a IIIF Image API URL: everything before
+     * {@code /info.json}, or before the four request segments
+     * ({@code /{region}/{size}/{rotation}/{quality}.{format}}). Returns
+     * {@code null} when the URL has no such shape.
+     */
+    static String iiifImageUri(String iiifUrl) {
+        String u = iiifUrl.trim();
+        if (u.endsWith("/info.json")) {
+            String id = u.substring(0, u.length() - "/info.json".length());
+            return id.isEmpty() ? null : id;
+        }
+        int seen = 0;
+        for (int i = u.length() - 1; i >= 0; i--) {
+            if (u.charAt(i) == '/') {
+                seen++;
+                if (seen == 4) {
+                    return i == 0 ? null : u.substring(0, i);
+                }
+            }
+        }
+        return null;
     }
 
     /** An entity tag for a variant serialization: the base tag with a marker before its closing quote. */
@@ -2352,6 +2435,7 @@ public class LwsServlet extends HttpServlet {
             case ACCESS_REQUESTS, ACCESS_GRANTS -> resp.setHeader("Allow", "OPTIONS, HEAD, GET, POST");
             case ACCESS_REQUEST, ACCESS_GRANT -> resp.setHeader("Allow", "OPTIONS, HEAD, GET, DELETE");
             case DESCRIPTION, TYPE_INDEX -> resp.setHeader("Allow", "OPTIONS, HEAD, GET");
+            case IIIF -> resp.setHeader("Allow", "OPTIONS, GET");
 
             // A resource -- including the storage root. This is gated like every other verb
             // that names a resource, and it was not: OPTIONS used to answer for anything,

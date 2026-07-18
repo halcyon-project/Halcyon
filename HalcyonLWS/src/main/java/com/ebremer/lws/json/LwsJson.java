@@ -49,8 +49,13 @@ public final class LwsJson {
      * {@code StorageDescription} whose {@code serviceEndpoint} is the description's
      * own URL — that self-reference is how a client confirms it dereferenced the
      * right document.
+     *
+     * @param imageService whether this storage has an installed IIIF Image
+     *     service; when true the description advertises it as a capability and
+     *     lists the {@code .iiif} service endpoint — advertised only when real,
+     *     since a capability entry is a contract, not decoration.
      */
-    public static JsonObject storageDescription(LwsStorageConfig cfg) {
+    public static JsonObject storageDescription(LwsStorageConfig cfg, boolean imageService) {
         JsonArrayBuilder services = Json.createArrayBuilder()
                 .add(Json.createObjectBuilder()
                         .add("type", "StorageDescription")
@@ -79,6 +84,13 @@ public final class LwsJson {
                         .add("serviceEndpoint", cfg.accessGrantsUri())
                         .add("conformsTo", Json.createArrayBuilder()
                                 .add("https://www.w3.org/ns/lws#AccessProfile")));
+        if (imageService) {
+            services.add(Json.createObjectBuilder()
+                    .add("type", "ImageService")
+                    .add("serviceEndpoint", cfg.iiifUri())
+                    .add("conformsTo", Json.createArrayBuilder()
+                            .add("http://iiif.io/api/image")));
+        }
 
         // Advertise the patch formats we actually accept. A client is told not to
         // assume PUT or any particular patch format is supported unless it is
@@ -89,6 +101,19 @@ public final class LwsJson {
                         .add("mediaType", Json.createObjectBuilder()
                                 .add("application/linkset+json", Json.createArrayBuilder()
                                         .add("application/merge-patch+json"))));
+        if (imageService) {
+            // The IIIF Image API, identified by its own protocol IRI (the value
+            // info.json carries as "protocol"). The dialect is query-based:
+            // {endpoint}?iiif={imageUri}/{region}/{size}/{rotation}/{quality}.{format}
+            // (or .../info.json), where {imageUri} is a data resource of this
+            // storage; requests are ACP-authorized like any other read.
+            capabilities.add(Json.createObjectBuilder()
+                    .add("type", "http://iiif.io/api/image")
+                    .add("serviceEndpoint", cfg.iiifUri())
+                    .add("note", "query dialect: ?iiif={imageUri}/{region}/{size}/{rotation}/"
+                            + "{quality}.{format} or ?iiif={imageUri}/info.json; "
+                            + "{imageUri} must be a data resource of this storage"));
+        }
 
         // The key a subscriber uses to verify a webhook's HTTP Message Signature. It is
         // published here, rather than out of band, so a subscriber can find it by

@@ -39,6 +39,8 @@ public record Target(Kind kind, String uri, String subId) {
         LINKSET,
         /** A resource's ACP access control resource. {@link #uri} is the resource it controls. */
         ACR,
+        /** The IIIF Image service endpoint (present only when an IiifService is installed). */
+        IIIF,
         /** An ordinary container or data resource. */
         RESOURCE
     }
@@ -77,6 +79,8 @@ public record Target(Kind kind, String uri, String subId) {
                     { return new Target(Kind.ACCESS_REQUESTS, cfg.accessRequestsUri(), null); }
             case LwsStorageConfig.ACCESS_GRANTS ->
                     { return new Target(Kind.ACCESS_GRANTS, cfg.accessGrantsUri(), null); }
+            case LwsStorageConfig.IIIF ->
+                    { return new Target(Kind.IIIF, cfg.iiifUri(), null); }
             default -> { }
         }
 
