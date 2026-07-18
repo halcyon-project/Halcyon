@@ -12,7 +12,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.apache.jena.rdf.model.Model;
@@ -21,7 +20,6 @@ import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
-import org.apache.jena.riot.RDFFormat;
 import org.apache.jena.vocabulary.RDF;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -145,9 +143,11 @@ public class SaveStackServlet extends HttpServlet {
         if (principal.getUserURI() != null) {
             incoming.add(root, creator, incoming.createResource(principal.getUserURI()));
         }
-        StringWriter turtle = new StringWriter();
-        RDFDataMgr.write(turtle, incoming, RDFFormat.TURTLE);
-        byte[] bytes = turtle.toString().getBytes(StandardCharsets.UTF_8);
+        // Stored RELATIVE (see StackTurtle): the document names itself <> and
+        // its same-container companions — imagery, annotation-layer JSONs — by
+        // bare sibling name, so it inherits the URI it is served from and the
+        // container can move without rewriting the stacks inside it.
+        byte[] bytes = StackTurtle.relative(incoming, graph).getBytes(StandardCharsets.UTF_8);
 
         LwsClient client = new LwsClient(principal.getToken(),
                 HalcyonSettings.getSettings().getProxyHostName());
