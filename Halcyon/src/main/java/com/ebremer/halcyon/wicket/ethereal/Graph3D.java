@@ -172,7 +172,7 @@ public class Graph3D extends BasePage {
             pss.setNsPrefix("hal", HAL.NS);
             pss.setNsPrefix("so", SchemaDO.NS);
             pss.setValues("typelist", list);
-            // H13: guarded end() + a closed QueryExecution (see FeatureManager).
+            // H13: guarded end() + a closed QueryExecution.
             Model m;
             xs.begin(ReadWrite.READ);
             try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), xs)) {

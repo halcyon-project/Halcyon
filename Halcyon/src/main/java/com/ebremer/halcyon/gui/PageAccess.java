@@ -3,7 +3,6 @@ package com.ebremer.halcyon.gui;
 import com.ebremer.halcyon.lws.LWSContainers;
 import com.ebremer.halcyon.lws.StoragePage;
 import com.ebremer.halcyon.sparql.Sparql;
-import com.ebremer.halcyon.gui.tree.NodeNestedTreePage;
 import com.ebremer.halcyon.wicket.AccountPage;
 import com.ebremer.halcyon.wicket.AdminPage;
 import com.ebremer.halcyon.wicket.Stacks;
@@ -89,17 +88,14 @@ public final class PageAccess {
         // ---- admins only -----------------------------------------------------
         // AdminPage embeds the Keycloak admin console and carried no guard of its
         // own; MenuPanel merely hid the link.
-        new Mount("/admin", AdminPage.class, Access.ADMIN),
-
-        // M17: container management is ADMIN, not merely AUTHENTICATED — hiding
-        // a menu link is not access control. Most of that legacy cluster
-        // (Collections, EditContainer, CollectionActionPanel, ListImages,
-        // ListFeatures, DirectoryProcessor) is now REMOVED outright; what
-        // survives keeps the ADMIN gate, because these pages write the
-        // CollectionsAndResources graph (NodeNestedTreePage's submit handler
-        // replaces it wholesale — unlisted here would mean PUBLIC).
-        new Mount(null, EditCollection.class, Access.ADMIN),
-        new Mount(null, NodeNestedTreePage.class, Access.ADMIN)
+        //
+        // M17 (historical): container management was ADMIN, not merely
+        // AUTHENTICATED — hiding a menu link is not access control. The whole
+        // legacy cluster (Collections, EditCollection, EditContainer,
+        // CollectionActionPanel, ListImages, ListFeatures, FeatureManager,
+        // the Node*TreePage editors, DirectoryProcessor) is now REMOVED
+        // outright; nothing browses or edits CollectionsAndResources anymore.
+        new Mount("/admin", AdminPage.class, Access.ADMIN)
     );
 
     private static final Map<Class<?>, Access> BY_PAGE =

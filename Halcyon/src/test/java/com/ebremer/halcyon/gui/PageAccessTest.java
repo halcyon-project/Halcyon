@@ -68,17 +68,12 @@ class PageAccessTest {
     }
 
     @Test
-    @DisplayName("M17: container management is ADMIN, not merely AUTHENTICATED")
+    @DisplayName("M17: the admin console stays ADMIN; the legacy container editors are gone")
     void containerManagementIsAdmin() {
-        // The legacy cluster (Collections, EditContainer, CollectionActionPanel,
-        // ListImages, ListFeatures, DirectoryProcessor) is removed outright; the
-        // survivors that write CollectionsAndResources keep the ADMIN gate.
-        assertEquals(Access.ADMIN, PageAccess.accessFor(EditCollection.class));
+        // The whole legacy cluster (Collections, EditCollection, EditContainer,
+        // CollectionActionPanel, ListImages, ListFeatures, FeatureManager, the
+        // Node*TreePage editors, DirectoryProcessor) is removed outright.
         assertEquals(Access.ADMIN, PageAccess.accessFor(com.ebremer.halcyon.wicket.AdminPage.class));
-        // Unlisted means PUBLIC (so Wicket's own error pages still render), which is
-        // exactly why this page had to be listed: it rewrites CollectionsAndResources.
-        assertEquals(Access.ADMIN,
-                PageAccess.accessFor(com.ebremer.halcyon.gui.tree.NodeNestedTreePage.class));
     }
 
     @Test
@@ -95,8 +90,8 @@ class PageAccessTest {
     void unlistedIsPublic() {
         // Wicket instantiates its own internal pages (error / page-expired) through the
         // same strategy, so default-deny would break error rendering. The cost is that
-        // any application page nobody remembers to list is public — which is how
-        // NodeNestedTreePage slipped through.
+        // any application page nobody remembers to list is public — which is how the
+        // (since-removed) NodeNestedTreePage editor once slipped through.
         assertEquals(Access.PUBLIC, PageAccess.accessFor(String.class));
     }
 
