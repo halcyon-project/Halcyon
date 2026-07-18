@@ -1,12 +1,18 @@
 package com.ebremer.halcyon.server;
 
+import com.ebremer.beakgraph.core.BeakGraph;
+import com.ebremer.beakgraph.pool.BeakGraphPool;
 import com.ebremer.halcyon.datum.HalcyonPrincipal;
+import com.ebremer.lws.acp.AccessMode;
 import com.ebremer.lws.acp.AcpEngine;
 import com.ebremer.lws.acp.AcpSecuredDatasetGraph;
 import com.ebremer.lws.acp.AcpSecurityEvaluator;
 import com.ebremer.lws.auth.AgentContext;
 import com.ebremer.lws.config.LwsSettings;
+import com.ebremer.lws.config.LwsStorageConfig;
+import com.ebremer.lws.store.LwsResource;
 import com.ebremer.lws.store.LwsStore;
+import com.ebremer.lws.store.ResourceRegistry;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -14,6 +20,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
 import org.apache.jena.graph.Graph;
 import org.apache.jena.query.Dataset;
@@ -56,6 +63,18 @@ import org.slf4j.LoggerFactory;
  * empty. The default graph is therefore served as the ACP-filtered UNION of
  * the named graphs — {@code GRAPH ?g} still works and still enumerates only
  * readable resources.
+ *
+ * <p><strong>{@code ?iri=<resource>} — the per-BeakGraph endpoint.</strong>
+ * With {@code iri} naming a storage-resident BeakGraph (HDF5) resource, the
+ * query runs against THAT FILE's own dataset, stood up on the fly from the
+ * {@code BeakGraphPool} — every {@code .h5} in a storage is a SPARQL endpoint
+ * at {@code /rdf2?iri=<its-uri>}. This is the return of the old storage's
+ * Raptor servlet, rebuilt under the C2 deletion's conditions: the target is
+ * named by its LWS URI and resolved through the registry (never a
+ * client-supplied path), reading it demands the caller's own ACP
+ * {@code Read} (a refusal answers 404, so an unauthorized resource is not
+ * even discoverable), and execution is bounded by the same parse-as-query and
+ * timeout rules as the store view.
  */
 public class LwsSparqlServlet extends HttpServlet {
 
@@ -121,6 +140,12 @@ public class LwsSparqlServlet extends HttpServlet {
                 ? new AgentContext(hp.getUserURI(), null, null, null)
                 : AgentContext.PUBLIC;
 
+        String iri = request.getParameter("iri");
+        if (iri != null && !iri.isBlank()) {
+            serveBeakGraph(response, query, iri.trim(), agent, request.getHeader("Accept"));
+            return;
+        }
+
         LwsStore store = LwsStore.get();
         // Fresh per request (see AcpSecurityEvaluator's contract): the secured
         // view for THIS agent, over the raw store it wraps.
@@ -157,6 +182,75 @@ public class LwsSparqlServlet extends HttpServlet {
                 response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "query failed");
             }
         }
+    }
+
+    /**
+     * The per-file mode: SPARQL over ONE BeakGraph resource's own dataset.
+     * Registry-resolved, ACP-gated, pool-served — see the class javadoc for
+     * why each of those is a condition of this feature existing at all.
+     */
+    private void serveBeakGraph(HttpServletResponse response, Query query, String iri,
+            AgentContext agent, String accept) throws IOException {
+        LwsStorageConfig cfg = storageOf(iri);
+        if (cfg == null) {
+            response.sendError(HttpServletResponse.SC_NOT_FOUND, "no such queryable resource");
+            return;
+        }
+        LwsStore store = LwsStore.get();
+        // Resolve and authorize in one short read transaction. An unreadable
+        // resource answers exactly like a missing one: 404, no discovery.
+        LwsResource r = store.read(() ->
+                new AcpEngine(store).allows(agent, iri, AccessMode.READ)
+                        ? new ResourceRegistry(store, cfg).find(iri).orElse(null)
+                        : null);
+        if (r == null || r.isContainer() || r.storageKey() == null) {
+            response.sendError(HttpServletResponse.SC_NOT_FOUND, "no such queryable resource");
+            return;
+        }
+        boolean hdf5 = "application/x-hdf5".equalsIgnoreCase(r.mediaType())
+                || "application/x-hdf".equalsIgnoreCase(r.mediaType())
+                || ".h5".equalsIgnoreCase(r.ext());
+        if (!hdf5) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST,
+                    "the target is not a BeakGraph (HDF5) resource");
+            return;
+        }
+        Path blob = store.contentStore(cfg).pathFor(r.storageKey(), r.ext());
+        java.net.URI key = blob.toUri();
+        BeakGraph bg = null;
+        try {
+            bg = BeakGraphPool.getPool().borrowObject(key);
+            try (QueryExecution qe = QueryExecution.dataset(bg.getDataset()).query(query)
+                    .timeout(TIMEOUT_SECONDS, TimeUnit.SECONDS).build()) {
+                respond(response, qe, accept);
+            }
+        } catch (IOException ex) {
+            // The client went away mid-stream; nothing to answer.
+        } catch (Exception ex) {
+            logger.warn("/rdf2 BeakGraph query of {} failed", iri, ex);
+            if (!response.isCommitted()) {
+                response.sendError(HttpServletResponse.SC_BAD_GATEWAY,
+                        "the resource could not be opened as a BeakGraph");
+            }
+        } finally {
+            if (bg != null) {
+                try {
+                    BeakGraphPool.getPool().returnObject(key, bg);
+                } catch (Exception ex) {
+                    logger.warn("BeakGraph pool return failed for {}", iri, ex);
+                }
+            }
+        }
+    }
+
+    /** The configured storage a URI belongs to, or {@code null} (same rule as SaveStackServlet). */
+    private static LwsStorageConfig storageOf(String uri) {
+        for (LwsStorageConfig cfg : LwsSettings.get().storages()) {
+            if (uri.startsWith(cfg.baseUri() + "/")) {
+                return cfg;
+            }
+        }
+        return null;
     }
 
     /** Serialize by query type, negotiating the common formats plainly. */
