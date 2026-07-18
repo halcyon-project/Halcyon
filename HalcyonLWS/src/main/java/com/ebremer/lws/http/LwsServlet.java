@@ -1060,6 +1060,17 @@ public class LwsServlet extends HttpServlet {
         String mediaType = r.mediaType() == null ? MediaTypes.OCTET_STREAM : r.mediaType();
         resp.setHeader("Accept-Ranges", "bytes");
 
+        // These are untrusted, agent-uploaded bytes served from the storage's own origin.
+        // nosniff pins the declared type (a browser must never "discover" HTML inside a
+        // text file), and the actively scriptable types are additionally served under
+        // CSP sandbox: an HTML/SVG/XML document still renders when opened or embedded,
+        // but as a unique opaque origin with no script — otherwise any agent with write
+        // access could hand every later reader a stored XSS running as this site.
+        resp.setHeader("X-Content-Type-Options", "nosniff");
+        if (MediaTypes.scriptable(mediaType)) {
+            resp.setHeader("Content-Security-Policy", "sandbox");
+        }
+
         List<long[]> ranges = parseRanges(req.getHeader("Range"), size);
 
         // A well-formed Range nothing could satisfy -> 416 with the entity length (parseRanges

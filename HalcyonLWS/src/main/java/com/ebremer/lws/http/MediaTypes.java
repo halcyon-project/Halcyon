@@ -132,6 +132,28 @@ public final class MediaTypes {
         return m != null && (JSON.equals(m) || m.endsWith("+json"));
     }
 
+    /**
+     * True if a media type is <em>actively scriptable</em> when a browser navigates to it:
+     * HTML, and the XML family (XHTML, SVG, and raw XML — all of which can carry script,
+     * event handlers, or an {@code xml-stylesheet} that executes in the document's origin).
+     *
+     * <p>These are the types the storage must never serve executable from its own origin:
+     * any agent granted write access could otherwise hand every later reader a stored XSS
+     * running as the storage's own site. The serving path answers them with
+     * {@code Content-Security-Policy: sandbox} — the document still renders when opened or
+     * embedded, but as a unique opaque origin with no script.
+     */
+    public static boolean scriptable(String mediaType) {
+        String m = bare(mediaType);
+        if (m == null) {
+            return false;
+        }
+        return m.equals("text/html")
+                || m.equals("text/xml")
+                || m.equals("application/xml")
+                || m.endsWith("+xml");
+    }
+
     /** Strip any parameters: {@code application/json; charset=utf-8} -> {@code application/json}. */
     public static String bare(String contentType) {
         if (contentType == null) {

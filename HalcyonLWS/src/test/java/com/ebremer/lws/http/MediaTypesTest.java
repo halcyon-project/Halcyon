@@ -57,6 +57,32 @@ class MediaTypesTest {
     }
 
     @Test
+    void scriptableFlagsWhatABrowserWouldExecute() {
+        // The types the serving path must answer with CSP sandbox: HTML and
+        // the XML family, all of which can carry script into a same-origin render.
+        assertTrue(MediaTypes.scriptable("text/html"));
+        assertTrue(MediaTypes.scriptable("text/html; charset=utf-8"), "parameters are ignored");
+        assertTrue(MediaTypes.scriptable("application/xhtml+xml"));
+        assertTrue(MediaTypes.scriptable("image/svg+xml"));
+        assertTrue(MediaTypes.scriptable("text/xml"));
+        assertTrue(MediaTypes.scriptable("application/xml"));
+        assertTrue(MediaTypes.scriptable("application/rdf+xml"));
+    }
+
+    @Test
+    void scriptableLeavesPassiveAndTextualTypesAlone() {
+        assertFalse(MediaTypes.scriptable("text/plain"));
+        assertFalse(MediaTypes.scriptable("text/turtle"));
+        assertFalse(MediaTypes.scriptable("application/json"));
+        assertFalse(MediaTypes.scriptable("application/ld+json"), "+json is not +xml");
+        assertFalse(MediaTypes.scriptable("image/png"));
+        assertFalse(MediaTypes.scriptable("image/tiff"));
+        assertFalse(MediaTypes.scriptable("application/pdf"));
+        assertFalse(MediaTypes.scriptable("application/octet-stream"));
+        assertFalse(MediaTypes.scriptable(null));
+    }
+
+    @Test
     void bareStripsParameters() {
         assertEquals("application/json", MediaTypes.bare("application/json; charset=utf-8"));
         assertEquals("application/json", MediaTypes.bare("application/json"));
