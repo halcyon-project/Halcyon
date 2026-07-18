@@ -65,7 +65,8 @@ public final class MirrorReconciler {
     }
 
     /** A registered mirror resource, keyed by its storage key (its path under the mount). */
-    private record Idx(String uri, String key, boolean container, long size, long mtime) {
+    private record Idx(String uri, String key, boolean container, long size, long mtime,
+            String mediaType) {
     }
 
     private record FileInfo(long size, Instant mtime) {
@@ -147,8 +148,26 @@ public final class MirrorReconciler {
                 stampMtimeOnly(rel, diskMtime);
             } else if (idx.size() != fi.size() || idx.mtime() != diskMtime) {
                 adoptFile(rel, fi, true);
+            } else if (typeUpgradeable(idx.mediaType(), rel)) {
+                // Adopted before the name→type mapping existed, so the record says
+                // application/octet-stream for a format the name identifies
+                // (.svs → image/tiff). Re-adopt once to correct the record — the
+                // disk is the source of truth in this storage, and the type is a
+                // fact about the file. The fresh type/etag flow to listings and
+                // every media-type-driven consumer downstream.
+                adoptFile(rel, fi, true);
             }
         }
+    }
+
+    /** A recorded opaque type, for a file name the format map now identifies. */
+    private static boolean typeUpgradeable(String recorded, String rel) {
+        if (recorded != null && !recorded.isBlank()
+                && !"application/octet-stream".equalsIgnoreCase(recorded)) {
+            return false;
+        }
+        String name = rel.substring(rel.lastIndexOf('/') + 1);
+        return com.ebremer.lws.scan.MediaTypeFormats.mediaTypeForName(name) != null;
     }
 
     /** Record a grandfathered entry's disk mtime without a full re-adopt (its size already matched). */
@@ -200,7 +219,12 @@ public final class MirrorReconciler {
                     // leave 0
                 }
             }
-            out.put(key, new Idx(uri, key, container, size, mtime));
+            String mediaType = null;
+            var mtypeStmt = g.getProperty(s, com.ebremer.lws.vocab.AS.mediaType);
+            if (mtypeStmt != null && mtypeStmt.getObject().isLiteral()) {
+                mediaType = mtypeStmt.getString();
+            }
+            out.put(key, new Idx(uri, key, container, size, mtime, mediaType));
         }
         return out;
     }
