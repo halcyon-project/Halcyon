@@ -1,6 +1,53 @@
-<!DOCTYPE html>
 <html>
     <body>
-    <wicket:extend><iframe wicket:id="embedme" height="1080px" width="100%"></iframe></wicket:extend>
+        <wicket:extend>
+            <style>
+                body { font-family: Arial, sans-serif; color: #333; background-color: #f4f4f9; }
+                .acct { margin: 14px; font-size: 14px; max-width: 1200px; }
+                .acct h3 { color: #0000ab; margin: 14px 0 8px 0; }
+                .acct table.id { border-collapse: collapse; background: #fff; border: 1px solid #ddd;
+                                 border-radius: 4px; }
+                .acct table.id th, .acct table.id td { text-align: left; padding: 5px 12px;
+                                 border-bottom: 1px solid #eee; font-size: 13px; }
+                .acct table.id th { color: #0000ab; white-space: nowrap; font-weight: 600; }
+                .acct table.id td { font-family: monospace; word-break: break-all; }
+                .acct a { color: #0000ab; text-decoration: none; }
+                .acct a:hover { text-decoration: underline; }
+                .acct .kc { display: inline-block; margin: 8px 0; }
+                .acct ul.classes { list-style: none; padding: 0; margin: 6px 0; }
+                .acct ul.classes li { display: inline-flex; align-items: center; gap: 6px;
+                                      margin: 0 14px 6px 0; }
+                .acct .swatch { width: 14px; height: 14px; border: 1px solid #999;
+                                border-radius: 3px; display: inline-block; }
+                .acct .none { color: #888; font-style: italic; }
+                .acct table.dataview { border-collapse: collapse; background: #fff;
+                                       border: 1px solid #ddd; width: 100%; font-size: 13px; }
+                .acct table.dataview th, .acct table.dataview td { text-align: left;
+                                       padding: 5px 10px; border-bottom: 1px solid #eee; }
+            </style>
+            <div class="acct">
+                <h3>Account</h3>
+                <table class="id">
+                    <tr><th>Username</th><td wicket:id="username"></td></tr>
+                    <tr><th>Name</th><td wicket:id="fullname"></td></tr>
+                    <tr><th>WebID</th><td wicket:id="webid"></td></tr>
+                    <tr><th>Groups</th><td wicket:id="groups"></td></tr>
+                </table>
+                <a class="kc" wicket:id="keycloak">Manage profile &amp; credentials (Keycloak) ↗</a>
+
+                <h3>Annotation color classes</h3>
+                <div class="none" wicket:id="noclasses"></div>
+                <ul class="classes">
+                    <li wicket:id="classes"><span class="swatch" wicket:id="swatch"></span>
+                        <span wicket:id="cname"></span></li>
+                </ul>
+                <a wicket:id="editclasses">Edit color classes</a>
+
+                <div wicket:id="filesSection">
+                    <h3>Your files</h3>
+                    <table class="dataview" wicket:id="files"></table>
+                </div>
+            </div>
+        </wicket:extend>
     </body>
 </html>

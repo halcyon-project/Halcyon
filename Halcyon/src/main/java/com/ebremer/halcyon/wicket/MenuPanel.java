@@ -76,7 +76,9 @@ public class MenuPanel extends Panel {
             revisionhistory.setVisible(true);
             login.setVisible(false);
             logout.setVisible(true);
-            //account.setVisible(true);
+            // The account page shows the user THEIR OWN data — every signed-in
+            // user gets it, not only admins.
+            account.setVisible(true);
             images.setVisible(true);
             sparql.setVisible(true);
             stacks.setVisible(true);
@@ -90,7 +92,6 @@ public class MenuPanel extends Panel {
             if (hp.getGroups().contains("admin")) {
                 security.setVisible(true);
                 //threed.setVisible(true);
-                account.setVisible(true);
                 colorclasses.setVisible(true);
             }
         } 
