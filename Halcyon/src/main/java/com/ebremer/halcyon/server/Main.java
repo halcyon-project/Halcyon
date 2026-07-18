@@ -203,11 +203,11 @@ public class Main {
 
         Spatial.init();
         SpringApplicationBuilder sab = new SpringApplicationBuilder(Main.class);
-       // sab.initializers(new ServletInitializer());
         SpringApplication app = sab.build();
         //SpringApplication app = new SpringApplication(Main.class);
         app.setMainApplicationClass(Main.class);
-        app.addInitializers(new ServletInitializer());
+        // The legacy LDP servlet (LWSServer, the old :hasResourceHandler mounts
+        // and /users/*) is REMOVED — the W3C LWS storages are the data plane.
         app.setAdditionalProfiles("production");
         app.setBannerMode(Mode.CONSOLE);
         app.run(args);

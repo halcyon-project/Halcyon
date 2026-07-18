@@ -6,7 +6,6 @@ import com.ebremer.halcyon.sparql.Sparql;
 import com.ebremer.halcyon.wicket.AccountPage;
 import com.ebremer.halcyon.wicket.AdminPage;
 import com.ebremer.halcyon.wicket.Stacks;
-import com.ebremer.halcyon.wicket.Upload;
 import com.ebremer.halcyon.wicket.ethereal.Graph3D;
 import com.ebremer.halcyon.wicket.ethereal.Zephyr2;
 import com.ebremer.halcyon.wicket.ethereal.Zephyr3;
@@ -70,7 +69,6 @@ public final class PageAccess {
         new Mount("/revisionhistory", RevisionHistory.class, Access.AUTHENTICATED),
         // (H4: these were unguarded — note /containers, which the old list had
         //  wrong as "/collections", so the page was never matched at all)
-        new Mount("/upload", Upload.class, Access.AUTHENTICATED),
         new Mount("/viewer", MultiViewer.class, Access.AUTHENTICATED),
         new Mount("/stacks", Stacks.class, Access.AUTHENTICATED),
         new Mount("/threed", Graph3D.class, Access.AUTHENTICATED),

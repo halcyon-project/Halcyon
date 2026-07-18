@@ -20,10 +20,9 @@ import org.springframework.context.annotation.Configuration;
  * {@code settings.ttl}.
  *
  * <p>This is a plain {@code @Configuration} in the package {@code Main} lives in,
- * so Spring finds it by component scan. That is deliberate: neither {@code Main}
- * nor {@code ServletInitializer} — which mounts the legacy {@code /lws/**} servlet
- * — has to be touched. The two LWS implementations coexist without either knowing
- * about the other.
+ * so Spring finds it by component scan. (Historically that let these storages
+ * coexist with the legacy {@code /lws/**} servlet without either knowing about
+ * the other; the legacy servlet is now REMOVED and these are the data plane.)
  *
  * <p>A {@link ServletContextInitializer} rather than a set of
  * {@code ServletRegistrationBean}s because the number of storages is decided at
