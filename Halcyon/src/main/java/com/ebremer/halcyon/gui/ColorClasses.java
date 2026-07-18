@@ -19,8 +19,7 @@ import org.apache.wicket.markup.html.basic.Label;
  * ({@code {storage}/users/{name}/colorclasses.ttl}), loaded and saved through
  * {@link LwsCommandNode} with the session's own token, so ACP's creator
  * policy makes the document theirs and a concurrent edit surfaces as the
- * form's usual conflict flow. A user arriving with classes only in the
- * legacy graph gets them extracted and re-rooted as the seed.
+ * form's usual conflict flow.
  */
 public class ColorClasses extends BasePage {
     private static final long serialVersionUID = 1L;
@@ -39,13 +38,7 @@ public class ColorClasses extends BasePage {
         LwsCommandNode cn = new LwsCommandNode(docUri);
         Model working = cn.workspaceLoadOrSeed(
                 HalcyonSession.get().getWorkspace(),
-                () -> {
-                    Model legacy = ColorClassesStore.extractLegacy(
-                            ColorClassesStore.legacyGraph(user), docUri);
-                    return ColorClassesStore.rows(legacy).isEmpty()
-                            ? ColorClassesStore.emptyList(docUri)
-                            : legacy;
-                });
+                () -> ColorClassesStore.emptyList(docUri));
 
         // The buffer may predate color classes — make sure it carries a list
         // resource the shape can anchor on.

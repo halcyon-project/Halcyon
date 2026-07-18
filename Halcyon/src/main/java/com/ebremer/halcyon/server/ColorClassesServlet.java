@@ -8,8 +8,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.StringReader;
-import java.nio.charset.StandardCharsets;
-import java.util.List;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.riot.Lang;
@@ -26,13 +24,9 @@ import org.slf4j.LoggerFactory;
  * browser cannot attach a bearer token (C5 keeps it out of the DOM), so this
  * endpoint reads the ACP-protected resource server-side with the session's
  * own token and answers plain JSON {@code [{"name":…,"color":…}]}. An empty
- * array (or any error) makes the palette fall back to its built-in defaults.
- *
- * <p>LAZY MIGRATION lives here: when the LWS resource does not exist yet but
- * the user's legacy graph in the classic dataset does, the classes are
- * extracted, written to the storage AS THE USER (so ACP's creator policy
- * makes the document theirs), and served — each user migrates silently the
- * first time their palette loads. The legacy graph is left untouched.
+ * array — including the not-created-yet 404 — or any error makes the palette
+ * fall back to its built-in defaults. (No legacy-store migration: the old
+ * dataset was checked and held no color classes for any user.)
  */
 public class ColorClassesServlet extends HttpServlet {
 
@@ -64,28 +58,14 @@ public class ColorClassesServlet extends HttpServlet {
             json(response, ColorClassesStore.toJson(ColorClassesStore.rows(m)));
             return;
         }
-        if (t.status() != 404) {
-            logger.warn("colorclasses read of {} answered HTTP {}", uri, t.status());
-            response.sendError(HttpServletResponse.SC_BAD_GATEWAY, "storage unavailable");
-            return;
-        }
-
-        // Not there yet — migrate from the legacy graph if the user has one.
-        Model legacy = ColorClassesStore.extractLegacy(ColorClassesStore.legacyGraph(user), uri);
-        List<ColorClassesStore.Row> rows = ColorClassesStore.rows(legacy);
-        if (rows.isEmpty()) {
+        if (t.status() == 404) {
+            // Not created yet — the palette uses its defaults until the user
+            // defines classes in the editor.
             json(response, "[]");
             return;
         }
-        byte[] bytes = StackTurtle.relative(legacy, uri).getBytes(StandardCharsets.UTF_8);
-        LwsClient.Result r = client.put(uri, "text/turtle", bytes, null);
-        if (r.ok()) {
-            logger.info("migrated {} color class(es) for {} to {}", rows.size(), user, uri);
-        } else {
-            // Serve the classes anyway; migration retries on the next load.
-            logger.warn("colorclasses migration PUT of {} answered HTTP {}", uri, r.status());
-        }
-        json(response, ColorClassesStore.toJson(rows));
+        logger.warn("colorclasses read of {} answered HTTP {}", uri, t.status());
+        response.sendError(HttpServletResponse.SC_BAD_GATEWAY, "storage unavailable");
     }
 
     private static void json(HttpServletResponse response, String body) throws IOException {

@@ -1,7 +1,5 @@
 package com.ebremer.halcyon.server;
 
-import com.ebremer.halcyon.data.DataCore;
-import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import com.ebremer.lws.config.LwsSettings;
 import com.ebremer.lws.config.LwsStorageConfig;
 import com.ebremer.ns.HAL;
@@ -12,8 +10,6 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.jena.query.Dataset;
-import org.apache.jena.query.ReadWrite;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.RDFNode;
@@ -28,10 +24,9 @@ import org.apache.jena.vocabulary.SchemaDO;
  * {@code {userDataStorage}/users/{name}/colorclasses.ttl}, a relative document
  * whose root is {@code <> a hal:AnnotationClassList}. This class is the shared
  * brain of the two consumers — the {@code /colorclasses} palette relay and the
- * {@code /user/colorclasses} editor — plus the LAZY MIGRATION off the old
- * store: the legacy per-user graph in the classic dataset is extracted and
- * re-rooted the first time each user shows up, and the old data is left
- * untouched behind it.
+ * {@code /user/colorclasses} editor. (There is deliberately no legacy-store
+ * migration: the old dataset held no color classes for any user, so the
+ * feature starts fresh here.)
  */
 public final class ColorClassesStore {
 
@@ -69,73 +64,6 @@ public final class ColorClassesStore {
         m.setNsPrefix("so", SchemaDO.NS);
         m.createResource(docUri).addProperty(RDF.type, HAL.AnnotationClassList);
         return m;
-    }
-
-    /**
-     * The user's LEGACY graph ({@code {hostName}/users/{user}/}) copied out of
-     * the classic dataset — the migration source. Empty when absent.
-     */
-    public static Model legacyGraph(String username) {
-        String graphUri = HalcyonSettings.getSettings().getHostName() + "/users/" + username + "/";
-        Model out = ModelFactory.createDefaultModel();
-        Dataset ds = DataCore.getInstance().getDataset();
-        ds.begin(ReadWrite.READ);
-        try {
-            if (ds.containsNamedModel(graphUri)) {
-                out.add(ds.getNamedModel(graphUri));
-            }
-        } finally {
-            ds.end();
-        }
-        return out;
-    }
-
-    /**
-     * Extract the class list from a legacy user graph and RE-ROOT it at the
-     * new document URI: the list's own statements, each
-     * {@code hal:hasAnnotationClass} member's statements, and each member
-     * class's direct statements (its {@code so:name}). Returns an empty model
-     * when the graph holds no list — the caller then seeds fresh instead.
-     */
-    public static Model extractLegacy(Model legacy, String newDocUri) {
-        Model out = ModelFactory.createDefaultModel();
-        out.setNsPrefix("hal", HAL.NS);
-        out.setNsPrefix("so", SchemaDO.NS);
-        var lists = legacy.listSubjectsWithProperty(RDF.type, HAL.AnnotationClassList);
-        if (!lists.hasNext()) {
-            return out;
-        }
-        Resource oldList = lists.next();
-        Resource newList = out.createResource(newDocUri);
-        newList.addProperty(RDF.type, HAL.AnnotationClassList);
-        for (StmtIterator it = legacy.listStatements(oldList, HAL.hasAnnotationClass, (RDFNode) null);
-                it.hasNext();) {
-            RDFNode member = it.next().getObject();
-            if (!member.isResource()) {
-                continue;
-            }
-            // Members re-mint as blank nodes: their legacy identity is either a
-            // blank node already or a skolem IRI from the old workspace saves,
-            // and neither is worth carrying into the new document.
-            Resource fresh = out.createResource();
-            newList.addProperty(HAL.hasAnnotationClass, fresh);
-            for (StmtIterator ms = member.asResource().listProperties(); ms.hasNext();) {
-                Statement st = ms.next();
-                if (st.getObject().isResource()
-                        && st.getPredicate().equals(HAL.hasClass)) {
-                    Resource cls = st.getObject().asResource();
-                    fresh.addProperty(HAL.hasClass, out.createResource(cls.getURI()));
-                    // The class's own direct description (its so:name).
-                    for (StmtIterator cs = cls.listProperties(); cs.hasNext();) {
-                        Statement cst = cs.next();
-                        out.add(out.createResource(cls.getURI()), cst.getPredicate(), cst.getObject());
-                    }
-                } else if (st.getObject().isLiteral()) {
-                    fresh.addProperty(st.getPredicate(), st.getObject());
-                }
-            }
-        }
-        return out;
     }
 
     /** The palette rows of a class-list model (any root — matched by type). */
