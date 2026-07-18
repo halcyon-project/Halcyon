@@ -20,6 +20,7 @@ hs_err_pid*
 # Runtime RDF state / data
 /Halcyon/tdb2/
 /Halcyon/lws-tdb2/
+/HalcyonLWS/lws-tdb2/
 /Halcyon/rdfdata/
 /Halcyon/data/
 /Halcyon/*.ttl.gz

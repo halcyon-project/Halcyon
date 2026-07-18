@@ -201,6 +201,27 @@ See [notifications.md](notifications.md) and [security.md](security.md). Note th
 differ: **`POST /.notifications/subscriptions` returns `200 OK`** (with `Location`), while **`POST` to
 `/.access/requests` or `/.access/grants` returns `201 Created`**.
 
+### `/.iiif` — IIIF Image service
+
+`GET {storage}/.iiif?iiif={iiifUrl}` serves IIIF Image API tile and `info.json` requests for image
+resources **of that storage** — whole-slide formats included, through Halcyon's tile engine. The
+`iiif` parameter carries a full IIIF URL whose image identity is a data resource of the storage:
+
+```
+?iiif={imageUri}/{region}/{size}/{rotation}/{quality}.{format}
+?iiif={imageUri}/info.json
+```
+
+The endpoint is present — and advertised in the storage description as a capability typed
+`http://iiif.io/api/image` plus an `ImageService` service entry — **only when the hosting
+application installs an imaging implementation** (`IiifService`; Halcyon installs `LwsIiifBridge`).
+A capability entry is a contract, so an uninstalled service is a plain `404`, not an advertised one.
+
+Requests are authorized like any other read: the identifier is confined to the storage (this is an
+image service, not an open proxy), and ACP `acl:Read` is demanded on the resource before a byte is
+decoded. `GET` only (`HEAD` answers 405); responses are tiles (`image/jpeg`/`image/png`), tile
+metadata (`.ttl`/`.json` forms), or the `info.json` document.
+
 ## Status codes
 
 | Code | When |
