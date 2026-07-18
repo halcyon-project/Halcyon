@@ -6,8 +6,7 @@ import com.ebremer.halcyon.sparql.Sparql;
 import com.ebremer.halcyon.wicket.AccountPage;
 import com.ebremer.halcyon.wicket.Stacks;
 import com.ebremer.halcyon.wicket.ethereal.Graph3D;
-import com.ebremer.halcyon.wicket.ethereal.Zephyr2;
-import com.ebremer.halcyon.wicket.ethereal.Zephyr3;
+import com.ebremer.halcyon.wicket.ethereal.Zephyr;
 import com.ebremer.multiviewer.MultiViewer;
 import java.util.ArrayList;
 import java.util.List;
@@ -79,8 +78,7 @@ public final class PageAccess {
         new Mount("/lwscontainers", LWSContainers.class, Access.AUTHENTICATED),
 
         // ---- unmounted, but still reachable bookmarkable ----------------------
-        new Mount(null, Zephyr2.class, Access.AUTHENTICATED),
-        new Mount(null, Zephyr3.class, Access.AUTHENTICATED),
+        new Mount(null, Zephyr.class, Access.AUTHENTICATED),
 
         // ---- admins only -----------------------------------------------------
         // The instance configuration page: shows the effective settings and

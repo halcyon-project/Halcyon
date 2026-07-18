@@ -50,7 +50,7 @@ function baseName(url) {
 }
 
 /**
- * Render a single IIIF image (the Zephyr2 path). Also registers it as the one
+ * Render a single IIIF image (the legacy single-image path). Also registers it as the one
  * layer in the page registry so the layer-aware annotation tools have an active
  * layer to target, exactly as they do in a stack.
  *
@@ -137,7 +137,7 @@ class Stack extends Group {
     }
 }
 
-// ---- Axes (shared by Zephyr2/Zephyr3 pages) --------------------------------
+// ---- Axes (shared by all Zephyr pages) --------------------------------
 
 export function DrawAxis(scene) {
     const material = new LineBasicMaterial({ color: 0x0000ff });

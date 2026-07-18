@@ -142,7 +142,7 @@ export async function saveAllAnnotationLayers(registry) {
             // The saved stack Turtle references its annotation JSONs
             // RELATIVELY — a reader assumes they sit in the SAME container as
             // the stack file. So a new shape file is born beside the stack
-            // when one is known (stackContainer, injected by Zephyr3); only a
+            // when one is known (stackContainer, injected by Zephyr); only a
             // stack-less page falls back to the image's own container.
             const container = cfg('stackContainer')
                 || imageId.substring(0, imageId.lastIndexOf('/') + 1);

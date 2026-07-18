@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test;
  * <p>
  * Promoted from a throwaway harness (F1). These assertions are the reason the C5
  * chain is closed, so they are the ones most worth keeping: if {@code JsSafe} ever
- * regresses, the Zephyr3 stored-Turtle sink becomes account takeover again.
+ * regresses, the Zephyr stored-Turtle sink becomes account takeover again.
  *
  * @author erich
  */
@@ -31,7 +31,7 @@ class JsSafeTest {
     void backtick() {
         // Defense in depth, not a live hole: the returned literal is double-quoted,
         // so a backtick in it is already inert, and no caller nests it in a template
-        // literal today. It is asserted because the caller that DID — Zephyr3 pasting
+        // literal today. It is asserted because the caller that DID — Zephyr pasting
         // saved Turtle between backticks, where a stored backtick escaped and ran for
         // whoever opened the stack — is the reason C5 exists. Cheap to keep inert.
         String out = JsSafe.jsString("`+alert(1)+`");

@@ -681,7 +681,7 @@ function topZ(group) {
 }
 
 function saveStackAction(registry) {
-    // Zephyr3 injects the stack's own named-graph URI; fall back to a prompt
+    // Zephyr injects the stack's own named-graph URI; fall back to a prompt
     // (e.g. the dev harness) when it isn't set.
     let uri = cfg('stackUri');
     if (!uri) {

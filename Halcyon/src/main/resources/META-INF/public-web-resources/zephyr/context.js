@@ -18,7 +18,7 @@
 let active = null;
 
 /** The active context, adopting/creating the legacy window bridge when no
- *  viewer has installed one (Zephyr2-style pages). */
+ *  viewer has installed one (legacy single-image pages). */
 export function getContext() {
     if (active) return active;
     if (typeof window !== 'undefined') {

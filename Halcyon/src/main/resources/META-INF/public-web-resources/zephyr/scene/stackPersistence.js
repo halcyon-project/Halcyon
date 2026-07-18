@@ -10,7 +10,7 @@ import { cfg } from '../context.js';
  * <> and its same-container annotation JSONs by bare name — StackTurtle);
  * any other stack goes to its named graph in the triple store via StackStore.
  * Load CONSTRUCTs a triple-store stack's graph back over /rdf (read-only);
- * LWS stacks are loaded server-side by Zephyr3 and arrive as the scenegraph.
+ * LWS stacks are loaded server-side by Zephyr and arrive as the scenegraph.
  *
  * Uses the global $rdf (rdflib); auth rides the session cookie server-side.
  */

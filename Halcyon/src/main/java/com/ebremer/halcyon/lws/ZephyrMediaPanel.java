@@ -1,6 +1,6 @@
 package com.ebremer.halcyon.lws;
 
-import com.ebremer.halcyon.wicket.ethereal.Zephyr3;
+import com.ebremer.halcyon.wicket.ethereal.Zephyr;
 import com.ebremer.ns.ZEPH;
 import com.ebremer.vandegraph.media.MediaViewContext;
 import org.apache.wicket.AttributeModifier;
@@ -12,10 +12,10 @@ import org.apache.wicket.request.mapper.parameter.PageParameters;
 /**
  * {@code hal:ZephyrViewer} / {@code hal:ZephyrEditor} — Halcyon's Zephyr stack
  * viewer wrapped as a vandegraph media viewer. v1 embeds the class-gated
- * (AUTHENTICATED) {@link Zephyr3} page in a same-origin iframe: a resource the
+ * (AUTHENTICATED) {@link Zephyr} page in a same-origin iframe: a resource the
  * LWS readers typed {@code zeph:Stack} opens as that stack; anything else is
  * seeded as layer 0 of a fresh, unsaved stack — which is also what makes this
- * the EDITOR surface, since Zephyr3's Save writes through StackStore's own
+ * the EDITOR surface, since Zephyr's Save writes through StackStore's own
  * authorization. No new authority is created by the wrapper: the iframe rides
  * the user's session, and every check the page makes still runs.
  *
@@ -35,7 +35,7 @@ public class ZephyrMediaPanel extends Panel {
         params.add(stack ? "stack" : "image", ctx.resourceUri());
         WebMarkupContainer frame = new WebMarkupContainer("media");
         frame.add(AttributeModifier.replace("src",
-                RequestCycle.get().urlFor(Zephyr3.class, params).toString()));
+                RequestCycle.get().urlFor(Zephyr.class, params).toString()));
         add(frame);
     }
 }

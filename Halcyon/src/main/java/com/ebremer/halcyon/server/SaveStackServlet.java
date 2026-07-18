@@ -47,7 +47,7 @@ public class SaveStackServlet extends HttpServlet {
 
     /**
      * HTTP-session attribute: {@code Map<String,String>} of not-yet-created
-     * LWS stack URIs → the container to POST them into. Zephyr3 stashes the
+     * LWS stack URIs → the container to POST them into. Zephyr stashes the
      * pair when it mints an LWS-native stack URI (the flat storage's URIs do
      * not encode their container); the first save consumes it.
      */
@@ -108,7 +108,7 @@ public class SaveStackServlet extends HttpServlet {
     /**
      * Persist an LWS-native stack through the storage's own API: a conditional
      * {@code PUT} when the resource exists, else a {@code POST} into the
-     * container Zephyr3 stashed when it minted the URI. The user's own bearer
+     * container Zephyr stashed when it minted the URI. The user's own bearer
      * token makes the request, so the storage's ACP is the authorization —
      * this endpoint adds none of its own beyond the sanity checks.
      */

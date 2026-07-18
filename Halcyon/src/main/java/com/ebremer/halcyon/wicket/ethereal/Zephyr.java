@@ -35,7 +35,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.wicket.request.http.flow.AbortWithHttpErrorCodeException;
 
 /**
- * Zephyr3 — the RDF-driven stack viewer/editor. LWS-native on both doors:
+ * Zephyr — the RDF-driven stack viewer/editor. LWS-native on both doors:
  * <ul>
  *   <li>{@link Mode#NEW_FROM_IMAGE}: mint a fresh stack URI BESIDE the seed
  *       image in its storage container, seeded with that image as layer 0.
@@ -48,9 +48,9 @@ import org.apache.wicket.request.http.flow.AbortWithHttpErrorCodeException;
  *
  * @author erich
  */
-public class Zephyr3 extends BasePage {
+public class Zephyr extends BasePage {
 
-    private static final Logger logger = LoggerFactory.getLogger(Zephyr3.class);
+    private static final Logger logger = LoggerFactory.getLogger(Zephyr.class);
     private static final long serialVersionUID = 102163948377788566L;
 
     public enum Mode { NEW_FROM_IMAGE, OPEN_STACK }
@@ -68,7 +68,7 @@ public class Zephyr3 extends BasePage {
     private final String scenegraph;
 
     /** New stack seeded from an image (called from the image list). */
-    public Zephyr3(String imageIri) {
+    public Zephyr(String imageIri) {
         this(imageIri, Mode.NEW_FROM_IMAGE);
     }
 
@@ -80,7 +80,7 @@ public class Zephyr3 extends BasePage {
      * CLASS however it is reached (PageAccess: AUTHENTICATED), and both the
      * open and the save are ACP decisions made by the storage itself.
      */
-    public Zephyr3(PageParameters params) {
+    public Zephyr(PageParameters params) {
         this(targetOf(params), hasStack(params) ? Mode.OPEN_STACK : Mode.NEW_FROM_IMAGE);
     }
 
@@ -101,7 +101,7 @@ public class Zephyr3 extends BasePage {
                 "a stack or image parameter is required");
     }
 
-    public Zephyr3(String uri, Mode mode) {
+    public Zephyr(String uri, Mode mode) {
         this.target = uri;
         Model model;
         if (mode == Mode.OPEN_STACK) {

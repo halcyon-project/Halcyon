@@ -41,7 +41,7 @@ public final class JsSafe {
      * The backtick and {@code ${} escaping is belt-and-braces: the returned
      * literal is double-quoted, so template-literal syntax inside it is already
      * inert, and no caller nests it in a template literal today. It is done
-     * anyway because the one that DID — Zephyr3 pasting saved Turtle between
+     * anyway because the one that DID — Zephyr pasting saved Turtle between
      * backticks — is the whole reason C5 exists, and the escape costs nothing:
      * every character of {@code value} is inside the quoted literal by
      * construction, and {@code \\u0060} / {@code \\u0024} decode back to the

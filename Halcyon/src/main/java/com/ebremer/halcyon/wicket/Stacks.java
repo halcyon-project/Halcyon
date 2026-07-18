@@ -4,7 +4,7 @@ import com.ebremer.halcyon.datum.HalcyonPrincipal;
 import com.ebremer.halcyon.gui.HalcyonSession;
 import com.ebremer.halcyon.lws.LwsClient;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
-import com.ebremer.halcyon.wicket.ethereal.Zephyr3;
+import com.ebremer.halcyon.wicket.ethereal.Zephyr;
 import com.ebremer.lws.acp.AcpEngine;
 import com.ebremer.lws.acp.AcpSecuredDatasetGraph;
 import com.ebremer.lws.acp.AcpSecurityEvaluator;
@@ -36,7 +36,7 @@ import org.slf4j.LoggerFactory;
  * the caller's own ACP-secured view of the LWS metadata (fresh per request,
  * per the evaluator's contract), so an unauthorized stack is not merely
  * hidden — it is not discoverable, the Type Search guarantee this page now
- * inherits. Rows open in {@link Zephyr3}; delete goes through the storage's
+ * inherits. Rows open in {@link Zephyr}; delete goes through the storage's
  * own API with the user's token (entity tag first — the storage refuses an
  * unconditional delete), so ACP is the sole authority for both.
  *
@@ -71,7 +71,7 @@ public class Stacks extends BasePage {
                 Link<Void> view = new Link<>("view") {
                     @Override
                     public void onClick() {
-                        setResponsePage(new Zephyr3(row.uri(), Zephyr3.Mode.OPEN_STACK));
+                        setResponsePage(new Zephyr(row.uri(), Zephyr.Mode.OPEN_STACK));
                     }
                 };
                 view.add(new Label("name", row.name()));

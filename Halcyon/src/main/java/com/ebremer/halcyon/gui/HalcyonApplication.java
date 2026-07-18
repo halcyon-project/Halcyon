@@ -78,7 +78,7 @@ public class HalcyonApplication extends VandegraphApplication {
         // deliberately, one at a time.
         //
         // What this buys: an injected inline <script> cannot run, because it cannot
-        // guess the nonce. That is exactly the C5 chain — the Zephyr3 stored-Turtle and
+        // guess the nonce. That is exactly the C5 chain — the Zephyr stored-Turtle and
         // Upload reflected sinks are already fixed, so this is the defence-in-depth
         // layer that catches the NEXT sink instead of the account being taken over.
         //
@@ -89,7 +89,7 @@ public class HalcyonApplication extends VandegraphApplication {
         //
         // Inline scripts in MARKUP get the nonce via CspNonce (Wicket only nonces the
         // header items it renders itself). All 9 are bound: Sparql, Upload, DWVPanel,
-        // and the importmap/module pair in each of Zephyr2, Zephyr3 and Graph3D.
+        // and the importmap/module pair in each of Zephyr and Graph3D.
         //
         // KNOWN CASUALTY — Graph3D (/threed): its importmap and module load three.js and
         // three-spritetext from //unpkg.com, which 'self' does not cover, so those
@@ -98,7 +98,7 @@ public class HalcyonApplication extends VandegraphApplication {
         // allow-listing a CDN app-wide to serve one hidden page — while pulling
         // unpinned code from it at runtime — is a bad trade. To bring /threed back:
         // point its importmap at the local /threejs/build/three.module.js (already
-        // vendored, and what Zephyr2/3 use) and vendor three-spritetext beside it.
+        // vendored, and what Zephyr uses) and vendor three-spritetext beside it.
         getCspSettings().blocking()
                 .disabled()
                 .add(CSPDirective.SCRIPT_SRC, CSPDirectiveSrcValue.NONCE, CSPDirectiveSrcValue.SELF);

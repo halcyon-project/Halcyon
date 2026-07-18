@@ -11,7 +11,7 @@ import org.springframework.core.io.ClassPathResource;
 
 /**
  * Loads the demo scene-graph stack ({@code stack.jsonld} on the classpath)
- * used by the {@link Zephyr3} dev-mode viewer page.
+ * used by the {@link Zephyr} dev-mode viewer page.
  */
 public class Stack {
     private static final String STACK_RESOURCE = "stack.jsonld";

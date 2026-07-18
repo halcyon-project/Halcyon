@@ -14,7 +14,7 @@ import { invalidate } from '../renderLoop.js';
  * measured from the image centre, and the group rides with the layer under z
  * reordering and the z-spread slider.
  *
- * For a single image centred at the origin (the Zephyr2 case) this local space
+ * For a single image centred at the origin (the legacy single-image case) this local space
  * is identical to the old world space, so the existing tools behave exactly as
  * before — this is a strict generalisation.
  *
