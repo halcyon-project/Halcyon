@@ -6,7 +6,6 @@ import com.ebremer.halcyon.sparql.Sparql;
 import com.ebremer.halcyon.gui.tree.NodeNestedTreePage;
 import com.ebremer.halcyon.wicket.AccountPage;
 import com.ebremer.halcyon.wicket.AdminPage;
-import com.ebremer.halcyon.wicket.ListImages;
 import com.ebremer.halcyon.wicket.Stacks;
 import com.ebremer.halcyon.wicket.Upload;
 import com.ebremer.halcyon.wicket.ethereal.Graph3D;
@@ -75,7 +74,6 @@ public final class PageAccess {
         new Mount("/upload", Upload.class, Access.AUTHENTICATED),
         new Mount("/viewer", MultiViewer.class, Access.AUTHENTICATED),
         new Mount("/stacks", Stacks.class, Access.AUTHENTICATED),
-        new Mount("/ListImages", ListImages.class, Access.AUTHENTICATED),
         new Mount("/threed", Graph3D.class, Access.AUTHENTICATED),
         new Mount("/user/account", AccountPage.class, Access.AUTHENTICATED),
         new Mount("/user/colorclasses", ColorClasses.class, Access.AUTHENTICATED),
@@ -93,27 +91,14 @@ public final class PageAccess {
         // own; MenuPanel merely hid the link.
         new Mount("/admin", AdminPage.class, Access.ADMIN),
 
-        // M17: container management is ADMIN, not merely AUTHENTICATED.
-        // MenuPanel has always said so — it does `containers.setVisible(false)` and
-        // re-enables the link only inside `if (hp.getGroups().contains("admin"))` —
-        // but hiding a link is not access control, and the pages themselves were
-        // reachable by any signed-in user who typed the URL.
-        //
-        // EditCollection/EditContainer matter most: they embed CollectionActionPanel,
-        // which is the wac:Read / wac:Write GRANT-AND-REVOKE editor. At AUTHENTICATED
-        // and bookmarkable, any signed-in user could open it and grant themselves
-        // access to any collection — a straight privilege escalation, worse than the
-        // unchecked create this finding reports.
-        //
-        // NodeNestedTreePage is the sharpest of the four: it was not listed here AT
-        // ALL, and unlisted means PUBLIC (see accessFor). Collections links to it
-        // (setResponsePage at Collections.java:170), so it is bookmarkable — and its
-        // submit handler does begin(WRITE) + removeNamedModel(CollectionsAndResources)
-        // + addNamedModel. An anonymous request could rewrite the whole containment
-        // graph.
-        new Mount("/containers", Collections.class, Access.ADMIN),
+        // M17: container management is ADMIN, not merely AUTHENTICATED — hiding
+        // a menu link is not access control. Most of that legacy cluster
+        // (Collections, EditContainer, CollectionActionPanel, ListImages,
+        // ListFeatures, DirectoryProcessor) is now REMOVED outright; what
+        // survives keeps the ADMIN gate, because these pages write the
+        // CollectionsAndResources graph (NodeNestedTreePage's submit handler
+        // replaces it wholesale — unlisted here would mean PUBLIC).
         new Mount(null, EditCollection.class, Access.ADMIN),
-        new Mount(null, EditContainer.class, Access.ADMIN),
         new Mount(null, NodeNestedTreePage.class, Access.ADMIN)
     );
 

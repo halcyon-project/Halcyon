@@ -68,14 +68,12 @@ class PageAccessTest {
     }
 
     @Test
-    @DisplayName("M17: container management and the ACL editor are ADMIN, not merely AUTHENTICATED")
+    @DisplayName("M17: container management is ADMIN, not merely AUTHENTICATED")
     void containerManagementIsAdmin() {
-        // EditCollection/EditContainer embed CollectionActionPanel — the wac:Read /
-        // wac:Write grant-and-revoke editor. At AUTHENTICATED they were a privilege
-        // escalation for any signed-in user.
-        assertEquals(Access.ADMIN, PageAccess.accessFor(Collections.class));
+        // The legacy cluster (Collections, EditContainer, CollectionActionPanel,
+        // ListImages, ListFeatures, DirectoryProcessor) is removed outright; the
+        // survivors that write CollectionsAndResources keep the ADMIN gate.
         assertEquals(Access.ADMIN, PageAccess.accessFor(EditCollection.class));
-        assertEquals(Access.ADMIN, PageAccess.accessFor(EditContainer.class));
         assertEquals(Access.ADMIN, PageAccess.accessFor(com.ebremer.halcyon.wicket.AdminPage.class));
         // Unlisted means PUBLIC (so Wicket's own error pages still render), which is
         // exactly why this page had to be listed: it rewrites CollectionsAndResources.
@@ -88,7 +86,6 @@ class PageAccessTest {
     void ordinaryPagesUnchanged() {
         assertEquals(Access.PUBLIC, PageAccess.accessFor(HomePage.class));
         assertEquals(Access.PUBLIC, PageAccess.accessFor(Login.class));
-        assertEquals(Access.AUTHENTICATED, PageAccess.accessFor(com.ebremer.halcyon.wicket.ListImages.class));
         assertEquals(Access.AUTHENTICATED, PageAccess.accessFor(com.ebremer.halcyon.wicket.Stacks.class));
         assertEquals(Access.AUTHENTICATED, PageAccess.accessFor(com.ebremer.halcyon.lws.LWSContainers.class));
     }

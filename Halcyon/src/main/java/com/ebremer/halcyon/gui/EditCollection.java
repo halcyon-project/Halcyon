@@ -97,7 +97,10 @@ public class EditCollection extends BasePage {
                 } finally {
                     ds.end();
                 }
-                setResponsePage(Collections.class);
+                // Collections (the old container list) is gone; reload this page.
+                PageParameters back = new PageParameters();
+                back.add("container", uuid);
+                setResponsePage(EditCollection.class, back);
             }
         }.setDefaultFormProcessing(true));
         form.add(new Button("resetButton") {
@@ -122,12 +125,9 @@ public class EditCollection extends BasePage {
                 cellItem.add(new Label(componentId, d));
             }
         });
-        columns.add(new AbstractColumn<Solution, String>(org.apache.wicket.model.Model.of("")) {
-            @Override
-            public void populateItem(Item<ICellPopulator<Solution>> cellItem, String componentId, IModel<Solution> model) {
-                cellItem.add(new CollectionActionPanel(componentId, model, uuid));
-            }
-        });
+        // (The grant/revoke action column is gone with CollectionActionPanel —
+        // WAC access editing for the legacy store retires with the old Images
+        // screen; the LWS storages carry their own ACP editor.)
         columns.add(new SparqlVarColumn(org.apache.wicket.model.Model.of("Name"), "name"));
 
         ParameterizedSparqlString pss = new ParameterizedSparqlString(

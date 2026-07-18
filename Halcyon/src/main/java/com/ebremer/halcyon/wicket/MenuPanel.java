@@ -26,7 +26,6 @@ public class MenuPanel extends Panel {
         HalcyonPrincipal hp = HalcyonSession.get().getHalcyonPrincipal();
         String host = HalcyonSettings.getSettings().getProxyHostName();
         add(new ExternalLink("home", host+"/","Home"));
-        add(new ExternalLink("images", host+"/ListImages","Images"));
         add(new ExternalLink("about", host+"/about","About"));
         ExternalLink security = new ExternalLink("security", host+"/admin","Security");
         ExternalLink stacks = new ExternalLink("stacks", host+"/stacks","Stacks");
@@ -34,7 +33,6 @@ public class MenuPanel extends Panel {
         ExternalLink account = new ExternalLink("account", host+"/user/account","Account");
         ExternalLink colorclasses = new ExternalLink("colorclasses", host+"/user/colorclasses","Color Classes");
         ExternalLink threed = new ExternalLink("threed", host+"/threed","3D");
-        ExternalLink containers = new ExternalLink("containers", host+"/containers","Containers");
         ExternalLink storage = new ExternalLink("storage", host+"/storage","Storage");
         ExternalLink lwscontainers = new ExternalLink("lwscontainers", host+"/lwscontainers","LWS Containers");
         ExternalLink revisionhistory = new ExternalLink("revisionhistory", host+"/revisionhistory","Revision History");
@@ -52,7 +50,6 @@ public class MenuPanel extends Panel {
         add(security);
         add(sparql);
         add(stacks);
-        add(containers);
         add(storage);
         add(lwscontainers);
         add(threed);
@@ -63,7 +60,6 @@ public class MenuPanel extends Panel {
         threed.setVisible(false);
         account.setVisible(false);
         colorclasses.setVisible(false);
-        containers.setVisible(false);
         storage.setVisible(false);
         lwscontainers.setVisible(false);
         sparql.setVisible(false);
@@ -92,7 +88,6 @@ public class MenuPanel extends Panel {
                 //threed.setVisible(true);
                 account.setVisible(true);
                 colorclasses.setVisible(true);
-                containers.setVisible(true);
             }
         } 
     }

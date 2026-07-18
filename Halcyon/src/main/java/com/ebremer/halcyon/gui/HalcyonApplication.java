@@ -3,7 +3,6 @@ package com.ebremer.halcyon.gui;
 import org.apache.wicket.csp.CSPDirective;
 import org.apache.wicket.csp.CSPDirectiveSrcValue;
 import com.ebremer.halcyon.sparql.Sparql;
-import com.ebremer.halcyon.wicket.ListImages;
 import com.ebremer.halcyon.wicket.Stacks;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import com.ebremer.halcyon.data.DataCore;

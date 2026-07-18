@@ -3,7 +3,6 @@ package com.ebremer.halcyon.gui.tree;
 import com.ebremer.vandegraph.GraphNode;
 import com.ebremer.halcyon.data.DataCore;
 import com.ebremer.halcyon.datum.Patterns;
-import com.ebremer.halcyon.gui.Collections;
 import com.ebremer.halcyon.gui.tree.content.NodeCheckedSelectableFolderContent;
 import com.ebremer.halcyon.gui.tree.content.NodeContent;
 import com.ebremer.halcyon.wicket.BasePage;
@@ -138,7 +137,8 @@ public abstract class NodeAdvancedTreePage extends BasePage {
                 } finally {
                     ds.end();
                 }
-                setResponsePage(Collections.class);
+                // Collections (the old container list) is gone; land on home.
+                setResponsePage(getApplication().getHomePage());
             }}.setDefaultFormProcessing(true)
         );
     }

@@ -2,13 +2,10 @@ package com.ebremer.halcyon.server;
 
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import com.ebremer.halcyon.data.DataCore;
-import com.ebremer.halcyon.filesystem.DirectoryProcessor;
-import com.ebremer.halcyon.server.utils.ResourceHandler;
 import com.ebremer.halcyon.services.Service;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
-import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 import org.apache.jena.query.Dataset;
@@ -51,13 +48,11 @@ public final class FileManager implements Service {
             @Override
             public void run() {
                 pause();
-                Dataset ds = DataCore.getInstance().getDataset();
-                DirectoryProcessor dp = new DirectoryProcessor(ds,hs.GetNumberOfFileProcessorThreads());
-                List<ResourceHandler> list = HalcyonSettings.getSettings().GetResourceHandlers();
-                list.forEach(rh->{
-                    Path p = Path.of(rh.resourceBase());                    
-                    dp.Traverse(p);                
-                });
+                // DirectoryProcessor is REMOVED with the legacy Images screen:
+                // the resource-handler trees are no longer scanned into
+                // CollectionsAndResources. What remains of this service is the
+                // validation sweep, which drops catalog graphs whose file no
+                // longer exists on disk.
                 ValidateData();
                 resume();
             }
