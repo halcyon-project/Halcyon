@@ -118,6 +118,21 @@ the whole sharing model — the right-click ACP editor and access requests —
 like any other resource. Stacks seeded from triple-store imagery keep the
 classic `StackStore` path and appear on `/stacks` instead.
 
+The stored file is a **relative document** (`StackTurtle`): it references
+itself as `<>` and its same-container companions — the imagery and the
+annotation-layer JSON files — by bare sibling name, with no `@base`. On
+every read it inherits the URI it was dereferenced from, so a container can
+be moved, mirrored or renamed without rewriting the stacks inside it; every
+reader (`RDFFileReader`, `Zephyr3`, the browser) already parses with the
+resource URI as base. Anything outside the stack's container — a
+cross-container layer, the creator WebID — stays absolute: a reference that
+cannot travel with the container must not pretend it can. The flip side of
+the relative form is an assumption the writer honors: annotation-layer
+JSONs belong in the **stack's own container**, so Zephyr births new shape
+files beside the stack (`stackContainer`, injected by `Zephyr3`), and
+re-saving an edited layer carries `If-Match` because the storage refuses an
+unconditional overwrite (428).
+
 ## Where the pieces live
 
 | Piece | Class |
