@@ -73,33 +73,68 @@ public final class MirrorReconciler {
     }
 
     public void reconcile() {
-        Path root = mirror.root();
-        if (!Files.isDirectory(root)) {
+        if (!Files.isDirectory(mirror.root())) {
             return;
         }
+        MountTable table = mirror.mounts();
 
-        List<String> diskDirs = new ArrayList<>();
+        Set<String> diskDirSet = new java.util.LinkedHashSet<>();
         Map<String, FileInfo> diskFiles = new HashMap<>();
-        try (var walk = Files.walk(root)) {
-            for (Path p : (Iterable<Path>) walk::iterator) {
-                if (p.equals(root)) {
-                    continue;
+        // Mount prefixes whose disk is UNAVAILABLE this pass. An offline disk is
+        // not deleted content: everything under such a prefix is exempt from
+        // de-registration and simply reappears when the disk does.
+        List<String> offline = new ArrayList<>();
+
+        for (MountTable.WalkRoot wr : table.walkRoots()) {
+            Path root = wr.root();
+            boolean isMain = wr.prefix().isEmpty();
+            if (!Files.isDirectory(root)) {
+                if (!isMain) {
+                    offline.add(wr.prefix());
+                    LOG.warn("reconcile: mount {} at {} is unavailable — leaving its subtree registered",
+                            wr.prefix(), root);
                 }
-                String name = p.getFileName().toString();
-                if (name.startsWith(TMP_PREFIX)) {
-                    continue;
-                }
-                String rel = root.relativize(p).toString().replace('\\', '/');
-                if (Files.isDirectory(p)) {
-                    diskDirs.add(rel);
-                } else if (Files.isRegularFile(p)) {
-                    diskFiles.put(rel, new FileInfo(Files.size(p), Files.getLastModifiedTime(p).toInstant()));
-                }
+                continue;
             }
-        } catch (IOException e) {
-            LOG.warn("reconcile: walking {} failed", root, e);
-            return;
+            if (!isMain) {
+                // The mount's own directory IS the sub-container at its prefix
+                // (no directory for it exists under the main root), and a deep
+                // mount's ancestors may exist on no disk at all — synthesize
+                // them so the adoption pass has a parent chain to hang off.
+                String p = wr.prefix();
+                for (int i = p.indexOf('/'); i >= 0; i = p.indexOf('/', i + 1)) {
+                    diskDirSet.add(p.substring(0, i));
+                }
+                diskDirSet.add(p);
+            }
+            try (var walk = Files.walk(root)) {
+                for (Path p : (Iterable<Path>) walk::iterator) {
+                    if (p.equals(root)) {
+                        continue;
+                    }
+                    String name = p.getFileName().toString();
+                    if (name.startsWith(TMP_PREFIX)) {
+                        continue;
+                    }
+                    String key = wr.keyOf(root.relativize(p).toString().replace('\\', '/'));
+                    if (!table.ownerPrefix(key).equals(wr.prefix())) {
+                        continue;   // shadowed: another (deeper) mount owns this key
+                    }
+                    if (Files.isDirectory(p)) {
+                        diskDirSet.add(key);
+                    } else if (Files.isRegularFile(p)) {
+                        diskFiles.put(key, new FileInfo(Files.size(p), Files.getLastModifiedTime(p).toInstant()));
+                    }
+                }
+            } catch (IOException e) {
+                LOG.warn("reconcile: walking {} failed", root, e);
+                if (isMain) {
+                    return;     // a half-seen main tree must not drive de-registrations
+                }
+                offline.add(wr.prefix());   // half-walked mount: treat as unavailable
+            }
         }
+        List<String> diskDirs = new ArrayList<>(diskDirSet);
 
         Set<String> diskPaths = new HashSet<>(diskDirs);
         diskPaths.addAll(diskFiles.keySet());
@@ -107,10 +142,10 @@ public final class MirrorReconciler {
         Map<String, Idx> index = store.read(this::readIndex);
 
         // 1. De-register anything the index has but disk does not — deepest first, so a container is
-        //    removed only after its (already-gone) members.
+        //    removed only after its (already-gone) members. Keys under an offline mount are spared.
         List<Idx> gone = new ArrayList<>();
         for (Idx e : index.values()) {
-            if (!diskPaths.contains(e.key())) {
+            if (!diskPaths.contains(e.key()) && !underAny(offline, e.key())) {
                 gone.add(e);
             }
         }
@@ -299,6 +334,17 @@ public final class MirrorReconciler {
     }
 
     // --- helpers ------------------------------------------------------------
+
+    /** Whether {@code key} sits at or under any of the given mount prefixes. */
+    private static boolean underAny(List<String> prefixes, String key) {
+        for (String p : prefixes) {
+            if (key.equals(p) || (key.length() > p.length()
+                    && key.startsWith(p) && key.charAt(p.length()) == '/')) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     private ResourceRegistry registry() {
         return new ResourceRegistry(store, cfg);

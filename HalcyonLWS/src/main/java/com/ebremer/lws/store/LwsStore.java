@@ -80,7 +80,7 @@ public final class LwsStore {
     public synchronized ContentStore contentStore(LwsStorageConfig cfg) {
         return contentStores.computeIfAbsent(cfg.urlPath(), k ->
                 cfg.naming() == NamingPolicyType.SLUG
-                        ? new MirrorContentStore(cfg.contentRoot())
+                        ? new MirrorContentStore(cfg.contentRoot(), cfg.mounts())
                         : new ShardedContentStore(cfg.contentRoot()));
     }
 

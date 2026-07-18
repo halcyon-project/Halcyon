@@ -35,9 +35,16 @@ public final class MirrorContentStore implements ContentStore {
     private static final String TMP_PREFIX = ".tmp-";
 
     private final Path root;
+    private final MountTable mounts;
 
     public MirrorContentStore(Path root) {
+        this(root, java.util.List.of());
+    }
+
+    /** A mirror whose sub-containers may live on other disks (see {@link MountTable}). */
+    public MirrorContentStore(Path root, java.util.List<com.ebremer.lws.config.LwsMount> mounts) {
         this.root = root.toAbsolutePath().normalize();
+        this.mounts = new MountTable(this.root, mounts);
     }
 
     @Override
@@ -45,18 +52,20 @@ public final class MirrorContentStore implements ContentStore {
         return root;
     }
 
+    /** The mount table — how the reconciler and watcher learn every disk root. */
+    public MountTable mounts() {
+        return mounts;
+    }
+
     /**
-     * The blob's real path: the key resolved straight under the root. {@code ext} is ignored — the
-     * key is the full relative path, filename and extension included. Guards against a key escaping
-     * the root (defence in depth; names are already sanitised/rejected at create time).
+     * The blob's real path: the key resolved under its owning root — the storage's own
+     * content root, or the mount claiming the key's longest prefix. {@code ext} is
+     * ignored — the key is the full relative path, filename and extension included.
+     * Escape guards live in {@link MountTable#resolve}.
      */
     @Override
     public Path pathFor(String key, String ext) {
-        Path p = root.resolve(key).normalize();
-        if (!p.startsWith(root)) {
-            throw new IllegalArgumentException("path escapes storage root: " + key);
-        }
-        return p;
+        return mounts.resolve(key);
     }
 
     /** The mirror store's key is the URI path, unknown at blind-write time; use {@link #writeAt}. */
@@ -109,9 +118,15 @@ public final class MirrorContentStore implements ContentStore {
 
     /**
      * Remove the (expected-empty) directory of a container. Best-effort: a non-empty or open
-     * directory is left in place — harmless, and a re-create simply reuses it.
+     * directory is left in place — harmless, and a re-create simply reuses it. A MOUNT POINT'S
+     * directory is never removed: it is the root of another disk's tree, not this container's
+     * property — deleting the container de-registers it, the disk keeps its directory.
      */
     public void removeDir(String key) {
+        if (mounts.isMountPoint(key)) {
+            LOG.info("not removing mount-point directory for {}", key);
+            return;
+        }
         try {
             Files.deleteIfExists(pathFor(key, null));
         } catch (IOException e) {

@@ -32,7 +32,9 @@ import org.slf4j.LoggerFactory;
  * :hasLWSStorage [ a lws:Storage ; :urlPath "/W3Clws" ;
  *                  :storageRoot <file:///E:/W3CLWS/noslash/> ; :namingPolicy "uuid" ] ;
  * :hasLWSStorage [ a lws:Storage ; :urlPath "/W3ClwsSlash" ;
- *                  :storageRoot <file:///E:/W3CLWS/slash/> ;   :namingPolicy "slug" ] .
+ *                  :storageRoot <file:///E:/W3CLWS/slash/> ;   :namingPolicy "slug" ;
+ *                  # other physical disks backing sub-containers (mirror storages only):
+ *                  :hasMount [ :containerPath "tcga/brca" ; :resourceBase <file:///F:/brca/> ] ] .
  * }</pre>
  *
  * <p>Declaring no storages is not an error — the module then registers nothing and
@@ -197,13 +199,12 @@ public final class LwsSettings {
     private static List<LwsStorageConfig> readStorages(Model m) {
         String siteUrl = HalcyonSettings.getSettings().getProxyHostName();
         ParameterizedSparqlString pss = new ParameterizedSparqlString("""
-            select ?urlPath ?storageRoot ?namingPolicy
+            select ?st ?urlPath ?storageRoot ?namingPolicy
             where {
-                ?s :hasLWSStorage [
-                    :urlPath      ?urlPath ;
+                ?s :hasLWSStorage ?st .
+                ?st :urlPath      ?urlPath ;
                     :storageRoot  ?storageRoot ;
                     :namingPolicy ?namingPolicy
-                ]
             } order by ?urlPath
             """);
         pss.setNsPrefix("", HAL.NS);
@@ -221,10 +222,12 @@ public final class LwsSettings {
                             urlPath,
                             Path.of(URI.create(root)),
                             NamingPolicyType.parse(naming),
-                            siteUrl);
+                            siteUrl,
+                            readMounts(m, sol.get("st"), urlPath));
                     out.add(cfg);
-                    LOG.info("LWS storage {} -> {} ({} naming)",
-                            cfg.urlPath(), cfg.contentRoot(), cfg.naming());
+                    LOG.info("LWS storage {} -> {} ({} naming{})",
+                            cfg.urlPath(), cfg.contentRoot(), cfg.naming(),
+                            cfg.mounts().isEmpty() ? "" : ", " + cfg.mounts().size() + " mount(s)");
                 } catch (RuntimeException ex) {
                     // One malformed declaration must not take the whole app down.
                     LOG.error("ignoring malformed LWS storage declaration urlPath={} storageRoot={} namingPolicy={}: {}",
@@ -236,5 +239,53 @@ public final class LwsSettings {
             LOG.info("no :hasLWSStorage declarations in {} — LWS storages disabled", SETTINGS_FILE);
         }
         return List.copyOf(out);
+    }
+
+    /**
+     * The storage's {@code :hasMount} declarations — other physical disks backing
+     * sub-containers (mirror storages only; see {@link LwsMount}):
+     * <pre>{@code
+     * :hasMount [ :containerPath "tcga/brca" ; :resourceBase <file:///F:/brca/> ]
+     * }</pre>
+     * Lenient per mount: a malformed one is logged and skipped, the storage and its
+     * other mounts stand. Duplicate container paths keep the first declaration.
+     */
+    private static List<LwsMount> readMounts(Model m, org.apache.jena.rdf.model.RDFNode storage,
+            String urlPath) {
+        ParameterizedSparqlString pss = new ParameterizedSparqlString("""
+            select ?path ?base
+            where { ?st :hasMount [ :containerPath ?path ; :resourceBase ?base ] }
+            order by ?path
+            """);
+        pss.setNsPrefix("", HAL.NS);
+        // The storage node is usually a BLANK node, which cannot ride setIri —
+        // bind it through query substitution instead.
+        List<LwsMount> out = new ArrayList<>();
+        var query = org.apache.jena.query.QueryFactory.create(pss.toString());
+        var initial = new org.apache.jena.query.QuerySolutionMap();
+        initial.add("st", storage);
+        try (QueryExecution qe = QueryExecution.model(m).query(query).substitution(initial).build()) {
+            ResultSet rs = qe.execSelect();
+            java.util.Set<String> seen = new java.util.HashSet<>();
+            while (rs.hasNext()) {
+                QuerySolution sol = rs.next();
+                String path = sol.getLiteral("path").getString();
+                String base = sol.getResource("base").getURI();
+                try {
+                    LwsMount mount = new LwsMount(path, Path.of(URI.create(base)));
+                    if (!seen.add(mount.containerPath())) {
+                        LOG.error("ignoring duplicate LWS mount {} on {}", mount.containerPath(), urlPath);
+                        continue;
+                    }
+                    out.add(mount);
+                    LOG.info("LWS storage {} mount: {} -> {}", urlPath,
+                            mount.containerPath(), mount.root());
+                } catch (RuntimeException ex) {
+                    LOG.error("ignoring malformed LWS mount containerPath={} resourceBase={} on {}: {}",
+                            path, base, urlPath, ex.getMessage());
+                }
+            }
+        }
+        return out;
     }
 }

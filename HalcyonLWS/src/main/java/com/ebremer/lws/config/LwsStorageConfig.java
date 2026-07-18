@@ -1,6 +1,7 @@
 package com.ebremer.lws.config;
 
 import java.nio.file.Path;
+import java.util.List;
 
 /**
  * One configured LWS storage.
@@ -12,12 +13,22 @@ import java.nio.file.Path;
  *                    two storages differ
  * @param siteUrl     the instance's site URL (Halcyon's {@code ProxyHostName}),
  *                    with no trailing slash
+ * @param mounts      other physical disks backing sub-containers of a MIRROR
+ *                    storage ({@link LwsMount}); always empty for the flat
+ *                    storage, whose keys are not paths
  */
 public record LwsStorageConfig(
         String urlPath,
         Path contentRoot,
         NamingPolicyType naming,
-        String siteUrl) {
+        String siteUrl,
+        List<LwsMount> mounts) {
+
+    /** The common case: a storage on one disk. */
+    public LwsStorageConfig(String urlPath, Path contentRoot, NamingPolicyType naming,
+            String siteUrl) {
+        this(urlPath, contentRoot, naming, siteUrl, List.of());
+    }
 
     /**
      * Service endpoints, reserved by their <em>leading dot</em>. The slug sanitiser strips
@@ -64,6 +75,13 @@ public record LwsStorageConfig(
         }
         while (siteUrl != null && siteUrl.endsWith("/")) {
             siteUrl = siteUrl.substring(0, siteUrl.length() - 1);
+        }
+        mounts = mounts == null ? List.of() : List.copyOf(mounts);
+        if (!mounts.isEmpty() && naming != NamingPolicyType.SLUG) {
+            // A mount maps a KEY PREFIX to a disk, and only the mirror storage's
+            // keys are paths — a UUID key has no prefix a mount could claim.
+            throw new IllegalArgumentException(
+                    "mounts require the slug (mirror) naming policy: " + urlPath);
         }
     }
 
