@@ -74,6 +74,8 @@ public class URLControl {
             // the LWS endpoint's URL tree to the Wicket filter.
             "/rdf2",
             "/rdf2/",
+            // The palette's color-classes relay servlet (session-authenticated).
+            "/colorclasses",
             "/zephyr/",
             "/rdflib/"
         };

@@ -59,6 +59,7 @@ public final class LwsSettings {
     private final boolean includeActor;
     private final boolean batchNotifications;
     private final boolean setLinkset;
+    private final String userDataStoragePath;
 
     private LwsSettings() {
         Model m = load();
@@ -68,6 +69,7 @@ public final class LwsSettings {
         this.includeActor = readBoolean(m, "LWSIncludeActor", false);
         this.batchNotifications = readBoolean(m, "LWSBatchNotifications", false);
         this.setLinkset = readBoolean(m, "LWSSetLinkset", false);
+        this.userDataStoragePath = readString(m, "LWSUserDataStorage");
     }
 
     public static synchronized LwsSettings get() {
@@ -137,6 +139,45 @@ public final class LwsSettings {
      */
     public boolean setLinkset() {
         return setLinkset;
+    }
+
+    /**
+     * The storage that holds PER-USER application data (e.g. the annotation
+     * color classes at {@code {storage}/users/{name}/…}): the one named by
+     * {@code :LWSUserDataStorage "<urlPath>"}, else the first slug-named
+     * (mirror) storage, else {@code null} when none qualifies.
+     */
+    public LwsStorageConfig userDataStorage() {
+        if (userDataStoragePath != null) {
+            for (LwsStorageConfig cfg : storages) {
+                if (cfg.urlPath().equals(userDataStoragePath)) {
+                    return cfg;
+                }
+            }
+            LOG.warn(":LWSUserDataStorage {} names no configured storage — falling back", userDataStoragePath);
+        }
+        for (LwsStorageConfig cfg : storages) {
+            if (cfg.naming() == NamingPolicyType.SLUG) {
+                return cfg;
+            }
+        }
+        return null;
+    }
+
+    private static String readString(Model m, String localName) {
+        ParameterizedSparqlString pss = new ParameterizedSparqlString(
+                "select ?v where { ?s :" + localName + " ?v }");
+        pss.setNsPrefix("", HAL.NS);
+        try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m)) {
+            ResultSet rs = qe.execSelect();
+            if (rs.hasNext()) {
+                var n = rs.next().get("v");
+                if (n != null && n.isLiteral()) {
+                    return n.asLiteral().getString().trim();
+                }
+            }
+        }
+        return null;
     }
 
     private static boolean readBoolean(Model m, String localName, boolean dflt) {

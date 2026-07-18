@@ -84,6 +84,7 @@ public class HAL {
     public static final Property hasRange = m.createProperty(NS+"hasRange");
     public static final Property hasValue = m.createProperty(NS+"hasValue");
     public static final Property hasAnnotationClass = m.createProperty(NS+"hasAnnotationClass");
+    public static final Property hasClass = m.createProperty(NS+"hasClass");
     public static final Property measurement = m.createProperty(NS+"measurement");
     public static final Property properties = m.createProperty(NS+"properties");
     public static final Property classification = m.createProperty(NS+"classification");

@@ -101,6 +101,19 @@ public class Main {
         return srb;
     }
 
+    // /colorclasses: the Zephyr palette's session-authenticated relay to the
+    // user's LWS color-classes resource (with lazy migration off the old store).
+    @Lazy(true)
+    @Bean
+    ServletRegistrationBean ColorClassesServletRegistration() {
+        ServletRegistrationBean srb = new ServletRegistrationBean();
+        srb.setLoadOnStartup(3);
+        srb.setOrder(Ordered.HIGHEST_PRECEDENCE + 8);
+        srb.setServlet(new ColorClassesServlet());
+        srb.setUrlMappings(Arrays.asList("/colorclasses"));
+        return srb;
+    }
+
     // /rdf2: read-only SPARQL over the LWS module's OWN TDB2, ACP-filtered per
     // request for the caller (see LwsSparqlServlet). Not a Fuseki mount on
     // purpose: a static dataset would freeze one agent's view forever, while
