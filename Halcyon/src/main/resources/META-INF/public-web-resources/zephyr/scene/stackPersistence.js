@@ -1,18 +1,18 @@
 import { cfg } from '../context.js';
 /**
- * Stack persistence — read/write a stack's RDF to its OWN named graph.
+ * Stack persistence — read/write a stack's RDF.
  *
- * Each stack lives in a named graph keyed by the stack URI, keeping stacks
- * isolated. Save serialises the current LayerRegistry tree (including live edits
- * — z reorder, offsets, added layers) back to RDF and writes it with a
- * DROP + INSERT DATA over the authenticated /rdf SPARQL endpoint, the same
- * channel helpers/sparql.js already uses. Load CONSTRUCTs the graph back.
+ * Save serialises the current LayerRegistry tree (including live edits — z
+ * reorder, offsets, added layers) to N-Triples and POSTs it to the
+ * authenticated /savestack endpoint. The SERVER decides where it lands: a
+ * stack whose URI lies in an LWS storage is written through the storage's own
+ * API as a RELATIVE Turtle file beside its imagery (the document names itself
+ * <> and its same-container annotation JSONs by bare name — StackTurtle);
+ * any other stack goes to its named graph in the triple store via StackStore.
+ * Load CONSTRUCTs a triple-store stack's graph back over /rdf (read-only);
+ * LWS stacks are loaded server-side by Zephyr3 and arrive as the scenegraph.
  *
- * NOTE: writes to the triple store. The serialise step is covered by a harness
- * round-trip test; the SPARQL write path requires an authenticated session and
- * should be exercised before relying on it.
- *
- * Uses the global $rdf (rdflib); auth comes from the context config (cfg).
+ * Uses the global $rdf (rdflib); auth rides the session cookie server-side.
  */
 
 const ZEPH_NS = 'https://halcyon.is/zephyr/ns/';

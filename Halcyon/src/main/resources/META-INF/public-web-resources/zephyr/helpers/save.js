@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { createButton } from "./elements.js";
 import { setAnnotationLabel } from "./sparql.js";
 import { getActiveGroup } from "./annotationTarget.js";
-import { getRegistry } from "../context.js";
+import { getRegistry, cfg } from "../context.js";
 import { localToImagePoints, imageToLocalPoints, pointsToWKT, wktToPoints } from "./wkt.js";
 import { createAnnotationLine, createFilledPolygon, annotationPoints, ANNOTATION_LINEWIDTH } from "./annotationShapes.js";
 import { heatmapToAnnotations } from "./heatmap.js";
@@ -137,14 +137,31 @@ export async function saveAllAnnotationLayers(registry) {
         const payload = collectAnnotations(e.object3d, imageId, w, h);
         if (!payload) continue; // empty layer — nothing to save
         let url = e.src;
+        const isNew = !url;
         if (!url) {
-            const container = imageId.substring(0, imageId.lastIndexOf('/') + 1);
+            // The saved stack Turtle references its annotation JSONs
+            // RELATIVELY — a reader assumes they sit in the SAME container as
+            // the stack file. So a new shape file is born beside the stack
+            // when one is known (stackContainer, injected by Zephyr3); only a
+            // stack-less page falls back to the image's own container.
+            const container = cfg('stackContainer')
+                || imageId.substring(0, imageId.lastIndexOf('/') + 1);
             url = `${container}${crypto.randomUUID()}.json`;
         }
         try {
+            const headers = { 'Content-Type': 'application/json' };
+            if (!isNew) {
+                // Replacing an existing file: the LWS storage refuses an
+                // unconditional overwrite (428 without If-Match), so carry the
+                // entity tag of what is being replaced. No ETag (legacy LDP)
+                // means no header — that path stays unconditional.
+                const head = await fetch(url, { method: 'HEAD' });
+                const etag = head.ok ? head.headers.get('ETag') : null;
+                if (etag) headers['If-Match'] = etag;
+            }
             const res = await fetch(url, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers,
                 body: JSON.stringify(payload)
             });
             if (res.redirected) throw new Error('redirected to sign-in (not signed in)');

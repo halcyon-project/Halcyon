@@ -64,6 +64,14 @@ public class Zephyr3 extends BasePage {
 
     private final String target;
     private final String stackUri;
+    /**
+     * The LWS container the stack file lives in (trailing slash), or
+     * {@code null} for a triple-store stack. Injected as {@code stackContainer}
+     * so the browser births annotation-layer JSON files BESIDE the stack —
+     * the stored Turtle references them relatively (see {@code StackTurtle}),
+     * which assumes they share the stack's container.
+     */
+    private final String stackContainer;
     private final String scenegraph;
 
     /** New stack seeded from an image (called from the image list). */
@@ -109,14 +117,27 @@ public class Zephyr3 extends BasePage {
             this.stackUri = uri;
             // A stack living in an LWS storage is fetched over the LWS API as
             // this user (ACP answers); a triple-store stack keeps the H6 check.
-            model = lwsStorageOf(uri) != null ? loadLwsStack(uri) : loadGraph(uri);
+            if (lwsStorageOf(uri) != null) {
+                LwsStack loaded = loadLwsStack(uri);
+                model = loaded.model();
+                this.stackContainer = loaded.container();
+            } else {
+                model = loadGraph(uri);
+                this.stackContainer = null;
+            }
         } else {
             // Seeded from an LWS image, the new stack is LWS-NATIVE: minted
             // beside its seed so Save lands it in the same container and the
             // container tree lists it next to the imagery. Otherwise the
             // classic triple-store URI.
-            String lwsStack = mintLwsStackUri(uri);
-            this.stackUri = lwsStack != null ? lwsStack : host + "/stacks/" + UUID.randomUUID();
+            Minted minted = mintLwsStackUri(uri);
+            if (minted != null) {
+                this.stackUri = minted.uri();
+                this.stackContainer = minted.container();
+            } else {
+                this.stackUri = host + "/stacks/" + UUID.randomUUID();
+                this.stackContainer = null;
+            }
             model = seedStack(this.stackUri, uri);
         }
         this.scenegraph = EthTool.serialize(model, this.stackUri);
@@ -146,7 +167,13 @@ public class Zephyr3 extends BasePage {
      * the base while the container is remembered for the create — stashed in
      * the HTTP session for {@link SaveStackServlet} to consume on first save.
      */
-    private static String mintLwsStackUri(String imageUri) {
+    /** A freshly minted LWS stack: its URI and the container it will live in. */
+    private record Minted(String uri, String container) {}
+
+    /** An LWS-resident stack as loaded: its graph and its {@code rel="up"} container. */
+    private record LwsStack(Model model, String container) {}
+
+    private static Minted mintLwsStackUri(String imageUri) {
         LwsStorageConfig cfg = lwsStorageOf(imageUri);
         if (cfg == null) {
             return null;
@@ -160,12 +187,15 @@ public class Zephyr3 extends BasePage {
         if (parent == null) {
             parent = cfg.storageRootUri();
         }
+        if (!parent.endsWith("/")) {
+            parent = parent + "/";
+        }
         String name = "stack-" + UUID.randomUUID().toString().substring(0, 8) + ".ttl";
         String stackUri = cfg.naming() == NamingPolicyType.UUID
                 ? cfg.baseUri() + "/" + name
-                : (parent.endsWith("/") ? parent + name : parent + "/" + name);
+                : parent + name;
         stashPendingContainer(stackUri, parent);
-        return stackUri;
+        return new Minted(stackUri, parent);
     }
 
     /** Remember which container a not-yet-created LWS stack should be POSTed into. */
@@ -192,7 +222,7 @@ public class Zephyr3 extends BasePage {
      * this user's own token, which is the same authority H6 reimplements for
      * triple-store stacks.
      */
-    private static Model loadLwsStack(String uri) {
+    private static LwsStack loadLwsStack(String uri) {
         LwsClient.Text t = lwsClient().getText(uri, "text/turtle");
         if (!t.ok()) {
             throw new AbortWithHttpErrorCodeException(
@@ -201,12 +231,21 @@ public class Zephyr3 extends BasePage {
         }
         Model m = ModelFactory.createDefaultModel();
         try {
+            // base = the stack's own URI: the stored document references itself
+            // as <> and its container-mates by bare name (see StackTurtle).
             RDFDataMgr.read(m, new StringReader(t.body()), uri, Lang.TURTLE);
         } catch (RuntimeException e) {
             throw new AbortWithHttpErrorCodeException(HttpServletResponse.SC_BAD_GATEWAY,
                     "the stored stack is not parseable Turtle");
         }
-        return m;
+        String container = t.link("up");
+        if (container == null) {
+            int slash = uri.lastIndexOf('/');
+            container = slash > 0 ? uri.substring(0, slash + 1) : null;
+        } else if (!container.endsWith("/")) {
+            container = container + "/";
+        }
+        return new LwsStack(m, container);
     }
 
     /** {@code <stackUri> a zeph:Stack ; zeph:layers ( [ zeph:src <imageIri> ] )}. */
@@ -302,9 +341,13 @@ public class Zephyr3 extends BasePage {
             """
             , "config")
         );
+        // stackContainer: where the stack file lives (LWS stacks only; "" else).
+        // The browser births annotation-layer JSONs there, because the saved
+        // stack Turtle references them relative to itself.
         response.render(JavaScriptHeaderItem.forScript(
                 "var stackUri = " + JsSafe.jsString(stackUri)
-                + "; var baseURI = " + JsSafe.jsString(stackUri) + ";", "stackUri"));
+                + "; var baseURI = " + JsSafe.jsString(stackUri)
+                + "; var stackContainer = " + JsSafe.jsString(stackContainer) + ";", "stackUri"));
         // C5 (the stored-XSS sink): this was a JS TEMPLATE LITERAL wrapping a
         // stack's saved Turtle — `var scenegraph = ` + "`\n" + scenegraph + "\n`"
         // — so any saved literal containing a backtick or ${ broke straight out

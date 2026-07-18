@@ -48,8 +48,8 @@ export class ZephyrViewer {
      * are still mirrored onto the flat window globals purely for console
      * debugging and any external page script that predates the context.
      */
-    setConfig({ token, useriri, userName, stackUri } = {}) {
-        const patch = { token, useriri, userName, stackUri };
+    setConfig({ token, useriri, userName, stackUri, stackContainer } = {}) {
+        const patch = { token, useriri, userName, stackUri, stackContainer };
         for (const [key, value] of Object.entries(patch)) {
             if (value !== undefined) {
                 this.config[key] = value;
