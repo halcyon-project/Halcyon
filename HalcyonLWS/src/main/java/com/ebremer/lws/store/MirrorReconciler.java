@@ -304,7 +304,15 @@ public final class MirrorReconciler {
 
     /** A media type from the filename, cross-platform (no OS registry lookup); octet-stream otherwise. */
     private static String mediaTypeOf(String rel) {
-        String guess = URLConnection.guessContentTypeFromName(rel.substring(rel.lastIndexOf('/') + 1));
+        String name = rel.substring(rel.lastIndexOf('/') + 1);
+        // The specialist formats first: URLConnection has never heard of .svs or
+        // .ndpi, and adopting a whole-slide image as application/octet-stream
+        // starves every media-type-driven consumer downstream.
+        String known = com.ebremer.lws.scan.MediaTypeFormats.mediaTypeForName(name);
+        if (known != null) {
+            return known;
+        }
+        String guess = URLConnection.guessContentTypeFromName(name);
         return guess != null ? guess : "application/octet-stream";
     }
 

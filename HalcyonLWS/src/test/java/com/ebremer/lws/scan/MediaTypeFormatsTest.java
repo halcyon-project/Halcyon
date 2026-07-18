@@ -1,6 +1,7 @@
 package com.ebremer.lws.scan;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import org.junit.jupiter.api.Test;
 
@@ -34,6 +35,21 @@ class MediaTypeFormatsTest {
         assertEquals("", MediaTypeFormats.extensionFor("text/plain"));
         assertEquals("", MediaTypeFormats.extensionFor("application/x-unknown"));
         assertEquals("", MediaTypeFormats.extensionFor(null));
+    }
+
+    @Test
+    void specialistFileNamesMapToTheirMediaType() {
+        // The mirror gateway's adoption path: a .svs dropped on disk must record
+        // as image/tiff, not application/octet-stream, or nothing downstream
+        // (Type Index, the UI's viewer bindings) treats it as imagery.
+        assertEquals("image/tiff", MediaTypeFormats.mediaTypeForName("TCGA-AA-3872.svs"));
+        assertEquals("image/tiff", MediaTypeFormats.mediaTypeForName("slide.NDPI"));
+        assertEquals("image/tiff", MediaTypeFormats.mediaTypeForName("plain.tif"));
+        assertEquals("application/dicom", MediaTypeFormats.mediaTypeForName("scan.dcm"));
+        assertNull(MediaTypeFormats.mediaTypeForName("readme"));
+        assertNull(MediaTypeFormats.mediaTypeForName("trailing-dot."));
+        assertNull(MediaTypeFormats.mediaTypeForName("archive.zip"));
+        assertNull(MediaTypeFormats.mediaTypeForName(null));
     }
 
     @Test
