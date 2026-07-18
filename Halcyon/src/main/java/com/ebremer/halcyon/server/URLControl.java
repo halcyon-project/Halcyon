@@ -69,6 +69,11 @@ public class URLControl {
             "/talon/",
             "/threejs/",
             "/rdf/",
+            // /rdf2 (LWS SPARQL) is prefix-covered by "/rdf" above, but list it
+            // explicitly so removing or renaming /rdf can never silently hand
+            // the LWS endpoint's URL tree to the Wicket filter.
+            "/rdf2",
+            "/rdf2/",
             "/zephyr/",
             "/rdflib/"
         };

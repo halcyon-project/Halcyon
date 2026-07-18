@@ -101,6 +101,21 @@ public class Main {
         return srb;
     }
 
+    // /rdf2: read-only SPARQL over the LWS module's OWN TDB2, ACP-filtered per
+    // request for the caller (see LwsSparqlServlet). Not a Fuseki mount on
+    // purpose: a static dataset would freeze one agent's view forever, while
+    // the ACP evaluator's contract is one instance per request.
+    @Lazy(true)
+    @Bean
+    ServletRegistrationBean LwsSparqlServletRegistration() {
+        ServletRegistrationBean srb = new ServletRegistrationBean();
+        srb.setLoadOnStartup(3);
+        srb.setOrder(Ordered.HIGHEST_PRECEDENCE + 7);
+        srb.setServlet(new LwsSparqlServlet());
+        srb.setUrlMappings(Arrays.asList("/rdf2", "/rdf2/*"));
+        return srb;
+    }
+
     @Bean
     public ServletRegistrationBean proxyServletRegistrationBean() {
         HalcyonSettings settings = HalcyonSettings.getSettings();
