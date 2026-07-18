@@ -47,12 +47,25 @@ class HalcyonMediaBindingsTest {
     }
 
     @Test
-    void zephyrStacksOpenInZephyrByRdfType() {
-        MediaBindings.Resolved r = bindings().resolve(null,
+    void turtleTypedAsStackOpensInZephyr() {
+        // The real listing case: mediaType text/turtle AND the scanner's
+        // discovered zeph:Stack type. The conjunctive binding must beat the
+        // defaults' text/* source view, which survives as an alternate.
+        MediaBindings.Resolved r = bindings().resolve("text/turtle",
                 Set.of(ZEPH.NS + "Stack"));
-        assertNotNull(r, "the zeph:Stack rdf:type selector matches without a media type");
-        assertEquals(HAL.ZephyrViewer.asNode(), r.viewer());
+        assertNotNull(r);
+        assertEquals(HAL.ZephyrViewer.asNode(), r.viewer(),
+                "typed stack Turtle opens in Zephyr, not the text view");
+        assertTrue(r.alternates().contains(VG.HtmlTextViewer.asNode()),
+                "the source view stays available as an alternate");
         assertEquals(HAL.ZephyrEditor.asNode(), r.editor());
+    }
+
+    @Test
+    void plainTurtleKeepsTheSourceView() {
+        MediaBindings.Resolved r = bindings().resolve("text/turtle", Set.of());
+        assertEquals(VG.HtmlTextViewer.asNode(), r.viewer(),
+                "an untyped (or not-yet-scanned) Turtle document stays text");
     }
 
     @Test
