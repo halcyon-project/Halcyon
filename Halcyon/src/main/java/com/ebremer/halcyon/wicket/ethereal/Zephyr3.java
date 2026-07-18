@@ -6,13 +6,25 @@ import com.ebremer.halcyon.data.DataCore;
 import com.ebremer.halcyon.data.StackStore;
 import com.ebremer.halcyon.datum.HalcyonPrincipal;
 import com.ebremer.halcyon.gui.HalcyonSession;
+import com.ebremer.halcyon.lws.LwsClient;
+import com.ebremer.halcyon.server.SaveStackServlet;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import com.ebremer.halcyon.wicket.BasePage;
 import com.ebremer.halcyon.wicket.JsSafe;
 import com.ebremer.halcyon.wicket.Stacks;
+import com.ebremer.lws.config.LwsSettings;
+import com.ebremer.lws.config.LwsStorageConfig;
+import com.ebremer.lws.config.NamingPolicyType;
 import com.ebremer.ns.ZEPH;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.io.StringReader;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import org.apache.jena.riot.Lang;
+import org.apache.jena.riot.RDFDataMgr;
+import org.apache.wicket.request.cycle.RequestCycle;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.ReadWrite;
 import org.apache.jena.rdf.model.Model;
@@ -95,12 +107,106 @@ public class Zephyr3 extends BasePage {
         Model model;
         if (mode == Mode.OPEN_STACK) {
             this.stackUri = uri;
-            model = loadGraph(uri);
+            // A stack living in an LWS storage is fetched over the LWS API as
+            // this user (ACP answers); a triple-store stack keeps the H6 check.
+            model = lwsStorageOf(uri) != null ? loadLwsStack(uri) : loadGraph(uri);
         } else {
-            this.stackUri = host + "/stacks/" + UUID.randomUUID();
+            // Seeded from an LWS image, the new stack is LWS-NATIVE: minted
+            // beside its seed so Save lands it in the same container and the
+            // container tree lists it next to the imagery. Otherwise the
+            // classic triple-store URI.
+            String lwsStack = mintLwsStackUri(uri);
+            this.stackUri = lwsStack != null ? lwsStack : host + "/stacks/" + UUID.randomUUID();
             model = seedStack(this.stackUri, uri);
         }
         this.scenegraph = EthTool.serialize(model, this.stackUri);
+    }
+
+    /** The configured storage a URI belongs to, or {@code null}. */
+    private static LwsStorageConfig lwsStorageOf(String uri) {
+        for (LwsStorageConfig cfg : LwsSettings.get().storages()) {
+            if (uri.startsWith(cfg.baseUri() + "/")) {
+                return cfg;
+            }
+        }
+        return null;
+    }
+
+    private static LwsClient lwsClient() {
+        HalcyonPrincipal hp = HalcyonSession.get().getHalcyonPrincipal();
+        String token = hp == null || hp.isAnon() ? null : hp.getToken();
+        return new LwsClient(token, HalcyonSettings.getSettings().getProxyHostName());
+    }
+
+    /**
+     * Mint an LWS-native stack URI for a stack seeded from an LWS image, or
+     * {@code null} when the image is not an LWS resource. The stack goes in
+     * the image's own container (discovered from the API's {@code rel="up"}
+     * link); in the flat storage the URI never nests, so the name hangs off
+     * the base while the container is remembered for the create — stashed in
+     * the HTTP session for {@link SaveStackServlet} to consume on first save.
+     */
+    private static String mintLwsStackUri(String imageUri) {
+        LwsStorageConfig cfg = lwsStorageOf(imageUri);
+        if (cfg == null) {
+            return null;
+        }
+        String parent = null;
+        try {
+            parent = lwsClient().head(imageUri).link("up");
+        } catch (RuntimeException e) {
+            logger.warn("could not discover the container of {}: {}", imageUri, e.toString());
+        }
+        if (parent == null) {
+            parent = cfg.storageRootUri();
+        }
+        String name = "stack-" + UUID.randomUUID().toString().substring(0, 8) + ".ttl";
+        String stackUri = cfg.naming() == NamingPolicyType.UUID
+                ? cfg.baseUri() + "/" + name
+                : (parent.endsWith("/") ? parent + name : parent + "/" + name);
+        stashPendingContainer(stackUri, parent);
+        return stackUri;
+    }
+
+    /** Remember which container a not-yet-created LWS stack should be POSTed into. */
+    private static void stashPendingContainer(String stackUri, String container) {
+        if (RequestCycle.get().getRequest().getContainerRequest()
+                instanceof HttpServletRequest hr) {
+            var session = hr.getSession(true);
+            synchronized (session) {
+                @SuppressWarnings("unchecked")
+                Map<String, String> map = (Map<String, String>)
+                        session.getAttribute(SaveStackServlet.PENDING_LWS_STACKS);
+                if (map == null) {
+                    map = new ConcurrentHashMap<>();
+                    session.setAttribute(SaveStackServlet.PENDING_LWS_STACKS, map);
+                }
+                map.put(stackUri, container);
+            }
+        }
+    }
+
+    /**
+     * Fetch an LWS-resident stack over the API as the signed-in user. No H6
+     * check here on purpose: the storage's ACP made the read decision with
+     * this user's own token, which is the same authority H6 reimplements for
+     * triple-store stacks.
+     */
+    private static Model loadLwsStack(String uri) {
+        LwsClient.Text t = lwsClient().getText(uri, "text/turtle");
+        if (!t.ok()) {
+            throw new AbortWithHttpErrorCodeException(
+                    t.status() == 0 ? HttpServletResponse.SC_BAD_GATEWAY : t.status(),
+                    "could not load the stack from its storage");
+        }
+        Model m = ModelFactory.createDefaultModel();
+        try {
+            RDFDataMgr.read(m, new StringReader(t.body()), uri, Lang.TURTLE);
+        } catch (RuntimeException e) {
+            throw new AbortWithHttpErrorCodeException(HttpServletResponse.SC_BAD_GATEWAY,
+                    "the stored stack is not parseable Turtle");
+        }
+        return m;
     }
 
     /** {@code <stackUri> a zeph:Stack ; zeph:layers ( [ zeph:src <imageIri> ] )}. */

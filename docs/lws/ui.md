@@ -103,6 +103,21 @@ and the pure bearer contract holds everywhere else.
   would be stored XSS. The direct "open ↗" link stays available; there the
   storage answers on its own terms.
 
+### LWS-native stacks
+
+A stack seeded from an LWS image is **born in the storage**: Zephyr mints its
+URI beside the seed image (the image's own container, discovered from
+`rel="up"`), and Save writes it through the LWS API as a Turtle resource —
+the user's own token makes the request, so ACP authorizes the create/replace
+and the storage records ownership. The saved document types itself
+`zeph:Stack`; the metadata scanner surfaces that type in listings, which is
+exactly what makes the container tree show the stack next to its imagery and
+open it back in Zephyr on click. Replacing an existing stack is a
+conditional `PUT` (a concurrent edit answers 409), and LWS stacks inherit
+the whole sharing model — the right-click ACP editor and access requests —
+like any other resource. Stacks seeded from triple-store imagery keep the
+classic `StackStore` path and appear on `/stacks` instead.
+
 ## Where the pieces live
 
 | Piece | Class |
