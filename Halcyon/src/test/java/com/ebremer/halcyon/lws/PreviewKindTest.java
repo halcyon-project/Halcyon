@@ -7,9 +7,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Pins {@link PreviewKind}: which default viewer a media type gets, and — the
+ * Pins {@link PreviewKind}: how the host classifies a media type, and — the
  * security half — that actively scriptable types are never relayed for
- * same-origin rendering.
+ * same-origin rendering: HTML/XHTML only ever sandbox-relayed, SVG source-viewed.
  */
 class PreviewKindTest {
 
@@ -36,16 +36,28 @@ class PreviewKindTest {
     }
 
     @Test
-    void scriptableTypesAreSourceViewedNeverRelayed() {
-        assertEquals(PreviewKind.TEXT, PreviewKind.of("text/html"),
-                "HTML rendered same-origin would be stored XSS; show source");
-        assertEquals(PreviewKind.TEXT, PreviewKind.of("application/xhtml+xml"));
+    void htmlIsRenderableButOnlyEverSandboxed() {
+        assertEquals(PreviewKind.HTML, PreviewKind.of("text/html"));
+        assertEquals(PreviewKind.HTML, PreviewKind.of("text/html; charset=utf-8"));
+        assertEquals(PreviewKind.HTML, PreviewKind.of("application/xhtml+xml"));
+        // Renderable through the relay — but never as passive media: the relay
+        // stamps CSP sandbox on exactly the sandboxRenderable() kinds.
+        assertTrue(PreviewKind.HTML.sandboxRenderable());
+        assertFalse(PreviewKind.HTML.relayable(),
+                "HTML relayed as-is would be a same-origin render of stored markup");
+    }
+
+    @Test
+    void scriptableTypesAreNeverRelayedPlain() {
         assertEquals(PreviewKind.TEXT, PreviewKind.of("image/svg+xml"),
-                "SVG is an image by name and a script host by nature");
+                "SVG is an image by name and a script host by nature; show source");
         assertFalse(PreviewKind.TEXT.relayable());
+        assertFalse(PreviewKind.TEXT.sandboxRenderable());
         assertFalse(PreviewKind.NONE.relayable());
         assertTrue(PreviewKind.IMAGE.relayable());
         assertTrue(PreviewKind.PDF.relayable());
+        assertFalse(PreviewKind.IMAGE.sandboxRenderable(),
+                "passive media relay plain, not sandboxed — the PDF viewer would refuse");
     }
 
     @Test

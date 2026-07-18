@@ -8,6 +8,7 @@ import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import com.ebremer.halcyon.data.DataCore;
 import com.ebremer.halcyon.fuseki.SPARQLEndPoint;
 import com.ebremer.halcyon.wicket.AccountPage;
+import com.ebremer.halcyon.lws.HtmlMediaPanel;
 import com.ebremer.halcyon.lws.ZephyrMediaPanel;
 import com.ebremer.halcyon.wicket.ethereal.Graph3D;
 import com.ebremer.multiviewer.MultiViewer;
@@ -125,6 +126,8 @@ public class HalcyonApplication extends VandegraphApplication {
         // select registered viewers, never conjure one.
         getMediaViewers().register(HAL.ZephyrViewer, ZephyrMediaPanel::new);
         getMediaViewers().register(HAL.ZephyrEditor, ZephyrMediaPanel::new);
+        // Stored HTML: sandboxed page rendering by default.
+        getMediaViewers().register(HAL.HtmlPageViewer, HtmlMediaPanel::new);
         setMediaBindings(MediaBindings.parseWithDefaults(halcyonMediaBindings()));
     }
 

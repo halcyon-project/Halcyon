@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -86,5 +87,26 @@ class HalcyonMediaBindingsTest {
         MediaBindings.Resolved r = bindings().resolve("image/png", Set.of());
         assertEquals(VG.HtmlImageViewer.asNode(), r.viewer(),
                 "the overlay must not disturb the vandegraph defaults");
+    }
+
+    @Test
+    void storedHtmlRendersAsAPageWithSourceAndEditorBound() {
+        MediaBindings.Resolved r = bindings().resolve("text/html", Set.of());
+        assertEquals(HAL.HtmlPageViewer.asNode(), r.viewer(),
+                "exact text/html beats the defaults' text/* source view");
+        assertTrue(r.alternates().contains(VG.HtmlTextViewer.asNode()),
+                "the source view stays available as an alternate");
+        assertEquals(HAL.HtmlPageEditor.asNode(), r.editor(),
+                "the TipTap document editor is the bound editor for HTML");
+    }
+
+    @Test
+    void xhtmlRendersAsAPageButIsNotEditable() {
+        MediaBindings.Resolved r = bindings().resolve("application/xhtml+xml", Set.of());
+        assertEquals(HAL.HtmlPageViewer.asNode(), r.viewer());
+        assertTrue(r.alternates().contains(VG.HtmlTextViewer.asNode()),
+                "the source view stays available as an alternate");
+        assertNull(r.editor(),
+                "TipTap serializes HTML, not guaranteed-well-formed XHTML — no editor");
     }
 }

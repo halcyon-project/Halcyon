@@ -28,6 +28,9 @@ public class HAL {
     // (halcyon/media-bindings.ttl).
     public static final Resource ZephyrViewer = m.createResource(NS+"ZephyrViewer");
     public static final Resource ZephyrEditor = m.createResource(NS+"ZephyrEditor");
+    // Stored HTML: sandboxed page rendering, and the TipTap document editor.
+    public static final Resource HtmlPageViewer = m.createResource(NS+"HtmlPageViewer");
+    public static final Resource HtmlPageEditor = m.createResource(NS+"HtmlPageEditor");
     public static final Resource SHACLForm = m.createResource(NS+"SHACLForm");
     public static final Resource ValidationReport = m.createResource(NS+"ValidationReport");
     public static final Resource AnnotationClass = m.createResource(NS+"AnnotationClass");

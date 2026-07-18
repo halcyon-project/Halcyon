@@ -3,33 +3,51 @@ package com.ebremer.halcyon.lws;
 import java.util.Locale;
 
 /**
- * The default viewer the preview panel gives a media type.
+ * The host-side classification of a media type for the preview panel — the
+ * part of media dispatch that must never be data.
  *
- * <p>Only passive media are {@linkplain #relayable() relayed} to the browser
- * for native rendering (img / video / audio / the PDF viewer). Textual types
- * are fetched server-side, bounded, and rendered <em>escaped</em>. Actively
- * scriptable types get source view on purpose: HTML falls under {@code text/*},
- * and SVG — image by name, script host by nature — is forced to {@link #TEXT},
- * because relaying either would serve attacker-uploadable active content from
- * the application's own origin, i.e. hand any uploader a stored XSS. Rendering
- * them stays possible via the direct "open" link, where the storage answers on
- * its own terms.
+ * <p>Three service levels:
+ * <ul>
+ *   <li><b>{@linkplain #relayable() Relayable}</b> — passive media (img /
+ *       video / audio / the PDF viewer): the token relay serves the bytes
+ *       to the browser as-is for native rendering.</li>
+ *   <li><b>{@linkplain #sandboxRenderable() Sandbox-renderable}</b> — HTML
+ *       and XHTML: relayed <em>only</em> under
+ *       {@code Content-Security-Policy: sandbox}, and rendered inside a
+ *       {@code sandbox=""} iframe. The page displays, but as a unique
+ *       opaque origin with no script — never as this site. Relaying these
+ *       plain would hand any uploader a stored XSS, which is exactly what
+ *       the LWS serving path itself also refuses since it answers
+ *       scriptable types with the same sandbox policy.</li>
+ *   <li><b>{@link #TEXT}</b> — textual types: fetched server-side, bounded,
+ *       and rendered <em>escaped</em>. SVG — image by name, script host by
+ *       nature — stays here on purpose: its default view is source.</li>
+ * </ul>
  *
- * <p>Since the vandegraph {@code vg:MediaBinding} shapes took over <em>viewer
- * selection</em>, this enum's remaining job is the part that must never be
- * data: the relay whitelist ({@link #relayable()}) and the text-preview
- * heuristic. Bindings decide what to show; this decides what the relay will
- * serve.
+ * <p>Since the vandegraph {@code vg:MediaBinding} shapes took over
+ * <em>viewer selection</em>, this enum's job is the relay policy and the
+ * text-preview heuristic. Bindings decide what to show; this decides what
+ * the relay will serve, and under which policy.
  */
 public enum PreviewKind {
-    IMAGE, VIDEO, AUDIO, PDF, TEXT, NONE;
+    IMAGE, VIDEO, AUDIO, PDF, HTML, TEXT, NONE;
 
-    /** May the relay serve this inline to the browser? Passive media only. */
+    /** May the relay serve this inline to the browser as-is? Passive media only. */
     public boolean relayable() {
         return this == IMAGE || this == VIDEO || this == AUDIO || this == PDF;
     }
 
-    /** The default viewer for a media type ({@code null}/blank → {@link #NONE}). */
+    /**
+     * May the relay serve this for <em>sandboxed</em> rendering? The relay
+     * stamps {@code Content-Security-Policy: sandbox} on these responses —
+     * they render as documents, but never as this origin and never with
+     * script.
+     */
+    public boolean sandboxRenderable() {
+        return this == HTML;
+    }
+
+    /** The classification of a media type ({@code null}/blank → {@link #NONE}). */
     public static PreviewKind of(String mediaType) {
         if (mediaType == null || mediaType.isBlank()) {
             return NONE;
@@ -39,8 +57,11 @@ public enum PreviewKind {
         if (semi >= 0) {
             mt = mt.substring(0, semi).trim();
         }
+        if (mt.equals("text/html") || mt.equals("application/xhtml+xml")) {
+            return HTML;   // renderable, but only ever sandboxed
+        }
         if (mt.equals("image/svg+xml")) {
-            return TEXT;   // scriptable; see the class comment
+            return TEXT;   // scriptable; source view by default (see class comment)
         }
         if (mt.startsWith("image/")) {
             return IMAGE;

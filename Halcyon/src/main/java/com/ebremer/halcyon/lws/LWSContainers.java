@@ -135,13 +135,17 @@ public class LWSContainers extends BasePage {
 
     /**
      * Streams a selected resource to the browser for the native viewers (img /
-     * video / audio / PDF). The browser cannot attach the user's bearer token
-     * to an {@code <img src>}, so this page-scoped endpoint fetches over the
-     * LWS API with the session's own token and relays the bytes — the storage
-     * still makes the ACP decision on every request. Guard rails: only URIs
-     * inside a configured storage (no open proxy), and only
-     * {@linkplain PreviewKind#relayable() passive media} (never HTML/SVG, which
-     * would be same-origin stored XSS — see {@link PreviewKind}).
+     * video / audio / PDF) and the sandboxed HTML page viewer. The browser
+     * cannot attach the user's bearer token to an {@code <img src>} or iframe,
+     * so this page-scoped endpoint fetches over the LWS API with the session's
+     * own token and relays the bytes — the storage still makes the ACP decision
+     * on every request. Guard rails: only URIs inside a configured storage (no
+     * open proxy); {@linkplain PreviewKind#relayable() passive media} relay
+     * as-is; {@linkplain PreviewKind#sandboxRenderable() HTML/XHTML} relay only
+     * under {@code Content-Security-Policy: sandbox} (unique opaque origin, no
+     * script — never a same-origin render of stored markup); everything else is
+     * refused. And whatever the listing claimed, a scriptable content type on
+     * the storage's actual response gets the sandbox policy stamped anyway.
      */
     private final AbstractAjaxBehavior viewerRelay = new AbstractAjaxBehavior() {
         private static final long serialVersionUID = 1L;
@@ -158,7 +162,7 @@ public class LWSContainers extends BasePage {
             }
             Entry e = entryIndex.get(uri);
             PreviewKind kind = e == null ? PreviewKind.NONE : PreviewKind.of(e.mediaType());
-            if (!kind.relayable()) {
+            if (!kind.relayable() && !kind.sandboxRenderable()) {
                 rc.scheduleRequestHandlerAfterCurrent(
                         new TextRequestHandler("text/plain", "UTF-8", "no inline viewer for this media type"));
                 return;
@@ -179,6 +183,14 @@ public class LWSContainers extends BasePage {
                         resp.setStatus(200);
                         resp.setContentType(s.contentType());
                         resp.setHeader("X-Content-Type-Options", "nosniff");
+                        // The sandbox decision honours BOTH what the listing said
+                        // (the kind that admitted this relay) and what the storage
+                        // actually answered — a lying or stale media type must not
+                        // smuggle scriptable bytes into a same-origin render.
+                        if (kind.sandboxRenderable()
+                                || com.ebremer.lws.http.MediaTypes.scriptable(s.contentType())) {
+                            resp.setHeader("Content-Security-Policy", "sandbox");
+                        }
                         if (s.length() >= 0) {
                             resp.setContentLength(s.length());
                         }
@@ -982,9 +994,12 @@ public class LWSContainers extends BasePage {
             if (active != null) {
                 Node chosen = NodeFactory.createURI(active);
                 // Host security policy, independent of what bindings claim:
-                // the token relay serves passive media only, and text content
-                // is fetched bounded on the server with the session's token.
-                String src = PreviewKind.of(mediaType).relayable() ? relayUrl(selectedUri) : null;
+                // the token relay serves passive media as-is and HTML/XHTML
+                // only under CSP sandbox, and text content is fetched
+                // bounded on the server with the session's token.
+                PreviewKind kind = PreviewKind.of(mediaType);
+                String src = kind.relayable() || kind.sandboxRenderable()
+                        ? relayUrl(selectedUri) : null;
                 String text = null;
                 boolean truncated = false;
                 if (VG.HtmlTextViewer.asNode().equals(chosen)) {

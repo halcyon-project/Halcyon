@@ -35,3 +35,23 @@ hal:ZephyrStackBinding a vg:MediaBinding ;
     vg:rdfType zeph:Stack ;
     dash:viewer hal:ZephyrViewer ;
     dash:editor hal:ZephyrEditor .
+
+# Stored HTML renders as a page by default — safely. Every layer forces the
+# document inert: the LWS storage and the preview relay both answer
+# scriptable types with `Content-Security-Policy: sandbox`, and the viewer's
+# iframe carries sandbox="" besides — a unique opaque origin, no script,
+# never this site. The source view stays one click away, and the TipTap
+# document editor (etag-guarded PUT back to the storage) is the bound editor.
+hal:HtmlPageBinding a vg:MediaBinding ;
+    vg:mediaType "text/html" ;
+    dash:viewer hal:HtmlPageViewer ;
+    vg:alternateViewers ( vg:HtmlTextViewer ) ;
+    dash:editor hal:HtmlPageEditor .
+
+# XHTML renders the same sandboxed way, but is deliberately NOT editable:
+# TipTap serializes HTML, which is not guaranteed to be the well-formed XML
+# an application/xhtml+xml document must remain.
+hal:XhtmlPageBinding a vg:MediaBinding ;
+    vg:mediaType "application/xhtml+xml" ;
+    dash:viewer hal:HtmlPageViewer ;
+    vg:alternateViewers ( vg:HtmlTextViewer ) .
