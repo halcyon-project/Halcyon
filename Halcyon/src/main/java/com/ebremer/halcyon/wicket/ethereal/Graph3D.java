@@ -11,14 +11,8 @@ import com.apicatalog.jsonld.document.JsonDocument;
 import com.apicatalog.jsonld.serialization.RdfToJsonld;
 import com.apicatalog.rdf.RdfDataset;
 import com.ebremer.halcyon.data.DataCore;
-import com.ebremer.halcyon.datum.HalcyonPrincipal;
-import com.ebremer.halcyon.gui.HalcyonSession;
+import com.ebremer.halcyon.lws.LwsDatasets;
 import com.ebremer.halcyon.wicket.BasePage;
-import com.ebremer.lws.acp.AcpEngine;
-import com.ebremer.lws.acp.AcpSecuredDatasetGraph;
-import com.ebremer.lws.acp.AcpSecurityEvaluator;
-import com.ebremer.lws.auth.AgentContext;
-import com.ebremer.lws.store.LwsStore;
 import com.ebremer.ns.HAL;
 import org.danekja.java.util.function.serializable.SerializableSupplier;
 import jakarta.json.Json;
@@ -103,21 +97,10 @@ public class Graph3D extends BasePage {
     /**
      * The chosen store as a per-call dataset: the classic {@code DataCore},
      * or the LWS store through the CALLER's ACP-secured view — never raw
-     * (the evaluator is built fresh per call, per its own contract, and the
-     * ACP decision stays live).
+     * (see {@link LwsDatasets}).
      */
     static SerializableSupplier<Dataset> datasetSupplier(boolean lws) {
-        return lws ? Graph3D::lwsDataset : () -> DataCore.getInstance().getDataset();
-    }
-
-    private static Dataset lwsDataset() {
-        LwsStore store = LwsStore.get();
-        HalcyonPrincipal hp = HalcyonSession.get().getHalcyonPrincipal();
-        AgentContext agent = hp != null && !hp.isAnon() && hp.getUserURI() != null
-                ? new AgentContext(hp.getUserURI(), null, null, null)
-                : AgentContext.PUBLIC;
-        return DatasetFactory.wrap(new AcpSecuredDatasetGraph(store.raw().asDatasetGraph(),
-                new AcpSecurityEvaluator(agent, new AcpEngine(store))));
+        return lws ? LwsDatasets.securedForSession() : () -> DataCore.getInstance().getDataset();
     }
     
     @Override

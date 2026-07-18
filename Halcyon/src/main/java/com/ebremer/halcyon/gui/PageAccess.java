@@ -69,6 +69,9 @@ public final class PageAccess {
         //  wrong as "/collections", so the page was never matched at all)
         new Mount("/viewer", MultiViewer.class, Access.AUTHENTICATED),
         new Mount("/stacks", Stacks.class, Access.AUTHENTICATED),
+        // The LWS-native Images list (the old /ListImages path, kept so the
+        // URL and its Wicket-ignore/static-resource relationships stay known).
+        new Mount("/ListImages", com.ebremer.halcyon.wicket.Images.class, Access.AUTHENTICATED),
         new Mount("/threed", Graph3D.class, Access.AUTHENTICATED),
         new Mount("/user/account", AccountPage.class, Access.AUTHENTICATED),
         new Mount("/user/colorclasses", ColorClasses.class, Access.AUTHENTICATED),

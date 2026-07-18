@@ -27,6 +27,7 @@ public class MenuPanel extends Panel {
         String host = HalcyonSettings.getSettings().getProxyHostName();
         add(new ExternalLink("home", host+"/","Home"));
         add(new ExternalLink("about", host+"/about","About"));
+        ExternalLink images = new ExternalLink("images", host+"/ListImages","Images");
         ExternalLink security = new ExternalLink("security", host+"/admin","Settings");
         ExternalLink stacks = new ExternalLink("stacks", host+"/stacks","Stacks");
         ExternalLink sparql = new ExternalLink("sparql", host+"/sparql","SPARQL");
@@ -45,6 +46,7 @@ public class MenuPanel extends Panel {
             }
         };
         LogoutLink logout = new LogoutLink("logoutLink");
+        add(images);
         add(account);
         add(colorclasses);
         add(security);
@@ -56,6 +58,7 @@ public class MenuPanel extends Panel {
         add(logout);
         add(login);
         add(revisionhistory);
+        images.setVisible(false);
         security.setVisible(false);
         threed.setVisible(false);
         account.setVisible(false);
@@ -74,6 +77,7 @@ public class MenuPanel extends Panel {
             login.setVisible(false);
             logout.setVisible(true);
             //account.setVisible(true);
+            images.setVisible(true);
             sparql.setVisible(true);
             stacks.setVisible(true);
             // Visible to every signed-in user. The page shows only what ACP
