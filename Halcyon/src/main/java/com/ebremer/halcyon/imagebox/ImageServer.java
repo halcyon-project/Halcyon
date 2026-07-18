@@ -10,6 +10,8 @@ import com.ebremer.halcyon.lib.TileRequestEngine;
 import com.ebremer.halcyon.server.CorsPolicy;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import com.ebremer.halcyon.server.utils.ImageReaderPool;
+import com.ebremer.lws.config.LwsSettings;
+import com.ebremer.lws.config.LwsStorageConfig;
 import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
@@ -61,6 +63,24 @@ public class ImageServer extends HttpServlet {
             IIIFProcessor i = new IIIFProcessor(iiifParam);
             if (source != null) {
                 i.uri = source;
+            }
+            if (source == null && i.uri != null) {
+                // An LWS-storage identifier: the owning storage's own .iiif
+                // endpoint makes the ACP decision (with the session-auth filter
+                // supplying the browser's credential), so forward instead of
+                // serving. This is what lets a viewer's fixed /iiif/?iiif=
+                // prefix work unchanged for slides that live in a storage. The
+                // bridge's call comes back with source != null, so it can never
+                // re-enter here.
+                String id = i.uri.toString();
+                for (LwsStorageConfig cfg : LwsSettings.get().storages()) {
+                    if (id.startsWith(cfg.baseUri() + "/")) {
+                        request.getRequestDispatcher(
+                                cfg.urlPath() + "/" + LwsStorageConfig.IIIF)
+                                .forward(request, response);
+                        return;
+                    }
+                }
             }
             if (i.tilerequest) {
                 handleTileRequest(i, request, response);

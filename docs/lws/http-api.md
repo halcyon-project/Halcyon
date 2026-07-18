@@ -222,6 +222,17 @@ image service, not an open proxy), and ACP `acl:Read` is demanded on the resourc
 decoded. `GET` only (`HEAD` answers 405); responses are tiles (`image/jpeg`/`image/png`), tile
 metadata (`.ttl`/`.json` forms), or the `info.json` document.
 
+Two conveniences on top of the bearer contract, both deliberately narrow:
+
+- **Session-paid tiles.** A browser viewer cannot attach a token to an `<img>` fetch, so a `GET` to
+  `.iiif` that carries **no** `Authorization` but rides a signed-in Halcyon session has the session's
+  own token attached server-side (the C5 pattern) — GET, this endpoint only, so cookie-derived
+  authority never touches a state-changing request, and a request that brought its own
+  `Authorization` is never rewritten.
+- **The global `/iiif/` forwards.** Halcyon's legacy `/iiif/?iiif=…` servlet detects an image
+  identity inside a configured storage and forwards to that storage's `.iiif`, so fixed-prefix
+  viewers (Zephyr) work unchanged; the ACP decision is always the storage's.
+
 ## Status codes
 
 | Code | When |

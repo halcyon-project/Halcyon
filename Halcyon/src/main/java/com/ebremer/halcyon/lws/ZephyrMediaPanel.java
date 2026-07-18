@@ -19,10 +19,11 @@ import org.apache.wicket.request.mapper.parameter.PageParameters;
  * authorization. No new authority is created by the wrapper: the iframe rides
  * the user's session, and every check the page makes still runs.
  *
- * <p>Honest limit, v1: Zephyr loads imagery through Halcyon's {@code /iiif/}
- * service, so this renders resources that service can reach. A slide living
- * only in LWS storage needs the IIIF pipeline taught to read from the storage
- * before this binding delivers on it.
+ * <p>Imagery pipeline: Zephyr requests tiles through the global {@code /iiif/}
+ * prefix, which forwards LWS-storage identifiers to the owning storage's own
+ * ACP-authorized {@code .iiif} endpoint; the browser's signed-in session pays
+ * for the tiles (GET-only session auth on that endpoint). So slides living in
+ * LWS storage render end-to-end, as the user, with no token in the page.
  */
 public class ZephyrMediaPanel extends Panel {
     private static final long serialVersionUID = 1L;

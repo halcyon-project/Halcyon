@@ -81,10 +81,12 @@ The Zephyr wrapper (`ZephyrMediaPanel`) embeds the class-gated `Zephyr3` page
 in a same-origin iframe via its bookmarkable entry (`?stack=` / `?image=`).
 No new authority: page access is enforced on the class however it is
 reached, opening a stack still runs the server-side read check, and Save
-still authorizes through `StackStore`. Known limit: Zephyr loads imagery
-through Halcyon's `/iiif/` service, so slides living *only* in LWS storage
-need that pipeline taught to read from the storage before the binding
-delivers on them.
+still authorizes through `StackStore`. Imagery flows end-to-end for slides
+living in LWS storage: Zephyr's fixed `/iiif/` prefix forwards LWS
+identifiers to the owning storage's ACP-authorized `.iiif` endpoint (see
+[http-api.md](http-api.md)), where the browser's signed-in session pays for
+the tiles — GET-only, that endpoint only, so no token ever reaches the page
+and the pure bearer contract holds everywhere else.
 
 **Security posture of the pane** (code-enforced, whatever the bindings say):
 
