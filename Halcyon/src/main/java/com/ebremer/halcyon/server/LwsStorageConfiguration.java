@@ -45,9 +45,13 @@ public class LwsStorageConfiguration {
     @Bean
     public ServletContextInitializer lwsStorageServlets() {
         return servletContext -> {
+            // One imaging bridge serves every storage: it is stateless beyond its
+            // trusted-key cache, and installing it is what makes each storage
+            // advertise the IIIF Image service in its description.
+            LwsIiifBridge iiif = new LwsIiifBridge();
             for (LwsStorageConfig cfg : LwsSettings.get().storages()) {
                 ServletRegistration.Dynamic reg =
-                        servletContext.addServlet("LWS " + cfg.urlPath(), new LwsServlet(cfg));
+                        servletContext.addServlet("LWS " + cfg.urlPath(), new LwsServlet(cfg, iiif));
                 if (reg == null) {
                     // Name already taken — a duplicate :hasLWSStorage urlPath.
                     LOG.error("LWS storage {} not mounted: a servlet with that name already exists",

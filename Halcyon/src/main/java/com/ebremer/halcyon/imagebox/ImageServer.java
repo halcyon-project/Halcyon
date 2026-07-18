@@ -38,13 +38,30 @@ public class ImageServer extends HttpServlet {
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) {
-        String iiifParam = request.getParameter("iiif");        
+        serve(request, response, null);
+    }
+
+    /**
+     * Serve one IIIF request, optionally overriding where the PIXELS come
+     * from. The override is how the LWS storage bridge reuses this engine:
+     * the {@code ?iiif=} URL still carries the request shape (region, size,
+     * rotation, quality — and the info.json id is still derived from the
+     * request URL), but the image source becomes a key the bridge registered
+     * with {@link com.ebremer.halcyon.server.utils.ImageReaderPoolFactory}
+     * after its own authorization. A {@code null} override is the plain
+     * servlet path: the identifier resolves through PathMapper's rules.
+     */
+    public void serve(HttpServletRequest request, HttpServletResponse response, URI source) {
+        String iiifParam = request.getParameter("iiif");
         if (iiifParam == null) {
             reportError(response, HttpServletResponse.SC_BAD_REQUEST, "Missing 'iiif' parameter");
             return;
         }
         try {
             IIIFProcessor i = new IIIFProcessor(iiifParam);
+            if (source != null) {
+                i.uri = source;
+            }
             if (i.tilerequest) {
                 handleTileRequest(i, request, response);
             } else if (i.inforequest) {
