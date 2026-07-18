@@ -173,24 +173,13 @@ public class Main {
         INIT i = new INIT();
         i.init();
         DataCore dc = DataCore.getInstance();
-        Dataset ds = dc.getDataset();        
-        // H13: guarded WRITE. Startup path, so a strand here means the server comes
-        // up unable to write anything rather than failing outright — which is worse
-        // than crashing, because it looks healthy.
-        ds.begin(ReadWrite.WRITE);
-        try {
-            ds.removeNamedModel("https://localhost:8888/ldp/utah/HnE/Stack2/stack.jsonld");
-            //Stack stack = new Stack();
-            ds.removeNamedModel("https://localhost:8888/utah/HnE/Stack2/stack.jsonld");
-//            ds.removeNamedModel("file:///D:/HalcyonStorage/utah/HnE/Stack2/stack.jsonld");
-            //ds.addNamedModel("https://localhost:8888/stack", stack.getModel());
-            ds.commit();
-        } catch (RuntimeException ex) {
-            ds.abort();
-            throw ex;
-        } finally {
-            ds.end();
-        }
+        Dataset ds = dc.getDataset();
+        // The old hand-listed stack.jsonld removals grew into a general sweep:
+        // delete every graph whose readers/writers have been removed from the
+        // codebase (the frozen catalog, scanner and legacy-LDP metadata, the
+        // legacy per-user graphs). Idempotent, transactional inside; keeps
+        // security, groups and the still-live triple-store stacks.
+        LegacyDataCleanup.run(ds, HalcyonSettings.getSettings().getHostName());
         if (!(System.getProperty("spring.aot.processing") != null)) {
             SPARQLEndPoint.getSPARQLEndPoint();
         }    
