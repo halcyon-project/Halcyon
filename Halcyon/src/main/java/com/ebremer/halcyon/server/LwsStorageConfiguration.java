@@ -3,7 +3,12 @@ package com.ebremer.halcyon.server;
 import com.ebremer.lws.config.LwsSettings;
 import com.ebremer.lws.config.LwsStorageConfig;
 import com.ebremer.lws.http.LwsServlet;
+import jakarta.servlet.DispatcherType;
+import jakarta.servlet.FilterRegistration;
 import jakarta.servlet.ServletRegistration;
+import java.util.ArrayList;
+import java.util.EnumSet;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.web.servlet.ServletContextInitializer;
@@ -49,6 +54,7 @@ public class LwsStorageConfiguration {
             // trusted-key cache, and installing it is what makes each storage
             // advertise the IIIF Image service in its description.
             LwsIiifBridge iiif = new LwsIiifBridge();
+            List<String> mappings = new ArrayList<>();
             for (LwsStorageConfig cfg : LwsSettings.get().storages()) {
                 ServletRegistration.Dynamic reg =
                         servletContext.addServlet("LWS " + cfg.urlPath(), new LwsServlet(cfg, iiif));
@@ -61,8 +67,21 @@ public class LwsStorageConfiguration {
                 reg.addMapping(cfg.servletMapping());
                 reg.setLoadOnStartup(3);
                 reg.setAsyncSupported(true);
+                mappings.add(cfg.servletMapping());
                 LOG.info("mounted W3C LWS storage at {} -> {} ({} naming)",
                         cfg.servletMapping(), cfg.contentRoot(), cfg.naming());
+            }
+            if (!mappings.isEmpty()) {
+                // Session-pays-for-tiles: GET .iiif only, REQUEST + FORWARD (the
+                // global /iiif servlet forwards LWS identifiers here). See the
+                // filter's javadoc for why the scope is exactly this narrow.
+                FilterRegistration.Dynamic f = servletContext.addFilter(
+                        "LWS IIIF session auth", new LwsIiifSessionAuthFilter());
+                if (f != null) {
+                    f.addMappingForUrlPatterns(
+                            EnumSet.of(DispatcherType.REQUEST, DispatcherType.FORWARD),
+                            true, mappings.toArray(String[]::new));
+                }
             }
         };
     }
