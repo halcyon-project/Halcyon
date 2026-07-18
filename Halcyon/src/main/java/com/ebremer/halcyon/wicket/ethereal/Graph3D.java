@@ -11,8 +11,16 @@ import com.apicatalog.jsonld.document.JsonDocument;
 import com.apicatalog.jsonld.serialization.RdfToJsonld;
 import com.apicatalog.rdf.RdfDataset;
 import com.ebremer.halcyon.data.DataCore;
+import com.ebremer.halcyon.datum.HalcyonPrincipal;
+import com.ebremer.halcyon.gui.HalcyonSession;
 import com.ebremer.halcyon.wicket.BasePage;
+import com.ebremer.lws.acp.AcpEngine;
+import com.ebremer.lws.acp.AcpSecuredDatasetGraph;
+import com.ebremer.lws.acp.AcpSecurityEvaluator;
+import com.ebremer.lws.auth.AgentContext;
+import com.ebremer.lws.store.LwsStore;
 import com.ebremer.ns.HAL;
+import org.danekja.java.util.function.serializable.SerializableSupplier;
 import jakarta.json.Json;
 import jakarta.json.JsonArray;
 import jakarta.json.JsonObject;
@@ -33,8 +41,6 @@ import org.apache.jena.query.QueryExecutionFactory;
 import org.apache.jena.query.ReadWrite;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.RDFNode;
-import org.apache.jena.riot.Lang;
-import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.riot.system.jsonld.JenaToTitanium;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.SchemaDO;
@@ -42,18 +48,45 @@ import org.apache.jena.vocabulary.XSD;
 import org.apache.wicket.ajax.AjaxEventBehavior;
 import org.apache.wicket.ajax.AjaxRequestTarget;
 import org.apache.wicket.markup.head.IHeaderResponse;
+import org.apache.wicket.markup.html.basic.Label;
 import org.apache.wicket.markup.html.form.Button;
+import org.apache.wicket.markup.html.link.BookmarkablePageLink;
+import org.apache.wicket.request.mapper.parameter.PageParameters;
 
 /**
+ * The 3d-force-graph explorer, pointable at EITHER triple store — the same
+ * {@code ?endpoint=rdf2} convention as the SPARQL page: {@code /threed} walks
+ * the classic store, {@code /threed?endpoint=rdf2} walks the W3C LWS store.
+ * The LWS side is never the raw dataset: it is the caller's own ACP-secured
+ * view, so the graph shows exactly the resources this user could read over
+ * the LWS API and the internal graphs do not exist to be drawn.
  *
  * @author erich
  */
 public class Graph3D extends BasePage {
     private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Graph3D.class);
     private static final long serialVersionUID = 102163948377788566L;
-    
+
+    /** Which store this instance draws. Allowlisted from the page parameter. */
+    private final boolean lws;
+
     public Graph3D() {
-        ListClasses cc = new ListClasses("chosen");
+        this(new PageParameters());
+    }
+
+    public Graph3D(PageParameters parameters) {
+        this.lws = "rdf2".equals(parameters.get("endpoint").toString(""));
+
+        add(new Label("which", lws ? "the W3C LWS store (lws-tdb2)" : "the Halcyon store (tdb2)"));
+        BookmarkablePageLink<Void> classic = new BookmarkablePageLink<>("classic", Graph3D.class);
+        classic.setEnabled(lws);
+        add(classic);
+        BookmarkablePageLink<Void> lwsLink = new BookmarkablePageLink<>("lws", Graph3D.class,
+                new PageParameters().add("endpoint", "rdf2"));
+        lwsLink.setEnabled(!lws);
+        add(lwsLink);
+
+        ListClasses cc = new ListClasses("chosen", datasetSupplier(lws));
         add(cc);
         Button button = new Button("button", org.apache.wicket.model.Model.of("Update"));
         button.add(new AjaxEventBehavior("click") {
@@ -65,6 +98,26 @@ public class Graph3D extends BasePage {
             }
         });
         add(button);
+    }
+
+    /**
+     * The chosen store as a per-call dataset: the classic {@code DataCore},
+     * or the LWS store through the CALLER's ACP-secured view — never raw
+     * (the evaluator is built fresh per call, per its own contract, and the
+     * ACP decision stays live).
+     */
+    static SerializableSupplier<Dataset> datasetSupplier(boolean lws) {
+        return lws ? Graph3D::lwsDataset : () -> DataCore.getInstance().getDataset();
+    }
+
+    private static Dataset lwsDataset() {
+        LwsStore store = LwsStore.get();
+        HalcyonPrincipal hp = HalcyonSession.get().getHalcyonPrincipal();
+        AgentContext agent = hp != null && !hp.isAnon() && hp.getUserURI() != null
+                ? new AgentContext(hp.getUserURI(), null, null, null)
+                : AgentContext.PUBLIC;
+        return DatasetFactory.wrap(new AcpSecuredDatasetGraph(store.raw().asDatasetGraph(),
+                new AcpSecurityEvaluator(agent, new AcpEngine(store))));
     }
     
     @Override
@@ -78,7 +131,7 @@ public class Graph3D extends BasePage {
 
     public String getData(List<RDFNode> list) {
         try {
-            Dataset xs = DataCore.getInstance().getDataset();
+            Dataset xs = datasetSupplier(lws).get();
             ParameterizedSparqlString pss;
             pss = new ParameterizedSparqlString(
                 """
@@ -127,9 +180,6 @@ public class Graph3D extends BasePage {
             } finally {
                 xs.end();
             }
-            logger.debug("=================================================================================");
-            RDFDataMgr.write(System.out, m, Lang.TURTLE);
-            logger.debug("=================================================================================");
             pss = new ParameterizedSparqlString(
                 """
                 construct {
@@ -183,9 +233,6 @@ public class Graph3D extends BasePage {
             } finally {
                 xs.end();
             }
-            logger.debug("=================================================================================");
-            RDFDataMgr.write(System.out, m2, Lang.TURTLE);
-            logger.debug("=================================================================================");
             m.add(m2);
             Dataset ds = DatasetFactory.createGeneral();
             ds.getDefaultModel().add(m);

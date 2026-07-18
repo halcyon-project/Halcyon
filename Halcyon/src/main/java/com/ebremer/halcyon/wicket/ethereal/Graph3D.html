@@ -39,9 +39,14 @@
 </wicket:head>
 
 <body>
-  <wicket:extend>    
+  <wicket:extend>
     <div class="row">
         <div class="column">
+            <div class="row" style="margin: 6px 0; font-size: 14px;">
+                Graph of <b><span wicket:id="which"></span></b><br/>
+                Store: <a wicket:id="classic">Halcyon (tdb2)</a> ·
+                <a wicket:id="lws">W3C LWS (lws-tdb2)</a>
+            </div>
             <div class="row">
                 <input type="submit" wicket:id="button"/>
             </div>
