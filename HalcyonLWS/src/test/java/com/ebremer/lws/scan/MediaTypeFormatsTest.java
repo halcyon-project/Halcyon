@@ -53,6 +53,26 @@ class MediaTypeFormatsTest {
     }
 
     @Test
+    void recordedMediaTypeUpgradesOpaqueClientTypesByKnownExtension() {
+        // Browsers upload .svs as application/octet-stream; the storage records
+        // the known format instead — but never second-guesses a specific type.
+        assertEquals("image/tiff",
+                MediaTypeFormats.recordedMediaType("application/octet-stream", ".svs"));
+        assertEquals("image/tiff", MediaTypeFormats.recordedMediaType(null, ".ndpi"));
+        assertEquals("image/tiff", MediaTypeFormats.recordedMediaType("  ", ".tif"));
+        assertEquals("image/jpeg",
+                MediaTypeFormats.recordedMediaType("image/jpeg", ".svs"),
+                "a specific client type always wins");
+        assertEquals("application/octet-stream",
+                MediaTypeFormats.recordedMediaType("application/octet-stream", ".zip"),
+                "an unknown extension upgrades nothing");
+        assertEquals("application/octet-stream",
+                MediaTypeFormats.recordedMediaType(null, ""));
+        assertEquals("application/octet-stream",
+                MediaTypeFormats.recordedMediaType(null, null));
+    }
+
+    @Test
     void everyMappedExtensionCarriesItsLeadingDot() {
         // Matches the convention of Slugs.extensionOf, since the two feed the same code path.
         for (String t : new String[] {"image/tiff", "image/jp2", "image/jxl", "application/dicom",

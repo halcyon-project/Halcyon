@@ -83,6 +83,32 @@ public final class MediaTypeFormats {
     }
 
     /**
+     * The media type to RECORD for a new representation: the client's, unless
+     * the client said nothing usable — {@code null}, blank, or
+     * {@code application/octet-stream}, which is what browsers send for
+     * formats they do not know ({@code .svs} included) — and the name's
+     * extension identifies a known format, in which case the known type wins.
+     * A client's own <em>specific</em> type is never second-guessed. Falls
+     * back to {@code application/octet-stream} when nothing is known at all.
+     *
+     * @param clientType the bare Content-Type the client sent, or {@code null}
+     * @param extWithDot the resource's extension including the leading dot
+     *     ({@code Slugs.extensionOf} convention), or empty/{@code null}
+     */
+    public static String recordedMediaType(String clientType, String extWithDot) {
+        boolean opaque = clientType == null || clientType.isBlank()
+                || "application/octet-stream".equalsIgnoreCase(clientType.trim());
+        if (opaque && extWithDot != null && extWithDot.length() > 1) {
+            String known = TYPE.get(extWithDot.substring(1).toLowerCase(Locale.ROOT));
+            if (known != null) {
+                return known;
+            }
+        }
+        return clientType == null || clientType.isBlank()
+                ? "application/octet-stream" : clientType;
+    }
+
+    /**
      * The extension a reader would recognise for this media type, or {@code ""} if none is
      * known. The result includes the leading dot, or is empty — the same convention as
      * {@code Slugs.extensionOf}.

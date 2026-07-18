@@ -1387,14 +1387,15 @@ public class LwsServlet extends HttpServlet {
         } else if (makeContainer) {
             created = store.write(() -> commitCreation(rq, parent, slug, webId, true, null));
         } else {
-            String mediaType = MediaTypes.bare(req.getContentType());
-            if (mediaType == null) {
-                mediaType = MediaTypes.OCTET_STREAM;
-            }
             // Extension from the slug, else from the media type. Without this fallback a
             // whole-slide image POSTed as image/tiff with no Slug had no extension for the reader
             // to dispatch on, and so vanished into the Type Index as opaque bytes. (M2.)
             String slugExt = Slugs.extensionOf(slug);
+            // Record a REAL media type when the client's was absent/opaque but the slug names a
+            // known format — browsers upload .svs as application/octet-stream, and recording that
+            // starves every media-type-driven consumer (the UI's viewer bindings included).
+            String mediaType = MediaTypeFormats.recordedMediaType(
+                    MediaTypes.bare(req.getContentType()), slugExt);
             String ext = slugExt.isEmpty() ? MediaTypeFormats.extensionFor(mediaType) : slugExt;
 
             // The blob is written, fsynced and moved into place BEFORE anything is committed. A
@@ -1578,11 +1579,11 @@ public class LwsServlet extends HttpServlet {
                     commitMirrorCreate(rq, parent.uri(), uri, key, webId, true, null, null, null));
         }
 
-        String mediaType = MediaTypes.bare(req.getContentType());
-        if (mediaType == null) {
-            mediaType = MediaTypes.OCTET_STREAM;
-        }
         String ext = extOfPath(key);
+        // Same upgrade as the object-store POST: an opaque client type with a known
+        // extension records the known format (browsers send octet-stream for .svs).
+        String mediaType = MediaTypeFormats.recordedMediaType(
+                MediaTypes.bare(req.getContentType()), ext);
         if (ext.isEmpty()) {
             ext = MediaTypeFormats.extensionFor(mediaType);
         }
@@ -1665,11 +1666,13 @@ public class LwsServlet extends HttpServlet {
         // Validated before the upload so a rejected combined update wastes no bytes.
         Map<String, List<String>> setLinks = setLinksetLinks(req);
 
-        String mediaType = MediaTypes.bare(req.getContentType());
-        if (mediaType == null) {
-            mediaType = existing != null ? existing.mediaType() : MediaTypes.OCTET_STREAM;
-        }
+        String bare = MediaTypes.bare(req.getContentType());
         String ext = extOfPath(key);
+        // No Content-Type on a replace keeps the existing recorded type; otherwise the
+        // same opaque-type upgrade as create (octet-stream + known extension → known type).
+        String mediaType = bare == null && existing != null
+                ? existing.mediaType()
+                : MediaTypeFormats.recordedMediaType(bare, ext);
         if (ext.isEmpty()) {
             ext = MediaTypeFormats.extensionFor(mediaType);
         }
@@ -1892,14 +1895,15 @@ public class LwsServlet extends HttpServlet {
         // below. Validated here, before the upload, so a rejected combined update wastes no bytes.
         Map<String, List<String>> setLinks = setLinksetLinks(req);
 
-        String mediaType = MediaTypes.bare(req.getContentType());
-        if (mediaType == null) {
-            mediaType = existing.mediaType();
-        }
         // A resource first created without a usable extension (no Slug) gets one now, from the
         // media type, so a PUT is a second chance at enrichment. If it already had one, keep it —
-        // the identity was fixed at creation. (M2.)
+        // the identity was fixed at creation. (M2.) The media type gets the same second chance:
+        // no Content-Type keeps the recorded one; an opaque one with a known extension upgrades.
+        String bare = MediaTypes.bare(req.getContentType());
         String existingExt = existing.ext() == null ? "" : existing.ext();
+        String mediaType = bare == null
+                ? existing.mediaType()
+                : MediaTypeFormats.recordedMediaType(bare, existingExt);
         String ext = existingExt.isEmpty() ? MediaTypeFormats.extensionFor(mediaType) : existingExt;
 
         // A fresh blob under a fresh key, never an in-place overwrite: mutating bytes
