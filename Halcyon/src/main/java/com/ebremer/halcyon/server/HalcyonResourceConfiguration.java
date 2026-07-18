@@ -42,13 +42,15 @@ public class HalcyonResourceConfiguration implements WebMvcConfigurer {
             registry.addResourceHandler("/talon/**").addResourceLocations("classpath:/META-INF/public-web-resources/talon/");
         }
         String zephyr = HalcyonSettings.getSettings().getZephyrLocation();
-        // In dev mode the viewer modules are served live from source; without
-        // an explicit Cache-Control the browser's heuristic caching keeps
-        // serving stale copies after edits (a recurring dev-loop trap).
-        // no-cache still allows conditional 304s, so unchanged files stay fast.
-        CacheControl zephyrCache = HalcyonSettings.getSettings().isDevMode()
-                ? CacheControl.noCache().mustRevalidate()
-                : null;
+        // ALWAYS revalidate the viewer modules, not only in dev mode. They are
+        // plain static files with no content hashing, so without an explicit
+        // Cache-Control the browser's heuristic caching keeps serving stale
+        // copies AFTER AN UPGRADE too — this exact trap kept serving a pre-H1
+        // stackPersistence.js whose Save posted a SPARQL update to /rdf, which
+        // died with a 400 once that endpoint went read-only, and no amount of
+        // server rebuilding could fix it. no-cache still allows conditional
+        // 304s, so unchanged files stay fast; it just forces revalidation.
+        CacheControl zephyrCache = CacheControl.noCache().mustRevalidate();
         var zephyrHandler = registry.addResourceHandler("/zephyr/**");
         if (zephyr!=null) {
             if (zephyr.startsWith("file:///")) {
@@ -59,9 +61,7 @@ public class HalcyonResourceConfiguration implements WebMvcConfigurer {
         } else {
             zephyrHandler.addResourceLocations("classpath:/META-INF/public-web-resources/zephyr/");
         }
-        if (zephyrCache != null) {
-            zephyrHandler.setCacheControl(zephyrCache);
-        }
+        zephyrHandler.setCacheControl(zephyrCache);
         registry.addResourceHandler("/threejs/**").addResourceLocations("classpath:/META-INF/public-web-resources/threejs/");
         // L18: Graph3D's libraries, vendored instead of pulled from unpkg at runtime.
         // Separate from /threejs/ on purpose — that is three r160 for Zephyr, and
