@@ -15,6 +15,15 @@ hal:WholeSlideImageBinding a vg:MediaBinding ;
     vg:alternateViewers ( vg:HtmlImageViewer ) ;
     dash:editor hal:ZephyrEditor .
 
+# BeakGraph feature sets (HDF5): no browser renders these, but Halcyon's IIIF
+# engine does (BeakGraphImageReader tiles them), so they open in Zephyr, which
+# seeds the file as a feature layer of a fresh stack and pulls those tiles.
+# Both recorded spellings of the HDF media type are bound.
+hal:BeakGraphBinding a vg:MediaBinding ;
+    vg:mediaType "application/x-hdf5" , "application/x-hdf" ;
+    dash:viewer hal:ZephyrViewer ;
+    dash:editor hal:ZephyrEditor .
+
 # Turtle that IS a Zephyr stack opens as that stack. CONJUNCTIVE on purpose:
 # both the format and the scanner-discovered zeph:Stack type must hold, which
 # is what lets this outrank the defaults' text/* source view (it ranks as an

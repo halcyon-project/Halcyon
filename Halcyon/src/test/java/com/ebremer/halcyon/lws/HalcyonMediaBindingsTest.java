@@ -69,6 +69,19 @@ class HalcyonMediaBindingsTest {
     }
 
     @Test
+    void beakGraphHdf5OpensInZephyr() {
+        // BeakGraph feature sets have no browser rendering, but the IIIF
+        // engine tiles them — Zephyr is their viewer, under either recorded
+        // spelling of the HDF media type.
+        for (String mt : java.util.List.of("application/x-hdf5", "application/x-hdf")) {
+            MediaBindings.Resolved r = bindings().resolve(mt, Set.of());
+            assertNotNull(r, mt + " must resolve to a viewer");
+            assertEquals(HAL.ZephyrViewer.asNode(), r.viewer(), mt);
+            assertEquals(HAL.ZephyrEditor.asNode(), r.editor(), mt);
+        }
+    }
+
+    @Test
     void ordinaryImagesKeepTheDefaultViewer() {
         MediaBindings.Resolved r = bindings().resolve("image/png", Set.of());
         assertEquals(VG.HtmlImageViewer.asNode(), r.viewer(),
