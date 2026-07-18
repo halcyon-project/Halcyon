@@ -1,6 +1,5 @@
 package com.ebremer.halcyon.server;
 
-import com.ebremer.halcyon.data.StackStore;
 import com.ebremer.halcyon.datum.HalcyonPrincipal;
 import com.ebremer.halcyon.lws.LwsClient;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
@@ -28,11 +27,10 @@ import org.slf4j.LoggerFactory;
  * Authenticated, WAC-gated server-side stack-save endpoint ({@code POST /savestack}).
  * <p>
  * Replaces the browser's former raw SPARQL Update to {@code /rdf} (closed by H1,
- * which made the Fuseki endpoint read-only): persisting a Zephyr stack now goes
+ * which made the Fuseki endpoint read-only): persisting a Zephyr stack goes
  * through this endpoint. It authenticates the caller from the pac4j OIDC session
- * (never a bare bearer token) and delegates the write to {@link StackStore},
- * whose creator/WAC/admin authorization is the same one the {@code Stacks} page
- * enforces for delete.
+ * (never a bare bearer token) and writes the stack THROUGH the W3C LWS storage's
+ * API with the user's own token — the storage's ACP is the authorization.
  * <p>
  * Request: {@code POST /savestack?graph=<stack-uri>}, body = the stack RDF as
  * N-Triples. The {@code graph} parameter is the stack's named graph and its root
@@ -84,29 +82,17 @@ public class SaveStackServlet extends HttpServlet {
             return;
         }
 
-        // An LWS-native stack (its URI lies in a configured storage) is saved
-        // THROUGH the storage's API with the user's own token — ACP authorizes,
-        // the storage records ownership, and the container tree lists it beside
-        // its imagery. Triple-store stacks keep the StackStore path unchanged.
+        // A stack is an LWS resource, full stop: saved THROUGH the storage's
+        // API with the user's own token — ACP authorizes, the storage records
+        // ownership, and the container tree lists it beside its imagery. The
+        // StackStore/triple-store path is retired.
         LwsStorageConfig cfg = storageOf(graph);
-        if (cfg != null) {
-            saveToStorage(cfg, graph, incoming, principal, request, response);
+        if (cfg == null) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST,
+                    "stacks live in the W3C LWS storages; the graph URI names none of them");
             return;
         }
-
-        try {
-            StackStore.Result result = StackStore.save(graph, incoming, principal);
-            switch (result) {
-                case SAVED -> response.setStatus(HttpServletResponse.SC_NO_CONTENT);
-                case FORBIDDEN -> response.sendError(HttpServletResponse.SC_FORBIDDEN,
-                        "Not allowed to write this stack");
-                case INVALID -> response.sendError(HttpServletResponse.SC_BAD_REQUEST,
-                        "Invalid stack save target");
-            }
-        } catch (RuntimeException ex) {
-            logger.error("Stack save failed for {}", graph, ex);
-            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Stack save failed");
-        }
+        saveToStorage(cfg, graph, incoming, principal, request, response);
     }
 
     /** The configured storage a URI belongs to, or {@code null}. */

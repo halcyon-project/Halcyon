@@ -2,8 +2,6 @@ package com.ebremer.halcyon.wicket.ethereal;
 
 import com.ebremer.halcyon.gui.CspNonce;
 import org.apache.wicket.markup.html.WebMarkupContainer;
-import com.ebremer.halcyon.data.DataCore;
-import com.ebremer.halcyon.data.StackStore;
 import com.ebremer.halcyon.datum.HalcyonPrincipal;
 import com.ebremer.halcyon.gui.HalcyonSession;
 import com.ebremer.halcyon.lws.LwsClient;
@@ -11,7 +9,6 @@ import com.ebremer.halcyon.server.SaveStackServlet;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import com.ebremer.halcyon.wicket.BasePage;
 import com.ebremer.halcyon.wicket.JsSafe;
-import com.ebremer.halcyon.wicket.Stacks;
 import com.ebremer.lws.config.LwsSettings;
 import com.ebremer.lws.config.LwsStorageConfig;
 import com.ebremer.lws.config.NamingPolicyType;
@@ -25,8 +22,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
 import org.apache.wicket.request.cycle.RequestCycle;
-import org.apache.jena.query.Dataset;
-import org.apache.jena.query.ReadWrite;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.RDFNode;
@@ -40,18 +35,16 @@ import org.slf4j.LoggerFactory;
 import org.apache.wicket.request.http.flow.AbortWithHttpErrorCodeException;
 
 /**
- * Zephyr3 — the RDF-driven stack viewer/editor.
- *
- * Two entry modes:
+ * Zephyr3 — the RDF-driven stack viewer/editor. LWS-native on both doors:
  * <ul>
- *   <li>{@link Mode#NEW_FROM_IMAGE} (from the image list): mint a fresh stack
- *       URI ({@code <host>/stacks/<uuid>}) and seed it with the chosen image as
- *       layer 0, ready for the user to add more layers and Save.</li>
- *   <li>{@link Mode#OPEN_STACK} (from the Stacks list): load an existing stack's
- *       named graph by URI.</li>
+ *   <li>{@link Mode#NEW_FROM_IMAGE}: mint a fresh stack URI BESIDE the seed
+ *       image in its storage container, seeded with that image as layer 0.
+ *       Imagery outside a W3C LWS storage is refused.</li>
+ *   <li>{@link Mode#OPEN_STACK}: fetch the stack's relative Turtle over the
+ *       LWS API as the signed-in user — ACP is the read authority.</li>
  * </ul>
- * Either way the resolved stack URI is injected as {@code stackUri} so the
- * viewer's "Save stack" writes back to that same per-stack named graph.
+ * The resolved stack URI is injected as {@code stackUri} so the viewer's
+ * "Save stack" writes back to the same storage resource via /savestack.
  *
  * @author erich
  */
@@ -84,9 +77,8 @@ public class Zephyr3 extends BasePage {
      * (an iframe in the LWSContainers preview) reaches the viewer:
      * {@code ?stack=<uri>} opens an existing stack, {@code ?image=<uri>}
      * seeds a fresh one. No new authority: access is enforced on the page
-     * CLASS however it is reached (PageAccess: AUTHENTICATED), OPEN_STACK
-     * still runs the H6 read check in {@link #loadGraph}, and Save still
-     * authorizes through StackStore.
+     * CLASS however it is reached (PageAccess: AUTHENTICATED), and both the
+     * open and the save are ACP decisions made by the storage itself.
      */
     public Zephyr3(PageParameters params) {
         this(targetOf(params), hasStack(params) ? Mode.OPEN_STACK : Mode.NEW_FROM_IMAGE);
@@ -111,33 +103,29 @@ public class Zephyr3 extends BasePage {
 
     public Zephyr3(String uri, Mode mode) {
         this.target = uri;
-        String host = HalcyonSettings.getSettings().getProxyHostName();
         Model model;
         if (mode == Mode.OPEN_STACK) {
+            // Stacks are LWS resources, full stop: fetched over the LWS API as
+            // this user, ACP answering. The triple-store era is over here.
+            if (lwsStorageOf(uri) == null) {
+                throw new AbortWithHttpErrorCodeException(HttpServletResponse.SC_NOT_FOUND,
+                        "stacks live in the W3C LWS storages; this is not a storage URI");
+            }
             this.stackUri = uri;
-            // A stack living in an LWS storage is fetched over the LWS API as
-            // this user (ACP answers); a triple-store stack keeps the H6 check.
-            if (lwsStorageOf(uri) != null) {
-                LwsStack loaded = loadLwsStack(uri);
-                model = loaded.model();
-                this.stackContainer = loaded.container();
-            } else {
-                model = loadGraph(uri);
-                this.stackContainer = null;
-            }
+            LwsStack loaded = loadLwsStack(uri);
+            model = loaded.model();
+            this.stackContainer = loaded.container();
         } else {
-            // Seeded from an LWS image, the new stack is LWS-NATIVE: minted
-            // beside its seed so Save lands it in the same container and the
-            // container tree lists it next to the imagery. Otherwise the
-            // classic triple-store URI.
+            // Seeded from an LWS image: the new stack is minted beside its
+            // seed so Save lands it in the same container and the container
+            // tree lists it next to the imagery.
             Minted minted = mintLwsStackUri(uri);
-            if (minted != null) {
-                this.stackUri = minted.uri();
-                this.stackContainer = minted.container();
-            } else {
-                this.stackUri = host + "/stacks/" + UUID.randomUUID();
-                this.stackContainer = null;
+            if (minted == null) {
+                throw new AbortWithHttpErrorCodeException(HttpServletResponse.SC_BAD_REQUEST,
+                        "a stack's imagery must live in a W3C LWS storage");
             }
+            this.stackUri = minted.uri();
+            this.stackContainer = minted.container();
             model = seedStack(this.stackUri, uri);
         }
         this.scenegraph = EthTool.serialize(model, this.stackUri);
@@ -255,41 +243,6 @@ public class Zephyr3 extends BasePage {
         Resource member = m.createResource().addProperty(ZEPH.src, m.createResource(imageIri));
         stack.addProperty(ZEPH.layers, m.createList(new RDFNode[]{ member }));
         return m;
-    }
-
-    /**
-     * Copy an existing stack's named graph out of the triple store, but only for
-     * a caller allowed to read it (H6).
-     * <p>
-     * This was THE escalation: the Stacks page listed every {@code zeph:Stack} in
-     * the store and each "view" link came straight here, which copied the named
-     * graph out of the RAW dataset — so any signed-in user could open anyone's
-     * private stack, and could do so by typing the URL even once the listing was
-     * filtered. Authorized with the same admin / {@code schema:creator} /
-     * {@code wac:Read} model {@code Stacks} and {@code StackStore} use; the
-     * creator is stamped server-side on save, so it cannot be forged.
-     */
-    private static Model loadGraph(String graphUri) {
-        HalcyonPrincipal principal = Stacks.currentPrincipal();
-        if (principal == null) {
-            throw new AbortWithHttpErrorCodeException(HttpServletResponse.SC_UNAUTHORIZED, "Not signed in");
-        }
-        Model out = ModelFactory.createDefaultModel();
-        Dataset ds = DataCore.getInstance().getDataset();
-        ds.begin(ReadWrite.READ);
-        try {
-            String creator = StackStore.readCreator(ds, graphUri, graphUri);
-            boolean allowed = StackStore.canReadStack(principal, graphUri, graphUri, creator,
-                    StackStore.readableTargets(principal.getUserURI()));
-            if (!allowed) {
-                logger.warn("Refusing to open stack {} for {}", graphUri, principal.getUserURI());
-                throw new AbortWithHttpErrorCodeException(HttpServletResponse.SC_FORBIDDEN, "No access to this stack");
-            }
-            out.add(ds.getNamedModel(graphUri));
-        } finally {
-            ds.end();
-        }
-        return out;
     }
 
     @Override

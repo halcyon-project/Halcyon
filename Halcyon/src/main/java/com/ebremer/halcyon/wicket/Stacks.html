@@ -1,28 +1,36 @@
 <html>
-<body>
-<wicket:extend>
-    <style>
-        body { font-family: Arial, sans-serif; color: #333; background-color: #f4f4f9; }
-        h3 { margin: 20px 10px; color: #0000ab; }
-        table.stacks { font-size: 14px; margin: 10px; border-collapse: collapse; min-width: 60%; }
-        table.stacks th, table.stacks td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
-        table.stacks th { color: #0000ab; background-color: #f9f9f9; }
-        table.stacks th a { color: #0000ab; text-decoration: none; }
-        table.stacks td a { color: #0000ab; text-decoration: none; }
-        table.stacks td a:hover { text-decoration: underline; }
-        table.stacks caption { caption-side: bottom; text-align: left; padding: 6px 0; color: #888; }
-        .toolbar { margin: 10px; }
-        .danger { background: #b00020; color: #fff; border: none; padding: 8px 14px;
-                  border-radius: 4px; cursor: pointer; font-size: 14px; }
-        .danger:hover { background: #8a0019; }
-    </style>
-    <h3>Stacks</h3>
-    <form wicket:id="stackForm">
-        <div class="toolbar">
-            <button wicket:id="deleteSelected" type="submit" class="danger">Delete selected</button>
-        </div>
-        <table wicket:id="stacks" class="stacks"></table>
-    </form>
-</wicket:extend>
-</body>
+    <body>
+        <wicket:extend>
+            <style>
+                body { font-family: Arial, sans-serif; color: #333; background-color: #f4f4f9; }
+                .stk { margin: 14px; font-size: 14px; color: #333; max-width: 1200px; }
+                .stk h3 { color: #0000ab; margin: 8px 0; }
+                .stk table { border-collapse: collapse; background: #fff; border: 1px solid #ddd;
+                             border-radius: 4px; width: 100%; }
+                .stk th, .stk td { text-align: left; padding: 6px 12px; border-bottom: 1px solid #eee;
+                                   font-size: 13px; }
+                .stk th { color: #0000ab; }
+                .stk td.uri { font-family: monospace; color: #888; word-break: break-all; }
+                .stk a { color: #0000ab; text-decoration: none; }
+                .stk a:hover { text-decoration: underline; }
+                .stk a.del { color: #b00020; }
+                .stk .none { color: #888; font-style: italic; margin: 10px 0; }
+                .stk .msg { margin: 8px 0; color: #0000ab; }
+            </style>
+            <div class="stk">
+                <h3>Stacks</h3>
+                <div class="none" wicket:id="none"></div>
+                <table>
+                    <tr><th>Name</th><th>URI</th><th>Storage</th><th></th></tr>
+                    <tr wicket:id="rows">
+                        <td><a wicket:id="view"><span wicket:id="name"></span></a></td>
+                        <td class="uri" wicket:id="uri"></td>
+                        <td wicket:id="storage"></td>
+                        <td><a wicket:id="delete" class="del">Delete</a></td>
+                    </tr>
+                </table>
+                <div class="msg" wicket:id="message"></div>
+            </div>
+        </wicket:extend>
+    </body>
 </html>
