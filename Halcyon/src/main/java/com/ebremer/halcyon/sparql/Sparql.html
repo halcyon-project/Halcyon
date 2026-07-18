@@ -1,25 +1,37 @@
 <html>
     <body>
-        <wicket:extend>        
-            <h2>SPARQL Endpoint</h2>
+        <wicket:extend>
+            <h2>SPARQL Endpoint — querying <span wicket:id="which"></span></h2>
         <style>
             .yasgui .autocompleteWrapper {
             display: none !important;
         }
+        .endpoint-pick { margin: 0 0 10px 0; font-size: 14px; }
+        .endpoint-pick a[href] { color: #0000ab; }
+        .endpoint-pick a:not([href]) { font-weight: bold; text-decoration: none; color: #333; }
         </style>
+        <div class="endpoint-pick">Store:
+            <a wicket:id="classic">Halcyon (/rdf)</a> ·
+            <a wicket:id="lws">W3C LWS (/rdf2)</a>
+        </div>
           <div id="yasgui"></div>
         <script wicket:id="cspSparql">
             Yasgui.defaults.tabName = "Query";
             Yasgui.defaults.yasqe.value =  "select *\nwhere {graph ?g {?s ?p ?o}}\nlimit 20";
             // C5: no Authorization header here — the /rdf proxy attaches the signed-in
             // session's bearer token server-side, so the page never holds a live credential.
+            // sparqlEndpoint / sparqlPersistenceId are injected by Sparql.renderHead —
+            // one of two server-side constants, per-endpoint tab persistence.
             const yasgui = new Yasgui(document.getElementById("yasgui"),
                 {   requestConfig: {
-                        endpoint: "/rdf"},
+                        endpoint: sparqlEndpoint},
+                        persistenceId: sparqlPersistenceId,
                         copyEndpointOnNewTab: false
                 }
             );
             var tab = yasgui.getTab();
+            // A persisted tab keeps ITS OWN endpoint; steer it to the chosen one.
+            if (typeof tab.setEndpoint === 'function') { tab.setEndpoint(sparqlEndpoint); }
             //tab.setQuery("select *\nwhere {graph ?g {?s ?p ?o}}\nlimit 20");
             tab.yasqe.addPrefixes({ sdo: "https://schema.org/" });
             tab.yasqe.addPrefixes({ hal: "https://halcyon.is/ns/" });

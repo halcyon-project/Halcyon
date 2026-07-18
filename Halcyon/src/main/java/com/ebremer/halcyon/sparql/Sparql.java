@@ -11,12 +11,21 @@ import io.jsonwebtoken.Claims;
 import org.apache.wicket.markup.head.CssHeaderItem;
 import org.apache.wicket.markup.head.IHeaderResponse;
 import org.apache.wicket.markup.head.JavaScriptHeaderItem;
+import org.apache.wicket.markup.html.basic.Label;
+import org.apache.wicket.markup.html.link.BookmarkablePageLink;
+import org.apache.wicket.request.mapper.parameter.PageParameters;
 import org.apache.wicket.request.resource.CssResourceReference;
 import org.apache.wicket.request.resource.JavaScriptResourceReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * The YASGUI query page, parameterized over the TWO SPARQL endpoints:
+ * {@code /sparql} targets the classic store through {@code /rdf} (default),
+ * {@code /sparql?endpoint=rdf2} targets the W3C LWS module's own store
+ * through {@code /rdf2}. The page carries a picker to switch; each endpoint
+ * gets its own YASGUI persistence namespace, so tabs opened against one store
+ * never resurface pointing at the other.
  *
  * @author erich
  */
@@ -25,7 +34,20 @@ public class Sparql extends BasePage {
 
     private static final Logger logger = LoggerFactory.getLogger(Sparql.class);
 
+    /** Where YASGUI points. Allowlisted — this string lands inside a script. */
+    private final String endpoint;
+
     public Sparql() {
+        this(new PageParameters());
+    }
+
+    /**
+     * The parameter is MAPPED, never echoed: whatever arrives, the only
+     * strings that can reach the page are the two constants below.
+     */
+    public Sparql(PageParameters parameters) {
+        this.endpoint = "rdf2".equals(parameters.get("endpoint").toString(""))
+                ? "/rdf2" : "/rdf";
     }
 
     @Override
@@ -33,6 +55,14 @@ public class Sparql extends BasePage {
         super.renderHead(response);
         response.render(CssHeaderItem.forReference(new CssResourceReference(Sparql.class, "yasgui.min.css")));
         response.render(JavaScriptHeaderItem.forReference(new JavaScriptResourceReference(Sparql.class, "yasgui.min.js")));
+        // The chosen endpoint (one of two constants — see the constructor) and
+        // a per-endpoint persistence namespace, read by the inline YASGUI
+        // config in the markup. Header items render before the body script.
+        response.render(JavaScriptHeaderItem.forScript(
+                "var sparqlEndpoint = " + JsSafe.jsString(endpoint)
+                + "; var sparqlPersistenceId = "
+                + JsSafe.jsString("yasgui" + endpoint.replace('/', '_')) + ";",
+                "sparql-endpoint"));
         HalcyonSession hs = HalcyonSession.get();
         HalcyonPrincipal hp = hs.getHalcyonPrincipal();
         // C5: this page also published the raw access token — "var token = '<jwt>'"
@@ -88,5 +118,16 @@ public class Sparql extends BasePage {
     protected void onInitialize() {
         super.onInitialize();
         add(new WebMarkupContainer("cspSparql").add(new CspNonce()));
+        add(new Label("which", "/rdf2".equals(endpoint)
+                ? "the W3C LWS store (/rdf2)" : "the Halcyon store (/rdf)"));
+        // The picker: the current endpoint's link is disabled, which is also
+        // what marks it visually (see the a:not([href]) rule in the markup).
+        BookmarkablePageLink<Void> classic = new BookmarkablePageLink<>("classic", Sparql.class);
+        classic.setEnabled("/rdf2".equals(endpoint));
+        add(classic);
+        BookmarkablePageLink<Void> lws = new BookmarkablePageLink<>("lws", Sparql.class,
+                new PageParameters().add("endpoint", "rdf2"));
+        lws.setEnabled("/rdf".equals(endpoint));
+        add(lws);
     }
 }
