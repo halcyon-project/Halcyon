@@ -27,7 +27,7 @@ public class MenuPanel extends Panel {
         String host = HalcyonSettings.getSettings().getProxyHostName();
         add(new ExternalLink("home", host+"/","Home"));
         add(new ExternalLink("about", host+"/about","About"));
-        ExternalLink security = new ExternalLink("security", host+"/admin","Security");
+        ExternalLink security = new ExternalLink("security", host+"/admin","Settings");
         ExternalLink stacks = new ExternalLink("stacks", host+"/stacks","Stacks");
         ExternalLink sparql = new ExternalLink("sparql", host+"/sparql","SPARQL");
         ExternalLink account = new ExternalLink("account", host+"/user/account","Account");

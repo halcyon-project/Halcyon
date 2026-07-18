@@ -4,7 +4,6 @@ import com.ebremer.halcyon.lws.LWSContainers;
 import com.ebremer.halcyon.lws.StoragePage;
 import com.ebremer.halcyon.sparql.Sparql;
 import com.ebremer.halcyon.wicket.AccountPage;
-import com.ebremer.halcyon.wicket.AdminPage;
 import com.ebremer.halcyon.wicket.Stacks;
 import com.ebremer.halcyon.wicket.ethereal.Graph3D;
 import com.ebremer.halcyon.wicket.ethereal.Zephyr2;
@@ -84,8 +83,10 @@ public final class PageAccess {
         new Mount(null, Zephyr3.class, Access.AUTHENTICATED),
 
         // ---- admins only -----------------------------------------------------
-        // AdminPage embeds the Keycloak admin console and carried no guard of its
-        // own; MenuPanel merely hid the link.
+        // The instance configuration page: shows the effective settings and
+        // edits settings.ttl itself (validated, backed up, atomic). It
+        // replaces the old AdminPage Keycloak-console iframe — the console is
+        // a plain link from the page instead.
         //
         // M17 (historical): container management was ADMIN, not merely
         // AUTHENTICATED — hiding a menu link is not access control. The whole
@@ -93,7 +94,7 @@ public final class PageAccess {
         // CollectionActionPanel, ListImages, ListFeatures, FeatureManager,
         // the Node*TreePage editors, DirectoryProcessor) is now REMOVED
         // outright; nothing browses or edits CollectionsAndResources anymore.
-        new Mount("/admin", AdminPage.class, Access.ADMIN)
+        new Mount("/admin", ServerConfig.class, Access.ADMIN)
     );
 
     private static final Map<Class<?>, Access> BY_PAGE =

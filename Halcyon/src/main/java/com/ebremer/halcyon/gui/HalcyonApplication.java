@@ -8,7 +8,6 @@ import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import com.ebremer.halcyon.data.DataCore;
 import com.ebremer.halcyon.fuseki.SPARQLEndPoint;
 import com.ebremer.halcyon.wicket.AccountPage;
-import com.ebremer.halcyon.wicket.AdminPage;
 import com.ebremer.halcyon.lws.ZephyrMediaPanel;
 import com.ebremer.halcyon.wicket.ethereal.Graph3D;
 import com.ebremer.multiviewer.MultiViewer;

@@ -68,12 +68,13 @@ class PageAccessTest {
     }
 
     @Test
-    @DisplayName("M17: the admin console stays ADMIN; the legacy container editors are gone")
+    @DisplayName("M17: the instance-configuration page stays ADMIN; the legacy editors are gone")
     void containerManagementIsAdmin() {
         // The whole legacy cluster (Collections, EditCollection, EditContainer,
         // CollectionActionPanel, ListImages, ListFeatures, FeatureManager, the
         // Node*TreePage editors, DirectoryProcessor) is removed outright.
-        assertEquals(Access.ADMIN, PageAccess.accessFor(com.ebremer.halcyon.wicket.AdminPage.class));
+        // /admin now edits settings.ttl itself — the sharpest page in the app.
+        assertEquals(Access.ADMIN, PageAccess.accessFor(ServerConfig.class));
     }
 
     @Test
