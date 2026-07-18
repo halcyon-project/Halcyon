@@ -3,12 +3,15 @@ package com.ebremer.lws.acp;
 import com.ebremer.lws.vocab.LWSX;
 import java.util.Iterator;
 import java.util.Set;
+import java.util.stream.Stream;
+import org.apache.jena.atlas.iterator.Iter;
 import org.apache.jena.graph.Graph;
 import org.apache.jena.graph.Node;
 import org.apache.jena.permissions.Factory;
 import org.apache.jena.permissions.SecurityEvaluator;
 import org.apache.jena.sparql.core.DatasetGraph;
 import org.apache.jena.sparql.core.DatasetGraphReadOnly;
+import org.apache.jena.sparql.core.DatasetGraphWrapperView;
 import org.apache.jena.sparql.core.GraphView;
 import org.apache.jena.sparql.core.Quad;
 import org.apache.jena.sparql.graph.GraphZero;
@@ -38,8 +41,17 @@ import org.apache.jena.util.iterator.WrappedIterator;
  * <p>Read-only on purpose. Writes go through the raw dataset after an explicit
  * {@link AcpEngine} check at the HTTP layer, because the graph-level evaluator cannot
  * express LWS's write rules — see {@link AcpSecurityEvaluator}.
+ *
+ * <p>Implements {@link DatasetGraphWrapperView} — the marker that tells query
+ * engines this wrapper CHANGES THE VIEW and must never be unwrapped to reach
+ * the base — and overrides the {@code stream(...)} access path, which the
+ * wrapper superclass would otherwise delegate straight to the unfiltered base.
+ * Without both, a SPARQL query over this dataset read through to forbidden
+ * graphs even though every {@code find(...)} was filtered; pinned by
+ * {@code AcpSecuredDatasetGraphTest.sparqlOverTheViewSeesOnlyReadableGraphs}.
  */
-public final class AcpSecuredDatasetGraph extends DatasetGraphReadOnly {
+public final class AcpSecuredDatasetGraph extends DatasetGraphReadOnly
+        implements DatasetGraphWrapperView {
 
     private static final Set<String> HIDDEN = Set.of(
             LWSX.SYSTEM_GRAPH, LWSX.ACP_GRAPH, LWSX.SUBSCRIPTION_GRAPH, LWSX.KEYS_GRAPH,
@@ -129,6 +141,18 @@ public final class AcpSecuredDatasetGraph extends DatasetGraphReadOnly {
     public Iterator<Quad> findNG(Node g, Node s, Node p, Node o) {
         return WrappedIterator.create(base.findNG(g, s, p, o))
                 .filterKeep(q -> visible(q.getGraph()));
+    }
+
+    @Override
+    public Stream<Quad> stream() {
+        return stream(Node.ANY, Node.ANY, Node.ANY, Node.ANY);
+    }
+
+    @Override
+    public Stream<Quad> stream(Node g, Node s, Node p, Node o) {
+        // Through the filtered find, NEVER the wrapper's base delegation —
+        // this is an access path query engines actually use.
+        return Iter.asStream(find(g, s, p, o));
     }
 
     @Override
