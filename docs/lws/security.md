@@ -122,6 +122,19 @@ exist. Only once the caller holds *some* mode does a more specific `403` (has ac
 this operation needs) become observable. This keeps `GET` and `OPTIONS` from disclosing the existence of
 resources the caller may not see.
 
+### Serving untrusted content
+
+Representations are agent-uploaded bytes served from the storage's own origin, so the raw serving path
+(`sendContent` — whole, ranged or multipart alike) neuters them:
+
+- **`X-Content-Type-Options: nosniff`** on every representation — a browser must never "discover" HTML
+  inside a file the storage declared as something else.
+- **`Content-Security-Policy: sandbox`** on every *actively scriptable* type
+  (`MediaTypes.scriptable`: `text/html`, `text/xml`, `application/xml`, anything `+xml` — XHTML, SVG,
+  RDF/XML). The document still renders when navigated to or embedded, but as a **unique opaque origin
+  with no script** — otherwise any agent with write access could hand every later reader a stored XSS
+  running as this site. Passive media (images, video, audio, PDF) are served plain.
+
 ## Access requests & grants (DataSharingService)
 
 Two service endpoints let agents negotiate access without editing ACRs by hand:

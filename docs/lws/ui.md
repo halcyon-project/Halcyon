@@ -75,7 +75,16 @@ top of the vandegraph defaults (images, video, audio, PDF, escaped text):
   (`hal:ZephyrViewer`/`hal:ZephyrEditor`), with the plain image viewer kept
   as an alternate;
 - resources the metadata scanner typed `zeph:Stack` → Zephyr, opened as that
-  stack.
+  stack;
+- `text/html` and `application/xhtml+xml` (exact, beating the defaults'
+  `text/*` source view) → **sandboxed page rendering**
+  (`hal:HtmlPageViewer`), with source view kept as an alternate. For
+  `text/html` the bound editor (`hal:HtmlPageEditor`) is the vandegraph
+  TipTap document editor, reached by the pane's **✎ edit** toggle: it reads
+  the full document with the user's own token and saves with a conditional
+  `PUT` (`If-Match` on the entity tag it read; a 412 reloads and says so).
+  XHTML deliberately binds no editor — TipTap serializes HTML, not
+  guaranteed-well-formed XML.
 
 The Zephyr wrapper (`ZephyrMediaPanel`) embeds the class-gated `Zephyr` page
 in a same-origin iframe via its bookmarkable entry (`?stack=` / `?image=`).
@@ -90,18 +99,24 @@ and the pure bearer contract holds everywhere else.
 
 **Security posture of the pane** (code-enforced, whatever the bindings say):
 
-- A browser `<img src>` cannot carry the bearer token, so displayable media
-  stream through a page-scoped **relay** that fetches with the session's own
-  token — the storage still makes the ACP decision on every request. The
-  relay serves only resources of a configured storage (no open proxy), only
-  *passive* media (`PreviewKind.relayable()`), and stamps
-  `X-Content-Type-Options: nosniff`.
+- A browser `<img src>` (or iframe) cannot carry the bearer token, so
+  displayable media stream through a page-scoped **relay** that fetches with
+  the session's own token — the storage still makes the ACP decision on
+  every request. The relay serves only resources of a configured storage (no
+  open proxy), stamps `X-Content-Type-Options: nosniff`, and serves *passive*
+  media (`PreviewKind.relayable()`) as-is.
 - Text-like types are fetched server-side, **bounded to 256 kB** (the
   transfer is aborted at the cap), and rendered escaped.
-- HTML and SVG are **never rendered same-origin** — they get source view,
-  because serving attacker-uploadable active content from Halcyon's origin
-  would be stored XSS. The direct "open ↗" link stays available; there the
-  storage answers on its own terms.
+- HTML and XHTML are **never rendered same-origin**. They render, but only
+  sandboxed (`PreviewKind.sandboxRenderable()`): the relay answers them with
+  `Content-Security-Policy: sandbox` — and stamps it for any scriptable
+  content type the storage actually returns, whatever the listing claimed —
+  while the viewer iframe carries `sandbox=""` besides. Unique opaque
+  origin, no script, never Halcyon's site. SVG keeps source view. The direct
+  "open ↗" link stays available; there the storage answers on its own terms
+  — which since the serving-layer hardening also means `nosniff` plus CSP
+  `sandbox` on every actively scriptable type (see
+  [security.md](security.md)).
 
 ### LWS-native stacks
 

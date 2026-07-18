@@ -952,7 +952,13 @@ public class LWSContainers extends BasePage {
                     }
                 }
             }
-            String active = chosenViewer != null && options.contains(chosenViewer)
+            // The binding's dash:editor, when a component is registered for it.
+            // It is not one of the "open with" viewers — it is the ✎ Edit toggle.
+            String editorIri = resolved != null && resolved.editor() != null
+                    && app.getMediaViewers().has(resolved.editor())
+                    ? resolved.editor().getURI() : null;
+            String active = chosenViewer != null
+                    && (options.contains(chosenViewer) || chosenViewer.equals(editorIri))
                     ? chosenViewer
                     : options.isEmpty() ? null : options.get(0);
 
@@ -989,6 +995,21 @@ public class LWSContainers extends BasePage {
                 }
             });
             vform.add(openWith);
+
+            // ✎ Edit — swaps the content area for the binding's editor. Whether
+            // the user may actually write is the storage's ACP decision on the
+            // save itself; this only offers the surface.
+            AjaxLink<Void> edit = new AjaxLink<>("vedit") {
+                private static final long serialVersionUID = 1L;
+
+                @Override
+                public void onClick(AjaxRequestTarget target) {
+                    chosenViewer = editorIri;
+                    replaceViewer(target);
+                }
+            };
+            edit.setVisible(editorIri != null && !editorIri.equals(active));
+            add(edit);
 
             Component content = null;
             if (active != null) {
