@@ -1,6 +1,6 @@
 package com.ebremer.halcyon.datum;
 
-import com.ebremer.halcyon.wicket.DatabaseLocator;
+import com.ebremer.halcyon.data.DataCore;
 import com.ebremer.ns.HAL;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.ParameterizedSparqlString;
@@ -32,7 +32,10 @@ public class HalSec {
         ParameterizedSparqlString pss = new ParameterizedSparqlString("ask where {?s hal:canCreate hal:Collection}");
         pss.setNsPrefix("hal", HAL.NS);
         pss.setIri("s", webid);
-        Dataset ds = DatabaseLocator.getDatabase().getDataset();
+        // DataCore directly, not the old DatabaseLocator: that went through
+        // Wicket's Application.get(), which THROWS off the Wicket request
+        // thread — and this runs on Fuseki's threads via SecuredDatasetGraph.
+        Dataset ds = DataCore.getInstance().getDataset();
         return Txn.calculateRead(ds, () -> {
             Model m = ds.getNamedModel(HAL.SecurityGraph.getURI());
             try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m)) {

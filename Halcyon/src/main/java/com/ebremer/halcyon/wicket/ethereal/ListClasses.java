@@ -4,7 +4,6 @@ import org.danekja.java.util.function.serializable.SerializableSupplier;
 import com.ebremer.vandegraph.SparqlVarColumn;
 import com.ebremer.vandegraph.SelectDataProvider;
 import com.ebremer.vandegraph.Solution;
-import com.ebremer.halcyon.wicket.DatabaseLocator;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -39,10 +38,6 @@ public class ListClasses extends Panel {
     private final SelectDataProvider rdfsdf;
     private final HashSet<String> selected;
     
-    public ListClasses(String id) {
-        this(id, () -> DatabaseLocator.getDatabase().getDataset());
-    }
-
     /**
      * The predicate picker over ANY dataset — Graph3D hands in the store the
      * page is pointed at (the classic dataset, or the caller's ACP-secured
