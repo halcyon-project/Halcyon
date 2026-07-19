@@ -2,7 +2,7 @@ package com.ebremer.halcyon.wicket;
 
 import com.ebremer.halcyon.datum.HalcyonPrincipal;
 import com.ebremer.halcyon.gui.HalcyonSession;
-import com.ebremer.halcyon.lws.LwsClient;
+import com.ebremer.lws.client.LwsClient;
 import com.ebremer.halcyon.lws.LwsDatasets;
 import com.ebremer.halcyon.server.ColorClassesStore;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;

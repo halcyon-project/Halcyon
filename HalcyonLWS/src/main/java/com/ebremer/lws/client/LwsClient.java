@@ -1,4 +1,4 @@
-package com.ebremer.halcyon.lws;
+package com.ebremer.lws.client;
 
 import jakarta.json.Json;
 import jakarta.json.JsonObject;
@@ -35,6 +35,12 @@ import javax.net.ssl.X509TrustManager;
  *
  * <p>It also keeps the dependency honest: Halcyon depends on the HalcyonLWS jar only to
  * mount the servlet, never to read its data.
+ *
+ * <p>MCP-3: the class lives in this module (not the Halcyon app, where it was born)
+ * because it is the shared way IN for every surface that acts as the caller — the
+ * Wicket storage pages and the MCP tools alike. It stays deliberately free of
+ * server-side imports: a client that could see the store would stop being proof
+ * the protocol works.
  */
 public final class LwsClient implements Serializable {
 
@@ -280,8 +286,10 @@ public final class LwsClient implements Serializable {
      * The origin of a URI as {@code scheme://host:port} (lower-cased, with the scheme's default
      * port made explicit), or {@code null} if it has no host. Two URIs share an origin iff their
      * origins are equal — which is the test for whether the local token may travel with a request.
+     * Public because callers that federate (the Storage page's added-by-URI storages) make the
+     * same same-origin decision when labeling what will be browsed anonymously.
      */
-    static String origin(String uri) {
+    public static String origin(String uri) {
         if (uri == null || uri.isBlank()) {
             return null;
         }

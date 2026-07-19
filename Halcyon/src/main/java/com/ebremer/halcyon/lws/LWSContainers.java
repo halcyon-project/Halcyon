@@ -1,5 +1,6 @@
 package com.ebremer.halcyon.lws;
 
+import com.ebremer.lws.client.LwsClient;
 import com.ebremer.halcyon.datum.HalcyonPrincipal;
 import com.ebremer.halcyon.gui.HalcyonSession;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;

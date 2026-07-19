@@ -1,4 +1,4 @@
-package com.ebremer.halcyon.lws;
+package com.ebremer.lws.client;
 
 import java.util.List;
 import java.util.Map;
