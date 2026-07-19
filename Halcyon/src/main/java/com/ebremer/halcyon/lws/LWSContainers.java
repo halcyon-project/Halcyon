@@ -422,6 +422,28 @@ public class LWSContainers extends BasePage {
               }
               menu.dataset.cb = '%s';
               menu.dataset.cbDel = '%s';
+              if (!window.lwsFsWired) {
+                window.lwsFsWired = true;
+                if (!document.documentElement.requestFullscreen) {
+                  document.documentElement.classList.add('lws-nofs');
+                }
+                // The fullscreen element is the stable wrapper, not the Wicket
+                // panel inside it — an ajax viewer swap replaces the panel node,
+                // and removing the fullscreen element would drop out of full
+                // screen. Delegation keeps the button live across those swaps.
+                document.addEventListener('click', function(ev){
+                  var b = ev.target.closest('.lws-vfull');
+                  if (!b) { return; }
+                  ev.preventDefault();
+                  var box = document.getElementById('lwsViewerBox');
+                  if (!box) { return; }
+                  if (document.fullscreenElement) {
+                    document.exitFullscreen().catch(function(){});
+                  } else {
+                    box.requestFullscreen().catch(function(){});
+                  }
+                });
+              }
             })();
             """.formatted(properties.getCallbackUrl(), deleteAction.getCallbackUrl());
         response.render(OnDomReadyHeaderItem.forScript(js));
@@ -937,6 +959,9 @@ public class LWSContainers extends BasePage {
             }
             add(new Label("vmedia", meta).setVisible(has && !meta.isEmpty()));
             add(new ExternalLink("vopen", has ? selectedUri : "about:blank").setVisible(has));
+            // ⛶ Full screen — pure client-side (see renderHead); its label and
+            // the in-fullscreen sizing ride on the wrapper's :fullscreen state.
+            add(new WebMarkupContainer("vfull").setVisible(has));
 
             VandegraphApplication app = VandegraphApplication.get();
             MediaBindings.Resolved resolved = has

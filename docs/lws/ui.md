@@ -86,6 +86,10 @@ top of the vandegraph defaults (images, video, audio, PDF, escaped text):
   XHTML deliberately binds no editor — TipTap serializes HTML, not
   guaranteed-well-formed XML.
 
+The pane's **⛶ full screen** toggle expands the preview to the whole screen
+(the browser Fullscreen API; Esc exits). It is pure client-side chrome — what
+renders inside, and under which policy, is exactly the in-page preview.
+
 The Zephyr wrapper (`ZephyrMediaPanel`) embeds the class-gated `Zephyr` page
 in a same-origin iframe via its bookmarkable entry (`?stack=` / `?image=`).
 No new authority: page access is enforced on the class however it is
