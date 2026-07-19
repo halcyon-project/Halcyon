@@ -78,13 +78,28 @@ top of the vandegraph defaults (images, video, audio, PDF, escaped text):
   stack;
 - `text/html` and `application/xhtml+xml` (exact, beating the defaults'
   `text/*` source view) → **sandboxed page rendering**
-  (`hal:HtmlPageViewer`), with source view kept as an alternate. For
-  `text/html` the bound editor (`hal:HtmlPageEditor`) is the vandegraph
-  TipTap document editor, reached by the pane's **✎ edit** toggle: it reads
-  the full document with the user's own token and saves with a conditional
-  `PUT` (`If-Match` on the entity tag it read; a 412 reloads and says so).
-  XHTML deliberately binds no editor — TipTap serializes HTML, not
-  guaranteed-well-formed XML.
+  (`hal:HtmlPageViewer`), with the source views (Monaco-highlighted, escaped
+  text) kept as alternates. For `text/html` the bound editor
+  (`hal:HtmlPageEditor`) is the vandegraph TipTap document editor, reached by
+  the pane's **✎ edit** toggle: it reads the full document with the user's
+  own token and saves with a conditional `PUT` (`If-Match` on the entity tag
+  it read; a 412 reloads and says so). XHTML deliberately binds the
+  **Monaco source editor** instead — TipTap serializes HTML, which is not
+  guaranteed to stay the well-formed XML an XHTML document must remain,
+  while Monaco writes exactly the characters in the buffer;
+- code and code-shaped data → **Monaco**
+  ([monaco-editor](https://github.com/microsoft/monaco-editor), served
+  same-origin from its webjar — no CDN): every media type vandegraph's
+  `MonacoLanguages` maps to a Monaco language (JSON, XML and SVG source,
+  YAML, JavaScript/TypeScript, CSS, Markdown, SQL, SPARQL query/update,
+  Python, Java, shell, … plus the `application/*+json|+xml|+yaml` suffix
+  patterns) opens read-only highlighted (`vg:MonacoViewer`), with the
+  escaped text view surviving as an alternate. The pane's ✎ edit reaches
+  the Monaco editor (`vg:MonacoEditor` → `CodeEditorMediaPanel`), which
+  follows the same discipline as the HTML editor: full read with the user's
+  own token, conditional `PUT` back under the document's own media type.
+  Types Monaco has no language for (notably `text/turtle`, `text/plain`)
+  deliberately stay on the escaped text view.
 
 The pane's **⛶ full screen** toggle expands the preview to the whole screen
 (the browser Fullscreen API; Esc exits). It is pure client-side chrome — what
@@ -110,7 +125,9 @@ and the pure bearer contract holds everywhere else.
   open proxy), stamps `X-Content-Type-Options: nosniff`, and serves *passive*
   media (`PreviewKind.relayable()`) as-is.
 - Text-like types are fetched server-side, **bounded to 256 kB** (the
-  transfer is aborted at the cap), and rendered escaped.
+  transfer is aborted at the cap), and rendered as text — escaped in the
+  plain source view, tokenized in read-only Monaco; either way displayed,
+  never executed.
 - HTML and XHTML are **never rendered same-origin**. They render, but only
   sandboxed (`PreviewKind.sandboxRenderable()`): the relay answers them with
   `Content-Security-Policy: sandbox` — and stamps it for any scriptable
@@ -160,5 +177,6 @@ unconditional overwrite (428).
 | ACP ACR ⇄ editor-row translation, with the faithfulness guard | `com.ebremer.halcyon.lws.AcrDoc` |
 | Relay whitelist + text heuristic (code side of the media layer) | `com.ebremer.halcyon.lws.PreviewKind` |
 | Zephyr media wrapper | `com.ebremer.halcyon.lws.ZephyrMediaPanel` |
+| Monaco code editor with LWS save (the `vg:MonacoEditor` component) | `com.ebremer.halcyon.lws.CodeEditorMediaPanel` |
 | Media bindings overlay (data side) | `Halcyon/src/main/resources/halcyon/media-bindings.ttl` |
 | Mount + access registration | `com.ebremer.halcyon.gui.PageAccess` |

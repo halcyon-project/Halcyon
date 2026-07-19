@@ -94,19 +94,78 @@ class HalcyonMediaBindingsTest {
         MediaBindings.Resolved r = bindings().resolve("text/html", Set.of());
         assertEquals(HAL.HtmlPageViewer.asNode(), r.viewer(),
                 "exact text/html beats the defaults' text/* source view");
+        assertTrue(r.alternates().contains(VG.MonacoViewer.asNode()),
+                "the highlighted source view is offered as an alternate");
         assertTrue(r.alternates().contains(VG.HtmlTextViewer.asNode()),
-                "the source view stays available as an alternate");
+                "the escaped source view stays available as an alternate");
         assertEquals(HAL.HtmlPageEditor.asNode(), r.editor(),
-                "the TipTap document editor is the bound editor for HTML");
+                "the TipTap document editor stays the bound editor for HTML");
     }
 
     @Test
-    void xhtmlRendersAsAPageButIsNotEditable() {
+    void xhtmlRendersAsAPageWithMonacoSourceEditing() {
         MediaBindings.Resolved r = bindings().resolve("application/xhtml+xml", Set.of());
         assertEquals(HAL.HtmlPageViewer.asNode(), r.viewer());
+        assertTrue(r.alternates().contains(VG.MonacoViewer.asNode()),
+                "the highlighted source view is offered as an alternate");
+        assertEquals(VG.MonacoEditor.asNode(), r.editor(),
+                "XHTML edits as SOURCE (Monaco writes the buffer verbatim) — "
+                + "never through TipTap, whose HTML serialization is not "
+                + "guaranteed to stay well-formed XML");
+    }
+
+    @Test
+    void codeTypesOpenInMonacoWithMonacoEditing() {
+        // One per category of the overlay's enumeration; each must beat the
+        // defaults (exact json/xml/sparql bindings and the text/* pattern)
+        // via sh:order, with the escaped text view surviving as an alternate.
+        for (String mt : java.util.List.of("application/json", "application/xml",
+                "text/css", "text/markdown", "application/sparql-query",
+                "text/x-python", "application/x-shellscript")) {
+            MediaBindings.Resolved r = bindings().resolve(mt, Set.of());
+            assertNotNull(r, mt + " must resolve");
+            assertEquals(VG.MonacoViewer.asNode(), r.viewer(),
+                    mt + " opens in Monaco by default");
+            assertEquals(VG.MonacoEditor.asNode(), r.editor(),
+                    mt + " edits in Monaco");
+            assertTrue(r.alternates().contains(VG.HtmlTextViewer.asNode()),
+                    mt + " keeps the escaped source view as an alternate");
+        }
+    }
+
+    @Test
+    void structuredSyntaxSuffixesOpenInMonaco() {
+        // The +json/+xml patterns must beat the defaults' identical patterns
+        // deterministically (sh:order), not by luck of document order.
+        for (String mt : java.util.List.of("application/ld+json", "application/rdf+xml")) {
+            MediaBindings.Resolved r = bindings().resolve(mt, Set.of());
+            assertEquals(VG.MonacoViewer.asNode(), r.viewer(), mt);
+            assertEquals(VG.MonacoEditor.asNode(), r.editor(), mt);
+        }
+    }
+
+    @Test
+    void svgStaysASourceViewNowHighlighted() {
+        // SVG remains source-not-image by default (script host by nature);
+        // the upgrade is only from escaped text to Monaco's xml highlighting.
+        // Both prior renderings survive as alternates.
+        MediaBindings.Resolved r = bindings().resolve("image/svg+xml", Set.of());
+        assertEquals(VG.MonacoViewer.asNode(), r.viewer());
         assertTrue(r.alternates().contains(VG.HtmlTextViewer.asNode()),
-                "the source view stays available as an alternate");
-        assertNull(r.editor(),
-                "TipTap serializes HTML, not guaranteed-well-formed XHTML — no editor");
+                "the escaped source view stays listed");
+        assertTrue(r.alternates().contains(VG.HtmlImageViewer.asNode()),
+                "the image rendering stays a deliberate alternate");
+        assertEquals(VG.MonacoEditor.asNode(), r.editor());
+    }
+
+    @Test
+    void unmappedTextStaysOnTheEscapedTextView() {
+        // Monaco has no Turtle language, so the overlay leaves text/turtle
+        // (and text/plain) on the defaults — no Monaco default, no editor.
+        for (String mt : java.util.List.of("text/turtle", "text/plain")) {
+            MediaBindings.Resolved r = bindings().resolve(mt, Set.of());
+            assertEquals(VG.HtmlTextViewer.asNode(), r.viewer(), mt);
+            assertNull(r.editor(), mt + " gets no editor from the overlay");
+        }
     }
 }

@@ -8,12 +8,14 @@ import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import com.ebremer.halcyon.data.DataCore;
 import com.ebremer.halcyon.fuseki.SPARQLEndPoint;
 import com.ebremer.halcyon.wicket.AccountPage;
+import com.ebremer.halcyon.lws.CodeEditorMediaPanel;
 import com.ebremer.halcyon.lws.HtmlEditorMediaPanel;
 import com.ebremer.halcyon.lws.HtmlMediaPanel;
 import com.ebremer.halcyon.lws.ZephyrMediaPanel;
 import com.ebremer.halcyon.wicket.ethereal.Graph3D;
 import com.ebremer.multiviewer.MultiViewer;
 import com.ebremer.ns.HAL;
+import com.ebremer.ns.VG;
 import com.ebremer.vandegraph.VandegraphApplication;
 import com.ebremer.vandegraph.media.MediaBindings;
 import org.apache.jena.query.Dataset;
@@ -130,6 +132,10 @@ public class HalcyonApplication extends VandegraphApplication {
         // Stored HTML: sandboxed page rendering by default, TipTap editing.
         getMediaViewers().register(HAL.HtmlPageViewer, HtmlMediaPanel::new);
         getMediaViewers().register(HAL.HtmlPageEditor, HtmlEditorMediaPanel::new);
+        // Code: vandegraph registers the read-only vg:MonacoViewer itself; the
+        // editing IRI is deliberately host-registered because saving is an LWS
+        // write (etag-guarded PUT with the user's own token).
+        getMediaViewers().register(VG.MonacoEditor, CodeEditorMediaPanel::new);
         setMediaBindings(MediaBindings.parseWithDefaults(halcyonMediaBindings()));
     }
 

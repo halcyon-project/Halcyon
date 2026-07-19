@@ -1,4 +1,5 @@
 @prefix dash: <http://datashapes.org/dash#> .
+@prefix sh:   <http://www.w3.org/ns/shacl#> .
 @prefix vg:   <urn:vandegraph:ns:> .
 @prefix hal:  <https://halcyon.is/ns/> .
 @prefix zeph: <https://halcyon.is/zephyr/ns/> .
@@ -40,18 +41,88 @@ hal:ZephyrStackBinding a vg:MediaBinding ;
 # document inert: the LWS storage and the preview relay both answer
 # scriptable types with `Content-Security-Policy: sandbox`, and the viewer's
 # iframe carries sandbox="" besides — a unique opaque origin, no script,
-# never this site. The source view stays one click away, and the TipTap
-# document editor (etag-guarded PUT back to the storage) is the bound editor.
+# never this site. The source views (Monaco-highlighted, then escaped text)
+# stay one click away, and the TipTap document editor (etag-guarded PUT back
+# to the storage) is the bound editor.
 hal:HtmlPageBinding a vg:MediaBinding ;
     vg:mediaType "text/html" ;
     dash:viewer hal:HtmlPageViewer ;
-    vg:alternateViewers ( vg:HtmlTextViewer ) ;
+    vg:alternateViewers ( vg:MonacoViewer vg:HtmlTextViewer ) ;
     dash:editor hal:HtmlPageEditor .
 
-# XHTML renders the same sandboxed way, but is deliberately NOT editable:
-# TipTap serializes HTML, which is not guaranteed to be the well-formed XML
-# an application/xhtml+xml document must remain.
+# XHTML renders the same sandboxed way. TipTap is deliberately NOT its
+# editor (it serializes HTML, not guaranteed to be the well-formed XML an
+# application/xhtml+xml document must remain) — but Monaco is: source
+# editing writes exactly the characters in the buffer, so well-formedness
+# stays where it belongs, with the author.
 hal:XhtmlPageBinding a vg:MediaBinding ;
     vg:mediaType "application/xhtml+xml" ;
     dash:viewer hal:HtmlPageViewer ;
-    vg:alternateViewers ( vg:HtmlTextViewer ) .
+    vg:alternateViewers ( vg:MonacoViewer vg:HtmlTextViewer ) ;
+    dash:editor vg:MonacoEditor .
+
+# Code (and code-shaped data) opens in Monaco — read-only highlighted source
+# by default, with the Monaco editor (etag-guarded PUT, like the HTML
+# editor) behind the pane's ✎ edit. Still text-over-host-fetched-bytes, so
+# the security posture of the escaped source view is unchanged — and that
+# view is listed as an explicit alternate so it stays one click away even
+# for the application/* types no vandegraph default matches. The
+# enumeration is every media type MonacoLanguages maps for the bundled
+# Monaco build (keep the two in sync) EXCEPT text/html and
+# application/xhtml+xml, whose page bindings above already offer Monaco as
+# alternate — listing them here too would tie two exact bindings for one
+# type.
+#
+# sh:order 20 settles exact-vs-exact and pattern-vs-pattern races against
+# the vandegraph defaults (which carry no order, i.e. weakest) — that is
+# what upgrades application/json, application/xml, image/svg+xml and the
+# +json/+xml suffix patterns from the escaped text view to Monaco
+# deterministically. SVG stays a SOURCE view (Monaco renders text, never
+# the image); the plain image viewer remains reachable as the auto-listed
+# alternate from the defaults' image/* binding.
+hal:MonacoCodeBinding a vg:MediaBinding ;
+    sh:order 20 ;
+    # Data / config
+    vg:mediaType "application/json" , "text/json" ,
+                 "application/xml" , "text/xml" , "image/svg+xml" ,
+                 "application/yaml" , "application/x-yaml" , "text/yaml" , "text/x-yaml" ,
+                 "text/x-ini" , "text/x-properties" , "application/toml" , "text/x-toml" ,
+                 "text/x-protobuf" , "application/graphql" ,
+    # Web
+                 "text/css" , "text/x-scss" , "text/scss" , "text/x-less" , "text/less" ,
+                 "text/javascript" , "application/javascript" , "application/x-javascript" ,
+                 "text/ecmascript" , "application/ecmascript" ,
+                 "application/typescript" , "text/typescript" , "text/x-typescript" ,
+    # Prose
+                 "text/markdown" , "text/x-markdown" , "text/mdx" , "text/x-rst" ,
+    # Query
+                 "application/sql" , "text/x-sql" ,
+                 "application/sparql-query" , "application/sparql-update" ,
+    # Shells
+                 "application/x-sh" , "text/x-sh" ,
+                 "application/x-shellscript" , "text/x-shellscript" ,
+                 "application/x-powershell" , "text/x-powershell" ,
+                 "application/x-bat" , "text/x-bat" , "text/x-dockerfile" ,
+    # General-purpose languages
+                 "text/x-python" , "application/x-python-code" , "text/x-script.python" ,
+                 "text/x-java" , "text/x-java-source" ,
+                 "text/x-c" , "text/x-csrc" , "text/x-chdr" ,
+                 "text/x-c++src" , "text/x-c++hdr" , "text/x-c++" ,
+                 "text/x-csharp" , "text/x-go" , "text/rust" , "text/x-rust" ,
+                 "text/x-ruby" , "application/x-ruby" ,
+                 "application/x-httpd-php" , "application/x-php" , "text/x-php" ,
+                 "text/x-perl" , "application/x-perl" ,
+                 "text/x-r" , "text/x-rsrc" , "text/x-swift" , "text/x-kotlin" ,
+                 "text/x-scala" , "text/x-lua" , "application/x-lua" ,
+                 "text/x-clojure" , "application/dart" , "text/x-dart" ,
+                 "text/x-elixir" , "text/x-fsharp" ,
+                 "text/coffeescript" , "application/vnd.coffeescript" ,
+                 "text/x-scheme" , "text/x-tcl" , "application/x-tcl" ,
+                 "text/x-julia" , "text/x-pascal" , "text/x-objcsrc" ;
+    # Structured-syntax suffixes: whatever the concrete type, +json/+xml/+yaml
+    # is code-shaped and MonacoLanguages resolves the family tokenizer.
+    # (application/xhtml+xml is exact above, so it never falls through here.)
+    vg:mediaTypePattern "application/*+json" , "application/*+xml" , "application/*+yaml" ;
+    dash:viewer vg:MonacoViewer ;
+    vg:alternateViewers ( vg:HtmlTextViewer ) ;
+    dash:editor vg:MonacoEditor .

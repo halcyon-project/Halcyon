@@ -1048,7 +1048,13 @@ public class LWSContainers extends BasePage {
                         ? relayUrl(selectedUri) : null;
                 String text = null;
                 boolean truncated = false;
-                if (VG.HtmlTextViewer.asNode().equals(chosen)) {
+                // The text-mode viewers (escaped source, Monaco-highlighted
+                // source) render host-fetched, host-bounded text — the Monaco
+                // EDITOR does not take this preview: its panel reads the full
+                // document itself, because a bounded preview is no basis for
+                // an edit.
+                if (VG.HtmlTextViewer.asNode().equals(chosen)
+                        || VG.MonacoViewer.asNode().equals(chosen)) {
                     LwsClient.Preview p = client().preview(selectedUri, TEXT_PREVIEW_BYTES);
                     text = p.ok() ? p.text() : "HTTP " + p.status() + "\n" + p.text();
                     truncated = p.truncated();
