@@ -161,11 +161,21 @@ class HalcyonMediaBindingsTest {
     @Test
     void unmappedTextStaysOnTheEscapedTextView() {
         // Monaco has no Turtle language, so the overlay leaves text/turtle
-        // (and text/plain) on the defaults — no Monaco default, no editor.
-        for (String mt : java.util.List.of("text/turtle", "text/plain")) {
-            MediaBindings.Resolved r = bindings().resolve(mt, Set.of());
-            assertEquals(VG.HtmlTextViewer.asNode(), r.viewer(), mt);
-            assertNull(r.editor(), mt + " gets no editor from the overlay");
-        }
+        // on the defaults — no Monaco default, no editor.
+        MediaBindings.Resolved r = bindings().resolve("text/turtle", Set.of());
+        assertEquals(VG.HtmlTextViewer.asNode(), r.viewer());
+        assertNull(r.editor(), "text/turtle gets no editor");
+    }
+
+    @Test
+    void plainTextOpensInMonacoFromTheVandegraphDefaults() {
+        // No overlay binding needed: the vandegraph defaults pin exact
+        // text/plain to Monaco (file-name language inference), and Halcyon's
+        // registration of vg:MonacoEditor is what lights up the editor.
+        MediaBindings.Resolved r = bindings().resolve("text/plain", Set.of());
+        assertEquals(VG.MonacoViewer.asNode(), r.viewer());
+        assertEquals(VG.MonacoEditor.asNode(), r.editor());
+        assertTrue(r.alternates().contains(VG.HtmlTextViewer.asNode()),
+                "the escaped view survives as the text/* alternate");
     }
 }

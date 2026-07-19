@@ -98,8 +98,10 @@ top of the vandegraph defaults (images, video, audio, PDF, escaped text):
   the Monaco editor (`vg:MonacoEditor` → `CodeEditorMediaPanel`), which
   follows the same discipline as the HTML editor: full read with the user's
   own token, conditional `PUT` back under the document's own media type.
-  Types Monaco has no language for (notably `text/turtle`, `text/plain`)
-  deliberately stay on the escaped text view.
+  `text/plain` also opens (and edits) in Monaco — bound by the vandegraph
+  defaults themselves, with the language inferred from the file name, since
+  code so often travels as plain text. Types Monaco has no language for
+  (notably `text/turtle`) deliberately stay on the escaped text view.
 
 The pane's **⛶ full screen** toggle expands the preview to the whole screen
 (the browser Fullscreen API; Esc exits). It is pure client-side chrome — what
