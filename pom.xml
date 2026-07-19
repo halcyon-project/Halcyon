@@ -104,6 +104,10 @@
         <twelvemonkeys.version>3.13.1</twelvemonkeys.version>
         <cygnus.version>0.1.0-SNAPSHOT</cygnus.version>
         <vandegraph.version>0.2.0-SNAPSHOT</vandegraph.version>
+        <!-- MCP server (module HalcyonMCP). Pin discipline: 2.0.x patches only;
+             a minor/major gets its own review (the MCP SDK moves fast and the
+             transport-provider override in HalcyonMcpAutoConfiguration tracks
+             Spring AI's own auto-config shape). -->
         <spring-ai.version>2.0.0</spring-ai.version>
         <maven-surefire-plugin.version>3.5.3</maven-surefire-plugin.version>
         <maven-compiler-plugin.version>3.15.0</maven-compiler-plugin.version>

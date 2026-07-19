@@ -141,3 +141,30 @@ plain HTTP. Note for existing deployments: `application.yml` is only seeded
 from defaults when missing, so a pre-existing file does not gain the
 `spring.ai.mcp.server` block automatically (the endpoint still mounts; name
 and instructions just fall back to defaults).
+
+## Ops posture (MCP-18)
+
+- **Protocol: `STREAMABLE` is the supported transport.** MCP-2's per-call
+  principal plumbing (the transport-context extractor) is wired only onto the
+  streamable provider (`HalcyonMcpAutoConfiguration.CallerAwareTransport`,
+  conditioned on the streamable-enabled condition). Under
+  `spring.ai.mcp.server.protocol=STATELESS` that override backs off and the
+  stock transport runs *without* the extractor — so no `McpCaller` reaches the
+  tools and every data tool **fails closed** (`McpCallers.require` refuses).
+  That is safe (never fail-open) but means STATELESS is effectively unusable
+  until the same extractor is wired onto the stateless provider — a small,
+  known follow-up, not a redesign. Keep the default `STREAMABLE`.
+- **Version pin.** `spring-ai.version` (root pom) is pinned to `2.0.0`; take
+  2.0.x patches freely, but a minor/major gets its own review — the MCP SDK
+  moves quickly and `CallerAwareTransport` deliberately mirrors Spring AI's own
+  auto-config bean shape, which is the thing most likely to shift.
+- **AOT / native image — unverified.** The reactor carries the GraalVM
+  `native-maven-plugin`, but this module has not been built native. Two things
+  a native build must account for and that a JVM build hides: the `@Tool`
+  methods are invoked reflectively by Spring AI (needs reflection reachability
+  metadata), and the guide is a bundled classpath resource
+  (`mcp/using-halcyon.md`, needs a resource-include). Treat a native build as a
+  task with its own verification, not a given.
+- **Logging provider.** Same caveat as `MCP-F3` below — the app wins the SLF4J
+  provider lottery by luck today; pinning `slf4j.provider` at launch is the
+  durable fix.
