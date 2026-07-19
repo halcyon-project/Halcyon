@@ -46,6 +46,14 @@ public final class Guardrails {
     /** Largest thumbnail edge a tool will request from the IIIF service. */
     public static final int MAX_IMAGE_EDGE = 1024;
 
+    /**
+     * Cap on a text body a write tool will {@code PUT}/{@code POST}. A tool
+     * argument is inherently sized, but a hard ceiling keeps a single call
+     * from shipping an unbounded upload; larger content belongs to a
+     * purpose-built ingest path, not a chat tool.
+     */
+    public static final int MAX_WRITE_BYTES = 1024 * 1024;
+
     /** Hard ceiling on rows any SPARQL tool may return. */
     public static final long MAX_ROWS = 1000;
 
