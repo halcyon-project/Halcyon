@@ -69,7 +69,7 @@ public final class HalcyonSettings {
     public static final int DEFAULTFILEPROCESSORTHREEADS = 4;
     public static final String DEFAULTHOSTNAME = "http://localhost";
     public static final String DEFAULTHOSTIP = "0.0.0.0";
-    public static final String VERSION = "1.1.0";
+    public static final String VERSION = "0.9.0";
     public static String HALCYONSOFTWARE = "Halcyon Version " + VERSION;
     private String mode;
     private static final Logger logger = LoggerFactory.getLogger(HalcyonSettings.class);
