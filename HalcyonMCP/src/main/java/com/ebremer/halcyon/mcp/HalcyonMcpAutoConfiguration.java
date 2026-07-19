@@ -68,7 +68,8 @@ public class HalcyonMcpAutoConfiguration {
                         new SparqlTools(sparqlExecutor),
                         new LwsDiscoveryTools(),
                         new LwsImageTools(),
-                        new LwsWriteTools())
+                        new LwsWriteTools(),
+                        new LwsAccessTools())
                 .build();
     }
 

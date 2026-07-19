@@ -60,6 +60,8 @@ with `curl` and their own token is a bug. Concretely:
 | `sparql_query` | Read-only SPARQL run as the caller's WebID against the WAC-secured dataset; updates & `SERVICE` refused, results row-capped and time-bounded. |
 | `find_slides` / `list_stacks` | ACP-filtered Type Search for `schema:ImageObject` slides / `zeph:Stack` annotation stacks. |
 | `iiif_info` / `iiif_thumbnail` | The IIIF `info.json` / a bounded base64 thumbnail, via the image's own storage `.iiif` endpoint as the caller. |
+| `lws_put` | Create or replace a TEXT resource as the caller — replace is a conditional `If-Match` compare-and-swap (conflicts surfaced, never overwritten), create is a `POST` to the parent. |
+| `lws_request_access` | File an LWS access request (ActivityStreams `AccessRequest`) for a resource the caller was refused; grants nothing until a controller approves. |
 
 Every data tool goes over HTTP with the caller's own token (`McpCaller.lwsClient()`),
 so ACP decides each answer and a 403 is rendered verbatim — none has a privileged path
@@ -69,8 +71,13 @@ against the secured dataset, **not** the Fuseki `/rdf` endpoint, whose verifier 
 token; the caller's WebID is bound as the WAC identity via an explicit-principal
 `WACSecurityEvaluator`, so an unknown WebID is granted nothing.
 
-Write tools (`lws_put`, access requests, stack authoring) are the P2 plan in `TODO.md`
-(git-ignored working document, per repo convention).
+The write tools (`lws_put`, `lws_request_access`) carry the same posture — the storage's
+ACP authorizes every write and a refusal is verbatim; `lws_put`'s replace is a conditional
+compare-and-swap so a concurrent change is reported, never clobbered. Stack-aware authoring
+(MCP-14) stays deferred by design: it must uphold the `StackTurtle` relative-document
+invariants, which needs its own design pass. Remaining polish (resources/prompts, native
+MCP image content, observability) is the P3 plan in `TODO.md` (git-ignored working
+document, per repo convention).
 
 ## Runtime verification (MCP-4, 2026-07-19)
 
