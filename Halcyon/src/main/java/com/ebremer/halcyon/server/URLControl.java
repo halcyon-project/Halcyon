@@ -77,7 +77,13 @@ public class URLControl {
             // The palette's color-classes relay servlet (session-authenticated).
             "/colorclasses",
             "/zephyr/",
-            "/rdflib/"
+            "/rdflib/",
+            // The MCP endpoint (module HalcyonMCP, bearer-authenticated by its
+            // own filter) and the RFC 9728 metadata under /.well-known/ — both
+            // are Spring MVC routes; if the Wicket filter claims them the
+            // protocol answers with rendered HTML instead of JSON-RPC.
+            "/mcp",
+            "/.well-known/"
         };
         // The LWS data servlets (annotation save/fetch, LDP resources) are
         // mounted from the settings file's resource handlers; the Wicket

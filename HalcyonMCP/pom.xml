@@ -37,6 +37,13 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
+            <!-- The shared Keycloak bearer-token verifier (lws.auth) — /mcp
+                 validates tokens with the SAME code as the LWS storages, per
+                 the H2 lesson: one definition cannot drift. -->
+            <groupId>${project.groupId}</groupId>
+            <artifactId>HalcyonLWS</artifactId>
+        </dependency>
+        <dependency>
             <!-- The MCP server over Spring WebMVC: Streamable HTTP endpoint
                  (default /mcp), sessions, tool/resource/prompt plumbing. The
                  Halcyon app supplies the servlet container (Jetty); Tomcat is

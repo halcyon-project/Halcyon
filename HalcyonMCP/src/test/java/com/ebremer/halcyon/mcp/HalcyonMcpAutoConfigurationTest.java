@@ -3,13 +3,17 @@ package com.ebremer.halcyon.mcp;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.ToolCallbackProvider;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import org.springframework.core.Ordered;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -46,5 +50,44 @@ class HalcyonMcpAutoConfigurationTest {
             assertTrue(out.contains(HalcyonSettings.VERSION),
                     "the tool must answer with the running server's version, got: " + out);
         });
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void authGateIsRegisteredForExactlyTheMcpEndpoint() {
+        // MCP-1: the bearer filter must guard the endpoint's whole URL tree,
+        // first in the filter order — and nothing else.
+        runner.run(ctx -> {
+            FilterRegistrationBean<McpBearerAuthFilter> reg =
+                    ctx.getBean(FilterRegistrationBean.class);
+            assertEquals(Set.of("/mcp", "/mcp/*"), Set.copyOf(reg.getUrlPatterns()),
+                    "the guard and the guarded endpoint must agree on the URL tree");
+            assertEquals(Ordered.HIGHEST_PRECEDENCE, reg.getOrder(),
+                    "authentication runs before anything else on /mcp");
+            assertNotNull(ctx.getBean(McpBearerAuth.class));
+        });
+    }
+
+    @Test
+    void protectedResourceMetadataRouteIsPublished() {
+        // RFC 9728: the 401 challenge points clients at this route; it must
+        // exist (and is anonymous by design — it only names the auth server).
+        runner.run(ctx -> assertTrue(ctx.containsBean("mcpProtectedResourceMetadata"),
+                "the oauth-protected-resource metadata route must be published"));
+    }
+
+    @Test
+    void metadataUrlInsertsWellKnownBetweenAuthorityAndPath() {
+        McpBearerAuth auth = new McpBearerAuth(() -> {
+            throw new IllegalStateException("must not discover in this test");
+        }) {
+            @Override
+            public String resource() {
+                return "https://localhost:8888/mcp";
+            }
+        };
+        assertEquals("https://localhost:8888/.well-known/oauth-protected-resource/mcp",
+                auth.metadataUrl(),
+                "RFC 9728 path-inserted form: well-known between authority and resource path");
     }
 }
