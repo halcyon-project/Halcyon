@@ -62,7 +62,8 @@ public class HalcyonMcpAutoConfiguration {
     public ToolCallbackProvider halcyonMcpTools() {
         return MethodToolCallbackProvider.builder()
                 .toolObjects(new HalcyonInfoTools(),
-                        new LwsStorageTools())
+                        new LwsStorageTools(),
+                        new LwsBrowseTools())
                 .build();
     }
 
