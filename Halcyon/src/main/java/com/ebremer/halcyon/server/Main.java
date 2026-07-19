@@ -37,6 +37,23 @@ import org.springframework.boot.ssl.DefaultSslBundleRegistry;
 @ConfigurationPropertiesScan({"com.ebremer.halcyon.server"})
 public class Main {
 
+    static {
+        // MCP-F3: pin the SLF4J binding to Logback deterministically, BEFORE the
+        // logger field below triggers SLF4J initialization. BeakGraph ships as a
+        // fat jar that embeds the log4j-slf4j2-impl classes AND their
+        // META-INF/services SLF4J-provider registration — invisible to Maven
+        // exclusions and the reactor's enforcer ban. With that provider on the
+        // classpath next to Boot's log4j-to-slf4j, SLF4J picking it (which is
+        // otherwise classpath-enumeration order — luck) makes log4j throw
+        // "log4j-slf4j2-impl cannot be present with log4j-to-slf4j". Naming the
+        // provider makes SLF4J use ONLY Logback and never instantiate the log4j
+        // one, so the clash cannot arise. Honoured only when not already set, so
+        // an explicit -Dslf4j.provider on the command line still wins.
+        if (System.getProperty("slf4j.provider") == null) {
+            System.setProperty("slf4j.provider", "ch.qos.logback.classic.spi.LogbackServiceProvider");
+        }
+    }
+
     private static final Logger logger = LoggerFactory.getLogger(Main.class);
 
     @Autowired

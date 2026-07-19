@@ -173,6 +173,11 @@
                         <artifactId>spring-boot-maven-plugin</artifactId>
                         <configuration>
                             <mainClass>com.ebremer.halcyon.server.Main</mainClass>
+                            <!-- MCP-F3: pin the SLF4J binding for `mvn spring-boot:run`
+                                 too (the packaged jar gets it from Main's static block).
+                                 See Main.java for why BeakGraph's embedded provider
+                                 makes this necessary. -->
+                            <jvmArguments>-Dslf4j.provider=ch.qos.logback.classic.spi.LogbackServiceProvider</jvmArguments>
                         </configuration>
                         <executions>
                             <execution>
