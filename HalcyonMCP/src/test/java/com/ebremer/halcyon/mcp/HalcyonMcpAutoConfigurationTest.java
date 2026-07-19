@@ -14,6 +14,7 @@ import org.springframework.core.Ordered;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -32,11 +33,11 @@ class HalcyonMcpAutoConfigurationTest {
     void toolProviderIsAutoConfigured() {
         runner.run(ctx -> {
             ToolCallbackProvider provider = ctx.getBean(ToolCallbackProvider.class);
-            List<String> names = Arrays.stream(provider.getToolCallbacks())
+            Set<String> names = Arrays.stream(provider.getToolCallbacks())
                     .map(tc -> tc.getToolDefinition().name())
-                    .toList();
-            assertEquals(List.of("halcyon_version"), names,
-                    "exactly the identification tool — data tools are gated on P0 auth (TODO.md)");
+                    .collect(java.util.stream.Collectors.toSet());
+            assertEquals(Set.of("halcyon_version", "halcyon_whoami"), names,
+                    "exactly the identification tools — data tools are P1 (TODO.md)");
         });
     }
 
@@ -89,5 +90,44 @@ class HalcyonMcpAutoConfigurationTest {
         assertEquals("https://localhost:8888/.well-known/oauth-protected-resource/mcp",
                 auth.metadataUrl(),
                 "RFC 9728 path-inserted form: well-known between authority and resource path");
+    }
+
+    @Test
+    void callerAwareTransportProviderReplacesTheStockOne() {
+        // MCP-2: our provider (with the caller context extractor) must exist
+        // under the same conditions as Spring AI's own — whose bean is
+        // @ConditionalOnMissingBean and therefore backs off to this one.
+        runner.withPropertyValues("spring.ai.mcp.server.protocol=STREAMABLE")
+                .run(ctx -> assertNotNull(
+                        ctx.getBean(org.springframework.ai.mcp.server.webmvc.transport
+                                .WebMvcStreamableServerTransportProvider.class),
+                        "the caller-aware streamable transport provider must be auto-configured"));
+    }
+
+    @Test
+    void whoamiAnswersTheTransportVerifiedCallerAndRefusesWithoutOne() {
+        runner.run(ctx -> {
+            ToolCallback whoami = Arrays.stream(ctx.getBean(ToolCallbackProvider.class).getToolCallbacks())
+                    .filter(tc -> "halcyon_whoami".equals(tc.getToolDefinition().name()))
+                    .findFirst().orElseThrow();
+
+            var exchange = org.mockito.Mockito.mock(
+                    io.modelcontextprotocol.server.McpSyncServerExchange.class);
+            org.mockito.Mockito.when(exchange.transportContext()).thenReturn(
+                    io.modelcontextprotocol.common.McpTransportContext.create(java.util.Map.of(
+                            McpBearerAuthFilter.AGENT_ATTRIBUTE,
+                            new com.ebremer.lws.auth.AgentContext(
+                                    "https://localhost:8888/user/alice#me", "cli", "iss",
+                                    List.of()))));
+            String out = whoami.call("{}", new org.springframework.ai.chat.model.ToolContext(
+                    java.util.Map.of(org.springframework.ai.mcp.McpToolUtils.TOOL_CONTEXT_MCP_EXCHANGE_KEY,
+                            exchange)));
+            assertTrue(out.contains("alice#me"),
+                    "whoami must echo the transport-verified caller, got: " + out);
+
+            assertThrows(Exception.class,
+                    () -> whoami.call("{}", new org.springframework.ai.chat.model.ToolContext(java.util.Map.of())),
+                    "without a verified caller the tool must refuse");
+        });
     }
 }
