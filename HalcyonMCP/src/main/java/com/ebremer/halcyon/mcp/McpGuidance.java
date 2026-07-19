@@ -79,4 +79,29 @@ final class McpGuidance {
         Object v = arguments == null ? null : arguments.get(name);
         return v == null ? null : String.valueOf(v);
     }
+
+    /** The actions an access request may name (mirrors {@link LwsAccessTools}). */
+    static final java.util.List<String> ACTIONS =
+            java.util.List.of("read", "modify", "create", "delete");
+
+    /**
+     * MCP-16 completion for the {@code request_access} prompt's arguments —
+     * SDK-free so it is unit-testable. {@code resource} completes from the
+     * configured storage roots (a place to start a URI); {@code actions}
+     * completes the last comma-separated token from the fixed action set. Any
+     * other argument yields nothing.
+     */
+    static java.util.List<String> complete(String argName, String value,
+            java.util.List<String> storageRoots) {
+        String v = value == null ? "" : value;
+        if ("resource".equals(argName)) {
+            return storageRoots.stream().filter(r -> r.startsWith(v)).toList();
+        }
+        if ("actions".equals(argName)) {
+            int comma = v.lastIndexOf(',');
+            String prefix = v.substring(comma + 1).trim().toLowerCase(java.util.Locale.ROOT);
+            return ACTIONS.stream().filter(a -> a.startsWith(prefix)).toList();
+        }
+        return java.util.List.of();
+    }
 }

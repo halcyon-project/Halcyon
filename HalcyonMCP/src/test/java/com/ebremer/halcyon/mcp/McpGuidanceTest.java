@@ -49,4 +49,24 @@ class McpGuidanceTest {
         org.junit.jupiter.api.Assertions.assertNull(McpGuidance.arg(null, "k"));
         org.junit.jupiter.api.Assertions.assertNull(McpGuidance.arg(Map.of(), "k"));
     }
+
+    @Test
+    void completionSuggestsStorageRootsForResourceByPrefix() {
+        var roots = java.util.List.of("https://a.example/store/", "https://b.example/store/");
+        assertEquals(roots, McpGuidance.complete("resource", "https://", roots));
+        assertEquals(java.util.List.of("https://a.example/store/"),
+                McpGuidance.complete("resource", "https://a", roots));
+        assertTrue(McpGuidance.complete("resource", "ftp://", roots).isEmpty());
+    }
+
+    @Test
+    void completionSuggestsActionsForTheLastToken() {
+        var none = java.util.List.<String>of();
+        assertEquals(McpGuidance.ACTIONS, McpGuidance.complete("actions", "", none));
+        assertEquals(java.util.List.of("read"), McpGuidance.complete("actions", "re", none));
+        // Completes the token AFTER the last comma, not the whole value.
+        assertEquals(java.util.List.of("modify"), McpGuidance.complete("actions", "read, mo", none));
+        assertTrue(McpGuidance.complete("focus", "anything", none).isEmpty(),
+                "an argument with no completion yields nothing");
+    }
 }

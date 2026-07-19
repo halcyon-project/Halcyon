@@ -1,5 +1,8 @@
 package com.ebremer.halcyon.mcp;
 
+import com.ebremer.lws.config.LwsSettings;
+import com.ebremer.lws.config.LwsStorageConfig;
+import io.modelcontextprotocol.server.McpServerFeatures.SyncCompletionSpecification;
 import io.modelcontextprotocol.server.McpServerFeatures.SyncPromptSpecification;
 import io.modelcontextprotocol.server.McpServerFeatures.SyncResourceSpecification;
 import io.modelcontextprotocol.spec.McpSchema;
@@ -77,5 +80,27 @@ public class McpResourcesAndPrompts {
     private static McpSchema.GetPromptResult userPrompt(String description, String body) {
         return new McpSchema.GetPromptResult(description, List.of(
                 new McpSchema.PromptMessage(McpSchema.Role.USER, new McpSchema.TextContent(body))));
+    }
+
+    /**
+     * MCP-16: argument completion for the {@code request_access} prompt —
+     * storage roots for {@code resource}, the fixed action set for
+     * {@code actions} (see {@link McpGuidance#complete}). Storage roots are
+     * read live per request so a settings change is reflected without a
+     * restart.
+     */
+    @Bean
+    public List<SyncCompletionSpecification> halcyonMcpCompletions() {
+        SyncCompletionSpecification requestAccess = new SyncCompletionSpecification(
+                new McpSchema.PromptReference("request_access"),
+                (exchange, request) -> {
+                    List<String> roots = LwsSettings.get().storages().stream()
+                            .map(LwsStorageConfig::storageRootUri).toList();
+                    List<String> values = McpGuidance.complete(
+                            request.argument().name(), request.argument().value(), roots);
+                    return new McpSchema.CompleteResult(
+                            new McpSchema.CompleteResult.CompleteCompletion(values));
+                });
+        return List.of(requestAccess);
     }
 }

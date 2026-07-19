@@ -71,6 +71,28 @@ against the secured dataset, **not** the Fuseki `/rdf` endpoint, whose verifier 
 token; the caller's WebID is bound as the WAC identity via an explicit-principal
 `WACSecurityEvaluator`, so an unknown WebID is granted nothing.
 
+### Output conventions
+
+Tool results are JSON strings with stable, self-describing shapes a model can
+parse without a schema:
+
+- **Errors** carry an `error` string (and `status` when it was an HTTP answer
+  from a storage) — a 403/412/428 is passed through verbatim, never masked.
+- **Reads** carry the resource `uri`/`container`, and a `truncated` boolean
+  wherever a cap could have cut the content (`lws_read`, `iiif_thumbnail`).
+- **Pagination** is by opaque cursor only: a listing returns a `cursors` object
+  (`first`/`prev`/`next`/`last`, present only when the storage offered them),
+  and you page by handing one back as `cursor` — never by constructing a URL.
+- **Discovery** answers group matches by storage, each match naming the `uri`,
+  `mediaType`, and the next endpoint to use.
+
+Native MCP `outputSchema` / `structuredContent` and native image blocks are a
+deliberate non-goal for now — the tools register through Spring AI's annotation
+path, whose contract is the documented JSON above; revisiting that (and the
+base64-in-JSON thumbnail) is tracked as MCP-16/later in `TODO.md`. Argument
+**completion** is provided for the `request_access` prompt (storage roots for
+`resource`, the action set for `actions`).
+
 The write tools (`lws_put`, `lws_request_access`) carry the same posture — the storage's
 ACP authorizes every write and a refusal is verbatim; `lws_put`'s replace is a conditional
 compare-and-swap so a concurrent change is reported, never clobbered. Stack-aware authoring

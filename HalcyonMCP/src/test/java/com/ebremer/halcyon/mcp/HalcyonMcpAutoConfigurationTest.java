@@ -78,8 +78,10 @@ class HalcyonMcpAutoConfigurationTest {
                 .run(ctx -> {
                     var resources = (List<?>) ctx.getBean("halcyonMcpResources");
                     var prompts = (List<?>) ctx.getBean("halcyonMcpPrompts");
+                    var completions = (List<?>) ctx.getBean("halcyonMcpCompletions");
                     assertEquals(1, resources.size(), "the guide resource");
                     assertEquals(2, prompts.size(), "explore_slides and request_access");
+                    assertEquals(1, completions.size(), "the request_access completion");
                 });
     }
 
