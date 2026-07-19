@@ -48,9 +48,29 @@ with `curl` and their own token is a bug. Concretely:
   a caller: updates don't parse there at all, `SERVICE` is refused anywhere
   (SSRF), `LIMIT` is injected or clamped.
 
-Current tools: `halcyon_version`, `halcyon_whoami`. The data tools (LWS
-listings, bounded reads, secured SPARQL, slide/stack discovery, IIIF) are the
-P1 plan in `TODO.md` (git-ignored working document, per repo convention).
+### Tools
+
+| Tool | What it does |
+|---|---|
+| `halcyon_version` | Server name and version (no auth-sensitive data). |
+| `halcyon_whoami` | The caller as verified: WebID, OAuth client, issuer. |
+| `lws_storages` | The configured LWS storage roots + their type-search / access-request / IIIF / description endpoints. Start here. |
+| `lws_list` | One page of a container listing as the caller; follows the storage's opaque `first/prev/next/last` cursors. |
+| `lws_read` | Bounded 256 kB text read of a resource; binaries refused with the URI to open directly. |
+| `sparql_query` | Read-only SPARQL run as the caller's WebID against the WAC-secured dataset; updates & `SERVICE` refused, results row-capped and time-bounded. |
+| `find_slides` / `list_stacks` | ACP-filtered Type Search for `schema:ImageObject` slides / `zeph:Stack` annotation stacks. |
+| `iiif_info` / `iiif_thumbnail` | The IIIF `info.json` / a bounded base64 thumbnail, via the image's own storage `.iiif` endpoint as the caller. |
+
+Every data tool goes over HTTP with the caller's own token (`McpCaller.lwsClient()`),
+so ACP decides each answer and a 403 is rendered verbatim — none has a privileged path
+to the stores. `sparql_query` is the one exception to "over HTTP": it runs in-process
+against the secured dataset, **not** the Fuseki `/rdf` endpoint, whose verifier pins
+`azp==account` (Halcyon's own web client) and would reject an MCP client's own-`client_id`
+token; the caller's WebID is bound as the WAC identity via an explicit-principal
+`WACSecurityEvaluator`, so an unknown WebID is granted nothing.
+
+Write tools (`lws_put`, access requests, stack authoring) are the P2 plan in `TODO.md`
+(git-ignored working document, per repo convention).
 
 ## Runtime verification (MCP-4, 2026-07-19)
 

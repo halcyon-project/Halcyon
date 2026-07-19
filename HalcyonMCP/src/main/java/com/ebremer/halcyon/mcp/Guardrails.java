@@ -36,6 +36,16 @@ public final class Guardrails {
     /** Text-read cap — matches the preview relay's 256 kB discipline. */
     public static final int MAX_TEXT_BYTES = 256 * 1024;
 
+    /**
+     * Cap on an image a tool base64-inlines into a model's context. Thumbnails
+     * are meant to be small; a response over this is refused rather than
+     * flooding the context (and the dimension is capped besides).
+     */
+    public static final int MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+
+    /** Largest thumbnail edge a tool will request from the IIIF service. */
+    public static final int MAX_IMAGE_EDGE = 1024;
+
     /** Hard ceiling on rows any SPARQL tool may return. */
     public static final long MAX_ROWS = 1000;
 
