@@ -28,9 +28,31 @@ import org.apache.shiro.UnavailableSecurityManagerException;
  */
 public final class WACSecurityEvaluator implements SecurityEvaluator {
     private final Level level;
-    
+    /**
+     * When set, the identity every WAC decision runs as — instead of the
+     * Shiro subject / {@link HalcyonSession} that {@link #getPrincipal()}
+     * otherwise resolves. This is how a non-web caller (the MCP SPARQL
+     * executor) runs a query AS a specific WebID: there is no Shiro subject
+     * and no Wicket session on that thread, so the acting identity must be
+     * supplied explicitly. Null keeps the original web behaviour untouched.
+     */
+    private final Principal fixedPrincipal;
+
     public WACSecurityEvaluator(Level level) {
+        this(level, null);
+    }
+
+    /**
+     * A WAC evaluator that decides as {@code principal} regardless of thread
+     * state. Used off the web request path (MCP): the caller has already been
+     * authenticated by their bearer token, and this binds their WebID as the
+     * identity the security ASKs match on. An unknown WebID simply matches no
+     * grant — CLOSED then denies — so this cannot widen access, only scope a
+     * query to exactly what that WebID was granted.
+     */
+    public WACSecurityEvaluator(Level level, Principal principal) {
         this.level = level;
+        this.fixedPrincipal = principal;
     }
 
     @Override
@@ -211,6 +233,12 @@ public final class WACSecurityEvaluator implements SecurityEvaluator {
      */
     @Override
     public Principal getPrincipal() {
+        // An explicitly-supplied identity wins: it is the whole point of the
+        // off-web (MCP) path, where there is no Shiro subject or Wicket session
+        // to read.
+        if (fixedPrincipal != null) {
+            return fixedPrincipal;
+        }
         try {
             if (SecurityUtils.getSubject().getPrincipal() instanceof JwtToken jwt) {
                 return jwt.getPrincipal();

@@ -59,12 +59,13 @@ import tools.jackson.databind.json.JsonMapper;
 public class HalcyonMcpAutoConfiguration {
 
     @Bean
-    public ToolCallbackProvider halcyonMcpTools() {
+    public ToolCallbackProvider halcyonMcpTools(ObjectProvider<HalcyonSparqlService> sparqlExecutor) {
         return MethodToolCallbackProvider.builder()
                 .toolObjects(new HalcyonInfoTools(),
                         new LwsStorageTools(),
                         new LwsBrowseTools(),
-                        new LwsReadTools())
+                        new LwsReadTools(),
+                        new SparqlTools(sparqlExecutor))
                 .build();
     }
 

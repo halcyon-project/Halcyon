@@ -128,6 +128,18 @@ public final class DataCore {
     public Dataset getSecuredDataset(Level level) {
         return DatasetFactory.wrap(new SecuredDatasetGraph(getDataset().asDatasetGraph(), new WACSecurityEvaluator(level)));
     }
+
+    /**
+     * A secured view whose WAC decisions run as {@code principal}, not the
+     * ambient Shiro/session identity — for callers off the web request path
+     * (the MCP SPARQL executor) that have authenticated their user some other
+     * way and must scope the query to that user's WebID. An unknown WebID is
+     * granted nothing, so this can only narrow, never widen.
+     */
+    public Dataset getSecuredDataset(Level level, java.security.Principal principal) {
+        return DatasetFactory.wrap(new SecuredDatasetGraph(getDataset().asDatasetGraph(),
+                new WACSecurityEvaluator(level, principal)));
+    }
     
     public void replaceNamedGraph(Resource k, Model m) {
         if (m.size()>0) {
