@@ -61,7 +61,8 @@ public class HalcyonMcpAutoConfiguration {
     @Bean
     public ToolCallbackProvider halcyonMcpTools() {
         return MethodToolCallbackProvider.builder()
-                .toolObjects(new HalcyonInfoTools())
+                .toolObjects(new HalcyonInfoTools(),
+                        new LwsStorageTools())
                 .build();
     }
 
@@ -134,11 +135,11 @@ public class HalcyonMcpAutoConfiguration {
                 ObjectProvider<JsonMapper> jsonMapper,
                 McpServerStreamableHttpProperties properties) {
             McpTransportContextExtractor<ServerRequest> caller = request -> {
-                Object agent = request.servletRequest()
-                        .getAttribute(McpBearerAuthFilter.AGENT_ATTRIBUTE);
-                return agent == null ? McpTransportContext.EMPTY
+                Object c = request.servletRequest()
+                        .getAttribute(McpBearerAuthFilter.CALLER_ATTRIBUTE);
+                return c == null ? McpTransportContext.EMPTY
                         : McpTransportContext.create(
-                                Map.of(McpBearerAuthFilter.AGENT_ATTRIBUTE, agent));
+                                Map.of(McpBearerAuthFilter.CALLER_ATTRIBUTE, c));
             };
             WebMvcStreamableServerTransportProvider.Builder builder =
                     WebMvcStreamableServerTransportProvider.builder()

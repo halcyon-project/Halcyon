@@ -17,10 +17,11 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * {@link HalcyonMcpAutoConfiguration}). No valid token, no protocol: the
  * request never reaches the MCP transport.
  *
- * <p>On success the verified {@link AgentContext} is stashed as request
- * attribute {@link #AGENT_ATTRIBUTE} — the hand-off point for MCP-2's
- * per-call principal plumbing, so tools act as the caller and never as the
- * server.
+ * <p>On success an {@link McpCaller} — the verified {@link AgentContext}
+ * bundled with the caller's own bearer token — is stashed as request
+ * attribute {@link #CALLER_ATTRIBUTE}, the hand-off point for MCP-2's
+ * per-call principal plumbing, so tools act as the caller (and present the
+ * caller's token to the storage) and never as the server.
  *
  * <p>On refusal the response is RFC 6750-shaped: {@code 401} with a
  * {@code WWW-Authenticate: Bearer} challenge carrying {@code as_uri},
@@ -30,8 +31,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
  */
 public class McpBearerAuthFilter extends OncePerRequestFilter {
 
-    /** Request attribute carrying the verified {@link AgentContext}. */
-    public static final String AGENT_ATTRIBUTE = "com.ebremer.halcyon.mcp.agent";
+    /** Request attribute carrying the verified {@link McpCaller}. */
+    public static final String CALLER_ATTRIBUTE = "com.ebremer.halcyon.mcp.caller";
 
     private final McpBearerAuth auth;
 
@@ -56,7 +57,12 @@ public class McpBearerAuthFilter extends OncePerRequestFilter {
             refuse(response, null, "authentication is temporarily unavailable");
             return;
         }
-        request.setAttribute(AGENT_ATTRIBUTE, agent);
+        // The token was just verified; carry it (with the identity) so tools
+        // can present it to the storage as the caller. The scheme is known-good
+        // here — authenticate() refused anything that was not "Bearer <token>".
+        String header = request.getHeader("Authorization");
+        String token = header == null ? null : header.substring("Bearer ".length()).trim();
+        request.setAttribute(CALLER_ATTRIBUTE, new McpCaller(agent, token));
         chain.doFilter(request, response);
     }
 

@@ -25,6 +25,7 @@ class McpCallersTest {
     private static final AgentContext ALICE = new AgentContext(
             "https://localhost:8888/user/alice#me", "some-mcp-client",
             "https://localhost:8888/auth/realms/Halcyon", List.of());
+    private static final McpCaller ALICE_CALLER = new McpCaller(ALICE, "alice-token");
 
     private static ToolContext contextCarrying(McpTransportContext transport) {
         McpSyncServerExchange exchange = Mockito.mock(McpSyncServerExchange.class);
@@ -35,8 +36,10 @@ class McpCallersTest {
     @Test
     void verifiedCallerIsAnswered() {
         ToolContext ctx = contextCarrying(McpTransportContext.create(
-                Map.of(McpBearerAuthFilter.AGENT_ATTRIBUTE, ALICE)));
-        assertEquals(ALICE, McpCallers.require(ctx));
+                Map.of(McpBearerAuthFilter.CALLER_ATTRIBUTE, ALICE_CALLER)));
+        assertEquals(ALICE_CALLER, McpCallers.require(ctx));
+        assertEquals("alice-token", McpCallers.require(ctx).token(),
+                "the caller's own token must be carried, not just their identity");
     }
 
     @Test
@@ -59,7 +62,8 @@ class McpCallersTest {
     @Test
     void unauthenticatedAgentIsARefusalNeverAFallback() {
         ToolContext ctx = contextCarrying(McpTransportContext.create(
-                Map.of(McpBearerAuthFilter.AGENT_ATTRIBUTE, AgentContext.PUBLIC)));
+                Map.of(McpBearerAuthFilter.CALLER_ATTRIBUTE,
+                        new McpCaller(AgentContext.PUBLIC, null))));
         assertThrows(IllegalStateException.class, () -> McpCallers.require(ctx),
                 "the PUBLIC placeholder must never pass as a caller");
     }

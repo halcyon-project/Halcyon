@@ -12,6 +12,7 @@ import org.springframework.mock.web.MockHttpServletResponse;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -122,14 +123,18 @@ class McpBearerAuthFilterTest {
     void verifiedAgentReachesTheChainWithIdentityAttached() throws Exception {
         var filter = new McpBearerAuthFilter(new StubAuth(r -> ALICE));
         var req = new MockHttpServletRequest("POST", "/mcp");
-        req.addHeader("Authorization", "Bearer good");
+        req.addHeader("Authorization", "Bearer good-token-123");
         var resp = new MockHttpServletResponse();
         var chain = new MockFilterChain();
         filter.doFilter(req, resp, chain);
 
         assertNotNull(chain.getRequest(), "a verified request must proceed");
         assertEquals(200, resp.getStatus());
-        assertSame(ALICE, req.getAttribute(McpBearerAuthFilter.AGENT_ATTRIBUTE),
-                "MCP-2 hand-off: the verified agent rides the request");
+        Object attr = req.getAttribute(McpBearerAuthFilter.CALLER_ATTRIBUTE);
+        assertInstanceOf(McpCaller.class, attr, "MCP-2 hand-off: an McpCaller rides the request");
+        McpCaller caller = (McpCaller) attr;
+        assertSame(ALICE, caller.agent(), "the verified agent is carried");
+        assertEquals("good-token-123", caller.token(),
+                "the caller's own token is captured from the just-verified header");
     }
 }

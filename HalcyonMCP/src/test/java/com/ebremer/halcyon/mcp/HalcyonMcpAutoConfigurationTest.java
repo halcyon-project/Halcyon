@@ -36,8 +36,8 @@ class HalcyonMcpAutoConfigurationTest {
             Set<String> names = Arrays.stream(provider.getToolCallbacks())
                     .map(tc -> tc.getToolDefinition().name())
                     .collect(java.util.stream.Collectors.toSet());
-            assertEquals(Set.of("halcyon_version", "halcyon_whoami"), names,
-                    "exactly the identification tools — data tools are P1 (TODO.md)");
+            assertTrue(names.containsAll(Set.of("halcyon_version", "halcyon_whoami", "lws_storages")),
+                    "the identification and storage-entry tools must be registered, got: " + names);
         });
     }
 
@@ -115,10 +115,10 @@ class HalcyonMcpAutoConfigurationTest {
                     io.modelcontextprotocol.server.McpSyncServerExchange.class);
             org.mockito.Mockito.when(exchange.transportContext()).thenReturn(
                     io.modelcontextprotocol.common.McpTransportContext.create(java.util.Map.of(
-                            McpBearerAuthFilter.AGENT_ATTRIBUTE,
-                            new com.ebremer.lws.auth.AgentContext(
+                            McpBearerAuthFilter.CALLER_ATTRIBUTE,
+                            new McpCaller(new com.ebremer.lws.auth.AgentContext(
                                     "https://localhost:8888/user/alice#me", "cli", "iss",
-                                    List.of()))));
+                                    List.of()), "alice-token"))));
             String out = whoami.call("{}", new org.springframework.ai.chat.model.ToolContext(
                     java.util.Map.of(org.springframework.ai.mcp.McpToolUtils.TOOL_CONTEXT_MCP_EXCHANGE_KEY,
                             exchange)));

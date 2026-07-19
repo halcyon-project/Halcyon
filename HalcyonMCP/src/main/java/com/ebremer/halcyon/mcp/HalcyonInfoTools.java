@@ -33,7 +33,7 @@ public class HalcyonInfoTools {
             description = "The authenticated caller as this server verified them: "
                     + "WebID, OAuth client, and token issuer.")
     public String whoami(ToolContext toolContext) {
-        AgentContext agent = McpCallers.require(toolContext);
+        AgentContext agent = McpCallers.require(toolContext).agent();
         return Json.createObjectBuilder()
                 .add("webid", agent.webId())
                 .add("client", agent.clientId() == null ? "" : agent.clientId())
