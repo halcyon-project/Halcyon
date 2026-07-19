@@ -70,6 +70,20 @@ class HalcyonMcpAutoConfigurationTest {
     }
 
     @Test
+    void resourcesAndPromptsAreRegistered() {
+        // MCP-15: the guide resource and the two workflow prompts must be
+        // contributed as specification-list beans the MCP server collects.
+        new ApplicationContextRunner()
+                .withConfiguration(AutoConfigurations.of(McpResourcesAndPrompts.class))
+                .run(ctx -> {
+                    var resources = (List<?>) ctx.getBean("halcyonMcpResources");
+                    var prompts = (List<?>) ctx.getBean("halcyonMcpPrompts");
+                    assertEquals(1, resources.size(), "the guide resource");
+                    assertEquals(2, prompts.size(), "explore_slides and request_access");
+                });
+    }
+
+    @Test
     void protectedResourceMetadataRouteIsPublished() {
         // RFC 9728: the 401 challenge points clients at this route; it must
         // exist (and is anonymous by design — it only names the auth server).
