@@ -61,3 +61,4 @@ $SP/
 dependency-reduced-pom.xml
 /jena-permissions/target/
 /HalcyonLWS/target/
+/HalcyonMCP/target/

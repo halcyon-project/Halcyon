@@ -12,6 +12,7 @@
         <module>jena-permissions</module>
         <module>halcyon-core</module>
         <module>HalcyonLWS</module>
+        <module>HalcyonMCP</module>
         <module>Halcyon</module>
     </modules>
     
@@ -103,6 +104,7 @@
         <twelvemonkeys.version>3.13.1</twelvemonkeys.version>
         <cygnus.version>0.1.0-SNAPSHOT</cygnus.version>
         <vandegraph.version>0.2.0-SNAPSHOT</vandegraph.version>
+        <spring-ai.version>2.0.0</spring-ai.version>
         <maven-surefire-plugin.version>3.5.3</maven-surefire-plugin.version>
         <maven-compiler-plugin.version>3.15.0</maven-compiler-plugin.version>
         <maven-shade-plugin.version>3.6.2</maven-shade-plugin.version>
@@ -203,6 +205,14 @@
                      servlet, which stays as-is. -->
                 <groupId>com.ebremer.HalcyonProject</groupId>
                 <artifactId>HalcyonLWS</artifactId>
+                <type>jar</type>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <!-- Model Context Protocol server (module HalcyonMCP/): the
+                     Spring AI MCP endpoint at /mcp plus Halcyon's tools. -->
+                <groupId>com.ebremer.HalcyonProject</groupId>
+                <artifactId>HalcyonMCP</artifactId>
                 <type>jar</type>
                 <version>${project.version}</version>
             </dependency>

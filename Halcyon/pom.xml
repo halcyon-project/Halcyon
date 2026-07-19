@@ -523,6 +523,13 @@
             <groupId>${project.groupId}</groupId>
             <artifactId>HalcyonLWS</artifactId>
         </dependency>
+        <dependency>
+            <!-- Model Context Protocol server: mounts the Spring AI Streamable
+                 HTTP endpoint at /mcp (starter auto-configuration) and
+                 contributes Halcyon's tools. See HalcyonMCP/TODO.md. -->
+            <groupId>${project.groupId}</groupId>
+            <artifactId>HalcyonMCP</artifactId>
+        </dependency>
         <!--
         <dependency>
             <groupId>com.github.ben-manes.caffeine</groupId>

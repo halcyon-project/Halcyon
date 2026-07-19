@@ -19,6 +19,18 @@ spring:
   main:
     lazy-initialization: false
     allow-circular-references: true
+  ai:
+    mcp:
+      server:
+        # The Model Context Protocol endpoint (module HalcyonMCP/): Streamable
+        # HTTP at /mcp. The skeleton exposes identification only; every tool
+        # that touches data is gated on the P0 auth work in HalcyonMCP/TODO.md.
+        name: halcyon
+        protocol: STREAMABLE
+        instructions: >-
+          Halcyon whole-slide-image annotation, management and visualization
+          server. Tools operate with the caller's own identity and access
+          rights - what a tool cannot read, the caller cannot read.
   h2:
     console:
       enabled: false
