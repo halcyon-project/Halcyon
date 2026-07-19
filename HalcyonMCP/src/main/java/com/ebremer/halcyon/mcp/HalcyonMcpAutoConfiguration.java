@@ -59,8 +59,9 @@ import tools.jackson.databind.json.JsonMapper;
 public class HalcyonMcpAutoConfiguration {
 
     @Bean
-    public ToolCallbackProvider halcyonMcpTools(ObjectProvider<HalcyonSparqlService> sparqlExecutor) {
-        return MethodToolCallbackProvider.builder()
+    public ToolCallbackProvider halcyonMcpTools(ObjectProvider<HalcyonSparqlService> sparqlExecutor,
+            ObjectProvider<io.micrometer.core.instrument.MeterRegistry> meters) {
+        ToolCallbackProvider base = MethodToolCallbackProvider.builder()
                 .toolObjects(new HalcyonInfoTools(),
                         new LwsStorageTools(),
                         new LwsBrowseTools(),
@@ -71,6 +72,27 @@ public class HalcyonMcpAutoConfiguration {
                         new LwsWriteTools(),
                         new LwsAccessTools())
                 .build();
+        // MCP-17: every tool call leaves an audit line naming the principal
+        // (and a timer when a MeterRegistry is present).
+        io.micrometer.core.instrument.MeterRegistry registry = meters.getIfAvailable();
+        java.util.List<org.springframework.ai.tool.ToolCallback> wrapped =
+                java.util.Arrays.stream(base.getToolCallbacks())
+                        .map(tc -> (org.springframework.ai.tool.ToolCallback)
+                                new AuditingToolCallback(tc, registry))
+                        .toList();
+        return ToolCallbackProvider.from(wrapped);
+    }
+
+    /**
+     * MCP-17: the per-principal rate limiter the auth filter enforces. Capacity
+     * and window are configurable; the defaults (120 calls / 60 s per WebID)
+     * are generous for an interactive agent and still cap a runaway.
+     */
+    @Bean
+    public RateLimiter mcpRateLimiter(
+            @Value("${halcyon.mcp.rate-limit.capacity:120}") int capacity,
+            @Value("${halcyon.mcp.rate-limit.window-seconds:60}") long windowSeconds) {
+        return new RateLimiter(capacity, windowSeconds * 1000L);
     }
 
     /**
@@ -92,9 +114,10 @@ public class HalcyonMcpAutoConfiguration {
      */
     @Bean
     public FilterRegistrationBean<McpBearerAuthFilter> mcpBearerAuthRegistration(McpBearerAuth auth,
+            RateLimiter rateLimiter,
             @Value("${spring.ai.mcp.server.streamable-http.mcp-endpoint:/mcp}") String endpoint) {
         FilterRegistrationBean<McpBearerAuthFilter> reg =
-                new FilterRegistrationBean<>(new McpBearerAuthFilter(auth));
+                new FilterRegistrationBean<>(new McpBearerAuthFilter(auth, rateLimiter));
         reg.setName("halcyonMcpBearerAuth");
         reg.addUrlPatterns(endpoint, endpoint + "/*");
         reg.setOrder(Ordered.HIGHEST_PRECEDENCE);

@@ -31,6 +31,13 @@ spring:
           Halcyon whole-slide-image annotation, management and visualization
           server. Tools operate with the caller's own identity and access
           rights - what a tool cannot read, the caller cannot read.
+# Per-principal rate limit on /mcp (MCP-17): calls per window, per verified
+# WebID. Generous for an interactive agent; caps a runaway.
+halcyon:
+  mcp:
+    rate-limit:
+      capacity: 120
+      window-seconds: 60
   h2:
     console:
       enabled: false

@@ -49,4 +49,17 @@ public final class McpCallers {
         }
         return caller;
     }
+
+    /**
+     * The caller if one is present, else {@code null} — for cross-cutting code
+     * (the audit decorator) that wants to name the principal but must never
+     * itself refuse; the tool's own {@link #require} is the gate.
+     */
+    static McpCaller peek(ToolContext toolContext) {
+        try {
+            return require(toolContext);
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
 }

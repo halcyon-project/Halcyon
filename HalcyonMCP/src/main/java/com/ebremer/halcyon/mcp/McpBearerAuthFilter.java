@@ -35,9 +35,21 @@ public class McpBearerAuthFilter extends OncePerRequestFilter {
     public static final String CALLER_ATTRIBUTE = "com.ebremer.halcyon.mcp.caller";
 
     private final McpBearerAuth auth;
+    private final RateLimiter rateLimiter;
 
     public McpBearerAuthFilter(McpBearerAuth auth) {
+        this(auth, null);
+    }
+
+    /**
+     * @param rateLimiter per-principal limiter, or {@code null} to disable —
+     *                    checked only AFTER the token verifies, so an
+     *                    unauthenticated flood is refused by auth, not counted
+     *                    against anyone.
+     */
+    public McpBearerAuthFilter(McpBearerAuth auth, RateLimiter rateLimiter) {
         this.auth = auth;
+        this.rateLimiter = rateLimiter;
     }
 
     @Override
@@ -57,6 +69,14 @@ public class McpBearerAuthFilter extends OncePerRequestFilter {
             refuse(response, null, "authentication is temporarily unavailable");
             return;
         }
+        // Per-principal rate limit, AFTER authentication so it is charged to a
+        // verified WebID (an anonymous flood was already refused above).
+        if (rateLimiter != null && !rateLimiter.tryAcquire(agent.webId(),
+                System.currentTimeMillis())) {
+            tooManyRequests(response);
+            return;
+        }
+
         // The token was just verified; carry it (with the identity) so tools
         // can present it to the storage as the caller. The scheme is known-good
         // here — authenticate() refused anything that was not "Bearer <token>".
@@ -64,6 +84,17 @@ public class McpBearerAuthFilter extends OncePerRequestFilter {
         String token = header == null ? null : header.substring("Bearer ".length()).trim();
         request.setAttribute(CALLER_ATTRIBUTE, new McpCaller(agent, token));
         chain.doFilter(request, response);
+    }
+
+    private void tooManyRequests(HttpServletResponse response) throws IOException {
+        response.setStatus(429);
+        response.setContentType("application/json");
+        byte[] body = Json.createObjectBuilder()
+                .add("error", "rate_limited")
+                .add("error_description", "too many requests; slow down")
+                .build().toString().getBytes(StandardCharsets.UTF_8);
+        response.setContentLength(body.length);
+        response.getOutputStream().write(body);
     }
 
     private void refuse(HttpServletResponse response, String error, String detail)

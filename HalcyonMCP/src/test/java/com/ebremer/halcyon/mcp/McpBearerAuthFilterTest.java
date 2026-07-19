@@ -137,4 +137,28 @@ class McpBearerAuthFilterTest {
         assertEquals("good-token-123", caller.token(),
                 "the caller's own token is captured from the just-verified header");
     }
+
+    @Test
+    void aPrincipalOverItsRateGets429AfterAuthenticating() throws Exception {
+        // MCP-17: capacity 1 → the second verified call in the window is 429,
+        // and never reaches the protocol.
+        var filter = new McpBearerAuthFilter(new StubAuth(r -> ALICE),
+                new RateLimiter(1, 60_000));
+        var chain1 = new MockFilterChain();
+        filter.doFilter(authed(), new MockHttpServletResponse(), chain1);
+        assertNotNull(chain1.getRequest(), "the first call is within budget");
+
+        var resp2 = new MockHttpServletResponse();
+        var chain2 = new MockFilterChain();
+        filter.doFilter(authed(), resp2, chain2);
+        assertEquals(429, resp2.getStatus(), "the second call is over the rate");
+        assertNull(chain2.getRequest(), "a rate-limited request must not reach the protocol");
+        assertTrue(resp2.getContentAsString().contains("rate_limited"));
+    }
+
+    private static MockHttpServletRequest authed() {
+        var req = new MockHttpServletRequest("POST", "/mcp");
+        req.addHeader("Authorization", "Bearer good");
+        return req;
+    }
 }

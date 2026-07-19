@@ -93,6 +93,17 @@ base64-in-JSON thumbnail) is tracked as MCP-16/later in `TODO.md`. Argument
 **completion** is provided for the `request_access` prompt (storage roots for
 `resource`, the action set for `actions`).
 
+### Observability & limits (MCP-17)
+
+Every tool call is wrapped by `AuditingToolCallback`: an audit line (logger
+`com.ebremer.halcyon.mcp.audit`) names the **principal**, the tool, and the
+outcome, and — when a Micrometer `MeterRegistry` is on the context — a
+`halcyon.mcp.tool.calls` timer tagged by tool and outcome is recorded. A
+per-principal token bucket (`RateLimiter`, keyed by WebID, enforced in the auth
+filter after the token verifies) answers `429` to a caller over its rate;
+capacity and window are `halcyon.mcp.rate-limit.{capacity,window-seconds}`
+(default 120 / 60 s).
+
 The write tools (`lws_put`, `lws_request_access`) carry the same posture — the storage's
 ACP authorizes every write and a refusal is verbatim; `lws_put`'s replace is a conditional
 compare-and-swap so a concurrent change is reported, never clobbered. Stack-aware authoring
