@@ -100,8 +100,13 @@ top of the vandegraph defaults (images, video, audio, PDF, escaped text):
   own token, conditional `PUT` back under the document's own media type.
   `text/plain` also opens (and edits) in Monaco — bound by the vandegraph
   defaults themselves, with the language inferred from the file name, since
-  code so often travels as plain text. Types Monaco has no language for
-  (notably `text/turtle`) deliberately stay on the escaped text view.
+  code so often travels as plain text. **RDF Turtle** (`text/turtle`,
+  N-Triples too) opens in Monaco with vandegraph's own Turtle language
+  contribution (`monaco-turtle.js` — Monaco ships no Turtle tokenizer);
+  Turtle the scanner typed `zeph:Stack` still opens in Zephyr, because a
+  binding whose type condition matched outranks the format-only default,
+  with the Monaco source view joining the alternates. Types Monaco has no
+  language for (`text/csv`, TriG/N-Quads) stay on the escaped text view.
 
 The pane's **⛶ full screen** toggle expands the preview to the whole screen
 (the browser Fullscreen API; Esc exits). It is pure client-side chrome — what

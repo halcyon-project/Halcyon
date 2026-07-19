@@ -56,17 +56,28 @@ class HalcyonMediaBindingsTest {
                 Set.of(ZEPH.NS + "Stack"));
         assertNotNull(r);
         assertEquals(HAL.ZephyrViewer.asNode(), r.viewer(),
-                "typed stack Turtle opens in Zephyr, not the text view");
+                "typed stack Turtle opens in Zephyr, not a source view — the "
+                + "matched zeph:Stack condition wins the exact text/turtle tie "
+                + "against the vandegraph Turtle-in-Monaco default");
+        assertTrue(r.alternates().contains(VG.MonacoViewer.asNode()),
+                "the outranked Monaco source view joins the alternates");
         assertTrue(r.alternates().contains(VG.HtmlTextViewer.asNode()),
-                "the source view stays available as an alternate");
+                "the escaped source view stays available as an alternate");
         assertEquals(HAL.ZephyrEditor.asNode(), r.editor());
     }
 
     @Test
-    void plainTurtleKeepsTheSourceView() {
+    void plainTurtleOpensInMonacoWithTheTurtleLanguage() {
+        // The vandegraph defaults now pin text/turtle to Monaco, tokenized by
+        // the library's own monaco-turtle.js contribution. Untyped (or
+        // not-yet-scanned) Turtle must still never open in Zephyr.
         MediaBindings.Resolved r = bindings().resolve("text/turtle", Set.of());
-        assertEquals(VG.HtmlTextViewer.asNode(), r.viewer(),
-                "an untyped (or not-yet-scanned) Turtle document stays text");
+        assertEquals(VG.MonacoViewer.asNode(), r.viewer(),
+                "an untyped Turtle document opens as highlighted source");
+        assertEquals(VG.MonacoEditor.asNode(), r.editor(),
+                "and edits in Monaco (Halcyon registers the saving panel)");
+        assertTrue(r.alternates().contains(VG.HtmlTextViewer.asNode()),
+                "the escaped view survives as the text/* alternate");
     }
 
     @Test
@@ -160,11 +171,11 @@ class HalcyonMediaBindingsTest {
 
     @Test
     void unmappedTextStaysOnTheEscapedTextView() {
-        // Monaco has no Turtle language, so the overlay leaves text/turtle
-        // on the defaults — no Monaco default, no editor.
-        MediaBindings.Resolved r = bindings().resolve("text/turtle", Set.of());
+        // A text type Monaco has no language for (CSV) stays on the
+        // defaults' escaped view — no Monaco default, no editor.
+        MediaBindings.Resolved r = bindings().resolve("text/csv", Set.of());
         assertEquals(VG.HtmlTextViewer.asNode(), r.viewer());
-        assertNull(r.editor(), "text/turtle gets no editor");
+        assertNull(r.editor(), "text/csv gets no editor");
     }
 
     @Test
