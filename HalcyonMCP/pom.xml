@@ -63,10 +63,33 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <!-- An embedded servlet container for the MCP-F1 integration test
+                 only (@SpringBootTest RANDOM_PORT). Test-scoped so it never
+                 reaches the app, which excludes Tomcat and runs on Jetty; this
+                 module's tests just need any container to expose /mcp on a real
+                 port and drive it with the MCP client SDK. -->
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-tomcat</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
         <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <!-- REQUIRED for the MCP tools: Spring AI derives each tool
+                         argument's JSON-schema property NAME from reflection
+                         (@ToolParam carries only the description, not the name).
+                         Without -parameters the names compile to arg0/arg1/…,
+                         so a client passing {"sparql": "..."} fails schema
+                         validation. The MCP-F1 integration test pins this. -->
+                    <parameters>true</parameters>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>

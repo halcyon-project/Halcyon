@@ -44,11 +44,10 @@ public class SparqlTools {
             ToolContext toolContext) {
         McpCaller caller = McpCallers.require(toolContext);
 
-        HalcyonSparqlService svc = executor.getIfAvailable();
-        if (svc == null) {
-            return err("SPARQL querying is not enabled on this server");
-        }
-
+        // Validate the INPUT first: "read-only SPARQL" is the tool's contract,
+        // so an update / SERVICE / garbage query is invalid regardless of
+        // whether execution is even available — the gate is intrinsic, not
+        // conditional on a backend being wired.
         Query q;
         try {
             q = Guardrails.readOnlyQuery(sparql, Guardrails.MAX_ROWS);
@@ -56,6 +55,11 @@ public class SparqlTools {
             // A refused query (update, SERVICE, garbage) is the caller's fault,
             // reported plainly — not a server error.
             return err(e.getMessage());
+        }
+
+        HalcyonSparqlService svc = executor.getIfAvailable();
+        if (svc == null) {
+            return err("SPARQL querying is not enabled on this server");
         }
 
         try {

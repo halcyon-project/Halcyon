@@ -100,8 +100,14 @@ public class HalcyonMcpAutoConfiguration {
      * {@link HalcyonSettings} and OIDC discovery to the first {@code /mcp}
      * request — a transiently unreachable Keycloak must not stop the server
      * (or this bean) from starting.
+     *
+     * <p>{@code @ConditionalOnMissingBean} so the MCP-F1 integration test can
+     * substitute a deterministic verifier (a fixed test token, no Keycloak) and
+     * drive the REAL filter/transport/tool chain end to end without a live
+     * authorization server.
      */
     @Bean
+    @org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
     public McpBearerAuth mcpBearerAuth(
             @Value("${spring.ai.mcp.server.streamable-http.mcp-endpoint:/mcp}") String endpoint) {
         return new McpBearerAuth(() -> new BearerTokenVerifier(
