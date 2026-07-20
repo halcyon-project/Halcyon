@@ -2,7 +2,6 @@ package com.ebremer.lws.store;
 
 import com.ebremer.lws.config.LwsSettings;
 import com.ebremer.lws.config.LwsStorageConfig;
-import com.ebremer.lws.config.NamingPolicyType;
 import com.ebremer.lws.vocab.LWSX;
 import java.util.HashMap;
 import java.util.Map;
@@ -73,15 +72,14 @@ public final class LwsStore {
     }
 
     /**
-     * The content backend for a storage, chosen by its naming policy: the slug/hierarchical storage
-     * mirrors the URI to a real path (disk-authoritative), the flat storage shards opaque UUID blobs
-     * (TDB2-authoritative). One instance per storage, memoised.
+     * The content backend for a storage. SPI providers ({@link ContentStores}) are consulted
+     * first — a storage declaring {@code :hasBackend} gets whatever its provider builds — and
+     * the built-ins remain the fallback, chosen by naming policy: the slug/hierarchical storage
+     * mirrors the URI to a real path (disk-authoritative), the flat storage shards opaque UUID
+     * blobs (TDB2-authoritative). One instance per storage, memoised.
      */
     public synchronized ContentStore contentStore(LwsStorageConfig cfg) {
-        return contentStores.computeIfAbsent(cfg.urlPath(), k ->
-                cfg.naming() == NamingPolicyType.SLUG
-                        ? new MirrorContentStore(cfg.contentRoot(), cfg.mounts())
-                        : new ShardedContentStore(cfg.contentRoot()));
+        return contentStores.computeIfAbsent(cfg.urlPath(), k -> ContentStores.create(cfg));
     }
 
     public <T> T read(Supplier<T> body) {

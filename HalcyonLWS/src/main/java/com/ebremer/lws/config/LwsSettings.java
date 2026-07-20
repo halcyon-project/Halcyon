@@ -34,7 +34,12 @@ import org.slf4j.LoggerFactory;
  * :hasLWSStorage [ a lws:Storage ; :urlPath "/W3ClwsSlash" ;
  *                  :storageRoot <file:///E:/W3CLWS/slash/> ;   :namingPolicy "slug" ;
  *                  # other physical disks backing sub-containers (mirror storages only):
- *                  :hasMount [ :containerPath "tcga/brca" ; :resourceBase <file:///F:/brca/> ] ] .
+ *                  :hasMount [ :containerPath "tcga/brca" ; :resourceBase <file:///F:/brca/> ] ] ;
+ * # a storage whose bytes rest in a pluggable backend (SPI: ContentStoreProvider);
+ * # :storageRoot is then the LOCAL materialization-cache root:
+ * :hasLWSStorage [ a lws:Storage ; :urlPath "/bremerstore" ;
+ *                  :storageRoot <file:///E:/W3CLWS/s3cache/> ; :namingPolicy "uuid" ;
+ *                  :hasBackend  [ a :S3 ; :s3Bucket "bremerstore" ; :s3Region "us-east-1" ] ] .
  * }</pre>
  *
  * <p>Declaring no storages is not an error — the module then registers nothing and
@@ -240,12 +245,13 @@ public final class LwsSettings {
     private static List<LwsStorageConfig> readStorages(Model m) {
         String siteUrl = HalcyonSettings.getSettings().getProxyHostName();
         ParameterizedSparqlString pss = new ParameterizedSparqlString("""
-            select ?st ?urlPath ?storageRoot ?namingPolicy
+            select ?st ?urlPath ?storageRoot ?namingPolicy ?backend
             where {
                 ?s :hasLWSStorage ?st .
                 ?st :urlPath      ?urlPath ;
                     :storageRoot  ?storageRoot ;
                     :namingPolicy ?namingPolicy
+                optional { ?st :hasBackend ?backend }
             } order by ?urlPath
             """);
         pss.setNsPrefix("", HAL.NS);
@@ -264,11 +270,13 @@ public final class LwsSettings {
                             Path.of(URI.create(root)),
                             NamingPolicyType.parse(naming),
                             siteUrl,
-                            readMounts(m, sol.get("st"), urlPath));
+                            readMounts(m, sol.get("st"), urlPath),
+                            sol.contains("backend") ? sol.getResource("backend") : null);
                     out.add(cfg);
-                    LOG.info("LWS storage {} -> {} ({} naming{})",
+                    LOG.info("LWS storage {} -> {} ({} naming{}{})",
                             cfg.urlPath(), cfg.contentRoot(), cfg.naming(),
-                            cfg.mounts().isEmpty() ? "" : ", " + cfg.mounts().size() + " mount(s)");
+                            cfg.mounts().isEmpty() ? "" : ", " + cfg.mounts().size() + " mount(s)",
+                            cfg.backend() == null ? "" : ", pluggable backend");
                 } catch (RuntimeException ex) {
                     // One malformed declaration must not take the whole app down.
                     LOG.error("ignoring malformed LWS storage declaration urlPath={} storageRoot={} namingPolicy={}: {}",

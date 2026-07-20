@@ -16,18 +16,32 @@ import java.util.List;
  * @param mounts      other physical disks backing sub-containers of a MIRROR
  *                    storage ({@link LwsMount}); always empty for the flat
  *                    storage, whose keys are not paths
+ * @param backend     the storage's {@code :hasBackend} node from {@code settings.ttl},
+ *                    or {@code null} for the built-in disk backends. Carried verbatim —
+ *                    a {@link com.ebremer.lws.store.spi.ContentStoreProvider} recognises
+ *                    its own node (typically by {@code rdf:type}) and parses its own
+ *                    vocabulary from it; core never interprets it. For a remote backend
+ *                    (e.g. S3), {@code contentRoot} is the LOCAL side: the materialization
+ *                    cache root.
  */
 public record LwsStorageConfig(
         String urlPath,
         Path contentRoot,
         NamingPolicyType naming,
         String siteUrl,
-        List<LwsMount> mounts) {
+        List<LwsMount> mounts,
+        org.apache.jena.rdf.model.Resource backend) {
 
     /** The common case: a storage on one disk. */
     public LwsStorageConfig(String urlPath, Path contentRoot, NamingPolicyType naming,
             String siteUrl) {
-        this(urlPath, contentRoot, naming, siteUrl, List.of());
+        this(urlPath, contentRoot, naming, siteUrl, List.of(), null);
+    }
+
+    /** A storage with mounts and no pluggable backend. */
+    public LwsStorageConfig(String urlPath, Path contentRoot, NamingPolicyType naming,
+            String siteUrl, List<LwsMount> mounts) {
+        this(urlPath, contentRoot, naming, siteUrl, mounts, null);
     }
 
     /**
