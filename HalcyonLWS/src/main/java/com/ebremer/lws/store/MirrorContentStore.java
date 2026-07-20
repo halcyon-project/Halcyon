@@ -159,4 +159,9 @@ public final class MirrorContentStore implements PathKeyedStore {
             throw new IllegalStateException("SHA-256 is required by the JDK", e);
         }
     }
+
+    @Override
+    public String toString() {
+        return root + (mounts.hasMounts() ? " (+mounts)" : "");
+    }
 }

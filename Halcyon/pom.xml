@@ -529,6 +529,17 @@
             <artifactId>HalcyonLWS</artifactId>
         </dependency>
         <dependency>
+            <!-- S3 ContentStore backend: a ServiceLoader provider for the
+                 HalcyonLWS storage SPI. Nothing here calls it by name - its
+                 presence is what lets settings.ttl declare
+                 :hasBackend [ a :S3 ... ] storages. Drop this dependency and
+                 such declarations are refused at boot (and the AWS SDK leaves
+                 the classpath with it). -->
+            <groupId>${project.groupId}</groupId>
+            <artifactId>HalcyonLWS-S3</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
             <!-- Model Context Protocol server: mounts the Spring AI Streamable
                  HTTP endpoint at /mcp (starter auto-configuration) and
                  contributes Halcyon's tools. See HalcyonMCP/TODO.md. -->

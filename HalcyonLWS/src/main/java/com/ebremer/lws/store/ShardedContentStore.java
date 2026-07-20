@@ -176,4 +176,9 @@ public final class ShardedContentStore implements ContentStore {
             throw new IllegalStateException("SHA-256 is required by the JDK", e);
         }
     }
+
+    @Override
+    public String toString() {
+        return root.toString();
+    }
 }

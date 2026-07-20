@@ -38,7 +38,8 @@ namespace):
 | `:LWSOwner` | WebID granted full `Read`/`Write`/`Append`/`Control` on the storage root, inherited to everything. Optional — see [Owner bootstrap](#owner-bootstrap). |
 | `:hasLWSStorage` | One blank node per storage. Repeat it to mount more storages. |
 | `:urlPath` | The mount path. `/W3Clws` and `/W3ClwsSlash` in the default deployment. |
-| `:storageRoot` | A `file://` URI for the directory the sharded content blobs live under. |
+| `:storageRoot` | A `file://` URI for the directory the sharded content blobs live under. For a storage with a pluggable backend (`:hasBackend`, below) this is the **local materialization-cache root** instead — the blobs themselves rest in the backend. |
+| `:hasBackend` | Optional. A blank node describing a pluggable content backend (SPI: `ContentStoreProvider`); omit it for the two built-in disk stores. The node's `rdf:type` selects the provider — see [S3-backed storages](#s3-backed-storages-halcyonlws-s3). A declared backend no provider on the classpath recognises is refused at boot (that one storage is not mounted; the app boots on). |
 | `:namingPolicy` | `"uuid"` — the flat, **TDB2-authoritative** object store: no trailing slash, opaque sharded-UUID blobs; the `Slug` is honored best-effort as a flat, storage-unique name (disambiguated `name-1`/`-2`, UUID fallback). Or `"slug"` — the hierarchical, **disk-authoritative** file gateway: the URI mirrors to a real path, PUT creates (with implicit parent containers), and files dropped straight onto disk are adopted by the reconciler + watcher. See [architecture.md](architecture.md). |
 | `:LWSIncludeActor` | Optional (default `false`). Include the acting agent's WebID as `actor` on a notification. The spec says omit it by default (it discloses who touched a resource) but MAY be configurable. See [notifications.md](notifications.md). |
 | `:LWSBatchNotifications` | Optional (default `false`). Deliver a bulk operation's activities as one batched envelope (`activity` becomes an array). A recursive `DELETE` then announces the whole removed subtree at once, each subscriber filtered to what it may read. |
@@ -72,6 +73,60 @@ Slugs are sanitized even though disk traversal is impossible (blobs never take a
 `/`, `\`, `..`, control characters, trailing dots/spaces, leading dots, and Windows device names
 (`CON`, `PRN`, `AUX`, `NUL`, `COM1`–`COM9`, `LPT1`–`LPT9`) are stripped or rejected, and a slug can
 never forge a `.meta`/`.acr` suffix or a reserved `.`-prefixed name.
+
+## S3-backed storages (HalcyonLWS-S3)
+
+A storage's bytes can rest in Amazon S3 (or any S3-compatible service — MinIO, Ceph RGW, …)
+instead of a local directory. Over the protocol nothing changes: the storage description, ACP
+authorization, notifications, the IIIF endpoint and the Storage UI all behave identically,
+because only the content-store layer under the servlet is swapped.
+
+```turtle
+    :hasLWSStorage [ a lws:Storage ; :urlPath "/bremerstore" ;
+                     # LOCAL side: the materialization cache (tiles, metadata scans read from here)
+                     :storageRoot <file:///E:/W3CLWS/s3cache/> ;
+                     :namingPolicy "uuid" ;   # required: S3 objects are opaque, TDB2-authoritative
+                     :hasBackend [ a :S3 ;
+                                   :s3Bucket "bremerstore" ;
+                                   :s3Region "us-east-1" ;
+                                   # optional:
+                                   # :s3Prefix "pods/main" ;            # key prefix inside the bucket
+                                   # :s3Endpoint <http://minio:9000> ;  # S3-compatible service
+                                   # :s3ForcePathStyle true             # default: true when :s3Endpoint is set
+                                 ] ] ;
+```
+
+| Property | Meaning |
+|---|---|
+| `a :S3` | Selects the S3 provider (module `HalcyonLWS-S3`, which must be on the classpath). |
+| `:s3Bucket` | Required. The bucket name. |
+| `:s3Region` | The bucket's region. Required unless `:s3Endpoint` is given (then defaults to `us-east-1`, which S3-compatibles ignore). |
+| `:s3Prefix` | Optional key prefix — lets one bucket host several storages side by side. |
+| `:s3Endpoint` | Optional endpoint override for S3-compatible services. IRI or string. |
+| `:s3ForcePathStyle` | Optional. Path-style addressing; defaults to `true` when `:s3Endpoint` is set, `false` otherwise. |
+
+**Credentials have no vocabulary on purpose.** The client uses the AWS default provider chain —
+environment variables (`AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`), a profile, or an instance
+role — so secrets never sit in `settings.ttl`.
+
+How it behaves, operationally:
+
+- **Writes spool locally, then PUT.** An upload streams to `{storageRoot}/.spool` (hashed on the
+  way), then uploads from the file — a replayable body, so the SDK can retry a flaky transfer.
+  Single-PUT uploads cap at S3's 5 GiB object limit; multipart is the upgrade path beyond that.
+- **The crash contract is unchanged.** The object is durable in S3 *before* the metadata commits
+  to TDB2, so a crash can only leave an unreferenced object, and the periodic orphan sweep
+  (a `LIST` under the prefix, same grace period as the disk stores) reaps it.
+- **`:storageRoot` is a cache, and it is safe to lose.** Tile serving, metadata scanning and
+  SPARQL ingest need a real local file; the blob is materialized there on first touch and reused
+  after that. Keys are minted per content generation, so a cached file can never be stale; the
+  sweep prunes entries whose resource is gone. Deleting the whole cache directory costs re-downloads,
+  nothing else. Expect the first IIIF touch of a large slide to pay one full download.
+- **Refusal is loud and scoped.** A bad declaration (unknown backend type, missing bucket,
+  slug naming) logs one clear error at boot and that storage alone is not mounted.
+
+Removing the `HalcyonLWS-S3` dependency from `Halcyon/pom.xml` removes the AWS SDK from the
+classpath entirely; `:hasBackend [ a :S3 … ]` declarations are then refused at boot.
 
 ## Owner bootstrap
 

@@ -55,6 +55,17 @@ public class LwsStorageConfiguration {
             LwsIiifBridge iiif = new LwsIiifBridge();
             List<String> mappings = new ArrayList<>();
             for (LwsStorageConfig cfg : LwsSettings.get().storages()) {
+                // Fail at boot, per storage: build the content store NOW, so a bad backend
+                // declaration (an unknown :hasBackend, a misconfigured bucket) is one clear
+                // log line and one unmounted storage - not an app that dies, and never a
+                // servlet that lazily discovers the problem on its first request.
+                final com.ebremer.lws.store.ContentStore content;
+                try {
+                    content = com.ebremer.lws.store.LwsStore.get().contentStore(cfg);
+                } catch (RuntimeException e) {
+                    LOG.error("LWS storage {} not mounted: {}", cfg.urlPath(), e.getMessage());
+                    continue;
+                }
                 ServletRegistration.Dynamic reg =
                         servletContext.addServlet("LWS " + cfg.urlPath(), new LwsServlet(cfg, iiif));
                 if (reg == null) {
@@ -68,7 +79,7 @@ public class LwsStorageConfiguration {
                 reg.setAsyncSupported(true);
                 mappings.add(cfg.servletMapping());
                 LOG.info("mounted W3C LWS storage at {} -> {} ({} naming)",
-                        cfg.servletMapping(), cfg.contentRoot(), cfg.naming());
+                        cfg.servletMapping(), content, cfg.naming());
             }
             if (!mappings.isEmpty()) {
                 // Session-pays-for-tiles: GET .iiif only, REQUEST + FORWARD (the
