@@ -12,6 +12,7 @@
         <module>jena-permissions</module>
         <module>halcyon-core</module>
         <module>HalcyonLWS</module>
+        <module>HalcyonLWS-S3</module>
         <module>HalcyonMCP</module>
         <module>Halcyon</module>
     </modules>
@@ -109,6 +110,9 @@
              transport-provider override in HalcyonMcpAutoConfiguration tracks
              Spring AI's own auto-config shape). -->
         <spring-ai.version>2.0.0</spring-ai.version>
+        <!-- S3 backend (module HalcyonLWS-S3). BOM-managed; the sync client rides
+             the default apache-client. -->
+        <awssdk.version>2.48.3</awssdk.version>
         <maven-surefire-plugin.version>3.5.3</maven-surefire-plugin.version>
         <maven-compiler-plugin.version>3.15.0</maven-compiler-plugin.version>
         <maven-shade-plugin.version>3.6.2</maven-shade-plugin.version>
@@ -219,6 +223,23 @@
                 <artifactId>HalcyonMCP</artifactId>
                 <type>jar</type>
                 <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <!-- Amazon S3 ContentStore backend (module HalcyonLWS-S3/): plugs
+                     into HalcyonLWS's ContentStoreProvider SPI. Optional by
+                     nature - a deployment that omits it simply cannot declare
+                     :hasBackend [ a :S3 ... ] storages. -->
+                <groupId>com.ebremer.HalcyonProject</groupId>
+                <artifactId>HalcyonLWS-S3</artifactId>
+                <type>jar</type>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>software.amazon.awssdk</groupId>
+                <artifactId>bom</artifactId>
+                <version>${awssdk.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
             </dependency>
             <dependency>
                 <groupId>org.apache.jena</groupId>
