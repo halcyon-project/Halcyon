@@ -29,7 +29,7 @@ import org.slf4j.LoggerFactory;
  * and it cannot mint a key blind ({@link #write} throws): its key is the URI path, so writes go
  * through {@link #writeAt} once that URI is known.
  */
-public final class MirrorContentStore implements ContentStore {
+public final class MirrorContentStore implements PathKeyedStore {
 
     private static final Logger LOG = LoggerFactory.getLogger(MirrorContentStore.class);
     private static final String TMP_PREFIX = ".tmp-";
@@ -80,6 +80,7 @@ public final class MirrorContentStore implements ContentStore {
      * parent directories as needed, and atomically replacing any file already there. Content-first,
      * as in the sharded store: the bytes are fsynced and moved into place before the caller commits.
      */
+    @Override
     public Written writeAt(String key, InputStream in) throws IOException {
         Path target = pathFor(key, null);
         Files.createDirectories(target.getParent());
@@ -112,6 +113,7 @@ public final class MirrorContentStore implements ContentStore {
     }
 
     /** Create the real directory for a container at {@code key} (its path under the mount). */
+    @Override
     public void mkdirs(String key) throws IOException {
         Files.createDirectories(pathFor(key, null));
     }
@@ -122,6 +124,7 @@ public final class MirrorContentStore implements ContentStore {
      * directory is never removed: it is the root of another disk's tree, not this container's
      * property — deleting the container de-registers it, the disk keeps its directory.
      */
+    @Override
     public void removeDir(String key) {
         if (mounts.isMountPoint(key)) {
             LOG.info("not removing mount-point directory for {}", key);

@@ -166,8 +166,8 @@ public class LwsServlet extends HttpServlet {
     private final transient LwsStorageConfig cfg;
     private transient LwsStore store;
     private transient ContentStore content;
-    /** Non-null iff this storage mirrors the URI to a real path (the {@code /W3ClwsSlash} model). */
-    private transient com.ebremer.lws.store.MirrorContentStore mirror;
+    /** Non-null iff this storage's keys are URI paths (the {@code /W3ClwsSlash} model). */
+    private transient com.ebremer.lws.store.PathKeyedStore mirror;
     /** Non-null iff this is the mirror storage: watches disk for real-time adopt/de-register. */
     private transient com.ebremer.lws.store.MirrorWatcher watcher;
     private transient NamingPolicy naming;
@@ -198,7 +198,7 @@ public class LwsServlet extends HttpServlet {
     public void init() {
         this.store = LwsStore.get();
         this.content = store.contentStore(cfg);
-        this.mirror = content instanceof com.ebremer.lws.store.MirrorContentStore m ? m : null;
+        this.mirror = content instanceof com.ebremer.lws.store.PathKeyedStore p ? p : null;
         this.naming = NamingPolicy.of(cfg);
         this.auth = new BearerTokenValidator(cfg);
         this.notify = new Notifications(store, cfg);
@@ -235,9 +235,9 @@ public class LwsServlet extends HttpServlet {
         // start now catches anything that changes while this first pass is still in flight. The one
         // cost is a brief window where a while-down drop 404s until the pass reaches it — it self-heals
         // within that single pass, which is exactly the disk-authoritative contract.
-        if (mirror != null) {
+        if (content instanceof com.ebremer.lws.store.MirrorContentStore mc) {
             SWEEPER.schedule(this::sweepOrphans, 0, TimeUnit.SECONDS);
-            this.watcher = new com.ebremer.lws.store.MirrorWatcher(store, cfg, mirror, content);
+            this.watcher = new com.ebremer.lws.store.MirrorWatcher(store, cfg, mc, content);
             this.watcher.start();
         }
 
@@ -264,10 +264,12 @@ public class LwsServlet extends HttpServlet {
      */
     private void sweepOrphans() {
         try {
-            if (mirror != null) {
+            if (content instanceof com.ebremer.lws.store.MirrorContentStore mc) {
                 // The mirror storage is disk-authoritative, so its background hygiene is the reverse
                 // of reaping: adopt files that appeared on disk, drop entries whose file is gone.
-                new com.ebremer.lws.store.MirrorReconciler(store, cfg, mirror, content).reconcile();
+                // (Gated on the concrete disk mirror: a third-party PathKeyedStore decides its own
+                // hygiene through sweepOrphans below.)
+                new com.ebremer.lws.store.MirrorReconciler(store, cfg, mc, content).reconcile();
                 return;
             }
             Set<String> live = store.read(this::liveStorageKeys);
