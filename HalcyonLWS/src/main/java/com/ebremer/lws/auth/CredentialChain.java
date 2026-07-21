@@ -1,6 +1,9 @@
 package com.ebremer.lws.auth;
 
+import com.ebremer.lws.auth.oidc.LwsOidcSettings;
+import com.ebremer.lws.auth.oidc.LwsOidcVerifier;
 import jakarta.servlet.http.HttpServletRequest;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -37,14 +40,25 @@ public final class CredentialChain {
     }
 
     /**
-     * The standard chain for {@code resource}: the Keycloak bearer-JWT verifier. Its
-     * constructor performs OIDC discovery, so this both builds the verifier and captures the
-     * discovered issuer as the challenge's authorization server. (Additional verifiers are
-     * appended here as credential types are enabled — see {@code PLAN.md}.)
+     * The standard chain for {@code resource}: the Keycloak bearer-JWT verifier, plus the
+     * LWS-OIDC verifier when {@code lws-oidc.json} enables it (off by default, so behaviour is
+     * unchanged unless an operator opts in). The Keycloak verifier's constructor performs OIDC
+     * discovery, so this both builds it and captures the discovered issuer as the challenge's
+     * authorization server.
      */
     public static CredentialChain forResource(String resource) {
+        return forResource(resource, LwsOidcSettings.load());
+    }
+
+    /** As {@link #forResource(String)} but with explicit LWS-OIDC settings (for testing/wiring). */
+    static CredentialChain forResource(String resource, LwsOidcSettings lws) {
         BearerTokenVerifier generic = new BearerTokenVerifier(resource);
-        return new CredentialChain(resource, generic.authorizationServer(), List.of(generic));
+        List<CredentialVerifier> verifiers = new ArrayList<>();
+        verifiers.add(generic);
+        if (lws.enabled()) {
+            verifiers.add(new LwsOidcVerifier(lws));
+        }
+        return new CredentialChain(resource, generic.authorizationServer(), verifiers);
     }
 
     /** The protected resource this chain guards (the {@code aud} target). */

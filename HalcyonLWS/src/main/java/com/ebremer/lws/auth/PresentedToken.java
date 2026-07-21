@@ -9,7 +9,7 @@ import java.util.Base64;
 /**
  * A presented Bearer token together with a cheap, <strong>unverified</strong> decode of the
  * claims a {@link CredentialChain} routes on ({@code iss}, {@code sub}) and the header's
- * {@code kid}.
+ * {@code kid}/{@code alg}.
  *
  * <p>Decoding here reads the JWS segments without checking the signature, and that is safe
  * <em>because it is used only to choose a verifier</em>, never as a trust decision: the
@@ -20,7 +20,7 @@ import java.util.Base64;
  * verifier will then claim it and the chain reports {@code invalid_token} — the same 401 a
  * malformed token has always produced.
  */
-public record PresentedToken(String raw, String iss, String sub, String kid) {
+public record PresentedToken(String raw, String iss, String sub, String kid, String alg) {
 
     /**
      * Extract the token from an {@code Authorization} header value and pre-decode its
@@ -41,6 +41,7 @@ public record PresentedToken(String raw, String iss, String sub, String kid) {
         String iss = null;
         String sub = null;
         String kid = null;
+        String alg = null;
         String[] parts = raw.split("\\.");
         if (parts.length >= 2) {
             JsonObject payload = segment(parts[1]);
@@ -51,9 +52,10 @@ public record PresentedToken(String raw, String iss, String sub, String kid) {
             JsonObject header = segment(parts[0]);
             if (header != null) {
                 kid = header.getString("kid", null);
+                alg = header.getString("alg", null);
             }
         }
-        return new PresentedToken(raw, iss, sub, kid);
+        return new PresentedToken(raw, iss, sub, kid, alg);
     }
 
     /** Base64url-decode one JWS segment to a JSON object, or {@code null} if it is not one. */

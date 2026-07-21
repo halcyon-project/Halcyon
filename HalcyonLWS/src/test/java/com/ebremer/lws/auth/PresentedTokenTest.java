@@ -32,6 +32,7 @@ class PresentedTokenTest {
         assertEquals("https://issuer.example", t.iss());
         assertEquals("https://alice.example/#me", t.sub());
         assertEquals("key-1", t.kid());
+        assertEquals("RS256", t.alg());
     }
 
     @Test
