@@ -45,6 +45,52 @@ everywhere. See [configuration.md](configuration.md) for the required Keycloak m
 The agent context that reaches ACP carries the WebID plus the token's client id, issuer, and any
 verifiable-credential types — all four are matchable attributes (below).
 
+### LWS-OIDC credentials (optional, off by default)
+
+In addition to the Keycloak bearer token above, a storage can accept an **LWS 1.0 OpenID Connect**
+credential: an ID Token whose `sub` is a **WebID**, trusted *dynamically* from the credential itself
+rather than against one pre-configured issuer. Both kinds are tried behind the same
+`Authorization: Bearer` header (a `CredentialChain`): a token whose `iss` is the configured Keycloak
+takes the path above, unchanged; otherwise, if its `sub` is an absolute URL, the LWS verifier runs:
+
+1. the credential MUST be signed (`alg` ≠ `none`);
+2. **dereference `sub`** to its controlled identifier document (CID);
+3. the CID MUST name the token's `iss` as an `lws:OpenIdProvider` service for `sub`;
+4. **OIDC discovery** on `iss`, confirm it self-identifies, fetch its JWKS;
+5. verify the signature (key pinned to the token's `alg`), the `iss` claim, and `exp`.
+
+The authenticated agent's WebID is the `sub` itself and its issuer is the *dynamically discovered* OP —
+both matchable in ACP, so a policy can name a WebID from any provider, or gate on `acp:issuer`:
+
+```turtle
+<#m> a acp:Matcher ; acp:agent <https://alice.example/#me> ;
+                     acp:issuer <https://op.example/realms/foo> .
+```
+
+**Enable it** with an `lws-oidc.json` in the working directory (absent ⇒ disabled — so a deployment
+that does nothing keeps exactly the behaviour it had before):
+
+```json
+{ "enabled": true, "allowedInternalHosts": [] }
+```
+
+Security specifics — this path fetches URLs taken from an *unverified* credential, so it is guarded
+accordingly (see also `PLAN.md`):
+
+- **SSRF.** Steps 2 and 4 go through `SsrfGuard`: only `http(s)`, and no host resolving to a
+  loopback/private/link-local/reserved address (incl. the `169.254.169.254` metadata endpoint).
+  `allowedInternalHosts` opts specific hosts back in — needed only when a WebID is served on an
+  internal address (e.g. the OP hosts its own CIDs behind the same reverse proxy). Fetches use normal
+  CA-validated TLS (unlike the same-box Keycloak JWKS fetch) and never follow redirects. Residual,
+  undefended: DNS rebinding and redirect-to-internal.
+- **Audience.** An LWS ID Token's `aud` is the OIDC *client*, not this storage, so the
+  audience-covers-this-storage rule does **not** apply on this path — a bare bearer LWS credential is
+  replayable to any storage that trusts the WebID's OP. This matches the suite (presentation binding is
+  deferred to Resource Indicators / DPoP) but is weaker than the Keycloak-audience model; enable it
+  deliberately.
+- **Algorithm confusion.** The signing key is pinned to the token's `alg`; a symmetric / `none` /
+  unknown `alg` never matches an RSA/EC verification key.
+
 ## Authorization (ACP)
 
 ### Access modes
