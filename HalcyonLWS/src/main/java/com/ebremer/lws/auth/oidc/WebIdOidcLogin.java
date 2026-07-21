@@ -59,7 +59,7 @@ public final class WebIdOidcLogin {
 
     /** Server-side state for one in-flight login; stash between {@link #begin} and {@link #complete}. */
     public record Pending(String state, String nonce, String codeVerifier, String webId,
-            String issuer, String tokenEndpoint) {
+            String issuer, String tokenEndpoint) implements java.io.Serializable {
     }
 
     /** The browser redirect to the OP, plus the {@link Pending} to keep for the callback. */

@@ -56,6 +56,10 @@ public class URLControl {
             "/h2",
             "/skunkworks/",
             "/login",
+            // Interactive WebID login (Option B): the entry point and the OP's redirect target.
+            // Anonymous servlets (see Main.java), so Wicket must not claim their URL trees.
+            "/webid-login",
+            "/webid-callback",
             "/auth",
             "/three.js/",
             // L18: Graph3D's vendored libraries — Wicket must not try to route these.

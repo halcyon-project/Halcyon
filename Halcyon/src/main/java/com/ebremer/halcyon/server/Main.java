@@ -131,6 +131,32 @@ public class Main {
         return srb;
     }
 
+    // /webid-login + /webid-callback: interactive WebID login (Option B) — discovers the user's
+    // OpenID Provider from a typed WebID and runs Authorization-Code + PKCE against it. Anonymous
+    // (NOT in getSecuredURLs) and Wicket-ignored (URLControl). Off unless lws-oidc.json enables it;
+    // the fixed-Keycloak login is untouched.
+    @Lazy(true)
+    @Bean
+    ServletRegistrationBean WebIdLoginServletRegistration() {
+        ServletRegistrationBean srb = new ServletRegistrationBean();
+        srb.setLoadOnStartup(3);
+        srb.setOrder(Ordered.HIGHEST_PRECEDENCE + 9);
+        srb.setServlet(new WebIdLoginServlet());
+        srb.setUrlMappings(Arrays.asList("/webid-login"));
+        return srb;
+    }
+
+    @Lazy(true)
+    @Bean
+    ServletRegistrationBean WebIdCallbackServletRegistration() {
+        ServletRegistrationBean srb = new ServletRegistrationBean();
+        srb.setLoadOnStartup(3);
+        srb.setOrder(Ordered.HIGHEST_PRECEDENCE + 10);
+        srb.setServlet(new WebIdCallbackServlet());
+        srb.setUrlMappings(Arrays.asList("/webid-callback"));
+        return srb;
+    }
+
     // /rdf2: read-only SPARQL over the LWS module's OWN TDB2, ACP-filtered per
     // request for the caller (see LwsSparqlServlet). Not a Fuseki mount on
     // purpose: a static dataset would freeze one agent's view forever, while
