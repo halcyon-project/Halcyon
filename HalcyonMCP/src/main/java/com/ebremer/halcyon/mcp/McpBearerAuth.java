@@ -1,7 +1,7 @@
 package com.ebremer.halcyon.mcp;
 
 import com.ebremer.lws.auth.AgentContext;
-import com.ebremer.lws.auth.BearerTokenVerifier;
+import com.ebremer.lws.auth.CredentialChain;
 import com.ebremer.lws.auth.InvalidBearerTokenException;
 import jakarta.json.Json;
 import jakarta.servlet.http.HttpServletRequest;
@@ -9,12 +9,11 @@ import java.net.URI;
 import java.util.function.Supplier;
 
 /**
- * MCP-1: the authentication core of the {@code /mcp} endpoint — Keycloak
- * bearer tokens, verified by the SAME {@link BearerTokenVerifier} the LWS
- * storages use (signature against the discovered JWKS, issuer, temporal
- * validity, audience-covers-this-resource). One verifier definition serves
- * every protected surface on this host; the H2 lesson is that a second one
- * drifts.
+ * MCP-1: the authentication core of the {@code /mcp} endpoint — bearer tokens,
+ * verified by the SAME {@link CredentialChain} the LWS storages use (signature
+ * against the discovered JWKS, issuer, temporal validity,
+ * audience-covers-this-resource). One verifier definition serves every
+ * protected surface on this host; the H2 lesson is that a second one drifts.
  *
  * <p><strong>Anonymous is refused.</strong> Unlike LWS — where a request
  * without credentials becomes the PUBLIC agent and ACP decides — every MCP
@@ -29,7 +28,7 @@ import java.util.function.Supplier;
  * verifier already enforces — the same rule lws10-core mandates, served by
  * the same Keycloak audience mapper.
  *
- * <p>The verifier is created lazily (memoized): its constructor performs OIDC
+ * <p>The chain is created lazily (memoized): building it performs OIDC
  * discovery over HTTP, and a transiently unreachable Keycloak must delay the
  * first {@code /mcp} request, not the server's startup.
  *
@@ -38,30 +37,30 @@ import java.util.function.Supplier;
  */
 public class McpBearerAuth {
 
-    private final Supplier<BearerTokenVerifier> factory;
-    private volatile BearerTokenVerifier verifier;
+    private final Supplier<CredentialChain> factory;
+    private volatile CredentialChain chain;
 
     /**
-     * @param factory builds the verifier on first use; its
-     *                {@link BearerTokenVerifier#resource() resource} is the
+     * @param factory builds the credential chain on first use; its
+     *                {@link CredentialChain#resource() resource} is the
      *                absolute URI of the MCP endpoint
      */
-    public McpBearerAuth(Supplier<BearerTokenVerifier> factory) {
+    public McpBearerAuth(Supplier<CredentialChain> factory) {
         this.factory = factory;
     }
 
-    private BearerTokenVerifier verifier() {
-        BearerTokenVerifier v = verifier;
-        if (v == null) {
+    private CredentialChain chain() {
+        CredentialChain c = chain;
+        if (c == null) {
             synchronized (this) {
-                v = verifier;
-                if (v == null) {
-                    v = factory.get();
-                    verifier = v;
+                c = chain;
+                if (c == null) {
+                    c = factory.get();
+                    chain = c;
                 }
             }
         }
-        return v;
+        return c;
     }
 
     /**
@@ -70,7 +69,7 @@ public class McpBearerAuth {
      * per RFC 6750 without an error code (nothing was presented to reject).
      */
     public AgentContext authenticate(HttpServletRequest req) {
-        AgentContext agent = verifier().authenticate(req);
+        AgentContext agent = chain().authenticate(req);
         if (!agent.isAuthenticated()) {
             throw new InvalidBearerTokenException(null, "authentication required");
         }
@@ -79,7 +78,7 @@ public class McpBearerAuth {
 
     /** The MCP endpoint URI this authenticator protects. */
     public String resource() {
-        return verifier().resource();
+        return chain().resource();
     }
 
     /**
@@ -104,7 +103,7 @@ public class McpBearerAuth {
      */
     public String challenge(String error) {
         StringBuilder c = new StringBuilder("Bearer as_uri=\"")
-                .append(verifier().authorizationServer())
+                .append(chain().authorizationServer())
                 .append("\", realm=\"").append(resource())
                 .append("\", resource_metadata=\"").append(metadataUrl()).append('"');
         if (error != null && !error.isBlank()) {
@@ -122,7 +121,7 @@ public class McpBearerAuth {
         return Json.createObjectBuilder()
                 .add("resource", resource())
                 .add("authorization_servers",
-                        Json.createArrayBuilder().add(verifier().authorizationServer()))
+                        Json.createArrayBuilder().add(chain().authorizationServer()))
                 .add("bearer_methods_supported", Json.createArrayBuilder().add("header"))
                 .build().toString();
     }

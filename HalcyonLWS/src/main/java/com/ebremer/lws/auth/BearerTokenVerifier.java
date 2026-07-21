@@ -39,7 +39,7 @@ import org.slf4j.LoggerFactory;
  * credential that does not hold up is always
  * {@link InvalidBearerTokenException}.
  */
-public final class BearerTokenVerifier {
+public final class BearerTokenVerifier implements CredentialVerifier {
 
     private static final Logger LOG = LoggerFactory.getLogger(BearerTokenVerifier.class);
 
@@ -145,28 +145,23 @@ public final class BearerTokenVerifier {
     }
 
     /**
-     * Resolve the requesting agent.
+     * Resolve the agent from a Keycloak-issued bearer JWT.
      *
-     * <p>No {@code Authorization} header is not an error here: the caller decides
-     * whether anonymous is acceptable (LWS matches {@link AgentContext#PUBLIC}
-     * against ACP; the MCP endpoint refuses it). A malformed or invalid token, on
-     * the other hand, is always {@link InvalidBearerTokenException} — it is an
-     * assertion of identity that did not hold up.
+     * <p>Only a token whose {@code iss} is the one issuer this verifier discovered is its
+     * kind; anything else returns {@code null} so a later verifier in the
+     * {@link CredentialChain} may claim it. (The routing peek is unverified, which is safe:
+     * a spoofed {@code iss} of this issuer merely routes the token here, where the signature
+     * check against this issuer's published keys then rejects it.) A recognized token that
+     * does not hold up is always {@link InvalidBearerTokenException}.
+     *
+     * <p>The no-header / bad-scheme / empty-token cases are handled once, upstream, by
+     * {@link CredentialChain}; by the time a verifier is consulted there is a token to check.
      */
-    public AgentContext authenticate(HttpServletRequest req) {
-        String header = req.getHeader("Authorization");
-        if (header == null || header.isBlank()) {
-            return AgentContext.PUBLIC;
+    @Override
+    public AgentContext tryAuthenticate(PresentedToken token, HttpServletRequest req) {
+        if (!issuer.equals(token.iss())) {
+            return null;
         }
-        if (!header.regionMatches(true, 0, "Bearer ", 0, 7)) {
-            throw new InvalidBearerTokenException("invalid_request",
-                    "the Authorization scheme must be Bearer");
-        }
-        String token = header.substring(7).trim();
-        if (token.isEmpty()) {
-            throw new InvalidBearerTokenException("invalid_request", "empty bearer token");
-        }
-
         Claims claims;
         try {
             Jws<Claims> jws = Jwts.parser()
@@ -187,7 +182,7 @@ public final class BearerTokenVerifier {
                     .clockSkewSeconds(SKEW_SECONDS)
                     .requireIssuer(issuer)
                     .build()
-                    .parseSignedClaims(token);
+                    .parseSignedClaims(token.raw());
             claims = jws.getPayload();
         } catch (JwtException | IllegalArgumentException e) {
             LOG.debug("rejecting bearer token: {}", e.toString());

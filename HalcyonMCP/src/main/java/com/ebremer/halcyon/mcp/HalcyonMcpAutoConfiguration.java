@@ -1,7 +1,7 @@
 package com.ebremer.halcyon.mcp;
 
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
-import com.ebremer.lws.auth.BearerTokenVerifier;
+import com.ebremer.lws.auth.CredentialChain;
 import io.modelcontextprotocol.common.McpTransportContext;
 import io.modelcontextprotocol.json.jackson3.JacksonMcpJsonMapper;
 import io.modelcontextprotocol.server.McpTransportContextExtractor;
@@ -110,7 +110,7 @@ public class HalcyonMcpAutoConfiguration {
     @org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
     public McpBearerAuth mcpBearerAuth(
             @Value("${spring.ai.mcp.server.streamable-http.mcp-endpoint:/mcp}") String endpoint) {
-        return new McpBearerAuth(() -> new BearerTokenVerifier(
+        return new McpBearerAuth(() -> CredentialChain.forResource(
                 HalcyonSettings.getSettings().getProxyHostName() + endpoint));
     }
 

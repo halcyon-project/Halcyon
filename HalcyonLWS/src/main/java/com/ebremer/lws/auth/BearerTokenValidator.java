@@ -25,18 +25,18 @@ public final class BearerTokenValidator {
     private static final Logger LOG = LoggerFactory.getLogger(BearerTokenValidator.class);
 
     private final LwsStorageConfig cfg;
-    private final BearerTokenVerifier verifier;
+    private final CredentialChain chain;
 
     public BearerTokenValidator(LwsStorageConfig cfg) {
         this.cfg = cfg;
-        this.verifier = new BearerTokenVerifier(cfg.realm());
+        this.chain = CredentialChain.forResource(cfg.realm());
         LOG.info("LWS storage {} trusts issuer {} (resource {})",
-                cfg.urlPath(), verifier.authorizationServer(), verifier.resource());
+                cfg.urlPath(), chain.authorizationServer(), cfg.realm());
     }
 
     /** The authorization server a client should go to for a token. */
     public String authorizationServer() {
-        return verifier.authorizationServer();
+        return chain.authorizationServer();
     }
 
     /**
@@ -50,7 +50,7 @@ public final class BearerTokenValidator {
      */
     public AgentContext authenticate(HttpServletRequest req) {
         try {
-            return verifier.authenticate(req);
+            return chain.authenticate(req);
         } catch (InvalidBearerTokenException e) {
             throw unauthorized(e.error(), e.getMessage());
         }
@@ -70,7 +70,7 @@ public final class BearerTokenValidator {
      */
     public Problem unauthorized(String error, String detail) {
         StringBuilder challenge = new StringBuilder("Bearer as_uri=\"")
-                .append(verifier.authorizationServer())
+                .append(chain.authorizationServer())
                 .append("\", realm=\"").append(cfg.realm()).append('"');
         if (error != null && !error.isBlank()) {
             challenge.append(", error=\"").append(error).append('"');
