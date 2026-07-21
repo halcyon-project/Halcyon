@@ -20,6 +20,7 @@ import java.util.Set;
 import org.apache.jena.query.ParameterizedSparqlString;
 import org.apache.jena.query.QueryExecution;
 import org.apache.jena.query.QueryExecutionFactory;
+import org.apache.jena.query.ResultSet;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.Property;
@@ -125,6 +126,30 @@ public final class CidResolver {
         try (QueryExecution qe = QueryExecutionFactory.create(pss.asQuery(), cid)) {
             return qe.execAsk();
         }
+    }
+
+    /**
+     * The OpenID Provider (issuer) that {@code cid} names for {@code webId} — the
+     * {@code serviceEndpoint} of its {@code lws:OpenIdProvider} service — or {@code null} if it
+     * names none. This is the discovery direction used by interactive WebID login: given a typed
+     * WebID, find where to send the user to authenticate.
+     */
+    public String openIdProvider(Model cid, String webId) {
+        ParameterizedSparqlString pss = new ParameterizedSparqlString();
+        pss.setNsPrefix("did", DID_NS);
+        pss.setCommandText("SELECT ?iss WHERE { ?sub did:service ?svc . ?svc a ?providerType ; did:serviceEndpoint ?iss . }");
+        pss.setIri("sub", webId);
+        pss.setIri("providerType", OPENID_PROVIDER_TYPE);
+        try (QueryExecution qe = QueryExecutionFactory.create(pss.asQuery(), cid)) {
+            ResultSet rs = qe.execSelect();
+            while (rs.hasNext()) {
+                var node = rs.next().get("iss");
+                if (node != null && node.isURIResource()) {
+                    return node.asResource().getURI();
+                }
+            }
+        }
+        return null;
     }
 
     /** JSON-LD by content type when recognised, otherwise by a leading {@code {}/[}. */
