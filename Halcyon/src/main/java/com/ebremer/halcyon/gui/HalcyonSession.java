@@ -74,7 +74,6 @@ public final class HalcyonSession extends VandegraphSession {
         // therefore skips the Keycloak-admin group sync below.
         String webidLogin = (String) httpSession.getAttribute(WebIdLogin.WEBID);
         if (webidLogin != null && !webidLogin.isBlank()) {
-            user = webidLogin;
             userURI = webidLogin;
             // Groups come from the local WebID->role map (WebIdLogin.groupsFor), never the OP's token.
             // The retained tokens are the credential the GUI presents to LWS storage as this WebID
@@ -83,6 +82,12 @@ public final class HalcyonSession extends VandegraphSession {
                     (WebIdOidcLogin.Tokens) httpSession.getAttribute(WebIdLogin.TOKENS);
             principal = new HalcyonPrincipal(webidLogin, WebIdLogin.groupsFor(webidLogin),
                     webidTokens, WebIdLogin.allowedHosts());
+            // getUser() is the short, path-safe username (a WebID's last segment), exactly like the
+            // Keycloak branch's preferred_username below — NOT the WebID itself, which getUserURI()
+            // carries. A per-user storage path built from the raw WebID has %2F-laden segments the
+            // storage rejects (HTTP 400); the /colorclasses palette relay already keys on the short
+            // name, so the editor must resolve the SAME document path.
+            user = principal.getPreferredUserName();
         } else if (profile.isPresent()) {
             OidcProfile oidcProfile = (OidcProfile) profile.get();
             String jwt = oidcProfile.getAccessToken().getValue();
