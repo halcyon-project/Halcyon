@@ -45,10 +45,12 @@ public class JwtRealm extends AuthorizingRealm {
         if (!(token instanceof JwtToken jwtToken)) {
             throw new AuthenticationException("Unsupported authentication token");
         }
-        if (jwtToken.getClaims() == null) {
-            // Unreachable while JwtToken's constructor rejects unverified tokens,
-            // but this realm must never mint an AuthenticationInfo on trust.
-            throw new AuthenticationException("JWT carries no verified claims");
+        if (jwtToken.getPrincipal() == null) {
+            // Unreachable while JwtToken's constructor rejects unverified tokens (Keycloak or
+            // LWS-OIDC/WebID), but this realm must never mint an AuthenticationInfo on trust. The
+            // principal — not the Keycloak claims, which are null for a WebID credential — is the
+            // proof of a verified identity here.
+            throw new AuthenticationException("JWT carries no verified identity");
         }
         SimplePrincipalCollection principalCollection = new SimplePrincipalCollection(jwtToken, getName());
         return new SimpleAuthenticationInfo(principalCollection, jwtToken.getCredentials());
