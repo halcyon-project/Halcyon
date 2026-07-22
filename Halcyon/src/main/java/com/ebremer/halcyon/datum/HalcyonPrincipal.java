@@ -37,6 +37,8 @@ public class HalcyonPrincipal implements Principal, Serializable {
     public HalcyonPrincipal(String webid) {
         groups = new ArrayList<>();
         useruri = webid;
+        this.webid = webid;
+        name = webid;
         URNuuid = "ajjaja";
         uuid = "ddsds";
         anonymous = false;

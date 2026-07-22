@@ -7,6 +7,7 @@ import com.ebremer.vandegraph.VandegraphSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
+import com.ebremer.halcyon.server.WebIdLogin;
 import com.ebremer.ns.HAL;
 import jakarta.json.Json;
 import jakarta.json.JsonArray;
@@ -67,7 +68,15 @@ public final class HalcyonSession extends VandegraphSession {
         setLocale(Locale.ENGLISH);
         HttpSession httpSession = servletRequest.getSession(true);
         httpSession.setMaxInactiveInterval(60*60*24); // 1 day for now
-        if (profile.isPresent()) {
+        // Option B: an interactive WebID login (the /webid-callback servlet) seats its result as a
+        // session attribute. Identity is the WebID itself; this path carries no Keycloak token and
+        // therefore skips the Keycloak-admin group sync below.
+        String webidLogin = (String) httpSession.getAttribute(WebIdLogin.WEBID);
+        if (webidLogin != null && !webidLogin.isBlank()) {
+            user = webidLogin;
+            userURI = webidLogin;
+            principal = new HalcyonPrincipal(webidLogin);
+        } else if (profile.isPresent()) {
             OidcProfile oidcProfile = (OidcProfile) profile.get();
             String jwt = oidcProfile.getAccessToken().getValue();
             JwtToken haha = new JwtToken(jwt);
@@ -79,7 +88,7 @@ public final class HalcyonSession extends VandegraphSession {
             userURI = "urn:uuid:"+UUID.randomUUID().toString();
             principal = new HalcyonPrincipal(userURI, true);
         }
-        if (profile.isPresent()) {
+        if (webidLogin == null && profile.isPresent()) {
             OidcProfile oidcProfile = (OidcProfile) profile.get();
             String jwt = oidcProfile.getAccessToken().getValue();
             ResteasyClientBuilder builder = (ResteasyClientBuilder) ClientBuilder.newBuilder();

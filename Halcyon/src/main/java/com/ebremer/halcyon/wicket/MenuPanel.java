@@ -1,6 +1,7 @@
 package com.ebremer.halcyon.wicket;
 
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
+import com.ebremer.halcyon.server.WebIdLogin;
 import com.ebremer.halcyon.datum.HalcyonPrincipal;
 import com.ebremer.halcyon.gui.Blank;
 import com.ebremer.halcyon.gui.HalcyonSession;
@@ -46,6 +47,7 @@ public class MenuPanel extends Panel {
             }
         };
         LogoutLink logout = new LogoutLink("logoutLink");
+        ExternalLink webidlogin = new ExternalLink("webidLoginLink", host+"/webid-login","WebID Login");
         add(images);
         add(account);
         add(colorclasses);
@@ -57,6 +59,7 @@ public class MenuPanel extends Panel {
         add(threed);
         add(logout);
         add(login);
+        add(webidlogin);
         add(revisionhistory);
         images.setVisible(false);
         security.setVisible(false);
@@ -69,9 +72,11 @@ public class MenuPanel extends Panel {
         stacks.setVisible(false);
         logout.setVisible(false);
         login.setVisible(false);
+        webidlogin.setVisible(false);
         revisionhistory.setVisible(false);
         if (hp.isAnon()) {
             login.setVisible(true);
+            webidlogin.setVisible(WebIdLogin.enabled());
         } else {
             revisionhistory.setVisible(true);
             login.setVisible(false);

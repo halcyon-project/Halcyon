@@ -10,12 +10,12 @@ import com.ebremer.lws.auth.oidc.WebIdOidcLogin;
  * HTTP-session attribute names the two servlets hand state through. Off unless {@code lws-oidc.json}
  * sets {@code "enabled": true}.
  */
-final class WebIdLogin {
+public final class WebIdLogin {
 
     /** Session attribute holding the in-flight {@link WebIdOidcLogin.Pending} between the two servlets. */
     static final String PENDING = "halcyon.webidlogin.pending";
     /** Session attribute holding the authenticated WebID, for {@code HalcyonSession} to seat (B3). */
-    static final String WEBID = "halcyon.webidlogin.webid";
+    public static final String WEBID = "halcyon.webidlogin.webid";
     /** Callback path — also the OAuth {@code redirect_uri} registered at the OP. */
     static final String CALLBACK_PATH = "/webid-callback";
 
@@ -26,7 +26,7 @@ final class WebIdLogin {
     private WebIdLogin() {
     }
 
-    static boolean enabled() {
+    public static boolean enabled() {
         ensureLoaded();
         return enabled;
     }
