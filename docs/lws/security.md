@@ -118,6 +118,19 @@ configured in the same `lws-oidc.json`:
   dynamically-registered client inherits it) and a realm that permits anonymous client registration —
   otherwise the callback's WebID binding fails even though registration succeeded.
 
+A WebID login establishes an **authenticated identity** (the WebID), which ACP matches per resource like
+any other. It does **not** grant *local* roles: an id_token's `groups`/roles are an assertion by whatever
+OP the WebID names, and trusting that to grant a role such as `admin` would let an arbitrary OP (worse,
+one reached via dynamic registration) seize local power. So local group membership for a WebID login is a
+**local policy**, a WebID→groups map in the same `lws-oidc.json` — the OP's token is never consulted for it:
+
+```json
+{ "webIdGroups": { "https://ebremer.com/id/erich": ["admin"] } }
+```
+
+Only WebIDs you list here receive local groups; every other WebID logs in with none (authorized purely
+through ACP). The Keycloak-token path is unchanged — its groups still come from the verified access token.
+
 ## Authorization (ACP)
 
 ### Access modes
