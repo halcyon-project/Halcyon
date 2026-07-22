@@ -92,6 +92,16 @@ public class LwsStorageConfiguration {
                             EnumSet.of(DispatcherType.REQUEST, DispatcherType.FORWARD),
                             true, mappings.toArray(String[]::new));
                 }
+                // Each BeakGraph resource is its own SPARQL endpoint at its own URL: a request
+                // carrying a SPARQL query is answered from the resource's BeakGraph; everything
+                // else passes through to LwsServlet untouched. See LwsResourceSparqlFilter.
+                FilterRegistration.Dynamic sparql = servletContext.addFilter(
+                        "LWS resource SPARQL", new LwsResourceSparqlFilter());
+                if (sparql != null) {
+                    sparql.addMappingForUrlPatterns(
+                            EnumSet.of(DispatcherType.REQUEST), true,
+                            mappings.toArray(String[]::new));
+                }
             }
         };
     }
