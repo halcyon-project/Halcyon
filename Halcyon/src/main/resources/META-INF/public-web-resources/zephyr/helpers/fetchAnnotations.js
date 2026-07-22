@@ -1,7 +1,6 @@
 import { createButton } from "./elements.js";
 import { getUrl } from "./conversions.js";
 import { loadAnnotationSetInto } from "./save.js";
-import { getAnnotationLabel, setAnnotationLabel } from "./sparql.js";
 import { activeImageUrl, getActiveEntry, createAnnotationLayer } from "./annotationTarget.js";
 import { getRegistry } from "../context.js";
 import { invalidate } from "../renderLoop.js";
@@ -148,25 +147,14 @@ export function fetchAnnotations(scene) {
 
       // Create text input for name. One failed lookup (offline, not signed
       // in) must not abort the rest of the list — fall back to the filename.
+      // The annotation name is the filename: label persistence was removed with
+      // the /rdf endpoint and the CollectionsAndResources graph.
       let name = null;
-      try {
-        name = await getAnnotationLabel(annotation);
-      } catch (error) {
-        console.error('Annotation label lookup failed:', annotation, error);
-      }
       const textInput = document.createElement('input');
       textInput.type = 'text';
       // Use annotation label or filename
       textInput.value = name ? name : annotation.split("/").pop();
       label.appendChild(textInput);
-
-      const updateButton = document.createElement('button');
-      updateButton.innerText = 'Rename';
-      updateButton.title = "Update Annotation Label";
-      updateButton.addEventListener('click', () => {
-        setAnnotationLabel(annotation, textInput.value);
-      });
-      label.appendChild(updateButton);
 
       // Create text node for name
       // if (name) {

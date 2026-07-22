@@ -75,7 +75,6 @@ public final class DataCore {
         ds.begin(ReadWrite.READ);
         try {
             secm.add(ds.getNamedModel(HAL.SecurityGraph.getURI()));
-            secm.add(ds.getNamedModel(HAL.CollectionsAndResources.getURI()));
             secm.add(ds.getNamedModel(HAL.GroupsAndUsers.getURI()));
         } finally {
             ds.end();
@@ -103,7 +102,6 @@ public final class DataCore {
         }
         String uri = k.getURI();
         return HAL.SecurityGraph.getURI().equals(uri)
-            || HAL.CollectionsAndResources.getURI().equals(uri)
             || HAL.GroupsAndUsers.getURI().equals(uri);
     }
     

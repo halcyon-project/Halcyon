@@ -1,7 +1,6 @@
 // Save / load annotation sets.
 import * as THREE from 'three';
 import { createButton } from "./elements.js";
-import { setAnnotationLabel } from "./sparql.js";
 import { getActiveGroup } from "./annotationTarget.js";
 import { getRegistry, cfg } from "../context.js";
 import { localToImagePoints, imageToLocalPoints, pointsToWKT, wktToPoints } from "./wkt.js";
@@ -166,7 +165,6 @@ export async function saveAllAnnotationLayers(registry) {
             });
             if (res.redirected) throw new Error('redirected to sign-in (not signed in)');
             if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-            try { await setAnnotationLabel(url, e.name); } catch (le) { console.error('label set failed', le); }
             e.src = url;
             e.dirty = false;
         } catch (err) {

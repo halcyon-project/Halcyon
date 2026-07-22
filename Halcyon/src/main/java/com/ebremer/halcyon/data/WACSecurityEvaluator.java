@@ -2,7 +2,6 @@ package com.ebremer.halcyon.data;
 
 import com.ebremer.halcyon.data.DataCore.Level;
 import com.ebremer.halcyon.datum.HalcyonPrincipal;
-import static com.ebremer.halcyon.data.DataCore.Level.OPEN;
 import com.ebremer.halcyon.fuseki.shiro.JwtToken;
 import com.ebremer.halcyon.gui.HalcyonSession;
 import com.ebremer.halcyon.pools.AccessCache;
@@ -67,34 +66,6 @@ public final class WACSecurityEvaluator implements SecurityEvaluator {
         String mode = WACUtil.WAC(action);
         if (mode == null) {
             return false;
-        }
-        // M5 — this pre-grant is an ENVELOPE grant, not a blanket disclosure, and
-        // it is load-bearing. It only ever fires for the CollectionsAndResources
-        // GRAPH node itself. Its two callers (the ListImages/ListFeatures
-        // collection dropdowns, via getSecuredDataset(OPEN) -> Patterns
-        // .getCollectionRDF2) issue "GRAPH <CollectionsAndResources> {...}" with
-        // the graph bound to a CONSTANT, which ARQ 6.1.0 routes through
-        // SecuredDatasetGraph.getGraph(node) -> Factory.getInstance(...), i.e. a
-        // jena-permissions SECURED graph. Every triple inside is then re-checked
-        // by evaluate(principal, action, graphIRI, triple), which authorizes the
-        // triple's SUBJECT (a urn:uuid: container) under the normal per-agent
-        // ACL — the branch below cannot match a container subject, so per-tenant
-        // filtering still happens. Dropping this grant does NOT tighten anything:
-        // it just empties both dropdowns, because no rule grants acl:Read on the
-        // CollectionsAndResources graph IRI (rules target urn:uuid: containers).
-        //
-        // INVARIANT this depends on: the catalog is only ever read via a CONSTANT
-        // GRAPH pattern. SecuredDatasetGraph.find/findNG hand back base.find*()
-        // RAW once hasReadAccess(g) passes, so an OPEN-level query shaped
-        // "GRAPH ?g {...}" (variable) would bypass the per-triple filter and
-        // expose the whole catalog. Keep catalog reads on a constant graph.
-        //
-        // M1 additionally restricts this to Read, so OPEN can never authorize a
-        // mutation of the catalog.
-        if (level == OPEN && action == Action.Read) {
-            if (node.equals(HAL.CollectionsAndResources.asNode())) {
-                return true;
-            }
         }
         HalcyonPrincipal hp = (HalcyonPrincipal) principal;
         AccessCache ac;
