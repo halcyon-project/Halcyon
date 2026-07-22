@@ -43,12 +43,18 @@ public class WebIdCallbackServlet extends HttpServlet {
         try {
             String webId = WebIdLogin.flow().complete(pending,
                     request.getParameter("code"), request.getParameter("state"));
-            session.removeAttribute(WebIdLogin.PENDING);
-            session.setAttribute(WebIdLogin.WEBID, webId);
+            // Rebuild the session so a fresh HalcyonSession seats the WebID as the identity.
+            // HalcyonSession reads this attribute only in its constructor (like the Keycloak path,
+            // whose login link invalidates first), and an anonymous HalcyonSession may already exist
+            // from before the login — reusing it would leave the user unauthenticated. Invalidating
+            // also rotates the session id post-authentication (session-fixation defence).
+            session.invalidate();
+            HttpSession fresh = request.getSession(true);
+            fresh.setAttribute(WebIdLogin.WEBID, webId);
             logger.info("WebID login succeeded for {}", webId);
             response.sendRedirect("/");
         } catch (WebIdOidcLogin.WebIdLoginException e) {
-            logger.debug("WebID login callback failed: {}", e.getMessage());
+            logger.warn("WebID login callback failed: {}", e.getMessage());
             session.removeAttribute(WebIdLogin.PENDING);
             response.sendError(HttpServletResponse.SC_BAD_REQUEST, "WebID login failed: " + e.getMessage());
         }
