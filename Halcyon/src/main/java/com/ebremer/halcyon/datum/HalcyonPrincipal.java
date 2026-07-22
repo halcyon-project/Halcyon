@@ -3,11 +3,13 @@ package com.ebremer.halcyon.datum;
 import com.ebremer.halcyon.fuseki.shiro.JwtToken;
 import com.ebremer.halcyon.fuseki.shiro.JwtVerifier;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
+import com.ebremer.lws.auth.oidc.WebIdOidcLogin;
 import com.ebremer.ns.HAL;
 import io.jsonwebtoken.Claims;
 import java.io.Serializable;
 import java.security.Principal;
 import java.util.ArrayList;
+import java.util.Set;
 import org.pac4j.oidc.profile.keycloak.KeycloakOidcProfile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,6 +27,10 @@ public class HalcyonPrincipal implements Principal, Serializable {
     private final boolean anonymous;
     private String name = "Anonymous User";
     private String token;
+    // Option B (WebID login): the retained tokens and the SSRF allow-list needed to refresh them.
+    // getToken() renews the ID Token from these on demand. Null for Keycloak/anonymous principals.
+    private WebIdOidcLogin.Tokens webidTokens;
+    private Set<String> webidAllowedHosts;
     private String lastname;
     private String firstname;
     private String preferred_username;
@@ -39,9 +45,61 @@ public class HalcyonPrincipal implements Principal, Serializable {
         useruri = webid;
         this.webid = webid;
         name = webid;
+        // A WebID login has no Keycloak preferred_username; derive a display/personal-area name from
+        // the WebID. The ACL identity stays the WebID (useruri, above); this only names the personal
+        // storage area the account page queries, which ACP still governs.
+        preferred_username = usernameFromWebId(webid);
         URNuuid = "ajjaja";
         uuid = "ddsds";
         anonymous = false;
+    }
+
+    /**
+     * A WebID identity (Option B) carrying its locally-assigned groups. The groups come from the
+     * server's local WebID-&gt;role map, never from the OP's token — see {@code WebIdLogin.groupsFor}.
+     */
+    public HalcyonPrincipal(String webid, java.util.Collection<String> groups) {
+        this(webid);
+        if (groups != null) {
+            this.groups.addAll(groups);
+        }
+    }
+
+    /**
+     * A WebID identity (Option B) carrying its locally-assigned groups and the login's LWS-OIDC
+     * tokens. {@code getToken()} returns the ID Token — a bare LWS-OIDC credential ({@code sub} ==
+     * this WebID) — so the GUI can fetch LWS storage as this WebID (server-side only), refreshing it
+     * from the refresh token when it nears expiry. {@code allowedHosts} is the SSRF allow-list for
+     * reaching the OP's token endpoint on refresh.
+     */
+    public HalcyonPrincipal(String webid, java.util.Collection<String> groups,
+            WebIdOidcLogin.Tokens tokens, Set<String> allowedHosts) {
+        this(webid, groups);
+        this.webidTokens = tokens;
+        this.webidAllowedHosts = allowedHosts == null ? Set.of() : allowedHosts;
+    }
+
+    /**
+     * A username derived from a WebID: its last path segment, with any fragment and trailing slashes
+     * stripped (so {@code https://ebremer.com/id/erich} -> {@code erich}). Falls back to the WebID
+     * itself when it has no usable path segment. Purely a display/personal-area convenience — the ACL
+     * identity is always the full WebID.
+     */
+    static String usernameFromWebId(String webId) {
+        if (webId == null || webId.isBlank()) {
+            return null;
+        }
+        String s = webId;
+        int hash = s.indexOf('#');
+        if (hash >= 0) {
+            s = s.substring(0, hash);
+        }
+        while (s.endsWith("/")) {
+            s = s.substring(0, s.length() - 1);
+        }
+        int slash = s.lastIndexOf('/');
+        String segment = slash >= 0 ? s.substring(slash + 1) : s;
+        return segment.isBlank() ? webId : segment;
     }
     
     public HalcyonPrincipal(String uuid, boolean anonymous) {
@@ -125,7 +183,14 @@ public class HalcyonPrincipal implements Principal, Serializable {
         return useruri;
     }
     
-    public String getToken() {
+    public synchronized String getToken() {
+        if (webidTokens != null) {
+            // WebID login (Option B): the ID Token is short-lived, so refresh it on demand. Every
+            // LWS-storage call site reads the token through here, so this transparently keeps their
+            // fetches authenticated without any of them handling refresh. Server-side only.
+            webidTokens = WebIdOidcLogin.freshTokens(webidTokens, webidAllowedHosts);
+            return webidTokens == null ? null : webidTokens.idToken();
+        }
         return token;
     }
     

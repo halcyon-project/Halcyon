@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import com.ebremer.halcyon.server.WebIdLogin;
+import com.ebremer.lws.auth.oidc.WebIdOidcLogin;
 import com.ebremer.ns.HAL;
 import jakarta.json.Json;
 import jakarta.json.JsonArray;
@@ -75,7 +76,13 @@ public final class HalcyonSession extends VandegraphSession {
         if (webidLogin != null && !webidLogin.isBlank()) {
             user = webidLogin;
             userURI = webidLogin;
-            principal = new HalcyonPrincipal(webidLogin);
+            // Groups come from the local WebID->role map (WebIdLogin.groupsFor), never the OP's token.
+            // The retained tokens are the credential the GUI presents to LWS storage as this WebID
+            // (the principal refreshes the ID Token from them on demand).
+            WebIdOidcLogin.Tokens webidTokens =
+                    (WebIdOidcLogin.Tokens) httpSession.getAttribute(WebIdLogin.TOKENS);
+            principal = new HalcyonPrincipal(webidLogin, WebIdLogin.groupsFor(webidLogin),
+                    webidTokens, WebIdLogin.allowedHosts());
         } else if (profile.isPresent()) {
             OidcProfile oidcProfile = (OidcProfile) profile.get();
             String jwt = oidcProfile.getAccessToken().getValue();

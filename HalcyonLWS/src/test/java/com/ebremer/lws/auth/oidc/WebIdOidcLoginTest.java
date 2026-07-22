@@ -80,9 +80,12 @@ class WebIdOidcLoginTest {
     void completesToTheWebIdOnAValidIdToken() throws IOException {
         String webId = start(true);
         Redirect r = login.begin(webId);
-        setTokenResponse(mint(webId, r.pending().nonce()));
+        String idToken = mint(webId, r.pending().nonce());
+        setTokenResponse(idToken);
 
-        assertEquals(webId, login.complete(r.pending(), "the-code", r.pending().state()));
+        WebIdOidcLogin.Tokens result = login.complete(r.pending(), "the-code", r.pending().state());
+        assertEquals(webId, result.webId());
+        assertEquals(idToken, result.idToken(), "the validated id_token is returned for reuse");
     }
 
     @Test
@@ -118,7 +121,7 @@ class WebIdOidcLoginTest {
         // OP authenticates with an opaque sub but asserts the WebID via a webid claim.
         setTokenResponse(mintWithWebid("9f77772d-e810-47d0-89ec-403b2d174493", webId, r.pending().nonce()));
 
-        assertEquals(webId, login.complete(r.pending(), "the-code", r.pending().state()));
+        assertEquals(webId, login.complete(r.pending(), "the-code", r.pending().state()).webId());
     }
 
     @Test
@@ -138,7 +141,7 @@ class WebIdOidcLoginTest {
         assertEquals("dyn-client-1", r.pending().clientId());
 
         setTokenResponse(mint(webId, r.pending().nonce()));
-        assertEquals(webId, dyn.complete(r.pending(), "the-code", r.pending().state()));
+        assertEquals(webId, dyn.complete(r.pending(), "the-code", r.pending().state()).webId());
     }
 
     @Test
@@ -151,6 +154,29 @@ class WebIdOidcLoginTest {
         assertEquals(1, registerHits.get());
     }
 
+    @Test
+    void freshTokensRefreshesAnExpiredIdToken() throws IOException {
+        String webId = start(true);
+        // A retained session whose id_token has expired, but with a refresh token to renew it.
+        WebIdOidcLogin.Tokens stale = new WebIdOidcLogin.Tokens(
+                webId, mintExpired(webId), "the-refresh-token", base, base + "/token", "halcyon-local");
+        String renewed = mint(webId, "no-nonce-on-refresh");
+        setTokenResponse(renewed);
+
+        WebIdOidcLogin.Tokens fresh = WebIdOidcLogin.freshTokens(stale, Set.of("127.0.0.1"));
+        assertEquals(renewed, fresh.idToken(), "the refreshed id_token replaces the expired one");
+        assertEquals(webId, fresh.webId());
+    }
+
+    @Test
+    void freshTokensReturnsAValidTokenUntouched() throws IOException {
+        String webId = start(true);
+        WebIdOidcLogin.Tokens current = new WebIdOidcLogin.Tokens(
+                webId, mint(webId, "n"), "the-refresh-token", base, base + "/token", "halcyon-local");
+        // A still-valid id_token must not trigger a refresh (leave the token endpoint unset).
+        assertEquals(current, WebIdOidcLogin.freshTokens(current, Set.of("127.0.0.1")));
+    }
+
     // --- fixtures -------------------------------------------------------------------------
 
     private String mint(String sub, String nonce) {
@@ -158,6 +184,15 @@ class WebIdOidcLoginTest {
                 .header().keyId(KID).and()
                 .issuer(base).subject(sub).claim("nonce", nonce).claim("azp", "halcyon-local")
                 .expiration(Date.from(Instant.now().plusSeconds(300)))
+                .signWith(RSA.getPrivate(), Jwts.SIG.RS256)
+                .compact();
+    }
+
+    private String mintExpired(String sub) {
+        return Jwts.builder()
+                .header().keyId(KID).and()
+                .issuer(base).subject(sub)
+                .expiration(Date.from(Instant.now().minusSeconds(120)))
                 .signWith(RSA.getPrivate(), Jwts.SIG.RS256)
                 .compact();
     }

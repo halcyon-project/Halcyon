@@ -7,6 +7,7 @@ import io.jsonwebtoken.Jwts;
 import jakarta.json.Json;
 import jakarta.json.JsonObject;
 import jakarta.json.JsonReader;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -20,10 +21,13 @@ import java.security.MessageDigest;
 import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Base64;
 import java.util.Locale;
 import java.util.Set;
 import org.apache.jena.rdf.model.Model;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Interactive WebID login (the browser relying-party flow): a person types a WebID, and this
@@ -47,6 +51,9 @@ public final class WebIdOidcLogin {
 
     private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(10);
     private static final long SKEW_SECONDS = 60;
+    /** Refresh the ID Token once it is within this many seconds of expiry. */
+    private static final long REFRESH_SKEW_SECONDS = 30;
+    private static final Logger LOG = LoggerFactory.getLogger(WebIdOidcLogin.class);
 
     /** A login attempt could not be started or completed. */
     public static final class WebIdLoginException extends RuntimeException {
@@ -64,6 +71,16 @@ public final class WebIdOidcLogin {
 
     /** The browser redirect to the OP, plus the {@link Pending} to keep for the callback. */
     public record Redirect(String authorizationUrl, Pending pending) {
+    }
+
+    /**
+     * The tokens from a completed login: the authenticated WebID, the validated ID Token (itself a
+     * bare LWS-OIDC credential whose {@code sub} is the WebID — presentable to LWS storage as that
+     * WebID), the refresh token, and the OP coordinates needed to refresh. A browser session retains
+     * this and calls {@link #freshTokens} to keep the presented ID Token current.
+     */
+    public record Tokens(String webId, String idToken, String refreshToken, String issuer,
+            String tokenEndpoint, String clientId) implements java.io.Serializable {
     }
 
     private final String configuredClientId;
@@ -167,10 +184,10 @@ public final class WebIdOidcLogin {
      * (signature via the OP's JWKS, issuer, nonce, expiry), and require it to assert the WebID this
      * login was for — as its {@code sub} or a {@code webid} claim.
      *
-     * @return the authenticated WebID (equal to {@code pending.webId()})
+     * @return the authenticated WebID plus the validated ID Token and refresh token (see {@link Tokens})
      * @throws WebIdLoginException on any mismatch or validation failure
      */
-    public String complete(Pending pending, String code, String returnedState) {
+    public Tokens complete(Pending pending, String code, String returnedState) {
         if (pending == null) {
             throw new WebIdLoginException("no pending login for this callback");
         }
@@ -191,39 +208,118 @@ public final class WebIdOidcLogin {
         if (idToken == null) {
             throw new WebIdLoginException("the token response contained no id_token");
         }
+        Claims claims = validateIdToken(idToken, pending.issuer(), pending.webId());
+        String nonce = claims.get("nonce", String.class);
+        if (nonce == null || !nonce.equals(pending.nonce())) {
+            throw new WebIdLoginException("id_token nonce mismatch (possible replay)");
+        }
+        String refreshToken = tokenResponse.getString("refresh_token", null);
+        return new Tokens(pending.webId(), idToken, refreshToken, pending.issuer(),
+                pending.tokenEndpoint(), pending.clientId());
+    }
 
+    /**
+     * Refresh the ID Token with the stored refresh token (RFC 6749 §6). The new ID Token is validated
+     * exactly as a login one — signature via the OP's JWKS, issuer, expiry and the WebID binding —
+     * minus the one-time {@code nonce}. Returns the new {@link Tokens} (rotated refresh token kept).
+     *
+     * @throws WebIdLoginException if there is no refresh token, the OP refuses, or validation fails
+     */
+    public Tokens refresh(Tokens current) {
+        if (current.refreshToken() == null || current.refreshToken().isBlank()) {
+            throw new WebIdLoginException("no refresh token for " + current.webId());
+        }
+        SsrfGuard.verify(current.tokenEndpoint(), allowedHosts);
+        String form = "grant_type=refresh_token"
+                + "&refresh_token=" + enc(current.refreshToken())
+                + "&client_id=" + enc(current.clientId())
+                + "&scope=" + enc("openid");
+        JsonObject tokenResponse = postForm(current.tokenEndpoint(), form);
+        String idToken = tokenResponse.getString("id_token", null);
+        if (idToken == null) {
+            throw new WebIdLoginException("the refresh response contained no id_token");
+        }
+        validateIdToken(idToken, current.issuer(), current.webId());
+        // Keycloak rotates the refresh token on use; keep the new one (fall back to the old if absent).
+        String refreshToken = tokenResponse.getString("refresh_token", current.refreshToken());
+        return new Tokens(current.webId(), idToken, refreshToken, current.issuer(),
+                current.tokenEndpoint(), current.clientId());
+    }
+
+    /**
+     * {@code current} if its ID Token is still valid, otherwise a refreshed copy. On any refresh
+     * failure it returns {@code current} unchanged — the stale token then 401s at storage, prompting
+     * re-login. Static so a retained {@link Tokens} can be refreshed without holding the originating
+     * {@link WebIdOidcLogin} (it needs no login-only state: no redirect URI, no PKCE, no nonce).
+     */
+    public static Tokens freshTokens(Tokens current, Set<String> allowedHosts) {
+        if (current == null || current.idToken() == null) {
+            return current;
+        }
+        long exp = expiryEpochSeconds(current.idToken());
+        if (exp > 0 && exp - REFRESH_SKEW_SECONDS > Instant.now().getEpochSecond()) {
+            return current;
+        }
+        if (current.refreshToken() == null || current.refreshToken().isBlank()) {
+            return current;
+        }
+        try {
+            return new WebIdOidcLogin(current.clientId(), null, false, allowedHosts).refresh(current);
+        } catch (RuntimeException e) {
+            LOG.warn("WebID token refresh failed for {}: {}", current.webId(), e.getMessage());
+            return current;
+        }
+    }
+
+    /** Validate an ID Token as this login's WebID credential: signed, JWKS-verified, issuer and expiry
+     *  correct, and asserting the WebID as {@code sub} or a {@code webid} claim. */
+    private Claims validateIdToken(String idToken, String issuer, String webId) {
         PresentedToken parsed = PresentedToken.parse("Bearer " + idToken);
         if (parsed.alg() == null || "none".equalsIgnoreCase(parsed.alg())) {
             throw new WebIdLoginException("the id_token is not signed");
         }
-        PublicKey key = keys.signingKey(pending.issuer(), parsed.kid(), parsed.alg(), allowedHosts);
+        PublicKey key = keys.signingKey(issuer, parsed.kid(), parsed.alg(), allowedHosts);
         Claims claims;
         try {
             claims = Jwts.parser()
                     .verifyWith(key)
                     .clockSkewSeconds(SKEW_SECONDS)
-                    .requireIssuer(pending.issuer())
+                    .requireIssuer(issuer)
                     .build()
                     .parseSignedClaims(idToken)
                     .getPayload();
         } catch (JwtException | IllegalArgumentException e) {
             throw new WebIdLoginException("the id_token did not validate: " + e.getMessage());
         }
-        String nonce = claims.get("nonce", String.class);
-        if (nonce == null || !nonce.equals(pending.nonce())) {
-            throw new WebIdLoginException("id_token nonce mismatch (possible replay)");
-        }
         // The OP must assert the typed WebID — as sub (the LWS credential shape) or a webid claim.
-        boolean bound = pending.webId().equals(claims.getSubject())
-                || pending.webId().equals(claims.get("webid", String.class));
+        boolean bound = webId.equals(claims.getSubject())
+                || webId.equals(claims.get("webid", String.class));
         if (!bound) {
             throw new WebIdLoginException("the id_token does not assert the requested WebID <"
-                    + pending.webId() + "> (sub=" + claims.getSubject() + ")");
+                    + webId + "> (sub=" + claims.getSubject() + ")");
         }
         if (claims.getExpiration() == null) {
             throw new WebIdLoginException("the id_token has no exp");
         }
-        return pending.webId();
+        return claims;
+    }
+
+    /** The ID Token's {@code exp} (epoch seconds), read WITHOUT verifying — only a heuristic for when
+     *  to refresh; the refreshed token is fully validated, and storage validates whatever is presented. */
+    private static long expiryEpochSeconds(String idToken) {
+        try {
+            String[] parts = idToken.split("\\.");
+            if (parts.length < 2) {
+                return 0;
+            }
+            byte[] payload = Base64.getUrlDecoder().decode(parts[1]);
+            try (JsonReader r = Json.createReader(new ByteArrayInputStream(payload))) {
+                JsonObject o = r.readObject();
+                return o.containsKey("exp") ? o.getJsonNumber("exp").longValue() : 0;
+            }
+        } catch (RuntimeException e) {
+            return 0;
+        }
     }
 
     private JsonObject postForm(String url, String form) {
