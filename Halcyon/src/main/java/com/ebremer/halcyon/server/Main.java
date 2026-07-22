@@ -19,7 +19,6 @@ import com.ebremer.halcyon.sparql.InvalidateSessionServlet;
 import jakarta.annotation.PostConstruct;
 import java.util.Iterator;
 import javax.imageio.ImageIO;
-import org.apache.jena.query.ReadWrite;
 import org.mitre.dsmiley.httpproxy.ProxyServlet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
