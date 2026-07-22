@@ -173,7 +173,6 @@ public class Main {
     public ServletRegistrationBean proxyServletKeycloakRegistrationBean() {
         ServletRegistrationBean bean = new ServletRegistrationBean(new HalcyonProxyServlet(), "/auth/*");
         bean.addInitParameter("targetUri", "http://localhost:8080/auth");
-        //bean.addInitParameter("targetUri", "https://ebremer.com/auth");
         bean.addInitParameter(ProxyServlet.P_PRESERVECOOKIES, "true");
         bean.addInitParameter(ProxyServlet.P_HANDLEREDIRECTS, "true");
         bean.addInitParameter(ProxyServlet.P_FORWARDEDFOR, "false");
