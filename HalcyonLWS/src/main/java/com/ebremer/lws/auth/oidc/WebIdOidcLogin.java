@@ -27,21 +27,21 @@ import org.apache.jena.rdf.model.Model;
 
 /**
  * Interactive WebID login (the browser relying-party flow): a person types a WebID, and this
- * discovers <em>their</em> OpenID Provider from the WebID's controlled identifier document, runs
- * an OpenID Connect Authorization-Code + PKCE login against that OP, and — on the callback —
- * validates the returned ID Token and confirms it authenticates that exact WebID.
+ * discovers <em>their</em> OpenID Provider from the WebID's controlled identifier document, runs an
+ * OpenID Connect Authorization-Code + PKCE login against that OP, and — on the callback — validates
+ * the returned ID Token and confirms it authenticates that exact WebID.
+ *
+ * <p>The {@code client_id} is resolved per OP: either a configured, pre-registered id (for an OP you
+ * arranged with), or — when dynamic registration is enabled — obtained at login time via
+ * {@link DynamicClientRegistrar} (RFC 7591), so the login works with <em>any</em> conformant OP with
+ * no pre-arrangement. The resolved id is carried in the {@link Pending} so {@link #complete} exchanges
+ * the code as the same client.
  *
  * <p>This is the login counterpart to {@link LwsOidcVerifier} (which verifies a <em>presented</em>
- * credential). It reuses the same primitives: {@link CidResolver} to find the OP from the WebID and
- * {@link OidcKeys} to validate the ID Token's signature. The interactive Authorization-Code
- * mechanics (PKCE, state, nonce, the code exchange) are OAuth's, not LWS's — see PLAN.md. The
- * storage server must be a registered client at the discovered OP (a `client_id` + this
- * `redirectUri`); obtaining that registration is out of scope here.
- *
- * <p>Stateless: {@link #begin} returns a {@link Pending} the caller stashes server-side (the HTTP
- * session) and hands back to {@link #complete} on the callback. No signing algorithm is trusted
- * before verification, {@code state} defends the callback against CSRF, {@code nonce} against ID
- * Token replay, and the flow refuses unless the ID Token's {@code sub} equals the typed WebID.
+ * credential), reusing {@link CidResolver} and {@link OidcKeys}. The Authorization-Code mechanics are
+ * OAuth's, not LWS's — see PLAN.md. {@code state} defends the callback against CSRF, {@code nonce}
+ * against ID Token replay, and the flow refuses unless the ID Token asserts the typed WebID as its
+ * {@code sub} or a {@code webid} claim.
  */
 public final class WebIdOidcLogin {
 
@@ -59,45 +59,53 @@ public final class WebIdOidcLogin {
 
     /** Server-side state for one in-flight login; stash between {@link #begin} and {@link #complete}. */
     public record Pending(String state, String nonce, String codeVerifier, String webId,
-            String issuer, String tokenEndpoint) implements java.io.Serializable {
+            String issuer, String tokenEndpoint, String clientId) implements java.io.Serializable {
     }
 
     /** The browser redirect to the OP, plus the {@link Pending} to keep for the callback. */
     public record Redirect(String authorizationUrl, Pending pending) {
     }
 
-    private final String clientId;
+    private final String configuredClientId;
     private final String redirectUri;
+    private final boolean dynamicRegistration;
     private final Set<String> allowedHosts;
     private final CidResolver cids;
     private final OidcKeys keys;
+    private final DynamicClientRegistrar registrar;
     private final HttpClient http;
     private final Duration timeout;
     private final SecureRandom random = new SecureRandom();
 
-    public WebIdOidcLogin(String clientId, String redirectUri, Set<String> allowedHosts) {
-        this(clientId, redirectUri, allowedHosts, new CidResolver(), new OidcKeys(),
+    public WebIdOidcLogin(String configuredClientId, String redirectUri, boolean dynamicRegistration,
+            Set<String> allowedHosts) {
+        this(configuredClientId, redirectUri, dynamicRegistration, allowedHosts,
+                new CidResolver(), new OidcKeys(), new DynamicClientRegistrar(),
                 HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10))
                         .followRedirects(HttpClient.Redirect.NEVER).build(),
                 DEFAULT_TIMEOUT);
     }
 
-    WebIdOidcLogin(String clientId, String redirectUri, Set<String> allowedHosts,
-            CidResolver cids, OidcKeys keys, HttpClient http, Duration timeout) {
-        this.clientId = clientId;
+    WebIdOidcLogin(String configuredClientId, String redirectUri, boolean dynamicRegistration,
+            Set<String> allowedHosts, CidResolver cids, OidcKeys keys, DynamicClientRegistrar registrar,
+            HttpClient http, Duration timeout) {
+        this.configuredClientId = configuredClientId;
         this.redirectUri = redirectUri;
+        this.dynamicRegistration = dynamicRegistration;
         this.allowedHosts = allowedHosts;
         this.cids = cids;
         this.keys = keys;
+        this.registrar = registrar;
         this.http = http;
         this.timeout = timeout;
     }
 
     /**
-     * Start a login for {@code webId}: dereference it, discover its OP, and build the
-     * Authorization-Code + PKCE redirect.
+     * Start a login for {@code webId}: dereference it, discover its OP, resolve a {@code client_id}
+     * (configured or dynamically registered), and build the Authorization-Code + PKCE redirect.
      *
-     * @throws WebIdLoginException if the WebID is malformed, names no OpenID Provider, or discovery fails
+     * @throws WebIdLoginException if the WebID is malformed, names no OpenID Provider, discovery
+     *                            fails, or dynamic registration fails
      */
     public Redirect begin(String webId) {
         if (!isUrl(webId)) {
@@ -119,6 +127,8 @@ public final class WebIdOidcLogin {
         } catch (SsrfGuard.BlockedException | OidcKeys.OidcException e) {
             throw new WebIdLoginException("OpenID discovery failed for " + issuer + ": " + e.getMessage());
         }
+        String clientId = resolveClientId(issuer, disc);
+
         String state = randomToken();
         String nonce = randomToken();
         String codeVerifier = randomToken();
@@ -132,13 +142,30 @@ public final class WebIdOidcLogin {
                 + "&nonce=" + enc(nonce)
                 + "&code_challenge=" + enc(challenge(codeVerifier))
                 + "&code_challenge_method=S256";
-        return new Redirect(url, new Pending(state, nonce, codeVerifier, webId, issuer, disc.tokenEndpoint()));
+        return new Redirect(url, new Pending(state, nonce, codeVerifier, webId, issuer,
+                disc.tokenEndpoint(), clientId));
+    }
+
+    private String resolveClientId(String issuer, OidcDiscovery disc) {
+        if (dynamicRegistration) {
+            try {
+                return registrar.clientId(issuer, disc.registrationEndpoint(), redirectUri,
+                        allowedHosts, http, timeout);
+            } catch (SsrfGuard.BlockedException | DynamicClientRegistrar.RegistrationException e) {
+                throw new WebIdLoginException("dynamic client registration failed at " + issuer
+                        + ": " + e.getMessage());
+            }
+        }
+        if (configuredClientId == null || configuredClientId.isBlank()) {
+            throw new WebIdLoginException("no client_id configured and dynamic registration is off");
+        }
+        return configuredClientId;
     }
 
     /**
      * Complete the callback: check {@code state}, exchange {@code code} for an ID Token, validate it
-     * (signature via the OP's JWKS, issuer, nonce, expiry), and require its {@code sub} to be the
-     * WebID this login was for.
+     * (signature via the OP's JWKS, issuer, nonce, expiry), and require it to assert the WebID this
+     * login was for — as its {@code sub} or a {@code webid} claim.
      *
      * @return the authenticated WebID (equal to {@code pending.webId()})
      * @throws WebIdLoginException on any mismatch or validation failure
@@ -157,7 +184,7 @@ public final class WebIdOidcLogin {
         String form = "grant_type=authorization_code"
                 + "&code=" + enc(code)
                 + "&redirect_uri=" + enc(redirectUri)
-                + "&client_id=" + enc(clientId)
+                + "&client_id=" + enc(pending.clientId())
                 + "&code_verifier=" + enc(pending.codeVerifier());
         JsonObject tokenResponse = postForm(pending.tokenEndpoint(), form);
         String idToken = tokenResponse.getString("id_token", null);
@@ -186,9 +213,12 @@ public final class WebIdOidcLogin {
         if (nonce == null || !nonce.equals(pending.nonce())) {
             throw new WebIdLoginException("id_token nonce mismatch (possible replay)");
         }
-        if (!pending.webId().equals(claims.getSubject())) {
-            throw new WebIdLoginException("the id_token authenticates <" + claims.getSubject()
-                    + ">, not the requested WebID <" + pending.webId() + ">");
+        // The OP must assert the typed WebID — as sub (the LWS credential shape) or a webid claim.
+        boolean bound = pending.webId().equals(claims.getSubject())
+                || pending.webId().equals(claims.get("webid", String.class));
+        if (!bound) {
+            throw new WebIdLoginException("the id_token does not assert the requested WebID <"
+                    + pending.webId() + "> (sub=" + claims.getSubject() + ")");
         }
         if (claims.getExpiration() == null) {
             throw new WebIdLoginException("the id_token has no exp");

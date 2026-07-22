@@ -17,6 +17,7 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.Date;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -29,19 +30,23 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * {@link WebIdOidcLogin} end to end against a loopback OP: begin() discovers the OP from the WebID
  * and builds a PKCE Authorization-Code redirect; complete() exchanges the code and validates the
- * ID Token — accepting only when state, nonce and (crucially) {@code sub == the WebID} all hold.
+ * ID Token — accepting only when state, nonce and (crucially) the WebID binding all hold. Also
+ * covers RFC 7591 dynamic client registration: with no configured client id, begin() self-registers
+ * at the OP's registration endpoint and drives the flow as the returned client, caching per issuer.
  */
 class WebIdOidcLoginTest {
 
     private static final String KID = "k1";
     private static final KeyPair RSA = genRsa();
+    private static final String REDIRECT = "https://storage.example/webid-callback";
 
     private final WebIdOidcLogin login = new WebIdOidcLogin(
-            "halcyon-local", "https://storage.example/webid-callback", Set.of("127.0.0.1"));
+            "halcyon-local", REDIRECT, false, Set.of("127.0.0.1"));
 
     private HttpServer server;
     private String base;
     private final AtomicReference<String> tokenBody = new AtomicReference<>("{}");
+    private final AtomicInteger registerHits = new AtomicInteger();
 
     @AfterEach
     void stop() {
@@ -67,6 +72,7 @@ class WebIdOidcLoginTest {
         assertEquals(base, r.pending().issuer());
         assertEquals(webId, r.pending().webId());
         assertEquals(base + "/token", r.pending().tokenEndpoint());
+        assertEquals("halcyon-local", r.pending().clientId());
         assertNotNull(r.pending().codeVerifier());
     }
 
@@ -106,9 +112,43 @@ class WebIdOidcLoginTest {
     }
 
     @Test
+    void acceptsAWebIdClaimWhenSubIsOpaque() throws IOException {
+        String webId = start(true);
+        Redirect r = login.begin(webId);
+        // OP authenticates with an opaque sub but asserts the WebID via a webid claim.
+        setTokenResponse(mintWithWebid("9f77772d-e810-47d0-89ec-403b2d174493", webId, r.pending().nonce()));
+
+        assertEquals(webId, login.complete(r.pending(), "the-code", r.pending().state()));
+    }
+
+    @Test
     void beginRefusesAWebIdThatNamesNoOpenIdProvider() throws IOException {
         String webId = start(false);
         assertThrows(WebIdOidcLogin.WebIdLoginException.class, () -> login.begin(webId));
+    }
+
+    @Test
+    void dynamicallyRegistersThenDrivesTheFlowAsThatClient() throws IOException {
+        String webId = start(true);
+        WebIdOidcLogin dyn = new WebIdOidcLogin(null, REDIRECT, true, Set.of("127.0.0.1"));
+
+        Redirect r = dyn.begin(webId);
+        assertEquals(1, registerHits.get());
+        assertTrue(r.authorizationUrl().contains("client_id=dyn-client-1"), r.authorizationUrl());
+        assertEquals("dyn-client-1", r.pending().clientId());
+
+        setTokenResponse(mint(webId, r.pending().nonce()));
+        assertEquals(webId, dyn.complete(r.pending(), "the-code", r.pending().state()));
+    }
+
+    @Test
+    void cachesTheDynamicClientIdAcrossLogins() throws IOException {
+        String webId = start(true);
+        WebIdOidcLogin dyn = new WebIdOidcLogin(null, REDIRECT, true, Set.of("127.0.0.1"));
+
+        dyn.begin(webId);
+        dyn.begin(webId);
+        assertEquals(1, registerHits.get());
     }
 
     // --- fixtures -------------------------------------------------------------------------
@@ -117,6 +157,15 @@ class WebIdOidcLoginTest {
         return Jwts.builder()
                 .header().keyId(KID).and()
                 .issuer(base).subject(sub).claim("nonce", nonce).claim("azp", "halcyon-local")
+                .expiration(Date.from(Instant.now().plusSeconds(300)))
+                .signWith(RSA.getPrivate(), Jwts.SIG.RS256)
+                .compact();
+    }
+
+    private String mintWithWebid(String sub, String webid, String nonce) {
+        return Jwts.builder()
+                .header().keyId(KID).and()
+                .issuer(base).subject(sub).claim("webid", webid).claim("nonce", nonce)
                 .expiration(Date.from(Instant.now().plusSeconds(300)))
                 .signWith(RSA.getPrivate(), Jwts.SIG.RS256)
                 .compact();
@@ -136,12 +185,17 @@ class WebIdOidcLoginTest {
                         + "<https://www.w3.org/ns/did#serviceEndpoint> <" + base + "> ] ."
                 : "<" + webId + "> <http://xmlns.com/foaf/0.1/name> \"no provider\" .";
         String discovery = "{\"issuer\":\"" + base + "\",\"authorization_endpoint\":\"" + base + "/authorize\","
-                + "\"token_endpoint\":\"" + base + "/token\",\"jwks_uri\":\"" + base + "/jwks\"}";
+                + "\"token_endpoint\":\"" + base + "/token\",\"jwks_uri\":\"" + base + "/jwks\","
+                + "\"registration_endpoint\":\"" + base + "/register\"}";
         String jwks = rsaJwks(KID, (RSAPublicKey) RSA.getPublic());
         server.createContext("/webid", ex -> respond(ex, cid, "text/turtle"));
         server.createContext("/.well-known/openid-configuration", ex -> respond(ex, discovery, "application/json"));
         server.createContext("/jwks", ex -> respond(ex, jwks, "application/json"));
         server.createContext("/token", ex -> respond(ex, tokenBody.get(), "application/json"));
+        server.createContext("/register", ex -> {
+            registerHits.incrementAndGet();
+            respond(ex, "{\"client_id\":\"dyn-client-1\"}", "application/json");
+        });
         server.start();
         return webId;
     }

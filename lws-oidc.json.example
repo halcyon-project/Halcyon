@@ -1,4 +1,6 @@
 {
   "enabled": true,
-  "allowedInternalHosts": []
+  "allowedInternalHosts": [],
+  "webIdLoginClientId": "halcyon-local",
+  "webIdLoginDynamicRegistration": false
 }

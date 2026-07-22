@@ -21,7 +21,8 @@ import java.util.Set;
  * <p>Distinct from {@link OidcKeys}, which caches JWKS for verification; this is a one-shot fetch
  * of the endpoints the login redirect and code exchange are built from.
  */
-public record OidcDiscovery(String issuer, String authorizationEndpoint, String tokenEndpoint, String jwksUri) {
+public record OidcDiscovery(String issuer, String authorizationEndpoint, String tokenEndpoint,
+        String jwksUri, String registrationEndpoint) {
 
     public static OidcDiscovery fetch(String issuer, HttpClient http, Duration timeout, Set<String> allowedHosts) {
         String base = issuer.endsWith("/") ? issuer.substring(0, issuer.length() - 1) : issuer;
@@ -56,6 +57,7 @@ public record OidcDiscovery(String issuer, String authorizationEndpoint, String 
         if (authz == null || token == null) {
             throw new OidcKeys.OidcException("OIDC discovery for <" + issuer + "> lacks an authorization or token endpoint");
         }
-        return new OidcDiscovery(issuer, authz, token, jwks);
+        String registration = cfg.getString("registration_endpoint", null);
+        return new OidcDiscovery(issuer, authz, token, jwks, registration);
     }
 }

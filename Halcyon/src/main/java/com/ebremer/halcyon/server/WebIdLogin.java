@@ -49,7 +49,7 @@ public final class WebIdLogin {
             if (enabled) {
                 String redirectUri = HalcyonSettings.getSettings().getProxyHostName() + CALLBACK_PATH;
                 flow = new WebIdOidcLogin(settings.webIdLoginClientId(), redirectUri,
-                        settings.allowedInternalHosts());
+                        settings.webIdLoginDynamicRegistration(), settings.allowedInternalHosts());
             }
             loaded = true;
         }

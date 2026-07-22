@@ -91,6 +91,33 @@ accordingly (see also `PLAN.md`):
 - **Algorithm confusion.** The signing key is pinned to the token's `alg`; a symmetric / `none` /
   unknown `alg` never matches an RSA/EC verification key.
 
+### Interactive WebID login (optional, off by default)
+
+The credential path above verifies a token a client *already holds*. For a person at a browser with no
+token, the same trust model drives an **interactive login**: they type a WebID, and the storage
+discovers *their* OP from the WebID's CID and runs a standard OpenID Connect Authorization-Code + PKCE
+login against it (`/webid-login` → the OP → `/webid-callback`). On return the ID Token is validated as
+above (signature via the OP's JWKS, `iss`, `nonce`, `exp`) and — crucially — must **assert the typed
+WebID**, as its `sub` or a `webid` claim; otherwise the login is refused. The seated session identity is
+that WebID, matchable in ACP exactly like a presented LWS credential.
+
+Authorization Code is OAuth's, not LWS's, so it needs a `client_id` at the OP. Two ways to get one,
+configured in the same `lws-oidc.json`:
+
+- **Pre-arranged** (default) — a `client_id` you registered at the OP, named by `webIdLoginClientId`
+  (default `halcyon-local`). Works only for OPs you control.
+- **Dynamic** (`"webIdLoginDynamicRegistration": true`) — the storage self-registers at the OP's
+  `registration_endpoint` (RFC 7591) at login time and caches the returned `client_id` per issuer, so
+  the login works with **any** conformant OP with no pre-arrangement. The registration endpoint is
+  `SsrfGuard`-checked like every other outbound call; the registered client is public (PKCE,
+  `token_endpoint_auth_method: none`), authorization-code only, with `/webid-callback` as its sole
+  redirect URI.
+
+  Registration only yields a `client_id`; the login still requires the OP to **assert the WebID** in the
+  ID Token. For a Keycloak OP that means the WebID mapper on a *default* client scope (so a
+  dynamically-registered client inherits it) and a realm that permits anonymous client registration —
+  otherwise the callback's WebID binding fails even though registration succeeded.
+
 ## Authorization (ACP)
 
 ### Access modes

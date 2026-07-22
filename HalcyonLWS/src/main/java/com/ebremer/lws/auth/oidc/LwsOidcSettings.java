@@ -28,11 +28,12 @@ import org.slf4j.LoggerFactory;
  * server must dereference a WebID served on a loopback/internal address (e.g. it hosts its own
  * CIDs behind the same reverse proxy). See {@code PLAN.md} §5–6.
  */
-public record LwsOidcSettings(boolean enabled, Set<String> allowedInternalHosts, String webIdLoginClientId) {
+public record LwsOidcSettings(boolean enabled, Set<String> allowedInternalHosts, String webIdLoginClientId,
+        boolean webIdLoginDynamicRegistration) {
 
     private static final Logger LOG = LoggerFactory.getLogger(LwsOidcSettings.class);
 
-    /** Default OAuth client id the interactive WebID login registers as at a discovered OP (Option B). */
+    /** Default OAuth client id the interactive WebID login uses at a pre-arranged OP (Option B). */
     public static final String DEFAULT_WEBID_LOGIN_CLIENT_ID = "halcyon-local";
 
     public LwsOidcSettings {
@@ -42,14 +43,14 @@ public record LwsOidcSettings(boolean enabled, Set<String> allowedInternalHosts,
         }
     }
 
-    /** Back-compat: the two-arg form defaults the WebID-login client id. */
+    /** Back-compat: the two-arg form defaults the WebID-login client id and dynamic registration off. */
     public LwsOidcSettings(boolean enabled, Set<String> allowedInternalHosts) {
-        this(enabled, allowedInternalHosts, DEFAULT_WEBID_LOGIN_CLIENT_ID);
+        this(enabled, allowedInternalHosts, DEFAULT_WEBID_LOGIN_CLIENT_ID, false);
     }
 
     /** The disabled default. */
     public static LwsOidcSettings disabled() {
-        return new LwsOidcSettings(false, Set.of(), DEFAULT_WEBID_LOGIN_CLIENT_ID);
+        return new LwsOidcSettings(false, Set.of(), DEFAULT_WEBID_LOGIN_CLIENT_ID, false);
     }
 
     /** Load from {@code lws-oidc.json}, or the disabled default if it is absent or unreadable. */
@@ -72,9 +73,11 @@ public record LwsOidcSettings(boolean enabled, Set<String> allowedInternalHosts,
                 }
             }
             String clientId = o.getString("webIdLoginClientId", DEFAULT_WEBID_LOGIN_CLIENT_ID);
-            LwsOidcSettings settings = new LwsOidcSettings(enabled, hosts, clientId);
-            LOG.info("LWS-OIDC verifier {} (allow-list: {}); WebID-login client id {}",
-                    enabled ? "ENABLED" : "disabled", settings.allowedInternalHosts(), settings.webIdLoginClientId());
+            boolean dynamic = o.getBoolean("webIdLoginDynamicRegistration", false);
+            LwsOidcSettings settings = new LwsOidcSettings(enabled, hosts, clientId, dynamic);
+            LOG.info("LWS-OIDC verifier {} (allow-list: {}); WebID-login {} (client id {})",
+                    enabled ? "ENABLED" : "disabled", settings.allowedInternalHosts(),
+                    dynamic ? "DYNAMIC registration" : "fixed client", settings.webIdLoginClientId());
             return settings;
         } catch (Exception e) {
             LOG.warn("could not read lws-oidc.json; LWS-OIDC disabled", e);
