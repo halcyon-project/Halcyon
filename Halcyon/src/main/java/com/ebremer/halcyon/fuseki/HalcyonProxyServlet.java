@@ -64,19 +64,16 @@ public class HalcyonProxyServlet extends ProxyServlet {
         // M26: the two CORS headers that used to be added here are gone.
         //
         // They never did what they look like they did: `proxyRequest` is the request
-        // being sent UPSTREAM to Fuseki, and Access-Control-Allow-Origin /
-        // Access-Control-Allow-Headers are RESPONSE headers. Setting them on an
-        // outbound request is meaningless — Fuseki ignores them, and the browser never
-        // sees them. The wildcard the browser actually received came from Fuseki's own
-        // `enableCors(true, null)`, forwarded back through this proxy; that is now
-        // disabled at the source (SPARQLEndPoint) and the response policy is applied
-        // here instead, in copyResponseHeaders below.
+        // being sent UPSTREAM, and Access-Control-Allow-Origin / Access-Control-Allow-Headers
+        // are RESPONSE headers. Setting them on an outbound request is meaningless: the
+        // upstream ignores them, and the browser never sees them. The response CORS policy
+        // is applied here instead, in copyResponseHeaders below.
     }
 
     /**
      * M26: decide cross-origin access on the way BACK, which is the only place it can
-     * be decided. Fuseki's own CORS is off (see SPARQLEndPoint), so whatever policy is
-     * configured for this deployment is applied here to the proxied response.
+     * be decided. Whatever CORS policy is configured for this deployment is applied
+     * here to the proxied response, replacing whatever the upstream returned.
      */
     @Override
     protected void copyResponseHeaders(HttpResponse proxyResponse,
@@ -85,9 +82,8 @@ public class HalcyonProxyServlet extends ProxyServlet {
         super.copyResponseHeaders(proxyResponse, servletRequest, servletResponse);
         // Replace, don't append: setHeader overwrites any Access-Control-Allow-Origin
         // that came back from upstream, then the policy re-adds one only if the caller's
-        // Origin is allowed. (Fuseki's CORS is off now, so upstream should not be
-        // sending one at all — this stays defensive because a wildcard leaking through
-        // here would silently undo the whole change.)
+        // Origin is allowed. (Defensive: a wildcard leaking through here would silently
+        // undo the whole change.)
         servletResponse.setHeader("Access-Control-Allow-Origin", null);
         CorsPolicy.apply(servletRequest, servletResponse);
     }

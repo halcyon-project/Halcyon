@@ -5,7 +5,6 @@ import org.apache.wicket.csp.CSPDirectiveSrcValue;
 import com.ebremer.halcyon.sparql.Sparql;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import com.ebremer.halcyon.data.DataCore;
-import com.ebremer.halcyon.fuseki.SPARQLEndPoint;
 import com.ebremer.halcyon.wicket.AccountPage;
 import com.ebremer.halcyon.lws.CodeEditorMediaPanel;
 import com.ebremer.halcyon.lws.HtmlEditorMediaPanel;
@@ -28,13 +27,11 @@ import org.slf4j.LoggerFactory;
 
 public class HalcyonApplication extends VandegraphApplication {
     private final DataCore datacore;
-    private final SPARQLEndPoint sep;
     private static final Logger logger = LoggerFactory.getLogger(HalcyonApplication.class);
 
     public HalcyonApplication() {
         logger.debug("Starting Halcyon UI...");
         datacore = DataCore.getInstance();
-        sep = SPARQLEndPoint.getSPARQLEndPoint();
     }
 
     public DataCore getDataCore() {

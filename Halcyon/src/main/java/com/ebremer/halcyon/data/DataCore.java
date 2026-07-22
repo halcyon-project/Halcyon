@@ -1,6 +1,5 @@
 package com.ebremer.halcyon.data;
 
-import com.ebremer.halcyon.fuseki.SPARQLEndPoint;
 import static com.ebremer.halcyon.data.DataCore.Level.CLOSED;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import com.ebremer.ns.HAL;
@@ -114,7 +113,6 @@ public final class DataCore {
     
     public synchronized void shutdown() {
        // FileManager.getInstance().pause();
-        SPARQLEndPoint.getSPARQLEndPoint().shutdown();
         ds.close();
     }
 

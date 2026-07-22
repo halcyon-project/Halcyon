@@ -63,7 +63,6 @@ public class ServerConfig extends BasePage {
         rows.add(new String[]{"Host name", String.valueOf(hs.getHostName())});
         rows.add(new String[]{"Proxy host name", String.valueOf(hs.getProxyHostName())});
         rows.add(new String[]{"HTTP / HTTPS port", hs.GetHTTPPort() + " / " + hs.GetHTTPSPort()});
-        rows.add(new String[]{"SPARQL port (loopback Fuseki)", String.valueOf(hs.GetSPARQLPort())});
         rows.add(new String[]{"Mode", hs.isDevMode() ? "dev" : "release"});
         rows.add(new String[]{"Auth server", String.valueOf(hs.getAuthServer())});
         rows.add(new String[]{"Realm", String.valueOf(hs.getRealm())});

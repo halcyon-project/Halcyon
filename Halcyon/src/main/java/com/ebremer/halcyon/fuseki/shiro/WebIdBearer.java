@@ -9,14 +9,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Verifies a WebID (LWS 1.0 OpenID Connect) bearer for the internal Fuseki store, using the very
- * same {@link LwsOidcVerifier} the LWS SPARQL endpoint ({@code /rdf2}) uses — an ID Token whose
- * {@code sub} is a WebID, trusted by dereferencing that WebID's controlled identifier document to
- * the issuing OpenID Provider. This is what lets an interactive WebID login query {@code /rdf} as
- * its WebID (the store's WAC then authorizes it), instead of the Keycloak-only path 401'ing it.
+ * Verifies a WebID (LWS 1.0 OpenID Connect) bearer, using the very same {@link LwsOidcVerifier}
+ * the LWS SPARQL endpoint ({@code /rdf2}) uses: an ID Token whose {@code sub} is a WebID, trusted
+ * by dereferencing that WebID's controlled identifier document to the issuing OpenID Provider.
+ * This is the WebID-login path — {@link JwtToken} accepts such a credential (the WebID becomes the
+ * authenticated identity), instead of the Keycloak-only path 401'ing it.
  *
- * <p>Off unless {@code lws-oidc.json} enables the LWS-OIDC verifier — otherwise {@code /rdf} stays
- * strictly Keycloak-authenticated. The verifier is shared (JWKS cached across requests).
+ * <p>Off unless {@code lws-oidc.json} enables the LWS-OIDC verifier; otherwise only Keycloak
+ * credentials are accepted. The verifier is shared (JWKS cached across requests).
  */
 final class WebIdBearer {
 

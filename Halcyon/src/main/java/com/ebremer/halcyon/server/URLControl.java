@@ -68,13 +68,11 @@ public class URLControl {
             "/halcyon/",
             "/images/",
             "/favicon.ico",
-            "/rdf",
             "/talon/",
             "/threejs/",
-            "/rdf/",
-            // /rdf2 (LWS SPARQL) is prefix-covered by "/rdf" above, but list it
-            // explicitly so removing or renaming /rdf can never silently hand
-            // the LWS endpoint's URL tree to the Wicket filter.
+            // /rdf2 (LWS SPARQL). Listed explicitly (the classic /rdf endpoint that
+            // used to prefix-cover it has been removed) so the Wicket filter never
+            // claims the LWS endpoint's URL tree.
             "/rdf2",
             "/rdf2/",
             // The palette's color-classes relay servlet (session-authenticated).

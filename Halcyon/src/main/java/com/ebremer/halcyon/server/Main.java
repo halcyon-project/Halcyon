@@ -15,7 +15,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.core.Ordered;
 import org.springframework.context.annotation.Lazy;
 import com.ebremer.halcyon.fuseki.HalcyonProxyServlet;
-import com.ebremer.halcyon.fuseki.SPARQLEndPoint;
 import com.ebremer.halcyon.lib.spatial.Spatial;
 import com.ebremer.halcyon.sparql.InvalidateSessionServlet;
 import jakarta.annotation.PostConstruct;
@@ -162,21 +161,6 @@ public class Main {
     }
 
     @Bean
-    public ServletRegistrationBean proxyServletRegistrationBean() {
-        HalcyonSettings settings = HalcyonSettings.getSettings();
-        // C5: `true` = attach the signed-in session's bearer token to the proxied
-        // request server-side, so the page no longer has to publish it into
-        // window.token for the browser to send. The /auth proxy below must stay
-        // false (it talks to Keycloak itself).
-        ServletRegistrationBean bean = new ServletRegistrationBean(new HalcyonProxyServlet(true), "/rdf/*");
-        bean.addInitParameter("targetUri", "http://localhost:" + settings.GetSPARQLPort() + "/rdf");
-        bean.addInitParameter(ProxyServlet.P_PRESERVECOOKIES, "true");
-        bean.addInitParameter(ProxyServlet.P_HANDLEREDIRECTS, "true");
-        bean.setOrder(5);
-        return bean;
-    }
-
-    @Bean
     public ServletRegistrationBean proxyServletKeycloakRegistrationBean() {
         ServletRegistrationBean bean = new ServletRegistrationBean(new HalcyonProxyServlet(), "/auth/*");
         bean.addInitParameter("targetUri", "http://localhost:8080/auth");
@@ -215,9 +199,6 @@ public class Main {
         // legacy per-user graphs). Idempotent, transactional inside; keeps
         // security, groups and the still-live triple-store stacks.
         LegacyDataCleanup.run(ds, HalcyonSettings.getSettings().getHostName());
-        if (!(System.getProperty("spring.aot.processing") != null)) {
-            SPARQLEndPoint.getSPARQLEndPoint();
-        }    
         ServicesLoader.init();
         FileReaderFactoryProvider.init(Main.class.getClassLoader());
         //Iterator<javax.imageio.ImageReader> readers = ImageIO.getImageReadersByFormatName("tif");

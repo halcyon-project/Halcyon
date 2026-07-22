@@ -10,18 +10,14 @@
         .endpoint-pick a[href] { color: #0000ab; }
         .endpoint-pick a:not([href]) { font-weight: bold; text-decoration: none; color: #333; }
         </style>
-        <div class="endpoint-pick">Store:
-            <a wicket:id="classic">Halcyon (/rdf)</a> ·
-            <a wicket:id="lws">W3C LWS (/rdf2)</a>
-        </div>
           <div id="yasgui"></div>
         <script wicket:id="cspSparql">
             Yasgui.defaults.tabName = "Query";
             Yasgui.defaults.yasqe.value =  "select *\nwhere {graph ?g {?s ?p ?o}}\nlimit 20";
-            // C5: no Authorization header here — the /rdf proxy attaches the signed-in
-            // session's bearer token server-side, so the page never holds a live credential.
-            // sparqlEndpoint / sparqlPersistenceId are injected by Sparql.renderHead —
-            // one of two server-side constants, per-endpoint tab persistence.
+            // C5: no Authorization header here. /rdf2 (LwsSparqlServlet) authenticates
+            // the fetch from the signed-in session directly, so the page never holds a
+            // live credential. sparqlEndpoint / sparqlPersistenceId are injected by
+            // Sparql.renderHead.
             const yasgui = new Yasgui(document.getElementById("yasgui"),
                 {   requestConfig: {
                         endpoint: sparqlEndpoint},

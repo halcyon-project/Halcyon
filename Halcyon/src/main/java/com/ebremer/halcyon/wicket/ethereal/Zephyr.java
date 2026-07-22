@@ -228,9 +228,9 @@ public class Zephyr extends BasePage {
         HalcyonSession hs = HalcyonSession.get();
         HalcyonPrincipal hp = hs.getHalcyonPrincipal();
         // C5: the raw Keycloak access token is NO LONGER published to the DOM.
-        // The /rdf proxy now attaches it server-side from the signed-in session
-        // (see HalcyonProxyServlet), so an XSS can no longer read a live bearer
-        // token out of window.token and take the account over.
+        // The viewer fetches storage over the LWS API and tiles over /iiif, both
+        // authenticated server-side from the signed-in session, so an XSS can no
+        // longer read a live bearer token out of window.token and take the account over.
         // userName/useriri still come from the JWT, i.e. from Keycloak-side data,
         // so they are emitted through JsSafe rather than concatenated.
         response.render(JavaScriptHeaderItem.forScript(

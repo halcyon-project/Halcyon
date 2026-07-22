@@ -12,7 +12,6 @@ import org.apache.wicket.markup.head.CssHeaderItem;
 import org.apache.wicket.markup.head.IHeaderResponse;
 import org.apache.wicket.markup.head.JavaScriptHeaderItem;
 import org.apache.wicket.markup.html.basic.Label;
-import org.apache.wicket.markup.html.link.BookmarkablePageLink;
 import org.apache.wicket.request.mapper.parameter.PageParameters;
 import org.apache.wicket.request.resource.CssResourceReference;
 import org.apache.wicket.request.resource.JavaScriptResourceReference;
@@ -46,8 +45,8 @@ public class Sparql extends BasePage {
      * strings that can reach the page are the two constants below.
      */
     public Sparql(PageParameters parameters) {
-        this.endpoint = "rdf2".equals(parameters.get("endpoint").toString(""))
-                ? "/rdf2" : "/rdf";
+        // Only one SPARQL endpoint remains: the W3C LWS module's /rdf2.
+        this.endpoint = "/rdf2";
     }
 
     @Override
@@ -118,16 +117,6 @@ public class Sparql extends BasePage {
     protected void onInitialize() {
         super.onInitialize();
         add(new WebMarkupContainer("cspSparql").add(new CspNonce()));
-        add(new Label("which", "/rdf2".equals(endpoint)
-                ? "the W3C LWS store (/rdf2)" : "the Halcyon store (/rdf)"));
-        // The picker: the current endpoint's link is disabled, which is also
-        // what marks it visually (see the a:not([href]) rule in the markup).
-        BookmarkablePageLink<Void> classic = new BookmarkablePageLink<>("classic", Sparql.class);
-        classic.setEnabled("/rdf2".equals(endpoint));
-        add(classic);
-        BookmarkablePageLink<Void> lws = new BookmarkablePageLink<>("lws", Sparql.class,
-                new PageParameters().add("endpoint", "rdf2"));
-        lws.setEnabled("/rdf".equals(endpoint));
-        add(lws);
+        add(new Label("which", "the W3C LWS store (/rdf2)"));
     }
 }
