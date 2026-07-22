@@ -84,6 +84,10 @@ public class MenuPanel extends Panel {
             // The account page shows the user THEIR OWN data — every signed-in
             // user gets it, not only admins.
             account.setVisible(true);
+            // Color classes are the user's OWN per-user document in their LWS
+            // storage (edited with vandegraph's SHACLForm, saved via
+            // LwsCommandNode), so every signed-in user gets it, like Account.
+            colorclasses.setVisible(true);
             images.setVisible(true);
             sparql.setVisible(true);
             stacks.setVisible(true);
@@ -97,7 +101,6 @@ public class MenuPanel extends Panel {
             if (hp.getGroups().contains("admin")) {
                 security.setVisible(true);
                 //threed.setVisible(true);
-                colorclasses.setVisible(true);
             }
         } 
     }
