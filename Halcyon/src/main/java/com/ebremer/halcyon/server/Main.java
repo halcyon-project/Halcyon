@@ -215,6 +215,9 @@ public class Main {
         });
         INIT i = new INIT();
         i.init();
+        // Let SPARQL SERVICE calls to this server's own (self-signed) HTTPS origin complete their
+        // TLS handshake — every LWS resource is a federatable SPARQL endpoint on that origin.
+        ServiceHttpClient.install();
         DataCore dc = DataCore.getInstance();
         Dataset ds = dc.getDataset();
         // The old hand-listed stack.jsonld removals grew into a general sweep:
