@@ -1,5 +1,6 @@
 package com.ebremer.lws.json;
 
+import com.ebremer.lws.capability.CapabilityDescriptor;
 import com.ebremer.lws.config.LwsStorageConfig;
 import com.ebremer.lws.vocab.LWS;
 import jakarta.json.Json;
@@ -50,22 +51,16 @@ public final class LwsJson {
      * own URL — that self-reference is how a client confirms it dereferenced the
      * right document.
      *
-     * @param imageService whether this storage has an installed IIIF Image
-     *     service; when true the description advertises it as a capability and
-     *     lists the {@code .iiif} service endpoint — advertised only when real,
-     *     since a capability entry is a contract, not decoration.
-     */
-    public static JsonObject storageDescription(LwsStorageConfig cfg, boolean imageService) {
-        return storageDescription(cfg, imageService, null);
-    }
-
-    /**
+     * @param descriptors the installed capabilities' contributions. Each may add a
+     *     {@code service} entry, a {@code capability} entry, or both — advertised only when
+     *     installed, since a capability entry is a contract, not decoration. The IIIF Image
+     *     service arrives this way.
      * @param sparqlEndpoint the store-wide SPARQL query endpoint to advertise as a service, or
      *     {@code null} to advertise none. It is an app-tier endpoint over this storage's data
      *     (this module never routes it), so it is injected rather than derived here.
      */
-    public static JsonObject storageDescription(LwsStorageConfig cfg, boolean imageService,
-            String sparqlEndpoint) {
+    public static JsonObject storageDescription(LwsStorageConfig cfg,
+            List<CapabilityDescriptor> descriptors, String sparqlEndpoint) {
         JsonArrayBuilder services = Json.createArrayBuilder()
                 .add(Json.createObjectBuilder()
                         .add("type", "StorageDescription")
@@ -94,12 +89,12 @@ public final class LwsJson {
                         .add("serviceEndpoint", cfg.accessGrantsUri())
                         .add("conformsTo", Json.createArrayBuilder()
                                 .add("https://www.w3.org/ns/lws#AccessProfile")));
-        if (imageService) {
-            services.add(Json.createObjectBuilder()
-                    .add("type", "ImageService")
-                    .add("serviceEndpoint", cfg.iiifUri())
-                    .add("conformsTo", Json.createArrayBuilder()
-                            .add("http://iiif.io/api/image")));
+        // Capability-contributed service entries (e.g. the IIIF ImageService), advertised only
+        // when the capability is installed.
+        for (CapabilityDescriptor d : descriptors) {
+            if (d.service() != null) {
+                services.add(serviceEntry(d.service()));
+            }
         }
         if (sparqlEndpoint != null && !sparqlEndpoint.isBlank()) {
             // The store-wide SPARQL query endpoint (SELECT/ASK/CONSTRUCT/DESCRIBE over this
@@ -123,18 +118,12 @@ public final class LwsJson {
                         .add("mediaType", Json.createObjectBuilder()
                                 .add("application/linkset+json", Json.createArrayBuilder()
                                         .add("application/merge-patch+json"))));
-        if (imageService) {
-            // The IIIF Image API, identified by its own protocol IRI (the value
-            // info.json carries as "protocol"). The dialect is query-based:
-            // {endpoint}?iiif={imageUri}/{region}/{size}/{rotation}/{quality}.{format}
-            // (or .../info.json), where {imageUri} is a data resource of this
-            // storage; requests are ACP-authorized like any other read.
-            capabilities.add(Json.createObjectBuilder()
-                    .add("type", "http://iiif.io/api/image")
-                    .add("serviceEndpoint", cfg.iiifUri())
-                    .add("note", "query dialect: ?iiif={imageUri}/{region}/{size}/{rotation}/"
-                            + "{quality}.{format} or ?iiif={imageUri}/info.json; "
-                            + "{imageUri} must be a data resource of this storage"));
+        // Capability-contributed capability entries (e.g. the IIIF query dialect), advertised only
+        // when the capability is installed.
+        for (CapabilityDescriptor d : descriptors) {
+            if (d.capability() != null) {
+                capabilities.add(capabilityEntry(d.capability()));
+            }
         }
 
         // The key a subscriber uses to verify a webhook's HTTP Message Signature. It is
@@ -156,6 +145,34 @@ public final class LwsJson {
                         .add(cfg.storageRootUri() + "#" + kid))
                 .add("service", services)
                 .build();
+    }
+
+    /** Render a capability's {@code service[]} entry. */
+    private static JsonObjectBuilder serviceEntry(CapabilityDescriptor.ServiceEntry se) {
+        JsonObjectBuilder b = Json.createObjectBuilder()
+                .add("type", se.type())
+                .add("serviceEndpoint", se.serviceEndpoint());
+        if (se.conformsTo() != null && !se.conformsTo().isEmpty()) {
+            JsonArrayBuilder ct = Json.createArrayBuilder();
+            se.conformsTo().forEach(ct::add);
+            b.add("conformsTo", ct);
+        }
+        if (se.note() != null) {
+            b.add("note", se.note());
+        }
+        return b;
+    }
+
+    /** Render a capability's {@code capability[]} entry. */
+    private static JsonObjectBuilder capabilityEntry(CapabilityDescriptor.CapabilityEntry ce) {
+        JsonObjectBuilder b = Json.createObjectBuilder().add("type", ce.type());
+        if (ce.serviceEndpoint() != null) {
+            b.add("serviceEndpoint", ce.serviceEndpoint());
+        }
+        if (ce.note() != null) {
+            b.add("note", ce.note());
+        }
+        return b;
     }
 
     /** One entry in a container's {@code items} array. */

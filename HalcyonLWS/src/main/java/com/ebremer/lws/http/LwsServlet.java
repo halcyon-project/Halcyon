@@ -8,10 +8,10 @@ import com.ebremer.lws.auth.AgentContext;
 import com.ebremer.lws.auth.BearerTokenValidator;
 import com.ebremer.lws.capability.CapabilityRequest;
 import com.ebremer.lws.capability.CapabilitySet;
+import com.ebremer.lws.capability.EndpointCapability;
 import com.ebremer.lws.capability.ResourceCapability;
 import com.ebremer.lws.config.LwsSettings;
 import com.ebremer.lws.config.LwsStorageConfig;
-import com.ebremer.lws.iiif.IiifService;
 import com.ebremer.lws.json.LinksetJson;
 import com.ebremer.lws.json.LwsJson;
 import com.ebremer.lws.json.LwsRdf;
@@ -178,48 +178,31 @@ public class LwsServlet extends HttpServlet {
     private transient Notifications notify;
     private transient com.ebremer.lws.sharing.AccessSharing sharing;
 
-    /** The imaging half of the {@code .iiif} endpoint; {@code null} = no image service. */
-    private final IiifService iiif;
-
     /** The store-wide SPARQL query endpoint advertised in the storage description; {@code null} =
      *  advertise none. An app-tier capability over the same store, injected (not derived) so this
      *  module stays free of the app's routing. */
     private final String sparqlEndpoint;
 
     /**
-     * Capabilities installed on this storage — the per-resource query endpoint and,
-     * from Stage 2, IIIF. Never {@code null} ({@link CapabilitySet#EMPTY} when none),
-     * consulted per request in {@link #serveResourceCapability}. See PLAN-CAPABILITY.md.
+     * Capabilities installed on this storage — the per-resource SPARQL endpoint, the IIIF Image
+     * service, and future ones. Never {@code null} ({@link CapabilitySet#EMPTY} when none),
+     * consulted per request in {@link #serveResourceCapability} and
+     * {@link #serveEndpointCapability}. See PLAN-CAPABILITY.md.
      */
     private final CapabilitySet capabilities;
 
     public LwsServlet(LwsStorageConfig cfg) {
-        this(cfg, null, null, CapabilitySet.EMPTY);
-    }
-
-    public LwsServlet(LwsStorageConfig cfg, IiifService iiif) {
-        this(cfg, iiif, null, CapabilitySet.EMPTY);
-    }
-
-    public LwsServlet(LwsStorageConfig cfg, IiifService iiif, String sparqlEndpoint) {
-        this(cfg, iiif, sparqlEndpoint, CapabilitySet.EMPTY);
+        this(cfg, null, CapabilitySet.EMPTY);
     }
 
     /**
-     * @param iiif the imaging half of the storage's IIIF Image service, or
-     *     {@code null} for a storage without one. When present, the reserved
-     *     {@code .iiif} endpoint serves (ACP-authorized) tile and info
-     *     requests through it, and the storage description advertises the
-     *     capability; when absent the endpoint 404s and nothing is advertised.
      * @param sparqlEndpoint the store-wide SPARQL query endpoint to advertise as a service in the
      *     storage description, or {@code null} to advertise none.
-     * @param capabilities the installed {@link StorageCapability}s (per-resource query, …), or
+     * @param capabilities the installed capabilities (per-resource query, IIIF, …), or
      *     {@link CapabilitySet#EMPTY} for none.
      */
-    public LwsServlet(LwsStorageConfig cfg, IiifService iiif, String sparqlEndpoint,
-            CapabilitySet capabilities) {
+    public LwsServlet(LwsStorageConfig cfg, String sparqlEndpoint, CapabilitySet capabilities) {
         this.cfg = cfg;
-        this.iiif = iiif;
         this.sparqlEndpoint = sparqlEndpoint;
         this.capabilities = capabilities == null ? CapabilitySet.EMPTY : capabilities;
     }
@@ -369,6 +352,19 @@ public class LwsServlet extends HttpServlet {
 
     private void dispatch(Req rq, HttpServletRequest req, HttpServletResponse resp)
             throws IOException {
+        // Endpoint capabilities own a reserved dot-led sub-path (e.g. .iiif), checked before
+        // Target — which is about stable identity and does not know the pluggable set. The slug
+        // sanitiser strips leading dots, so no client resource can collide with a reserved path.
+        if (capabilities.hasEndpointCapabilities()) {
+            String path = req.getPathInfo();
+            String rel = (path == null || path.isEmpty() || "/".equals(path))
+                    ? null : (path.startsWith("/") ? path.substring(1) : path);
+            EndpointCapability endpoint = capabilities.endpointFor(rel);
+            if (endpoint != null) {
+                serveEndpointCapability(rq, endpoint, req, resp);
+                return;
+            }
+        }
         Target t = Target.resolve(cfg, req);
         switch (req.getMethod().toUpperCase(Locale.ROOT)) {
             case "GET" -> get(rq, t, req, resp, true);
@@ -621,7 +617,9 @@ public class LwsServlet extends HttpServlet {
             // webhook verification key is published in it.
             case DESCRIPTION -> {
                 resp.setHeader("Cache-Control", "public, max-age=60");
-                sendJson(req, resp, LwsJson.storageDescription(cfg, iiif != null, sparqlEndpoint), body);
+                sendJson(req, resp,
+                        LwsJson.storageDescription(cfg, capabilities.descriptors(cfg), sparqlEndpoint),
+                        body);
             }
             case TYPE_INDEX -> typeIndex(rq, req, resp, body);
             // The GET form of Type Search: ?type=A,B&type=C. Superseded by QUERY in
@@ -630,7 +628,6 @@ public class LwsServlet extends HttpServlet {
             case TYPE_SEARCH -> typeSearch(rq, LwsQuery.fromQueryString(req.getParameterMap()),
                     req, resp, body);
             case ACR -> getAcr(rq, t, req, resp, body);
-            case IIIF -> serveIiif(rq, req, resp, body);
             case LINKSET -> getLinkset(rq, t, req, resp, body);
             // Only the subscriber may see their own subscription. It carries their inbox --
             // the webhook delivery target -- and their topic URIs, which disclose that those
@@ -750,68 +747,45 @@ public class LwsServlet extends HttpServlet {
     }
 
     /**
-     * The storage's IIIF Image service: {@code GET {storage}/.iiif?iiif={iiifUrl}},
-     * where {@code {iiifUrl}} is a full IIIF Image API URL whose image identity is
-     * a data resource <em>of this storage</em> —
-     * {@code {imageUri}/{region}/{size}/{rotation}/{quality}.{format}} or
-     * {@code {imageUri}/info.json}. The servlet owns the policy: the identifier is
-     * confined to this storage (the image service is a storage capability, not an
-     * open proxy), {@code acl:Read} on the resource is demanded through ACP, and
-     * the resource's bytes are resolved in the content store. The imaging itself
-     * is the installed {@link IiifService}'s job.
+     * Serve a request to an {@link EndpointCapability}'s reserved sub-path (e.g. {@code .iiif}).
+     *
+     * <p>The module owns the HTTP-method envelope and the policy: it answers {@code OPTIONS} and
+     * confines endpoint capabilities to {@code GET}; for a GET it asks the capability which
+     * resource the request targets, <strong>confines that to this storage</strong> (an image
+     * service is a storage capability, not an open proxy), demands {@code acl:Read} through ACP,
+     * and resolves the content — the same authorization a normal GET runs — before handing off to
+     * {@link EndpointCapability#serve}. The capability writes only the GET response.
      */
-    private void serveIiif(Req rq, HttpServletRequest req, HttpServletResponse resp, boolean body)
-            throws IOException {
-        if (iiif == null) {
-            throw Problem.notFound("this storage has no image service");
+    private void serveEndpointCapability(Req rq, EndpointCapability cap, HttpServletRequest req,
+            HttpServletResponse resp) throws IOException {
+        String method = req.getMethod().toUpperCase(Locale.ROOT);
+        if ("OPTIONS".equals(method)) {
+            resp.setHeader("Allow", "OPTIONS, GET");
+            resp.setStatus(HttpServletResponse.SC_NO_CONTENT);
+            return;
         }
-        if (!body) {
-            throw Problem.methodNotAllowed("HEAD is not defined on the image service");
+        if (!"GET".equals(method)) {
+            throw Problem.methodNotAllowed("this endpoint supports OPTIONS and GET");
         }
-        String param = req.getParameter("iiif");
-        if (param == null || param.isBlank()) {
-            throw Problem.badRequest("the iiif parameter is required: "
-                    + "?iiif={imageUri}/{region}/{size}/{rotation}/{quality}.{format} or {imageUri}/info.json");
+        String target = cap.targetResource(req, cfg);
+        if (target == null) {
+            throw Problem.badRequest("the request does not identify a resource of this storage");
         }
-        String imageUri = iiifImageUri(param);
-        if (imageUri == null || !imageUri.startsWith(cfg.baseUri() + "/")) {
-            throw Problem.badRequest("the IIIF image identity must be a data resource of this storage");
+        if (!target.startsWith(cfg.baseUri() + "/")) {
+            throw Problem.badRequest("the identified resource must be a data resource of this storage");
         }
-        record Src(Path content, String ext) {
+        record Src(LwsResource r, Path content, String ext) {
         }
         Src src = store.read(() -> {
-            LwsResource r = known(rq, imageUri);
+            LwsResource r = known(rq, target);
             demandOn(rq, r, AccessMode.READ);
             if (r.isContainer() || r.storageKey() == null) {
-                throw Problem.badRequest("the identified resource has no content to image");
+                throw Problem.badRequest("the identified resource has no content");
             }
-            return new Src(content.pathFor(r.storageKey(), r.ext()), r.ext());
+            return new Src(r, content.pathFor(r.storageKey(), r.ext()), r.ext());
         });
-        iiif.serve(req, resp, imageUri, src.content(), src.ext());
-    }
-
-    /**
-     * The image identity inside a IIIF Image API URL: everything before
-     * {@code /info.json}, or before the four request segments
-     * ({@code /{region}/{size}/{rotation}/{quality}.{format}}). Returns
-     * {@code null} when the URL has no such shape.
-     */
-    static String iiifImageUri(String iiifUrl) {
-        String u = iiifUrl.trim();
-        if (u.endsWith("/info.json")) {
-            String id = u.substring(0, u.length() - "/info.json".length());
-            return id.isEmpty() ? null : id;
-        }
-        int seen = 0;
-        for (int i = u.length() - 1; i >= 0; i--) {
-            if (u.charAt(i) == '/') {
-                seen++;
-                if (seen == 4) {
-                    return i == 0 ? null : u.substring(0, i);
-                }
-            }
-        }
-        return null;
+        cap.serve(new CapabilityRequest(req, resp, cfg, rq.agent(),
+                src.r(), src.content(), src.ext()));
     }
 
     /**
@@ -2547,7 +2521,6 @@ public class LwsServlet extends HttpServlet {
             case ACCESS_REQUESTS, ACCESS_GRANTS -> resp.setHeader("Allow", "OPTIONS, HEAD, GET, POST");
             case ACCESS_REQUEST, ACCESS_GRANT -> resp.setHeader("Allow", "OPTIONS, HEAD, GET, DELETE");
             case DESCRIPTION, TYPE_INDEX -> resp.setHeader("Allow", "OPTIONS, HEAD, GET");
-            case IIIF -> resp.setHeader("Allow", "OPTIONS, GET");
 
             // A resource -- including the storage root. This is gated like every other verb
             // that names a resource, and it was not: OPTIONS used to answer for anything,

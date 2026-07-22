@@ -59,9 +59,11 @@ public record LwsStorageConfig(
     public static final String ACCESS_GRANTS = ".access/grants";
 
     /**
-     * The IIIF Image service endpoint. Present (and advertised in the storage
-     * description) only when the hosting application installs an
-     * {@link com.ebremer.lws.iiif.IiifService} implementation.
+     * The IIIF Image service endpoint. Unlike the endpoints above, it is <em>routed and advertised
+     * by an {@code EndpointCapability}</em> the hosting application installs, not by this module.
+     * The name is kept here — reserved like the others (a leading dot no client slug can mint) — as
+     * the single source of truth for the path, shared by that capability and by other modules that
+     * build IIIF URLs (the MCP tools, the image servlet's forward target).
      */
     public static final String IIIF = ".iiif";
 
