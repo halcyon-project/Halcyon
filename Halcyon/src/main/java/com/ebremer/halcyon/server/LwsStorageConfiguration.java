@@ -54,17 +54,17 @@ public class LwsStorageConfiguration {
             // One imaging bridge serves every storage: stateless beyond its trusted-key cache. As an
             // EndpointCapability it mounts the .iiif endpoint and advertises the IIIF Image service.
             LwsIiifBridge iiif = new LwsIiifBridge();
-            // The store-wide SPARQL endpoint (LwsSparqlServlet, mapped at /rdf2 by Main). Advertised
-            // in each storage's description as its SparqlService; built here so HalcyonLWS never
-            // hardcodes an app-tier route. Only this core endpoint is advertised, not the
-            // per-resource ?iri= / resource-URL query surface.
+            // The store-wide SPARQL endpoint (LwsSparqlServlet, mapped at /rdf2 by Main), advertised
+            // in each storage's description as its SparqlService via an advertisement-only capability
+            // — HalcyonLWS never hardcodes the app route, it just renders the descriptor. Only this
+            // core endpoint is advertised, not the per-resource ?iri= / resource-URL query surface.
             String sparqlEndpoint = HalcyonSettings.getSettings().getProxyHostName() + "/rdf2";
-            // The capabilities installed on each storage: the IIIF Image service (.iiif endpoint) and
-            // the per-resource SPARQL endpoint (every BeakGraph resource queryable at its own URL, the
-            // SERVICE federation surface — replacing the removed LwsResourceSparqlFilter). Both
-            // stateless, so one set serves every storage; the module resolves and authorizes, the
-            // capabilities only execute.
-            CapabilitySet capabilities = CapabilitySet.of(iiif, new BeakGraphQueryCapability());
+            // The capabilities installed on each storage: the IIIF Image service (.iiif endpoint), the
+            // per-resource SPARQL endpoint (every BeakGraph resource queryable at its own URL, the
+            // SERVICE federation surface — replacing the removed LwsResourceSparqlFilter), and the
+            // store-wide SPARQL advertisement. All stateless, so one set serves every storage.
+            CapabilitySet capabilities = CapabilitySet.of(iiif, new BeakGraphQueryCapability(),
+                    new StoreSparqlServiceCapability(sparqlEndpoint));
             List<String> mappings = new ArrayList<>();
             for (LwsStorageConfig cfg : LwsSettings.get().storages()) {
                 // Fail at boot, per storage: build the content store NOW, so a bad backend
@@ -80,7 +80,7 @@ public class LwsStorageConfiguration {
                 }
                 ServletRegistration.Dynamic reg =
                         servletContext.addServlet("LWS " + cfg.urlPath(),
-                                new LwsServlet(cfg, sparqlEndpoint, capabilities));
+                                new LwsServlet(cfg, capabilities));
                 if (reg == null) {
                     // Name already taken — a duplicate :hasLWSStorage urlPath.
                     LOG.error("LWS storage {} not mounted: a servlet with that name already exists",

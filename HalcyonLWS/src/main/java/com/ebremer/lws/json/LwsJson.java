@@ -54,13 +54,12 @@ public final class LwsJson {
      * @param descriptors the installed capabilities' contributions. Each may add a
      *     {@code service} entry, a {@code capability} entry, or both — advertised only when
      *     installed, since a capability entry is a contract, not decoration. The IIIF Image
-     *     service arrives this way.
-     * @param sparqlEndpoint the store-wide SPARQL query endpoint to advertise as a service, or
-     *     {@code null} to advertise none. It is an app-tier endpoint over this storage's data
-     *     (this module never routes it), so it is injected rather than derived here.
+     *     service and the store-wide SPARQL service both arrive this way (an app-tier endpoint
+     *     over this storage's data that the module never routes, so it is injected as a
+     *     descriptor rather than derived here).
      */
     public static JsonObject storageDescription(LwsStorageConfig cfg,
-            List<CapabilityDescriptor> descriptors, String sparqlEndpoint) {
+            List<CapabilityDescriptor> descriptors) {
         JsonArrayBuilder services = Json.createArrayBuilder()
                 .add(Json.createObjectBuilder()
                         .add("type", "StorageDescription")
@@ -89,24 +88,12 @@ public final class LwsJson {
                         .add("serviceEndpoint", cfg.accessGrantsUri())
                         .add("conformsTo", Json.createArrayBuilder()
                                 .add("https://www.w3.org/ns/lws#AccessProfile")));
-        // Capability-contributed service entries (e.g. the IIIF ImageService), advertised only
-        // when the capability is installed.
+        // Capability-contributed service entries (the IIIF ImageService, the store-wide
+        // SparqlService, …), advertised only when the capability is installed.
         for (CapabilityDescriptor d : descriptors) {
             if (d.service() != null) {
                 services.add(serviceEntry(d.service()));
             }
-        }
-        if (sparqlEndpoint != null && !sparqlEndpoint.isBlank()) {
-            // The store-wide SPARQL query endpoint (SELECT/ASK/CONSTRUCT/DESCRIBE over this
-            // storage's data, ACP-filtered per caller). Only the core endpoint is advertised; the
-            // per-resource ?iri= / resource-URL query surface is not part of the storage contract.
-            services.add(Json.createObjectBuilder()
-                    .add("type", "SparqlService")
-                    .add("serviceEndpoint", sparqlEndpoint)
-                    .add("conformsTo", Json.createArrayBuilder()
-                            .add("https://www.w3.org/TR/sparql11-protocol/"))
-                    .add("note", "read-only SPARQL 1.1 Query; results are ACP-filtered to the "
-                            + "authenticated agent (the same view its LWS GETs would return)"));
         }
 
         // Advertise the patch formats we actually accept. A client is told not to

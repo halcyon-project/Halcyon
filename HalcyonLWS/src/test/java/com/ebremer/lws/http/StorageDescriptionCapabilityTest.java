@@ -39,7 +39,7 @@ class StorageDescriptionCapabilityTest {
 
     @Test
     void advertisesServiceAndCapabilityEntriesWhenInstalled() {
-        JsonObject with = LwsJson.storageDescription(cfg(), List.of(iiifDescriptor(cfg())), null);
+        JsonObject with = LwsJson.storageDescription(cfg(), List.of(iiifDescriptor(cfg())));
 
         assertTrue(hasEntry(with, "service", "type", "ImageService"),
                 "an installed capability's service entry is listed");
@@ -51,7 +51,7 @@ class StorageDescriptionCapabilityTest {
 
     @Test
     void advertisesNothingExtraWhenNoCapabilityInstalled() {
-        JsonObject without = LwsJson.storageDescription(cfg(), List.of(), null);
+        JsonObject without = LwsJson.storageDescription(cfg(), List.of());
 
         assertFalse(hasEntry(without, "service", "type", "ImageService"),
                 "a capability entry is a contract — never advertised when absent");

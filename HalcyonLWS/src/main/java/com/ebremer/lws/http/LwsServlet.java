@@ -178,32 +178,25 @@ public class LwsServlet extends HttpServlet {
     private transient Notifications notify;
     private transient com.ebremer.lws.sharing.AccessSharing sharing;
 
-    /** The store-wide SPARQL query endpoint advertised in the storage description; {@code null} =
-     *  advertise none. An app-tier capability over the same store, injected (not derived) so this
-     *  module stays free of the app's routing. */
-    private final String sparqlEndpoint;
-
     /**
      * Capabilities installed on this storage — the per-resource SPARQL endpoint, the IIIF Image
-     * service, and future ones. Never {@code null} ({@link CapabilitySet#EMPTY} when none),
-     * consulted per request in {@link #serveResourceCapability} and
-     * {@link #serveEndpointCapability}. See PLAN-CAPABILITY.md.
+     * service, the store-wide SPARQL advertisement, and future ones. Never {@code null}
+     * ({@link CapabilitySet#EMPTY} when none), consulted per request in
+     * {@link #serveResourceCapability} and {@link #serveEndpointCapability}, and for the storage
+     * description via {@link CapabilitySet#descriptors}. See PLAN-CAPABILITY.md.
      */
     private final CapabilitySet capabilities;
 
     public LwsServlet(LwsStorageConfig cfg) {
-        this(cfg, null, CapabilitySet.EMPTY);
+        this(cfg, CapabilitySet.EMPTY);
     }
 
     /**
-     * @param sparqlEndpoint the store-wide SPARQL query endpoint to advertise as a service in the
-     *     storage description, or {@code null} to advertise none.
-     * @param capabilities the installed capabilities (per-resource query, IIIF, …), or
-     *     {@link CapabilitySet#EMPTY} for none.
+     * @param capabilities the installed capabilities (per-resource query, IIIF, store-wide SPARQL
+     *     advertisement, …), or {@link CapabilitySet#EMPTY} for none.
      */
-    public LwsServlet(LwsStorageConfig cfg, String sparqlEndpoint, CapabilitySet capabilities) {
+    public LwsServlet(LwsStorageConfig cfg, CapabilitySet capabilities) {
         this.cfg = cfg;
-        this.sparqlEndpoint = sparqlEndpoint;
         this.capabilities = capabilities == null ? CapabilitySet.EMPTY : capabilities;
     }
 
@@ -618,8 +611,7 @@ public class LwsServlet extends HttpServlet {
             case DESCRIPTION -> {
                 resp.setHeader("Cache-Control", "public, max-age=60");
                 sendJson(req, resp,
-                        LwsJson.storageDescription(cfg, capabilities.descriptors(cfg), sparqlEndpoint),
-                        body);
+                        LwsJson.storageDescription(cfg, capabilities.descriptors(cfg)), body);
             }
             case TYPE_INDEX -> typeIndex(rq, req, resp, body);
             // The GET form of Type Search: ?type=A,B&type=C. Superseded by QUERY in
