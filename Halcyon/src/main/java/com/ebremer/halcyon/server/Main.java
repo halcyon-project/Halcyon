@@ -104,6 +104,17 @@ public class Main {
         return srb;
     }
 
+    @Lazy(true)
+    @Bean
+    ServletRegistrationBean SaveStackServletRegistration() {
+        ServletRegistrationBean srb = new ServletRegistrationBean();
+        srb.setLoadOnStartup(3);
+        srb.setOrder(Ordered.HIGHEST_PRECEDENCE + 6);
+        srb.setServlet(new SaveStackServlet());
+        srb.setUrlMappings(Arrays.asList("/savestack"));
+        return srb;
+    }
+
     // /colorclasses: the Zephyr palette's session-authenticated relay to the
     // user's LWS color-classes resource (with lazy migration off the old store).
     @Lazy(true)

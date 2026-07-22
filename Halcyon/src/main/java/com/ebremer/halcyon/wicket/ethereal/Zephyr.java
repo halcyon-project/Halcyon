@@ -5,6 +5,7 @@ import org.apache.wicket.markup.html.WebMarkupContainer;
 import com.ebremer.halcyon.datum.HalcyonPrincipal;
 import com.ebremer.halcyon.gui.HalcyonSession;
 import com.ebremer.lws.client.LwsClient;
+import com.ebremer.halcyon.server.SaveStackServlet;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import com.ebremer.halcyon.wicket.BasePage;
 import com.ebremer.halcyon.wicket.JsSafe;
@@ -12,11 +13,15 @@ import com.ebremer.lws.config.LwsSettings;
 import com.ebremer.lws.config.LwsStorageConfig;
 import com.ebremer.lws.config.NamingPolicyType;
 import com.ebremer.ns.ZEPH;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.StringReader;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
+import org.apache.wicket.request.cycle.RequestCycle;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.RDFNode;
@@ -38,7 +43,8 @@ import org.apache.wicket.request.http.flow.AbortWithHttpErrorCodeException;
  *   <li>{@link Mode#OPEN_STACK}: fetch the stack's relative Turtle over the
  *       LWS API as the signed-in user — ACP is the read authority.</li>
  * </ul>
- * The resolved stack URI is injected as {@code stackUri} for the viewer.
+ * The resolved stack URI is injected as {@code stackUri} so the viewer's
+ * "Save stack" writes back to the same storage container via /savestack.
  *
  * @author erich
  */
@@ -146,7 +152,8 @@ public class Zephyr extends BasePage {
      * {@code null} when the image is not an LWS resource. The stack goes in
      * the image's own container (discovered from the API's {@code rel="up"}
      * link); in the flat storage the URI never nests, so the name hangs off
-     * the base.
+     * the base while the container is remembered for the create — stashed in
+     * the HTTP session for {@link SaveStackServlet} to consume on first save.
      */
     /** A freshly minted LWS stack: its URI and the container it will live in. */
     private record Minted(String uri, String container) {}
@@ -175,7 +182,26 @@ public class Zephyr extends BasePage {
         String stackUri = cfg.naming() == NamingPolicyType.UUID
                 ? cfg.baseUri() + "/" + name
                 : parent + name;
+        stashPendingContainer(stackUri, parent);
         return new Minted(stackUri, parent);
+    }
+
+    /** Remember which container a not-yet-created LWS stack should be POSTed into. */
+    private static void stashPendingContainer(String stackUri, String container) {
+        if (RequestCycle.get().getRequest().getContainerRequest()
+                instanceof HttpServletRequest hr) {
+            var session = hr.getSession(true);
+            synchronized (session) {
+                @SuppressWarnings("unchecked")
+                Map<String, String> map = (Map<String, String>)
+                        session.getAttribute(SaveStackServlet.PENDING_LWS_STACKS);
+                if (map == null) {
+                    map = new ConcurrentHashMap<>();
+                    session.setAttribute(SaveStackServlet.PENDING_LWS_STACKS, map);
+                }
+                map.put(stackUri, container);
+            }
+        }
     }
 
     /**
@@ -254,7 +280,7 @@ public class Zephyr extends BasePage {
                     ruler: { enabled: true },
                     screenCapture: { enabled: true },
                     crosshairs: { enabled: true },
-                    save: { enabled: false },
+                    save: { enabled: true },
                     fetchAnnotations: { enabled: true },
                     zoomControl: { enabled: true },
                     brightContrast: { enabled: true },

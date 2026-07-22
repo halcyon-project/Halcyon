@@ -4,6 +4,7 @@ import com.ebremer.halcyon.lws.LWSContainers;
 import com.ebremer.halcyon.lws.StoragePage;
 import com.ebremer.halcyon.sparql.Sparql;
 import com.ebremer.halcyon.wicket.AccountPage;
+import com.ebremer.halcyon.wicket.Stacks;
 import com.ebremer.halcyon.wicket.ethereal.Graph3D;
 import com.ebremer.halcyon.wicket.ethereal.Zephyr;
 import com.ebremer.multiviewer.MultiViewer;
@@ -67,6 +68,7 @@ public final class PageAccess {
         // (H4: these were unguarded — note /containers, which the old list had
         //  wrong as "/collections", so the page was never matched at all)
         new Mount("/viewer", MultiViewer.class, Access.AUTHENTICATED),
+        new Mount("/stacks", Stacks.class, Access.AUTHENTICATED),
         // The LWS-native Images list (the old /ListImages path, kept so the
         // URL and its Wicket-ignore/static-resource relationships stay known).
         new Mount("/ListImages", com.ebremer.halcyon.wicket.Images.class, Access.AUTHENTICATED),
