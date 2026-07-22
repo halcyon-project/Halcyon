@@ -48,7 +48,6 @@ public class HAL {
     public static final Resource SecurityGraph = m.createResource(NS+"SecurityGraph");
     public static final Resource ImagesAndFeatures = m.createResource(NS+"ImagesAndFeatures");
     public static final Resource GroupsAndUsers = m.createResource(NS+"GroupsAndUsers");
-    public static final Resource CollectionsAndResources = m.createResource(NS+"CollectionsAndResources");
     public static final Resource HilbertRange = m.createResource(NS+"HilbertRange");
     public static final Resource Object = m.createResource(NS+"Object");;
     public static final Resource HalcyonROCrate = m.createResource(NS+"HalcyonROCrate");

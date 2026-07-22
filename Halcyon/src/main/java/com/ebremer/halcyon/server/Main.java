@@ -1,6 +1,5 @@
 package com.ebremer.halcyon.server;
 
-import com.ebremer.halcyon.data.DataCore;
 import com.ebremer.halcyon.services.ServicesLoader;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import com.ebremer.halcyon.filereaders.FileReaderFactoryProvider;
@@ -20,7 +19,6 @@ import com.ebremer.halcyon.sparql.InvalidateSessionServlet;
 import jakarta.annotation.PostConstruct;
 import java.util.Iterator;
 import javax.imageio.ImageIO;
-import org.apache.jena.query.Dataset;
 import org.apache.jena.query.ReadWrite;
 import org.mitre.dsmiley.httpproxy.ProxyServlet;
 import org.slf4j.Logger;
@@ -191,14 +189,6 @@ public class Main {
         // Let SPARQL SERVICE calls to this server's own (self-signed) HTTPS origin complete their
         // TLS handshake — every LWS resource is a federatable SPARQL endpoint on that origin.
         ServiceHttpClient.install();
-        DataCore dc = DataCore.getInstance();
-        Dataset ds = dc.getDataset();
-        // The old hand-listed stack.jsonld removals grew into a general sweep:
-        // delete every graph whose readers/writers have been removed from the
-        // codebase (the frozen catalog, scanner and legacy-LDP metadata, the
-        // legacy per-user graphs). Idempotent, transactional inside; keeps
-        // security, groups and the still-live triple-store stacks.
-        LegacyDataCleanup.run(ds, HalcyonSettings.getSettings().getHostName());
         ServicesLoader.init();
         FileReaderFactoryProvider.init(Main.class.getClassLoader());
         //Iterator<javax.imageio.ImageReader> readers = ImageIO.getImageReadersByFormatName("tif");
