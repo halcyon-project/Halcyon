@@ -1,11 +1,9 @@
 package com.ebremer.halcyon.server;
 
 import com.ebremer.halcyon.datum.HalcyonPrincipal;
-import com.ebremer.lws.acp.AcpEngine;
-import com.ebremer.lws.acp.AcpSecuredDatasetGraph;
-import com.ebremer.lws.acp.AcpSecurityEvaluator;
 import com.ebremer.lws.auth.AgentContext;
 import com.ebremer.lws.config.LwsSettings;
+import com.ebremer.lws.sparql.LwsSparql;
 import com.ebremer.lws.store.LwsStore;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
@@ -14,48 +12,43 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
-import org.apache.jena.graph.Graph;
 import org.apache.jena.query.Dataset;
-import org.apache.jena.query.DatasetFactory;
 import org.apache.jena.query.Query;
 import org.apache.jena.query.QueryExecution;
 import org.apache.jena.query.QueryFactory;
 import org.apache.jena.query.QueryParseException;
-import org.apache.jena.sparql.core.DatasetGraph;
-import org.apache.jena.sparql.core.DatasetGraphWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * {@code /rdf2} — read-only SPARQL over the W3C LWS module's OWN TDB2
- * ({@code :LWSStoreLocation}), the query surface {@code /rdf} is for the
- * classic store.
+ * {@code /rdf2} — read-only SPARQL over the W3C LWS module's store, the app-tier
+ * HTTP adapter around the module's {@link LwsSparql} engine.
  *
- * <p><strong>Never the raw dataset.</strong> Every request builds the
- * ACP-secured view ({@link AcpSecuredDatasetGraph}) for the CALLER — the
- * signed-in session's WebID, or the public agent — so a query answers exactly
- * what that agent's own LWS {@code GET}s could fetch: the internal graphs
- * (system, ACP, subscriptions, keys, sharing) are unconditionally invisible,
- * and a resource the agent may not read is not discoverable at all (the Type
- * Search guarantee, reused). The evaluator is built fresh per request, per its
- * own one-instance-per-request contract; the ACP decision is always live.
+ * <p>This servlet owns only the app-tier concerns: mapping the {@code /rdf2} route,
+ * resolving the caller from the signed-in session (session-aware, so browser YASGUI
+ * needs no bearer in the DOM), and delegating {@code ?iri=} to {@link BeakGraphEndpoint}.
+ * The query view and result serialization are the module's — see {@link LwsSparql}.
  *
- * <p><strong>Read-only by construction, twice over</strong> (H1 discipline):
- * the request is parsed as a SPARQL <em>Query</em> — an update does not parse
- * as one and is answered 400 — and the dataset itself is a
- * {@code DatasetGraphReadOnly}.
+ * <p><strong>Never the raw dataset.</strong> Every request queries the CALLER's
+ * ACP-secured view ({@link LwsSparql#securedUnion}) — the signed-in session's WebID,
+ * or the public agent — so a query answers exactly what that agent's own LWS
+ * {@code GET}s could fetch: the internal graphs (system, ACP, subscriptions, keys,
+ * sharing) are unconditionally invisible, and a resource the agent may not read is
+ * not discoverable at all. The evaluator is built fresh per request; the ACP decision
+ * is always live.
  *
- * <p>Convenience: in this store nothing lives in the default graph (every
- * resource is its own named graph), so a bare {@code ?s ?p ?o} would always be
- * empty. The default graph is therefore served as the ACP-filtered UNION of
- * the named graphs — {@code GRAPH ?g} still works and still enumerates only
+ * <p><strong>Read-only by construction, twice over</strong> (H1 discipline): the
+ * request is parsed as a SPARQL <em>Query</em> — an update does not parse as one and
+ * is answered 400 — and the secured view is itself read-only. The default graph is
+ * served as the ACP-filtered UNION of the named graphs (see {@link LwsSparql#securedUnion}),
+ * so a bare {@code ?s ?p ?o} is meaningful while {@code GRAPH ?g} still enumerates only
  * readable resources.
  *
- * <p><strong>{@code ?iri=<resource>} — the per-BeakGraph endpoint.</strong>
- * With {@code iri} naming a storage-resident BeakGraph (HDF5) resource, the
- * query runs against THAT FILE's own dataset via {@link BeakGraphEndpoint} —
- * every {@code .h5} in a storage is a SPARQL endpoint at {@code /rdf2?iri=<its-uri>}
- * (and, through {@link LwsResourceSparqlFilter}, at its own URL directly).
+ * <p><strong>{@code ?iri=<resource>} — the per-BeakGraph endpoint.</strong> With
+ * {@code iri} naming a storage-resident BeakGraph (HDF5) resource, the query runs
+ * against THAT FILE's own dataset via {@link BeakGraphEndpoint} — every {@code .h5} in
+ * a storage is a SPARQL endpoint at {@code /rdf2?iri=<its-uri>} (and, through
+ * {@link BeakGraphQueryCapability}, at its own URL directly).
  */
 public class LwsSparqlServlet extends HttpServlet {
 
@@ -137,19 +130,9 @@ public class LwsSparqlServlet extends HttpServlet {
         }
 
         LwsStore store = LwsStore.get();
-        // Fresh per request (see AcpSecurityEvaluator's contract): the secured
-        // view for THIS agent, over the raw store it wraps.
-        AcpSecuredDatasetGraph secured = new AcpSecuredDatasetGraph(
-                store.raw().asDatasetGraph(), new AcpSecurityEvaluator(agent, new AcpEngine(store)));
-        // Nothing lives in the store's default graph, so serve it as the
-        // secured UNION — built over the secured view, never the base.
-        DatasetGraph queryable = new DatasetGraphWrapper(secured) {
-            @Override
-            public Graph getDefaultGraph() {
-                return secured.getUnionGraph();
-            }
-        };
-        Dataset dataset = DatasetFactory.wrap(queryable);
+        // The caller's ACP-secured view, default graph served as the ACP-filtered union of the named
+        // graphs (see LwsSparql). Built fresh per request, per AcpSecurityEvaluator's contract.
+        Dataset dataset = LwsSparql.securedUnion(store, agent);
 
         try {
             // The whole execution AND serialization ride one read transaction:
@@ -158,7 +141,7 @@ public class LwsSparqlServlet extends HttpServlet {
             store.read(() -> {
                 try (QueryExecution qe = QueryExecution.dataset(dataset).query(query)
                         .timeout(TIMEOUT_SECONDS, TimeUnit.SECONDS).build()) {
-                    BeakGraphEndpoint.respond(response, qe, accept);
+                    LwsSparql.respond(response, qe, accept);
                 } catch (IOException ex) {
                     throw new UncheckedIOException(ex);
                 }

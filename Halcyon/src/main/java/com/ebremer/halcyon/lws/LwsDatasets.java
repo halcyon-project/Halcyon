@@ -2,13 +2,10 @@ package com.ebremer.halcyon.lws;
 
 import com.ebremer.halcyon.datum.HalcyonPrincipal;
 import com.ebremer.halcyon.gui.HalcyonSession;
-import com.ebremer.lws.acp.AcpEngine;
-import com.ebremer.lws.acp.AcpSecuredDatasetGraph;
-import com.ebremer.lws.acp.AcpSecurityEvaluator;
 import com.ebremer.lws.auth.AgentContext;
+import com.ebremer.lws.sparql.LwsSparql;
 import com.ebremer.lws.store.LwsStore;
 import org.apache.jena.query.Dataset;
-import org.apache.jena.query.DatasetFactory;
 import org.danekja.java.util.function.serializable.SerializableSupplier;
 
 /**
@@ -36,10 +33,7 @@ public final class LwsDatasets {
 
     /** The caller's ACP-secured view of the LWS store, fresh for this call. */
     public static Dataset secured() {
-        LwsStore store = LwsStore.get();
-        AgentContext agent = currentAgent();
-        return DatasetFactory.wrap(new AcpSecuredDatasetGraph(store.raw().asDatasetGraph(),
-                new AcpSecurityEvaluator(agent, new AcpEngine(store))));
+        return LwsSparql.secured(LwsStore.get(), currentAgent());
     }
 
     private static AgentContext currentAgent() {

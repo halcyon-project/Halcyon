@@ -7,23 +7,18 @@ import com.ebremer.lws.acp.AcpEngine;
 import com.ebremer.lws.auth.AgentContext;
 import com.ebremer.lws.config.LwsSettings;
 import com.ebremer.lws.config.LwsStorageConfig;
+import com.ebremer.lws.sparql.LwsSparql;
 import com.ebremer.lws.store.LwsResource;
 import com.ebremer.lws.store.LwsStore;
 import com.ebremer.lws.store.ResourceRegistry;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
 import org.apache.jena.query.Query;
 import org.apache.jena.query.QueryExecution;
 import org.apache.jena.query.QueryFactory;
 import org.apache.jena.query.QueryParseException;
-import org.apache.jena.query.ResultSet;
-import org.apache.jena.query.ResultSetFormatter;
-import org.apache.jena.rdf.model.Model;
-import org.apache.jena.riot.Lang;
-import org.apache.jena.riot.RDFDataMgr;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -100,7 +95,7 @@ public final class BeakGraphEndpoint {
             bg = BeakGraphPool.getPool().borrowObject(key);
             try (QueryExecution qe = QueryExecution.dataset(bg.getDataset()).query(query)
                     .timeout(TIMEOUT_SECONDS, TimeUnit.SECONDS).build()) {
-                respond(response, qe, accept);
+                LwsSparql.respond(response, qe, accept);
             }
         } catch (IOException ex) {
             // The client went away mid-stream; nothing to answer.
@@ -150,49 +145,5 @@ public final class BeakGraphEndpoint {
             }
         }
         return null;
-    }
-
-    /** Serialize by query type, negotiating the common formats plainly. */
-    public static void respond(HttpServletResponse response, QueryExecution qe, String accept)
-            throws IOException {
-        String a = accept == null ? "" : accept.toLowerCase();
-        OutputStream out = response.getOutputStream();
-        Query q = qe.getQuery();
-        if (q.isSelectType()) {
-            ResultSet rs = qe.execSelect();
-            if (a.contains("xml")) {
-                response.setContentType("application/sparql-results+xml");
-                ResultSetFormatter.outputAsXML(out, rs);
-            } else if (a.contains("csv")) {
-                response.setContentType("text/csv");
-                ResultSetFormatter.outputAsCSV(out, rs);
-            } else if (a.contains("tab-separated")) {
-                response.setContentType("text/tab-separated-values");
-                ResultSetFormatter.outputAsTSV(out, rs);
-            } else {
-                response.setContentType("application/sparql-results+json");
-                ResultSetFormatter.outputAsJSON(out, rs);
-            }
-            return;
-        }
-        if (q.isAskType()) {
-            boolean b = qe.execAsk();
-            if (a.contains("xml")) {
-                response.setContentType("application/sparql-results+xml");
-                ResultSetFormatter.outputAsXML(out, b);
-            } else {
-                response.setContentType("application/sparql-results+json");
-                ResultSetFormatter.outputAsJSON(out, b);
-            }
-            return;
-        }
-        Model m = q.isConstructType() ? qe.execConstruct() : qe.execDescribe();
-        if (a.contains("n-triples")) {
-            response.setContentType("application/n-triples");
-            RDFDataMgr.write(out, m, Lang.NTRIPLES);
-        } else {
-            response.setContentType("text/turtle");
-            RDFDataMgr.write(out, m, Lang.TURTLE);
-        }
     }
 }
