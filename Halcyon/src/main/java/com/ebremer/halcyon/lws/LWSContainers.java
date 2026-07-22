@@ -1325,10 +1325,12 @@ public class LWSContainers extends BasePage {
             this.uri = uri;
             setOutputMarkupId(true);
             add(new Label("target", uri));
-            add(new Label("webid", String.valueOf(currentWebId())));
 
             Form<Void> form = new Form<>("form");
             add(form);
+            // The markup nests "webid" inside <form wicket:id="form">, so it must be added to the
+            // form, not the panel (Wicket matches the component tree to the markup tree exactly).
+            form.add(new Label("webid", String.valueOf(currentWebId())));
             form.add(new CheckBox("read", new PropertyModel<>(this, "read")));
             form.add(new CheckBox("modify", new PropertyModel<>(this, "modify")));
             form.add(new CheckBox("create", new PropertyModel<>(this, "create")));
