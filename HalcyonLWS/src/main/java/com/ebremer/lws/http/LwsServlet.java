@@ -178,8 +178,17 @@ public class LwsServlet extends HttpServlet {
     /** The imaging half of the {@code .iiif} endpoint; {@code null} = no image service. */
     private final IiifService iiif;
 
+    /** The store-wide SPARQL query endpoint advertised in the storage description; {@code null} =
+     *  advertise none. An app-tier capability over the same store, injected (not derived) so this
+     *  module stays free of the app's routing. */
+    private final String sparqlEndpoint;
+
     public LwsServlet(LwsStorageConfig cfg) {
-        this(cfg, null);
+        this(cfg, null, null);
+    }
+
+    public LwsServlet(LwsStorageConfig cfg, IiifService iiif) {
+        this(cfg, iiif, null);
     }
 
     /**
@@ -188,10 +197,13 @@ public class LwsServlet extends HttpServlet {
      *     {@code .iiif} endpoint serves (ACP-authorized) tile and info
      *     requests through it, and the storage description advertises the
      *     capability; when absent the endpoint 404s and nothing is advertised.
+     * @param sparqlEndpoint the store-wide SPARQL query endpoint to advertise as a service in the
+     *     storage description, or {@code null} to advertise none.
      */
-    public LwsServlet(LwsStorageConfig cfg, IiifService iiif) {
+    public LwsServlet(LwsStorageConfig cfg, IiifService iiif, String sparqlEndpoint) {
         this.cfg = cfg;
         this.iiif = iiif;
+        this.sparqlEndpoint = sparqlEndpoint;
     }
 
     @Override
@@ -591,7 +603,7 @@ public class LwsServlet extends HttpServlet {
             // webhook verification key is published in it.
             case DESCRIPTION -> {
                 resp.setHeader("Cache-Control", "public, max-age=60");
-                sendJson(req, resp, LwsJson.storageDescription(cfg, iiif != null), body);
+                sendJson(req, resp, LwsJson.storageDescription(cfg, iiif != null, sparqlEndpoint), body);
             }
             case TYPE_INDEX -> typeIndex(rq, req, resp, body);
             // The GET form of Type Search: ?type=A,B&type=C. Superseded by QUERY in

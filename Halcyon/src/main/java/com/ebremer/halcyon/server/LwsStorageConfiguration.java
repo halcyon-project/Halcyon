@@ -1,5 +1,6 @@
 package com.ebremer.halcyon.server;
 
+import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import com.ebremer.lws.config.LwsSettings;
 import com.ebremer.lws.config.LwsStorageConfig;
 import com.ebremer.lws.http.LwsServlet;
@@ -53,6 +54,11 @@ public class LwsStorageConfiguration {
             // trusted-key cache, and installing it is what makes each storage
             // advertise the IIIF Image service in its description.
             LwsIiifBridge iiif = new LwsIiifBridge();
+            // The store-wide SPARQL endpoint (LwsSparqlServlet, mapped at /rdf2 by Main). Advertised
+            // in each storage's description as its SparqlService; built here so HalcyonLWS never
+            // hardcodes an app-tier route. Only this core endpoint is advertised, not the
+            // per-resource ?iri= / resource-URL query surface.
+            String sparqlEndpoint = HalcyonSettings.getSettings().getProxyHostName() + "/rdf2";
             List<String> mappings = new ArrayList<>();
             for (LwsStorageConfig cfg : LwsSettings.get().storages()) {
                 // Fail at boot, per storage: build the content store NOW, so a bad backend
@@ -67,7 +73,8 @@ public class LwsStorageConfiguration {
                     continue;
                 }
                 ServletRegistration.Dynamic reg =
-                        servletContext.addServlet("LWS " + cfg.urlPath(), new LwsServlet(cfg, iiif));
+                        servletContext.addServlet("LWS " + cfg.urlPath(),
+                                new LwsServlet(cfg, iiif, sparqlEndpoint));
                 if (reg == null) {
                     // Name already taken — a duplicate :hasLWSStorage urlPath.
                     LOG.error("LWS storage {} not mounted: a servlet with that name already exists",

@@ -56,6 +56,16 @@ public final class LwsJson {
      *     since a capability entry is a contract, not decoration.
      */
     public static JsonObject storageDescription(LwsStorageConfig cfg, boolean imageService) {
+        return storageDescription(cfg, imageService, null);
+    }
+
+    /**
+     * @param sparqlEndpoint the store-wide SPARQL query endpoint to advertise as a service, or
+     *     {@code null} to advertise none. It is an app-tier endpoint over this storage's data
+     *     (this module never routes it), so it is injected rather than derived here.
+     */
+    public static JsonObject storageDescription(LwsStorageConfig cfg, boolean imageService,
+            String sparqlEndpoint) {
         JsonArrayBuilder services = Json.createArrayBuilder()
                 .add(Json.createObjectBuilder()
                         .add("type", "StorageDescription")
@@ -90,6 +100,18 @@ public final class LwsJson {
                     .add("serviceEndpoint", cfg.iiifUri())
                     .add("conformsTo", Json.createArrayBuilder()
                             .add("http://iiif.io/api/image")));
+        }
+        if (sparqlEndpoint != null && !sparqlEndpoint.isBlank()) {
+            // The store-wide SPARQL query endpoint (SELECT/ASK/CONSTRUCT/DESCRIBE over this
+            // storage's data, ACP-filtered per caller). Only the core endpoint is advertised; the
+            // per-resource ?iri= / resource-URL query surface is not part of the storage contract.
+            services.add(Json.createObjectBuilder()
+                    .add("type", "SparqlService")
+                    .add("serviceEndpoint", sparqlEndpoint)
+                    .add("conformsTo", Json.createArrayBuilder()
+                            .add("https://www.w3.org/TR/sparql11-protocol/"))
+                    .add("note", "read-only SPARQL 1.1 Query; results are ACP-filtered to the "
+                            + "authenticated agent (the same view its LWS GETs would return)"));
         }
 
         // Advertise the patch formats we actually accept. A client is told not to
