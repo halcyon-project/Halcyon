@@ -6,6 +6,9 @@ import com.ebremer.lws.acp.AcpEngine;
 import com.ebremer.lws.acp.AcrStore;
 import com.ebremer.lws.auth.AgentContext;
 import com.ebremer.lws.auth.BearerTokenValidator;
+import com.ebremer.lws.capability.CapabilityRequest;
+import com.ebremer.lws.capability.CapabilitySet;
+import com.ebremer.lws.capability.ResourceCapability;
 import com.ebremer.lws.config.LwsSettings;
 import com.ebremer.lws.config.LwsStorageConfig;
 import com.ebremer.lws.iiif.IiifService;
@@ -183,12 +186,23 @@ public class LwsServlet extends HttpServlet {
      *  module stays free of the app's routing. */
     private final String sparqlEndpoint;
 
+    /**
+     * Capabilities installed on this storage — the per-resource query endpoint and,
+     * from Stage 2, IIIF. Never {@code null} ({@link CapabilitySet#EMPTY} when none),
+     * consulted per request in {@link #serveResourceCapability}. See PLAN-CAPABILITY.md.
+     */
+    private final CapabilitySet capabilities;
+
     public LwsServlet(LwsStorageConfig cfg) {
-        this(cfg, null, null);
+        this(cfg, null, null, CapabilitySet.EMPTY);
     }
 
     public LwsServlet(LwsStorageConfig cfg, IiifService iiif) {
-        this(cfg, iiif, null);
+        this(cfg, iiif, null, CapabilitySet.EMPTY);
+    }
+
+    public LwsServlet(LwsStorageConfig cfg, IiifService iiif, String sparqlEndpoint) {
+        this(cfg, iiif, sparqlEndpoint, CapabilitySet.EMPTY);
     }
 
     /**
@@ -199,11 +213,15 @@ public class LwsServlet extends HttpServlet {
      *     capability; when absent the endpoint 404s and nothing is advertised.
      * @param sparqlEndpoint the store-wide SPARQL query endpoint to advertise as a service in the
      *     storage description, or {@code null} to advertise none.
+     * @param capabilities the installed {@link StorageCapability}s (per-resource query, …), or
+     *     {@link CapabilitySet#EMPTY} for none.
      */
-    public LwsServlet(LwsStorageConfig cfg, IiifService iiif, String sparqlEndpoint) {
+    public LwsServlet(LwsStorageConfig cfg, IiifService iiif, String sparqlEndpoint,
+            CapabilitySet capabilities) {
         this.cfg = cfg;
         this.iiif = iiif;
         this.sparqlEndpoint = sparqlEndpoint;
+        this.capabilities = capabilities == null ? CapabilitySet.EMPTY : capabilities;
     }
 
     @Override
@@ -634,7 +652,14 @@ public class LwsServlet extends HttpServlet {
             case ACCESS_GRANTS -> listSharing(rq, t, req, resp, body, true);
             case ACCESS_REQUEST -> getSharing(rq, t, req, resp, body, false);
             case ACCESS_GRANT -> getSharing(rq, t, req, resp, body, true);
-            case STORAGE_ROOT, RESOURCE -> getResource(rq, t, req, resp, body);
+            case STORAGE_ROOT, RESOURCE -> {
+                // A GET carrying ?query= against a queryable resource is a per-resource SPARQL
+                // request (a capability claims it); everything else is a normal read. HEAD never
+                // matches — the capability's marker is the GET method.
+                if (!serveResourceCapability(rq, t, req, resp)) {
+                    getResource(rq, t, req, resp, body);
+                }
+            }
             default -> throw Problem.notFound("no such resource");
         }
     }
@@ -787,6 +812,57 @@ public class LwsServlet extends HttpServlet {
             }
         }
         return null;
+    }
+
+    /**
+     * Offer the request to the installed {@link ResourceCapability}s — the per-resource
+     * SPARQL endpoint (and future ones) answering a request on a resource's own URL.
+     *
+     * <p>Two-phase, so a plain request is never slowed and a pass-through never loses its
+     * body: {@link CapabilitySet#candidate} matches the request marker (headers/params only)
+     * and gates whether we resolve at all; {@link ResourceCapability#claims} then decides from
+     * the resolved resource's metadata whether the capability takes it. Only once it does are
+     * {@code known} + {@code acl:Read} demanded and the content resolved — the same envelope a
+     * normal GET runs in — before {@link ResourceCapability#serve}.
+     *
+     * @return true if a capability served the request (response written); false to continue
+     *     normal LWS handling with the request untouched
+     */
+    private boolean serveResourceCapability(Req rq, Target t, HttpServletRequest req,
+            HttpServletResponse resp) throws IOException {
+        if (!capabilities.hasResourceCapabilities()) {
+            return false;
+        }
+        ResourceCapability cap = capabilities.candidate(req);
+        if (cap == null) {
+            return false;
+        }
+        // Resolve metadata to ask claims(). A find() without authorization is safe here: the
+        // claim result is not observable to the agent — a claimed request is authorized below,
+        // and a passed-through one is authorized by the normal handler it falls to — so this
+        // cannot become an existence oracle.
+        LwsResource meta = store.read(() -> registry().find(t.uri()).orElse(null));
+        if (meta == null || !cap.claims(meta, req)) {
+            return false;
+        }
+        // Claimed. Authorize exactly as a GET would (uniform existence-hiding via known()), then
+        // resolve the content, in one read transaction. serve() runs outside it: the query
+        // executes against the resource's own content, not TDB, and must not hold a txn while
+        // streaming.
+        record Src(LwsResource r, Path content, String ext) {
+        }
+        Src src = store.read(() -> {
+            LwsResource r = known(rq, t.uri());
+            demandOn(rq, r, AccessMode.READ);
+            if (r.isContainer() || r.storageKey() == null) {
+                // claims() already excluded containers; a data resource always has content.
+                throw Problem.badRequest("this resource has no content to query");
+            }
+            return new Src(r, content.pathFor(r.storageKey(), r.ext()), r.ext());
+        });
+        cap.serve(new CapabilityRequest(req, resp, cfg, rq.agent(),
+                src.r(), src.content(), src.ext()));
+        return true;
     }
 
     /** An entity tag for a variant serialization: the base tag with a marker before its closing quote. */
@@ -1041,8 +1117,8 @@ public class LwsServlet extends HttpServlet {
             return container;
         }
         String c = Cursor.at(container, filter, afterSeq).encode();
-        // The parameter is `cursor`. It may never be `query`: Halcyon registers a filter on /*
-        // that forwards any request bearing a `query` parameter to a different servlet entirely.
+        // The parameter is `cursor`, never `query`: on a resource URL `?query=` is the marker
+        // for the per-resource SPARQL capability, so pagination keeps its parameter distinct.
         return container + "?cursor=" + URLEncoder.encode(c, StandardCharsets.UTF_8);
     }
 
@@ -1382,6 +1458,13 @@ public class LwsServlet extends HttpServlet {
         }
         if (t.kind() != Target.Kind.RESOURCE && t.kind() != Target.Kind.STORAGE_ROOT) {
             throw Problem.methodNotAllowed("POST is only defined on a container");
+        }
+
+        // A POST carrying application/sparql-query to a data resource is a query, not a create —
+        // let a resource capability claim it before the container-create path reads the body. A
+        // POST to a container (including the storage root) is not claimed and falls through.
+        if (serveResourceCapability(rq, t, req, resp)) {
+            return;
         }
 
         // A cheap first look, so that a client with no business here is turned away before it
@@ -2501,23 +2584,31 @@ public class LwsServlet extends HttpServlet {
      */
     private void query(Req rq, Target t, HttpServletRequest req, HttpServletResponse resp)
             throws IOException {
-        if (t.kind() != Target.Kind.TYPE_SEARCH) {
-            throw Problem.methodNotAllowed("QUERY is only defined on the Type Search Service");
+        if (t.kind() == Target.Kind.TYPE_SEARCH) {
+            // RFC 10008 requires a server to reject a QUERY with no Content-Type: with the
+            // filter in the body, there is otherwise no way to know how to read it.
+            String ct = MediaTypes.bare(req.getContentType());
+            if (ct == null || ct.isBlank()) {
+                throw Problem.badRequest("QUERY requires a Content-Type identifying the query format");
+            }
+            if (!MediaTypes.LWS_QUERY_JSON.equals(ct)) {
+                // Advertises query formats only. It must never disclose which relations are
+                // indexed — those stay unobservable so the filter interface cannot become a
+                // discovery oracle for the server's configuration.
+                throw Problem.unsupportedMediaType("unsupported query format: " + ct)
+                        .header("Accept-Query", MediaTypes.LWS_QUERY_JSON);
+            }
+            typeSearch(rq, parseFilter(req), req, resp, true);
+            return;
         }
-        // RFC 10008 requires a server to reject a QUERY with no Content-Type: with the
-        // filter in the body, there is otherwise no way to know how to read it.
-        String ct = MediaTypes.bare(req.getContentType());
-        if (ct == null || ct.isBlank()) {
-            throw Problem.badRequest("QUERY requires a Content-Type identifying the query format");
+        // The RFC 10008 binding of the SPARQL query operation: QUERY {resource} with an
+        // application/sparql-query body, claimed by a resource capability when the resource is
+        // queryable. Everything else answers 405.
+        if (serveResourceCapability(rq, t, req, resp)) {
+            return;
         }
-        if (!MediaTypes.LWS_QUERY_JSON.equals(ct)) {
-            // Advertises query formats only. It must never disclose which relations are
-            // indexed — those stay unobservable so the filter interface cannot become a
-            // discovery oracle for the server's configuration.
-            throw Problem.unsupportedMediaType("unsupported query format: " + ct)
-                    .header("Accept-Query", MediaTypes.LWS_QUERY_JSON);
-        }
-        typeSearch(rq, parseFilter(req), req, resp, true);
+        throw Problem.methodNotAllowed(
+                "QUERY is defined on the Type Search Service and on queryable resources");
     }
 
     /** The POST form of Type Search, whose body is {@code application/lws+json}. */
@@ -2646,9 +2737,9 @@ public class LwsServlet extends HttpServlet {
         SearchService svc = new SearchService(store, cfg, rq.agent(), rq.acp());
         SearchService.Page page = svc.search(q, cursor);
 
-        // Page URIs are opaque and travel only in Link headers, never in the body. Note
-        // the parameter is `cursor`: a parameter named `query` would be intercepted by
-        // Halcyon's CustomFilter and forwarded to another servlet entirely.
+        // Page URIs are opaque and travel only in Link headers, never in the body. The
+        // parameter is `cursor`, not `query`: on a resource URL `?query=` is the marker for
+        // the per-resource SPARQL capability, so pagination keeps its parameter distinct.
         String base = cfg.typeSearchUri();
         resp.addHeader("Link", LinkHeader.link(base, LinkHeader.REL_FIRST));
         if (page.more()) {

@@ -1,6 +1,7 @@
 package com.ebremer.halcyon.server;
 
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
+import com.ebremer.lws.capability.CapabilitySet;
 import com.ebremer.lws.config.LwsSettings;
 import com.ebremer.lws.config.LwsStorageConfig;
 import com.ebremer.lws.http.LwsServlet;
@@ -59,6 +60,11 @@ public class LwsStorageConfiguration {
             // hardcodes an app-tier route. Only this core endpoint is advertised, not the
             // per-resource ?iri= / resource-URL query surface.
             String sparqlEndpoint = HalcyonSettings.getSettings().getProxyHostName() + "/rdf2";
+            // Per-resource SPARQL, now an LWS capability rather than a servlet filter: every
+            // BeakGraph resource is a SPARQL endpoint at its own URL (the SERVICE federation
+            // surface). Stateless, so one instance serves every storage; the module resolves and
+            // authorizes, this only executes. Replaces the removed LwsResourceSparqlFilter.
+            CapabilitySet capabilities = CapabilitySet.of(new BeakGraphQueryCapability());
             List<String> mappings = new ArrayList<>();
             for (LwsStorageConfig cfg : LwsSettings.get().storages()) {
                 // Fail at boot, per storage: build the content store NOW, so a bad backend
@@ -74,7 +80,7 @@ public class LwsStorageConfiguration {
                 }
                 ServletRegistration.Dynamic reg =
                         servletContext.addServlet("LWS " + cfg.urlPath(),
-                                new LwsServlet(cfg, iiif, sparqlEndpoint));
+                                new LwsServlet(cfg, iiif, sparqlEndpoint, capabilities));
                 if (reg == null) {
                     // Name already taken — a duplicate :hasLWSStorage urlPath.
                     LOG.error("LWS storage {} not mounted: a servlet with that name already exists",
@@ -99,16 +105,8 @@ public class LwsStorageConfiguration {
                             EnumSet.of(DispatcherType.REQUEST, DispatcherType.FORWARD),
                             true, mappings.toArray(String[]::new));
                 }
-                // Each BeakGraph resource is its own SPARQL endpoint at its own URL: a request
-                // carrying a SPARQL query is answered from the resource's BeakGraph; everything
-                // else passes through to LwsServlet untouched. See LwsResourceSparqlFilter.
-                FilterRegistration.Dynamic sparql = servletContext.addFilter(
-                        "LWS resource SPARQL", new LwsResourceSparqlFilter());
-                if (sparql != null) {
-                    sparql.addMappingForUrlPatterns(
-                            EnumSet.of(DispatcherType.REQUEST), true,
-                            mappings.toArray(String[]::new));
-                }
+                // (Per-resource SPARQL used to be a servlet filter here; it is now the
+                // BeakGraphQueryCapability installed on each LwsServlet above.)
             }
         };
     }

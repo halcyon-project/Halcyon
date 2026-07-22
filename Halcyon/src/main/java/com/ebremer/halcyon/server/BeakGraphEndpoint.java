@@ -29,12 +29,15 @@ import org.slf4j.LoggerFactory;
 
 /**
  * SPARQL over ONE BeakGraph (HDF5) resource's own dataset — the shared engine behind both the
- * {@code /rdf2?iri=} endpoint ({@link LwsSparqlServlet}) and the resource-URL query filter
- * ({@link LwsResourceSparqlFilter}), so every {@code .h5} in a storage is a SPARQL endpoint at its
+ * {@code /rdf2?iri=} endpoint ({@link LwsSparqlServlet}) and the per-resource query capability
+ * ({@link BeakGraphQueryCapability}), so every {@code .h5} in a storage is a SPARQL endpoint at its
  * own URL <em>and</em> at {@code /rdf2?iri=}. Registry-resolved (never a client path), ACP-gated
  * (the caller's own {@code Read}; a refusal is 404, so an unauthorized resource is not discoverable),
- * pool-served, and bounded by a timeout — the C2-deletion conditions the per-BeakGraph endpoint
- * exists under.
+ * pool-served, and bounded by a timeout.
+ *
+ * <p>{@link #serve} resolves and authorizes itself (the {@code /rdf2?iri=} path); {@link #serveContent}
+ * is the execution half for a caller that has already resolved and authorized — the LWS module, via
+ * {@code BeakGraphQueryCapability}.
  */
 public final class BeakGraphEndpoint {
 
@@ -45,16 +48,6 @@ public final class BeakGraphEndpoint {
     public enum Outcome { SERVED, NOT_FOUND, NOT_BEAKGRAPH }
 
     private BeakGraphEndpoint() {
-    }
-
-    /** True if {@code iri} is a data resource the agent may Read and is a BeakGraph (HDF5). */
-    public static boolean isReadableBeakGraph(String iri, AgentContext agent) {
-        LwsStorageConfig cfg = storageOf(iri);
-        if (cfg == null) {
-            return false;
-        }
-        LwsResource r = resolveReadable(iri, agent, cfg);
-        return r != null && isBeakGraph(r);
     }
 
     /**
@@ -77,15 +70,31 @@ public final class BeakGraphEndpoint {
         if (!isBeakGraph(r)) {
             return Outcome.NOT_BEAKGRAPH;
         }
+        Path blob = store.contentStore(cfg).pathFor(r.storageKey(), r.ext());
+        serveContent(response, queryString, blob, accept, iri);
+        return Outcome.SERVED;
+    }
+
+    /**
+     * Run {@code queryString} over an already-resolved, already-{@code Read}-authorized BeakGraph
+     * content file and write the results. This is the pure execution half, with no resolution or
+     * ACP of its own: it is shared by {@link #serve} (the {@code /rdf2?iri=} endpoint, which
+     * resolves and authorizes above) and by the per-resource {@code BeakGraphQueryCapability} (which
+     * the LWS module has already resolved and authorized). Answers 400 on a parse error and 502 if
+     * the file will not open as a BeakGraph; a client that disappears mid-stream is swallowed.
+     *
+     * @param label names the resource in log messages only
+     */
+    public static void serveContent(HttpServletResponse response, String queryString, Path content,
+            String accept, String label) throws IOException {
         Query query;
         try {
             query = QueryFactory.create(queryString);
         } catch (QueryParseException ex) {
             response.sendError(HttpServletResponse.SC_BAD_REQUEST, "query parse error: " + ex.getMessage());
-            return Outcome.SERVED;
+            return;
         }
-        Path blob = store.contentStore(cfg).pathFor(r.storageKey(), r.ext());
-        java.net.URI key = blob.toUri();
+        java.net.URI key = content.toUri();
         BeakGraph bg = null;
         try {
             bg = BeakGraphPool.getPool().borrowObject(key);
@@ -96,7 +105,7 @@ public final class BeakGraphEndpoint {
         } catch (IOException ex) {
             // The client went away mid-stream; nothing to answer.
         } catch (Exception ex) {
-            LOG.warn("BeakGraph query of {} failed", iri, ex);
+            LOG.warn("BeakGraph query of {} failed", label, ex);
             if (!response.isCommitted()) {
                 response.sendError(HttpServletResponse.SC_BAD_GATEWAY,
                         "the resource could not be opened as a BeakGraph");
@@ -106,11 +115,10 @@ public final class BeakGraphEndpoint {
                 try {
                     BeakGraphPool.getPool().returnObject(key, bg);
                 } catch (Exception ex) {
-                    LOG.warn("BeakGraph pool return failed for {}", iri, ex);
+                    LOG.warn("BeakGraph pool return failed for {}", label, ex);
                 }
             }
         }
-        return Outcome.SERVED;
     }
 
     /** Resolve+authorize in one short read transaction; null if missing, a container, or unreadable. */
@@ -123,7 +131,12 @@ public final class BeakGraphEndpoint {
         return (r == null || r.isContainer() || r.storageKey() == null) ? null : r;
     }
 
-    private static boolean isBeakGraph(LwsResource r) {
+    /**
+     * Whether a resource is a BeakGraph (HDF5) — the "queryable" predicate the per-resource SPARQL
+     * capability leans on. Public so {@code BeakGraphQueryCapability} has one source of truth; when
+     * queryability later grows to HDT/capped-Turtle it grows in the capability, around this.
+     */
+    public static boolean isBeakGraph(LwsResource r) {
         return "application/x-hdf5".equalsIgnoreCase(r.mediaType())
                 || "application/x-hdf".equalsIgnoreCase(r.mediaType())
                 || ".h5".equalsIgnoreCase(r.ext());
