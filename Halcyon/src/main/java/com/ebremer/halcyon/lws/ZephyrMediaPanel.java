@@ -15,8 +15,7 @@ import org.apache.wicket.request.mapper.parameter.PageParameters;
  * (AUTHENTICATED) {@link Zephyr} page in a same-origin iframe: a resource the
  * LWS readers typed {@code zeph:Stack} opens as that stack; anything else is
  * seeded as layer 0 of a fresh, unsaved stack — which is also what makes this
- * the EDITOR surface, since Zephyr's Save writes through StackStore's own
- * authorization. No new authority is created by the wrapper: the iframe rides
+ * a view-only surface. No new authority is created by the wrapper: the iframe rides
  * the user's session, and every check the page makes still runs.
  *
  * <p>Imagery pipeline: Zephyr requests tiles through the global {@code /iiif/}

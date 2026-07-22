@@ -82,7 +82,6 @@ class PageAccessTest {
     void ordinaryPagesUnchanged() {
         assertEquals(Access.PUBLIC, PageAccess.accessFor(HomePage.class));
         assertEquals(Access.PUBLIC, PageAccess.accessFor(Login.class));
-        assertEquals(Access.AUTHENTICATED, PageAccess.accessFor(com.ebremer.halcyon.wicket.Stacks.class));
         assertEquals(Access.AUTHENTICATED, PageAccess.accessFor(com.ebremer.halcyon.lws.LWSContainers.class));
     }
 

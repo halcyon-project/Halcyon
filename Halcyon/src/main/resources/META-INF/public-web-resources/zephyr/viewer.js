@@ -1,6 +1,5 @@
 import { LayerRegistry } from './scene/LayerRegistry.js';
 import { disposeSubtree } from './scene/imageLayer.js';
-import { loadStackGraph } from './scene/stackPersistence.js';
 import { startRenderLoop, invalidate } from './renderLoop.js';
 import { ParseTTL, ListElements, WE } from './zephyrRDF.js';
 import { getContext, setContext, runCleanups } from './context.js';
@@ -14,7 +13,7 @@ import { getContext, setContext, runCleanups } from './context.js';
  *   const viewer = new ZephyrViewer({ scene, camera, renderer, controls,
  *                                     config: { token, useriri } });
  *   viewer.startLoop();
- *   viewer.buildStack(turtle, baseURI);   // or viewer.loadStack(uri)
+ *   viewer.buildStack(turtle, baseURI);
  *   ...
  *   viewer.clear();     // tear down the content, keep the viewer running
  *   viewer.dispose();   // full teardown (loop, context, everything)
@@ -81,14 +80,6 @@ export class ZephyrViewer {
         ListElements(store, baseURI).forEach(statement => we.add(statement));
         invalidate();
         return we;
-    }
-
-    /** CONSTRUCT a saved stack's named graph (authenticated) and build it. */
-    async loadStack(stackUri) {
-        const turtle = await loadStackGraph(stackUri);
-        if (!turtle || !turtle.trim()) return null;
-        this.setConfig({ stackUri });
-        return this.buildStack(turtle, stackUri);
     }
 
     /**

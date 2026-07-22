@@ -1,6 +1,5 @@
 package com.ebremer.halcyon.server;
 
-import com.ebremer.halcyon.data.StackStore;
 import com.ebremer.halcyon.datum.HalcyonPrincipal;
 import com.ebremer.halcyon.fuseki.shiro.JwtToken;
 import org.pac4j.core.authorization.authorizer.ProfileAuthorizer;
@@ -24,7 +23,7 @@ import java.util.List;
  * It therefore gets its own registration, scoped to the admin paths.
  * <p>
  * L3: authorization is membership of the {@code admin} GROUP from the verified
- * JWT — the same model {@code Stacks}/{@code StackStore} use. It previously
+ * JWT ({@code HalcyonPrincipal.isAdmin}). It previously
  * returned {@code StringUtils.startsWith(profile.getUsername(), "admin")}, so
  * any account whose name merely began with "admin" ({@code administrator_evil},
  * {@code admin2}, …) was authorized. Fails closed on anything unexpected.
@@ -49,7 +48,7 @@ public class CustomAuthorizer extends ProfileAuthorizer {
             // The access token is re-verified here (signature/kid/issuer/azp — M4,
             // H2) before its group claims are trusted.
             HalcyonPrincipal hp = new JwtToken(oidcProfile.getAccessToken().getValue()).getPrincipal();
-            boolean admin = StackStore.isAdmin(hp);
+            boolean admin = hp.isAdmin();
             if (!admin) {
                 logger.warn("Denying admin access to {}", hp.getUserURI());
             }

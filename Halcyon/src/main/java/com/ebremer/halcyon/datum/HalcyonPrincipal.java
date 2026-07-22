@@ -197,6 +197,15 @@ public class HalcyonPrincipal implements Principal, Serializable {
     public boolean isAnon() {
         return anonymous;
     }
+
+    /**
+     * Whether this principal is a member of the {@code admin} group — the model the codebase uses
+     * to gate admin pages and URLs (the {@code admin} group from the verified JWT, or the local
+     * WebID&rarr;role map), never a username prefix.
+     */
+    public boolean isAdmin() {
+        return !anonymous && groups.contains("admin");
+    }
     
     public String getWebID() {
         return webid;

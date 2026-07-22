@@ -142,7 +142,7 @@ public final class BeakGraphEndpoint {
                 || ".h5".equalsIgnoreCase(r.ext());
     }
 
-    /** The configured storage a URI belongs to, or {@code null} (same rule as SaveStackServlet). */
+    /** The configured storage a URI belongs to, or {@code null}. */
     static LwsStorageConfig storageOf(String uri) {
         for (LwsStorageConfig cfg : LwsSettings.get().storages()) {
             if (uri.startsWith(cfg.baseUri() + "/")) {

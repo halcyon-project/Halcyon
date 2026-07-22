@@ -3,8 +3,6 @@ import { makeImageViewer } from './imageLayer.js';
 import { createAnnotationLayer, createImageAnnotationLayer, moveRideAlong } from '../helpers/annotationTarget.js';
 import { getContext, cfg } from '../context.js';
 import { LayerEntry } from './LayerRegistry.js';
-import { saveStack, serializeStackTurtle } from './stackPersistence.js';
-import { saveAllAnnotationLayers } from '../helpers/save.js';
 import { encodeViewState, applyViewState } from '../helpers/deepLink.js';
 import { invalidate } from '../renderLoop.js';
 
@@ -61,14 +59,6 @@ export function initLayerPanel(registry, stack) {
     addBtn.title = 'Add an image layer at a chosen z-order';
     addBtn.addEventListener('click', () => addImageLayer(registry, stack, zStep));
     panel.appendChild(addBtn);
-
-    const saveBtn = document.createElement('button');
-    saveBtn.className = 'annotationBtn';
-    saveBtn.style.margin = '4px 0';
-    saveBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save stack';
-    saveBtn.title = 'Write this stack (layers, z-order, offsets) to its named graph';
-    saveBtn.addEventListener('click', () => saveStackAction(registry));
-    panel.appendChild(saveBtn);
 
     // Named views (#22): bookmarks of camera + layer state.
     const viewsDiv = document.createElement('div');
@@ -678,37 +668,6 @@ function topZ(group) {
     let max = 0;
     group.children.forEach(c => { if (c.position && c.position.z > max) max = c.position.z; });
     return max;
-}
-
-function saveStackAction(registry) {
-    // Zephyr injects the stack's own named-graph URI; fall back to a prompt
-    // (e.g. the dev harness) when it isn't set.
-    let uri = cfg('stackUri');
-    if (!uri) {
-        const root = registry.roots()[0];
-        uri = prompt('Save this stack to its named graph (URI):', (root && root.node) || '');
-        if (!uri) return;
-    }
-    const name = prompt('Name for this stack:', defaultStackName(registry));
-    if (name === null) return;
-    // Save hand-drawn annotation layers to LDP first (sets their src) so the
-    // stack graph can persist them and reload them on open.
-    saveAllAnnotationLayers(registry)
-        .then((failed) => saveStack(uri, registry, name).then(() => failed))
-        .then((failed) => {
-            if (failed && failed.length) {
-                alert('Stack "' + name + '" saved, but these annotation layers could NOT be '
-                    + 'saved and will not reload: ' + failed.join(', '));
-            } else {
-                alert('Stack "' + name + '" saved.');
-            }
-        })
-        .catch(err => alert('Save failed: ' + err.message));
-}
-
-function defaultStackName(registry) {
-    const first = registry.list().find(e => e.annotatable);
-    return first ? ('Stack of ' + first.name) : 'New Stack';
 }
 
 function makeDraggable(element, handle) {

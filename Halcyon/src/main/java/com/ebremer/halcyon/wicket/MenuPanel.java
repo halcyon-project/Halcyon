@@ -30,7 +30,6 @@ public class MenuPanel extends Panel {
         add(new ExternalLink("about", host+"/about","About"));
         ExternalLink images = new ExternalLink("images", host+"/ListImages","Images");
         ExternalLink security = new ExternalLink("security", host+"/admin","Settings");
-        ExternalLink stacks = new ExternalLink("stacks", host+"/stacks","Stacks");
         ExternalLink sparql = new ExternalLink("sparql", host+"/sparql","SPARQL");
         ExternalLink account = new ExternalLink("account", host+"/user/account","Account");
         ExternalLink colorclasses = new ExternalLink("colorclasses", host+"/user/colorclasses","Color Classes");
@@ -53,7 +52,6 @@ public class MenuPanel extends Panel {
         add(colorclasses);
         add(security);
         add(sparql);
-        add(stacks);
         add(storage);
         add(lwscontainers);
         add(threed);
@@ -69,7 +67,6 @@ public class MenuPanel extends Panel {
         storage.setVisible(false);
         lwscontainers.setVisible(false);
         sparql.setVisible(false);
-        stacks.setVisible(false);
         logout.setVisible(false);
         login.setVisible(false);
         webidlogin.setVisible(false);
@@ -86,7 +83,6 @@ public class MenuPanel extends Panel {
             account.setVisible(true);
             images.setVisible(true);
             sparql.setVisible(true);
-            stacks.setVisible(true);
             // Visible to every signed-in user. The page shows only what ACP
             // permits them, so gating it by role here would be redundant.
             storage.setVisible(true);

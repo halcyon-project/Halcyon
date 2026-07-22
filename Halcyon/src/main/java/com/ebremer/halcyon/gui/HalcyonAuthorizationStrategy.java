@@ -1,6 +1,5 @@
 package com.ebremer.halcyon.gui;
 
-import com.ebremer.halcyon.data.StackStore;
 import com.ebremer.halcyon.datum.HalcyonPrincipal;
 import com.ebremer.halcyon.gui.PageAccess.Access;
 import org.apache.wicket.Component;
@@ -26,7 +25,7 @@ import org.slf4j.LoggerFactory;
  * such as {@code EditContainer} stayed reachable.
  * <p>
  * Admin membership uses the same model the rest of the codebase does
- * ({@code StackStore.isAdmin} — the {@code admin} group from the verified JWT),
+ * ({@code HalcyonPrincipal.isAdmin} — the {@code admin} group from the verified JWT),
  * NOT a username prefix.
  *
  * @author erich
@@ -50,7 +49,7 @@ public class HalcyonAuthorizationStrategy implements IAuthorizationStrategy {
         boolean allowed = switch (access) {
             case PUBLIC -> true;
             case AUTHENTICATED -> signedIn;
-            case ADMIN -> signedIn && StackStore.isAdmin(hp);
+            case ADMIN -> signedIn && hp.isAdmin();
         };
         if (!allowed) {
             logger.warn("Denying {} access to {} for {}", access, componentClass.getSimpleName(),

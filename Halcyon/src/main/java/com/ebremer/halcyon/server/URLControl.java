@@ -50,7 +50,6 @@ public class URLControl {
             "/ldp",
             "/lws/",
             "/HalcyonStorage",
-            "/savestack",
             "/invalidateSession",
             "/callback",
             "/h2",
