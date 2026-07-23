@@ -59,6 +59,7 @@ lws10-searchindex"*); the `Halcyon` web app is an LWS *client* (the Storage UI, 
 | RFC 7233 — Range Requests | ● | HalcyonLWS | Single and multiple byte ranges (`206`, `multipart/byteranges`, `416`). |
 | RFC 5789 — PATCH | ● | HalcyonLWS | `PATCH` on data resources and linksets; `Accept-Patch`. |
 | RFC 7386 — JSON Merge Patch | ● | HalcyonLWS | The required patch format (`application/merge-patch+json`). `LwsServlet`, `json/LinksetJson`. |
+| RFC 6902 — JSON Patch | ● | HalcyonLWS | `application/json-patch+json` on JSON data resources (add/remove/replace/move/copy/test), applied via `Json.createPatch`; a failed op rejects the whole patch (409). `LwsServlet.applyPatch`, `JsonPatchTest`. |
 | RFC 7240 — Prefer | ◐ | HalcyonLWS | `Prefer: set-linkset` on writes. |
 | RFC 8288 — Web Linking | ● | HalcyonLWS | `Link` headers (`up`, `linkset`, `acl`, `type`, pagination, storage description); parsed & emitted. `http/LinkHeader`, `client/LwsClient`. |
 | RFC 9264 — Linkset (`application/linkset+json`) | ● | HalcyonLWS | A resource's metadata as a linkset document at `{resource}.meta`. `json/LinksetJson`, `http/Target`. |
@@ -237,7 +238,6 @@ branch `next`):
   `docs/lws/security.md`) and an unused extension point in `auth/CredentialVerifier`; no proof is created or
   validated. (There is no DPoP-passthrough proxy in this checkout.)
 - **ACME / Let's Encrypt (RFC 8555)** — certificates are static JKS keystores.
-- **JSON Patch (RFC 6902)** — only **JSON Merge Patch (RFC 7386)** is supported for `PATCH`.
 - **HTTP/3 & QUIC (RFC 9114 / 9000)** — the `jetty-http3-server` dependency is present but the connector in
   `JettyConfiguration` is commented out; HTTP/3 is not served.
 - **OAuth 2.0 Resource Indicators (RFC 8707) / Token Exchange (RFC 8693)** — named as future options in
