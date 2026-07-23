@@ -97,7 +97,8 @@ public final class ResourceRegistry {
                 uriOf(sys, r, LWSX.parent),
                 lng(sys, r, LWSX.seq, 0L),
                 uriOf(sys, r, LWSX.createdBy),
-                uriOf(sys, r, LWSX.ownedBy)));
+                uriOf(sys, r, LWSX.ownedBy),
+                str(sys, r, LWSX.sha256)));
     }
 
     /**
@@ -269,6 +270,9 @@ public final class ResourceRegistry {
         if (r.ext() != null && !r.ext().isEmpty()) {
             sys.add(s, LWSX.ext, sys.createLiteral(r.ext()));
         }
+        if (r.sha256() != null) {
+            sys.add(s, LWSX.sha256, sys.createLiteral(r.sha256()));
+        }
         if (r.createdBy() != null) {
             sys.add(s, LWSX.createdBy, res(r.createdBy()));
         }
@@ -300,9 +304,13 @@ public final class ResourceRegistry {
         sys.removeAll(s, LWSX.storageKey, null);
         sys.removeAll(s, LWSX.ext, null);
         sys.removeAll(s, LWSX.etag, null);
+        sys.removeAll(s, LWSX.sha256, null);
         sys.add(s, LWSX.storageKey, sys.createLiteral(r.storageKey()));
         if (r.ext() != null && !r.ext().isEmpty()) {
             sys.add(s, LWSX.ext, sys.createLiteral(r.ext()));
+        }
+        if (r.sha256() != null) {
+            sys.add(s, LWSX.sha256, sys.createLiteral(r.sha256()));
         }
         sys.add(s, LWSX.etag, sys.createLiteral(r.etag()));
 

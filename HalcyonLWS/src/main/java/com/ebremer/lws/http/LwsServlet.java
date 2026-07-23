@@ -422,6 +422,7 @@ public class LwsServlet extends HttpServlet {
         resp.setContentType(MediaTypes.LINKSET_JSON);
         resp.setCharacterEncoding(StandardCharsets.UTF_8.name());
         resp.setContentLength(bytes.length);
+        addBytesDigests(req, resp, bytes);
         if (body) {
             resp.getOutputStream().write(bytes);
         }
@@ -462,6 +463,7 @@ public class LwsServlet extends HttpServlet {
         }
 
         byte[] raw = readBounded(req.getInputStream(), MAX_PATCH_BYTES);
+        DigestFields.verify(req.getHeader("Content-Digest"), raw);
         JsonObject patch;
         try (var r = jakarta.json.Json.createReader(new java.io.ByteArrayInputStream(raw))) {
             patch = r.readObject();
@@ -730,6 +732,7 @@ public class LwsServlet extends HttpServlet {
             resp.setContentType(MediaTypes.TURTLE);
             resp.setCharacterEncoding(StandardCharsets.UTF_8.name());
             resp.setContentLength(bytes.length);
+            addBytesDigests(req, resp, bytes);
             if (body) {
                 resp.getOutputStream().write(bytes);
             }
@@ -1136,6 +1139,8 @@ public class LwsServlet extends HttpServlet {
                     .header("Content-Range", "bytes */" + size);
         }
 
+        addBinaryDigests(req, resp, r, ranges != null);
+
         // No range, or one this server declines (malformed, too many, amplifying): the whole entity.
         if (ranges == null) {
             resp.setContentType(mediaType);
@@ -1481,6 +1486,7 @@ public class LwsServlet extends HttpServlet {
             // inside the transaction below necessary rather than fussy.
             ContentStore.Written w = content.write(req.getInputStream(), ext);
             final String mt = mediaType;
+            verifyUpload(req, w, ext);
             try {
                 created = store.write(() ->
                         commitCreation(rq, parent, slug, webId, false, new Content(w, mt, ext)));
@@ -1549,13 +1555,13 @@ public class LwsServlet extends HttpServlet {
         LwsResource r = makeContainer
                 ? new LwsResource(uri, ResourceType.CONTAINER, List.of(),
                         null, 0, when, ResourceRegistry.containerEtag(0),
-                        null, null, parent.uri(), reg.nextSeq(), webId, webId)
+                        null, null, parent.uri(), reg.nextSeq(), webId, webId, null)
                 : new LwsResource(uri, ResourceType.DATA_RESOURCE, List.of(),
                         content.mediaType(), content.written().size(), when,
                         ResourceRegistry.dataEtag(content.written().sha256(),
                                 content.mediaType(), content.written().size()),
                         content.written().key(), content.ext(), parent.uri(),
-                        reg.nextSeq(), webId, webId);
+                        reg.nextSeq(), webId, webId, content.written().sha256());
 
         reg.create(r, slug);
         return reg.find(uri).orElseThrow(() -> Problem.internal("the resource vanished on create"));
@@ -1666,6 +1672,7 @@ public class LwsServlet extends HttpServlet {
         ContentStore.Written w = mirror.writeAt(key, req.getInputStream());
         final String mt = mediaType;
         final String fext = ext;
+        verifyUpload(req, w, fext);
         LwsResource created;
         try {
             created = store.write(() ->
@@ -1691,10 +1698,10 @@ public class LwsServlet extends HttpServlet {
         Instant when = Instant.now();
         LwsResource r = makeContainer
                 ? new LwsResource(uri, ResourceType.CONTAINER, List.of(), null, 0, when,
-                        ResourceRegistry.containerEtag(0), key, null, parentUri, reg.nextSeq(), webId, webId)
+                        ResourceRegistry.containerEtag(0), key, null, parentUri, reg.nextSeq(), webId, webId, null)
                 : new LwsResource(uri, ResourceType.DATA_RESOURCE, List.of(), mediaType, w.size(), when,
                         ResourceRegistry.dataEtag(w.sha256(), mediaType, w.size()), key, ext, parentUri,
-                        reg.nextSeq(), webId, webId);
+                        reg.nextSeq(), webId, webId, w.sha256());
         reg.create(r, null);
         return reg.find(uri).orElseThrow(() -> Problem.internal("the resource vanished on create"));
     }
@@ -1753,6 +1760,7 @@ public class LwsServlet extends HttpServlet {
         ContentStore.Written w = mirror.writeAt(key, req.getInputStream());
         final String mt = mediaType;
         final String fext = ext;
+        verifyUpload(req, w, fext);
         PutOutcome out;
         try {
             out = store.write(() -> commitMirrorPut(rq, uri, key, req, mt, fext, w, setLinks));
@@ -1788,7 +1796,7 @@ public class LwsServlet extends HttpServlet {
             Preconditions.requireIfMatch(req, cur.etag());
             LwsResource r = new LwsResource(uri, ResourceType.DATA_RESOURCE, cur.extraTypes(), mt,
                     w.size(), when, ResourceRegistry.dataEtag(w.sha256(), mt, w.size()), key, ext,
-                    cur.parent(), cur.seq(), cur.createdBy(), cur.ownedBy());
+                    cur.parent(), cur.seq(), cur.createdBy(), cur.ownedBy(), w.sha256());
             reg.replaceContent(r);
             if (setLinks != null) {
                 applySetLinkset(uri, setLinks, false);
@@ -1802,7 +1810,7 @@ public class LwsServlet extends HttpServlet {
         demandOn(now, known(now, parentUri), AccessMode.APPEND);
         LwsResource r = new LwsResource(uri, ResourceType.DATA_RESOURCE, List.of(), mt, w.size(), when,
                 ResourceRegistry.dataEtag(w.sha256(), mt, w.size()), key, ext, parentUri,
-                reg.nextSeq(), webId, webId);
+                reg.nextSeq(), webId, webId, w.sha256());
         reg.create(r, null);
         if (setLinks != null) {
             applySetLinkset(uri, setLinks, false);
@@ -1862,7 +1870,7 @@ public class LwsServlet extends HttpServlet {
                 }
                 LwsResource c = new LwsResource(childUri, ResourceType.CONTAINER, List.of(), null, 0,
                         Instant.now(), ResourceRegistry.containerEtag(0), key, null, cur,
-                        reg.nextSeq(), webId, webId);
+                        reg.nextSeq(), webId, webId, null);
                 reg.create(c, null);
             }
             cur = childUri;
@@ -1984,6 +1992,7 @@ public class LwsServlet extends HttpServlet {
         // under a concurrent reader is neither atomic nor safe.
         ContentStore.Written w = content.write(req.getInputStream(), ext);
         final String mt = mediaType;
+        verifyUpload(req, w, ext);
 
         record Result(LwsResource r, String oldKey) {
         }
@@ -2006,7 +2015,7 @@ public class LwsServlet extends HttpServlet {
                 LwsResource r = new LwsResource(cur.uri(), ResourceType.DATA_RESOURCE,
                         cur.extraTypes(), mt, w.size(), Instant.now(),
                         ResourceRegistry.dataEtag(w.sha256(), mt, w.size()),
-                        w.key(), ext, cur.parent(), cur.seq(), cur.createdBy(), cur.ownedBy());
+                        w.key(), ext, cur.parent(), cur.seq(), cur.createdBy(), cur.ownedBy(), w.sha256());
                 reg.replaceContent(r);
                 if (setLinks != null) {
                     applySetLinkset(cur.uri(), setLinks, false);
@@ -2062,6 +2071,7 @@ public class LwsServlet extends HttpServlet {
 
         // Parsed first: a bad patch is the client's mistake and should cost the store nothing.
         byte[] rawPatch = readBounded(req.getInputStream(), MAX_PATCH_BYTES);
+        DigestFields.verify(req.getHeader("Content-Digest"), rawPatch);
         JsonValue patch = parsePatch(rawPatch);
 
         LwsResource base = store.read(() -> {
@@ -2143,7 +2153,7 @@ public class LwsServlet extends HttpServlet {
                 LwsResource r = new LwsResource(cur.uri(), ResourceType.DATA_RESOURCE,
                         cur.extraTypes(), cur.mediaType(), w.size(), Instant.now(),
                         ResourceRegistry.dataEtag(w.sha256(), cur.mediaType(), w.size()),
-                        w.key(), ext, cur.parent(), cur.seq(), cur.createdBy(), cur.ownedBy());
+                        w.key(), ext, cur.parent(), cur.seq(), cur.createdBy(), cur.ownedBy(), w.sha256());
                 reg.replaceContent(r);
                 if (setLinks != null) {
                     applySetLinkset(cur.uri(), setLinks, true);
@@ -2532,6 +2542,7 @@ public class LwsServlet extends HttpServlet {
                     resp.setHeader("Allow", "OPTIONS, HEAD, GET, PUT, DELETE");
                 }
                 addPatchHeader(resp, r);
+                resp.setHeader("Want-Content-Digest", DigestFields.WANT);
             }
             default -> throw hidden(rq);
         }
@@ -2770,6 +2781,7 @@ public class LwsServlet extends HttpServlet {
     private void addCommonHeaders(HttpServletResponse resp, LwsResource r) {
         agentSpecific(resp);
         addPatchHeader(resp, r);
+        resp.setHeader("Want-Content-Digest", DigestFields.WANT);
         resp.addHeader("Link", LinkHeader.link(cfg.descriptionUri(), LWS.REL_STORAGE_DESCRIPTION));
         resp.addHeader("Link", LinkHeader.link(
                 r.isContainer() ? LWS.Container.getURI() : LWS.DataResource.getURI(),
@@ -2824,8 +2836,55 @@ public class LwsServlet extends HttpServlet {
         resp.setCharacterEncoding(StandardCharsets.UTF_8.name());
         resp.setContentLength(bytes.length);
         resp.addHeader("Vary", "Accept");
+        addBytesDigests(req, resp, bytes);
         if (body) {
             resp.getOutputStream().write(bytes);
+        }
+    }
+
+    // --- RFC 9530 Digest Fields ---------------------------------------------
+
+    /** Emit Repr-Digest / Content-Digest over an in-memory representation when the client asked
+     *  (via a Want-* field). For a whole in-memory body both are over the same bytes. */
+    private static void addBytesDigests(HttpServletRequest req, HttpServletResponse resp,
+            byte[] representation) {
+        DigestFields.chooseAlgorithm(req.getHeader("Want-Repr-Digest"), DigestFields.SUPPORTED_SET)
+                .ifPresent(alg -> resp.setHeader("Repr-Digest", DigestFields.format(alg, representation)));
+        DigestFields.chooseAlgorithm(req.getHeader("Want-Content-Digest"), DigestFields.SUPPORTED_SET)
+                .ifPresent(alg -> resp.setHeader("Content-Digest", DigestFields.format(alg, representation)));
+    }
+
+    /** Emit digests for a data resource from its stored sha-256 (no blob re-read). Repr-Digest is over
+     *  the whole representation (emitted for a partial response too); Content-Digest is over the bytes
+     *  sent, so it is omitted from a partial (206) response. */
+    private static void addBinaryDigests(HttpServletRequest req, HttpServletResponse resp,
+            LwsResource r, boolean partial) {
+        if (r.sha256() == null) {
+            return;
+        }
+        if (DigestFields.chooseAlgorithm(req.getHeader("Want-Repr-Digest"), DigestFields.STORED_SET)
+                .isPresent()) {
+            resp.setHeader("Repr-Digest", DigestFields.sha256FromHex(r.sha256()));
+        }
+        if (!partial && DigestFields.chooseAlgorithm(req.getHeader("Want-Content-Digest"),
+                DigestFields.STORED_SET).isPresent()) {
+            resp.setHeader("Content-Digest", DigestFields.sha256FromHex(r.sha256()));
+        }
+    }
+
+    /** Enforce an inbound Content-Digest on a streamed upload: it must match the sha-256 computed while
+     *  the blob was written (a sha-512 the client asserted is checked by re-reading the just-stored
+     *  blob). On mismatch the orphaned blob is removed and the request is a 400, before any commit. */
+    private void verifyUpload(HttpServletRequest req, ContentStore.Written w, String ext) {
+        String header = req.getHeader("Content-Digest");
+        if (header == null) {
+            return;
+        }
+        try {
+            DigestFields.verifyStreamed(header, w.sha256(), () -> content.read(w.key(), ext));
+        } catch (Problem p) {
+            content.delete(w.key(), ext);
+            throw p;
         }
     }
 

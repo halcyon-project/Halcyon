@@ -104,7 +104,14 @@ public final class LwsJson {
                         .add("type", "https://www.w3.org/ns/lws#PatchSupport")
                         .add("mediaType", Json.createObjectBuilder()
                                 .add("application/linkset+json", Json.createArrayBuilder()
-                                        .add("application/merge-patch+json"))));
+                                        .add("application/merge-patch+json"))))
+                // RFC 9530 Digest Fields: the algorithms this storage produces (Repr-Digest/
+                // Content-Digest) and verifies inbound. A client is told not to assume digest
+                // support unless it is advertised, so this is the contract, not decoration.
+                .add(Json.createObjectBuilder()
+                        .add("type", "https://www.rfc-editor.org/info/rfc9530")
+                        .add("algorithm", Json.createArrayBuilder()
+                                .add("sha-256").add("sha-512")));
         // Capability-contributed capability entries (e.g. the IIIF query dialect), advertised only
         // when the capability is installed.
         for (CapabilityDescriptor d : descriptors) {

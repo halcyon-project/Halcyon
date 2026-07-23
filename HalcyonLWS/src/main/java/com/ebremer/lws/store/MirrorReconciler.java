@@ -280,7 +280,7 @@ public final class MirrorReconciler {
             }
             LwsResource c = new LwsResource(uri, ResourceType.CONTAINER, List.of(), null, 0,
                     Instant.now(), ResourceRegistry.containerEtag(0), rel, null, parentUri,
-                    reg.nextSeq(), owner, owner);
+                    reg.nextSeq(), owner, owner, null);
             reg.create(c, null);
         });
         LOG.info("reconcile: adopted container {}", uri);
@@ -312,7 +312,7 @@ public final class MirrorReconciler {
                 }
                 LwsResource r = new LwsResource(uri, ResourceType.DATA_RESOURCE, cur.extraTypes(),
                         mediaType, fi.size(), fi.mtime(), etag, rel, ext, cur.parent(), cur.seq(),
-                        cur.createdBy(), cur.ownedBy());
+                        cur.createdBy(), cur.ownedBy(), sha256);
                 reg.replaceContent(r);
                 reg.stampSourceMtime(uri, mtimeMillis);
                 return reg.find(uri).orElse(null);
@@ -321,7 +321,7 @@ public final class MirrorReconciler {
                 return null;                                // race, or parent not ready
             }
             LwsResource r = new LwsResource(uri, ResourceType.DATA_RESOURCE, List.of(), mediaType,
-                    fi.size(), fi.mtime(), etag, rel, ext, parentUri, reg.nextSeq(), owner, owner);
+                    fi.size(), fi.mtime(), etag, rel, ext, parentUri, reg.nextSeq(), owner, owner, sha256);
             reg.create(r, null);
             reg.stampSourceMtime(uri, mtimeMillis);
             return reg.find(uri).orElse(null);

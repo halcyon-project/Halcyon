@@ -28,7 +28,12 @@ public record LwsResource(
         String parent,
         long seq,
         String createdBy,
-        String ownedBy) {
+        String ownedBy,
+        /**
+         * Hex SHA-256 of the content, computed while the upload streamed in. Internal, never served —
+         * it backs the RFC 9530 {@code Repr-Digest} of a data resource. Null for containers.
+         */
+        String sha256) {
 
     public boolean isContainer() {
         return type == ResourceType.CONTAINER;
