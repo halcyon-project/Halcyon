@@ -32,8 +32,10 @@ import com.ebremer.lws.store.naming.Slugs;
 import com.ebremer.lws.vocab.LWS;
 import com.ebremer.lws.vocab.LWSX;
 import jakarta.json.Json;
+import jakarta.json.JsonException;
 import jakarta.json.JsonObject;
 import jakarta.json.JsonReader;
+import jakarta.json.JsonStructure;
 import jakarta.json.JsonValue;
 import jakarta.json.JsonWriter;
 import jakarta.json.stream.JsonParsingException;
@@ -2063,10 +2065,11 @@ public class LwsServlet extends HttpServlet {
     private void patchContent(Req rq, Target t, HttpServletRequest req, HttpServletResponse resp)
             throws IOException {
         String ct = MediaTypes.bare(req.getContentType());
-        if (!MediaTypes.MERGE_PATCH_JSON.equals(ct)) {
+        boolean jsonPatch = MediaTypes.JSON_PATCH.equals(ct);
+        if (!jsonPatch && !MediaTypes.MERGE_PATCH_JSON.equals(ct)) {
             throw Problem.unsupportedMediaType("a resource's content is patched with "
-                    + MediaTypes.MERGE_PATCH_JSON)
-                    .header("Accept-Patch", MediaTypes.MERGE_PATCH_JSON);
+                    + MediaTypes.ACCEPT_PATCH_JSON)
+                    .header("Accept-Patch", MediaTypes.ACCEPT_PATCH_JSON);
         }
 
         // Parsed first: a bad patch is the client's mistake and should cost the store nothing.
@@ -2083,12 +2086,12 @@ public class LwsServlet extends HttpServlet {
             throw Problem.methodNotAllowed("a container's membership is server-managed");
         }
         if (!MediaTypes.isJson(base.mediaType())) {
-            throw Problem.unsupportedMediaType("a merge patch applies to a JSON document; this "
+            throw Problem.unsupportedMediaType("a patch applies only to a JSON document; this "
                     + "resource is " + base.mediaType())
                     .header("Allow", "OPTIONS, HEAD, GET, PUT, DELETE");
         }
         if (base.size() > MAX_PATCHABLE_BYTES) {
-            throw Problem.conflict("this resource is " + base.size() + " bytes and a merge patch "
+            throw Problem.conflict("this resource is " + base.size() + " bytes and a patch "
                     + "has to parse the whole document; the limit is " + MAX_PATCHABLE_BYTES);
         }
 
@@ -2112,7 +2115,7 @@ public class LwsServlet extends HttpServlet {
         }
         JsonValue current = parseContent(currentBytes, base);
 
-        byte[] patched = serialize(Json.createMergePatch(patch).apply(current));
+        byte[] patched = serialize(applyPatch(jsonPatch, patch, current));
         // The mirror store's key is the URI path, so it overwrites the file in place (atomic move)
         // rather than mint a new opaque key the way the sharded store does.
         ContentStore.Written w = mirror != null
@@ -2205,9 +2208,9 @@ public class LwsServlet extends HttpServlet {
             return r.readValue();
         } catch (JsonParsingException e) {
             // First: it is a subclass of JsonException, so catching that one first would eat it.
-            throw Problem.badRequest("the merge patch is not valid JSON: " + e.getMessage());
+            throw Problem.badRequest("the patch is not valid JSON: " + e.getMessage());
         } catch (RuntimeException e) {
-            throw Problem.badRequest("the merge patch is valid JSON but cannot be processed: "
+            throw Problem.badRequest("the patch is valid JSON but cannot be processed: "
                     + e.getMessage());
         }
     }
@@ -2240,6 +2243,34 @@ public class LwsServlet extends HttpServlet {
             w.write(doc);
         }
         return bos.toByteArray();
+    }
+
+    /**
+     * Apply a JSON Merge Patch (RFC 7386) or a JSON Patch (RFC 6902) to a parsed JSON document.
+     *
+     * <p>The two formats fail differently. A merge patch is a recursive overlay that never fails on
+     * content. A JSON Patch is an array of operations, and an operation can fail — a {@code test}
+     * that does not hold, a {@code remove}/{@code replace}/{@code move} of a path that is not there —
+     * in which case RFC 6902 requires the <em>whole</em> patch to be rejected with nothing applied:
+     * a {@code 409}. A JSON Patch also has to address into an object or array, so a JSON scalar is a
+     * {@code 409}, and a body that is not an array is a malformed patch ({@code 400}).
+     */
+    static JsonValue applyPatch(boolean jsonPatch, JsonValue patch, JsonValue current) {
+        if (!jsonPatch) {
+            return Json.createMergePatch(patch).apply(current);
+        }
+        if (patch.getValueType() != JsonValue.ValueType.ARRAY) {
+            throw Problem.badRequest("a JSON Patch (RFC 6902) must be an array of operations");
+        }
+        if (!(current instanceof JsonStructure target)) {
+            throw Problem.conflict("a JSON Patch addresses into an object or array, but this "
+                    + "resource's content is a JSON scalar");
+        }
+        try {
+            return Json.createPatch(patch.asJsonArray()).apply(target);
+        } catch (JsonException e) {
+            throw Problem.conflict("the JSON Patch could not be applied: " + e.getMessage());
+        }
     }
 
     // --- Delete -------------------------------------------------------------
@@ -2770,11 +2801,11 @@ public class LwsServlet extends HttpServlet {
      * implicit indication that PATCH is allowed on the resource identified by the Request-URI",
      * and the formats it lists are the ones allowed. So a client that has merely GET'd a JSON
      * document already knows it may patch it, and with what, without a second round trip. The
-     * header is emitted only where a merge patch could actually succeed.
+     * header is emitted only where a patch could actually succeed.
      */
     private static void addPatchHeader(HttpServletResponse resp, LwsResource r) {
         if (!r.isContainer() && MediaTypes.isJson(r.mediaType())) {
-            resp.setHeader("Accept-Patch", MediaTypes.MERGE_PATCH_JSON);
+            resp.setHeader("Accept-Patch", MediaTypes.ACCEPT_PATCH_JSON);
         }
     }
 

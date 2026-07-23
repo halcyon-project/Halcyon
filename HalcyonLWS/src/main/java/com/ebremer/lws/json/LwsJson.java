@@ -104,7 +104,12 @@ public final class LwsJson {
                         .add("type", "https://www.w3.org/ns/lws#PatchSupport")
                         .add("mediaType", Json.createObjectBuilder()
                                 .add("application/linkset+json", Json.createArrayBuilder()
-                                        .add("application/merge-patch+json"))))
+                                        .add("application/merge-patch+json"))
+                                // A JSON data resource accepts merge patch (RFC 7386) and
+                                // JSON Patch (RFC 6902).
+                                .add("application/json", Json.createArrayBuilder()
+                                        .add("application/merge-patch+json")
+                                        .add("application/json-patch+json"))))
                 // RFC 9530 Digest Fields: the algorithms this storage produces (Repr-Digest/
                 // Content-Digest) and verifies inbound. A client is told not to assume digest
                 // support unless it is advertised, so this is the contract, not decoration.

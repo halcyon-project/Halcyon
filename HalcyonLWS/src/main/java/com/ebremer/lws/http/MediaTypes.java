@@ -34,6 +34,12 @@ public final class MediaTypes {
     /** The minimum patch format a server MUST support, for resources and linksets alike. */
     public static final String MERGE_PATCH_JSON = "application/merge-patch+json";
 
+    /** JSON Patch (RFC 6902) — accepted on JSON data resources, in addition to merge patch. */
+    public static final String JSON_PATCH = "application/json-patch+json";
+
+    /** {@code Accept-Patch} for a JSON data resource: both patch formats it accepts. */
+    public static final String ACCEPT_PATCH_JSON = MERGE_PATCH_JSON + ", " + JSON_PATCH;
+
     /**
      * The baseline Type Search filter format, carried in the body of an HTTP
      * {@code QUERY} request.
