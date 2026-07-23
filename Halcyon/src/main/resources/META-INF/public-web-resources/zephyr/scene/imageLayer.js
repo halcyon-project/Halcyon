@@ -227,6 +227,15 @@ function tileShaderHook(shader) {
             '#include <common>\nuniform float brightness;\nuniform float contrast;\nuniform float uCompareMode;\nuniform vec3 uCompareCoord;\nuniform float uCompareTarget;')
         .replace('#include <clipping_planes_fragment>',
             '#include <clipping_planes_fragment>\n'
+            // Edge/coarse tiles cover a power-of-two tile-grid cell that is larger
+            // than their actual image content; the map transform (repeat/offset)
+            // places the content in vMapUv [0,1] and ClampToEdge would smear the
+            // last texel across the overhang beyond it — the stretched right column
+            // / bottom row at the image's true edge. Discard the overhang so the
+            // image ends cleanly instead. Interior tiles have repeat=1 (vMapUv stays
+            // in [0,1]) so nothing is discarded; the epsilon keeps a shared interior
+            // edge from dropping a seam pixel to interpolation.
+            + '\tif (vMapUv.x > 1.001 || vMapUv.x < -0.001 || vMapUv.y > 1.001 || vMapUv.y < -0.001) discard;\n'
             + '\tif (uCompareTarget > 0.5 && uCompareMode > 0.5) {\n'
             + '\t\tif (uCompareMode < 1.5) { if (gl_FragCoord.x < uCompareCoord.x) discard; }\n'
             + '\t\telse if (distance(gl_FragCoord.xy, uCompareCoord.xy) > uCompareCoord.z) discard;\n'
