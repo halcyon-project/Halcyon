@@ -36,7 +36,7 @@ public class WebIdLoginServlet extends HttpServlet {
             request.getSession(true).setAttribute(WebIdLogin.PENDING, redirect.pending());
             response.sendRedirect(redirect.authorizationUrl());
         } catch (WebIdOidcLogin.WebIdLoginException e) {
-            logger.debug("WebID login could not start for {}: {}", webid, e.getMessage());
+            logger.warn("WebID login could not start for {}: {}", webid, e.getMessage());
             response.sendError(HttpServletResponse.SC_BAD_REQUEST, "WebID login failed: " + e.getMessage());
         }
     }
