@@ -7,9 +7,10 @@ server:
   port: 8888
   http2:
     enabled: true
-  ssl:
-    bundle: server
-    enabled-protocols: TLSv1.3
+  # No server.ssl block on purpose: a fresh install has no halcyonkeystore.jks yet
+  # and its settings.ttl defaults to hal:HTTPS2enabled false, so the connector must
+  # come up plain HTTP. Turning on hal:HTTPS2enabled in settings.ttl makes SslConfig
+  # put TLS (TLSv1.3, halcyonkeystore.jks) on the connector programmatically.
   servlet:
     session:
       timeout: 900
@@ -31,13 +32,6 @@ spring:
           Halcyon whole-slide-image annotation, management and visualization
           server. Tools operate with the caller's own identity and access
           rights - what a tool cannot read, the caller cannot read.
-# Per-principal rate limit on /mcp (MCP-17): calls per window, per verified
-# WebID. Generous for an interactive agent; caps a runaway.
-halcyon:
-  mcp:
-    rate-limit:
-      capacity: 120
-      window-seconds: 60
   h2:
     console:
       enabled: false
@@ -54,6 +48,9 @@ halcyon:
         transaction:
           jta:
             platform: org.hibernate.engine.transaction.jta.platform.internal.NoJtaPlatform
+  # The "server" SSL bundle backs the OIDC client's trust of this server's own
+  # self-signed certificate when hal:HTTPS2enabled is true; it is registered
+  # lazily, so the missing keystore files are harmless while HTTPS is off.
   ssl:
     bundle:
       jks:
@@ -67,7 +64,17 @@ halcyon:
           truststore:
             location: "./halcyontruststore.jks"
             password: "password"
-            type: "JKS"            
+            type: "JKS"
+# Per-principal rate limit on /mcp (MCP-17): calls per window, per verified
+# WebID. Generous for an interactive agent; caps a runaway.
+# NOTE: keep this top-level block BELOW the whole spring: tree. It once sat in the
+# middle of it, which re-parented spring.h2/datasource/jpa/ssl under halcyon.* and
+# broke fresh installs with "SSL bundle name 'server' cannot be found".
+halcyon:
+  mcp:
+    rate-limit:
+      capacity: 120
+      window-seconds: 60
 logging:
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
