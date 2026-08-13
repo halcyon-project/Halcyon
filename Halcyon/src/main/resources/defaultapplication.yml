@@ -77,13 +77,21 @@ halcyon:
       window-seconds: 60
 logging:
   pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    console: "%d{yyyy-MM-dd HH:mm:ss} %-5level %logger{36} - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
-    
   file:
     name: logs/halcyon.log
     max-size: 100MB
     max-history: 10
+  # Production default. root OFF used to hide everything, including Boot's
+  # "APPLICATION FAILED TO START" report — every startup problem looked like a
+  # silent hang. ERROR everywhere, plus Halcyon's own one-time/operational
+  # events: service startup, LWS storage mounts, Keycloak key loads, WebID
+  # login successes (INFO) and failures (WARN).
   level:
-    root: OFF
-    com.ebremer.halcyon.filesystem: OFF
+    root: ERROR
+    com.ebremer.halcyon: INFO
+    com.ebremer.lws: INFO
+    # The storage scanner logs per-file at INFO — too chatty on large stores;
+    # its warnings and errors still surface.
+    com.ebremer.halcyon.filesystem: WARN
