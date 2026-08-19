@@ -25,6 +25,7 @@ import com.ebremer.lws.store.ContentStore;
 import com.ebremer.lws.store.LinksetStore;
 import com.ebremer.lws.store.LwsResource;
 import com.ebremer.lws.store.LwsStore;
+import com.ebremer.lws.store.PathKeyedStore;
 import com.ebremer.lws.store.ResourceRegistry;
 import com.ebremer.lws.store.ResourceType;
 import com.ebremer.lws.store.naming.NamingPolicy;
@@ -1674,21 +1675,19 @@ public class LwsServlet extends HttpServlet {
             ext = MediaTypeFormats.extensionFor(mediaType);
         }
         // Outside the transaction (an upload is seconds to minutes; the single TDB2 writer must not
-        // wait on it). writeAt creates the parent directories on disk as it goes.
-        ContentStore.Written w = mirror.writeAt(key, req.getInputStream());
+        // wait on it), and STAGED beside the target rather than written at it: nothing appears at
+        // the minted path until the create commits. stageAt makes the parent directories on the way.
         final String mt = mediaType;
         final String fext = ext;
-        verifyUpload(req, w, fext);
-        LwsResource created;
-        try {
-            created = store.write(() ->
+        try (PathKeyedStore.Staged staged = mirror.stageAt(key, req.getInputStream())) {
+            ContentStore.Written w = staged.written();
+            verifyUpload(req, w, fext);
+            LwsResource created = store.write(() ->
                     commitMirrorCreate(rq, parent.uri(), uri, key, webId, false, w, mt, fext));
-        } catch (RuntimeException e) {
-            content.delete(key, fext);
-            throw e;
+            staged.publish();
+            LwsMetadataScanner.enrichAsync(store, cfg, content, created);
+            return created;
         }
-        LwsMetadataScanner.enrichAsync(store, cfg, content, created);
-        return created;
     }
 
     private LwsResource commitMirrorCreate(Req rq, String parentUri, String uri, String key,
@@ -1764,31 +1763,36 @@ public class LwsServlet extends HttpServlet {
         if (ext.isEmpty()) {
             ext = MediaTypeFormats.extensionFor(mediaType);
         }
-        ContentStore.Written w = mirror.writeAt(key, req.getInputStream());
         final String mt = mediaType;
         final String fext = ext;
-        verifyUpload(req, w, fext);
-        PutOutcome out;
-        try {
-            out = store.write(() -> commitMirrorPut(rq, uri, key, req, mt, fext, w, setLinks));
-        } catch (RuntimeException e) {
-            content.delete(key, fext);
-            throw e;
-        }
-        LwsMetadataScanner.enrichAsync(store, cfg, content, out.r());
-        notify.emit(out.created() ? "Create" : "Update", out.r().uri(), false, out.r().parent(),
-                rq.agent().webId());
+        // Staged beside the file, not written over it. commitMirrorPut is where the client's
+        // If-Match is compared, and it is compared inside the write transaction on purpose — so
+        // the upload it guards has to still be undoable when it fails. Writing in place made the
+        // refusal meaningless: the 428 came back with the resource already overwritten, and the
+        // rollback then deleted the file outright, leaving registered metadata pointing at
+        // nothing. Nothing at `key` changes until the transaction has committed.
+        try (PathKeyedStore.Staged staged = mirror.stageAt(key, req.getInputStream())) {
+            ContentStore.Written w = staged.written();
+            verifyUpload(req, w, fext);
+            PutOutcome out = store.write(() ->
+                    commitMirrorPut(rq, uri, key, req, mt, fext, w, setLinks));
+            staged.publish();
 
-        resp.setStatus(out.created()
-                ? HttpServletResponse.SC_CREATED : HttpServletResponse.SC_NO_CONTENT);
-        if (out.created()) {
-            resp.setHeader("Location", out.r().uri());
+            LwsMetadataScanner.enrichAsync(store, cfg, content, out.r());
+            notify.emit(out.created() ? "Create" : "Update", out.r().uri(), false, out.r().parent(),
+                    rq.agent().webId());
+
+            resp.setStatus(out.created()
+                    ? HttpServletResponse.SC_CREATED : HttpServletResponse.SC_NO_CONTENT);
+            if (out.created()) {
+                resp.setHeader("Location", out.r().uri());
+            }
+            resp.setHeader("ETag", out.r().etag());
+            if (setLinks != null) {
+                resp.setHeader("Preference-Applied", "set-linkset");
+            }
+            addCommonHeaders(resp, out.r());
         }
-        resp.setHeader("ETag", out.r().etag());
-        if (setLinks != null) {
-            resp.setHeader("Preference-Applied", "set-linkset");
-        }
-        addCommonHeaders(resp, out.r());
     }
 
     private PutOutcome commitMirrorPut(Req rq, String uri, String key, HttpServletRequest req,
@@ -2124,10 +2128,17 @@ public class LwsServlet extends HttpServlet {
         JsonValue current = parseContent(currentBytes, base);
 
         byte[] patched = serialize(applyPatch(jsonPatch, patch, current));
-        // The mirror store's key is the URI path, so it overwrites the file in place (atomic move)
-        // rather than mint a new opaque key the way the sharded store does.
-        ContentStore.Written w = mirror != null
-                ? mirror.writeAt(keyForUri(t.uri()), new java.io.ByteArrayInputStream(patched))
+        // The mirror store's key is the URI path, so the patched bytes are STAGED beside the file
+        // and published only once the swap below commits — a refused patch (either precondition,
+        // or a lost re-authorization) must leave the document it could not replace exactly as it
+        // is. The sharded store mints a fresh opaque key instead, so its blob is written straight
+        // out and simply deleted when the swap is refused; the resource's own bytes are untouched
+        // either way.
+        final PathKeyedStore.Staged staged = mirror != null
+                ? mirror.stageAt(keyForUri(t.uri()), new java.io.ByteArrayInputStream(patched))
+                : null;
+        final ContentStore.Written w = staged != null
+                ? staged.written()
                 : content.write(new java.io.ByteArrayInputStream(patched), ext);
 
         record Result(LwsResource r, String oldKey) {
@@ -2171,13 +2182,22 @@ public class LwsServlet extends HttpServlet {
                 }
                 return new Result(r, cur.storageKey());
             });
-        } catch (RuntimeException e) {
-            // Refused. The patched blob is discarded rather than left behind unreferenced.
-            content.delete(w.key(), ext);
+            if (staged != null) {
+                staged.publish();
+            }
+        } catch (RuntimeException | IOException e) {
+            // Refused. The patched bytes are discarded rather than left behind — staged beside the
+            // resource in the mirror, unreferenced in the sharded store.
+            if (staged != null) {
+                staged.close();
+            } else {
+                content.delete(w.key(), ext);
+            }
             throw e;
         }
 
-        // Only now that the swap has committed is the old blob unreferenced.
+        // Only now that the swap has committed is the old blob unreferenced. In the mirror the
+        // patched bytes were just published over it, so there is nothing separate to reap.
         if (res.oldKey() != null && !res.oldKey().equals(w.key())) {
             content.delete(res.oldKey(), ext);
         }

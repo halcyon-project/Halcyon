@@ -27,7 +27,7 @@ import org.slf4j.LoggerFactory;
  * <p>The filesystem is the source of truth here — the inverse of {@link ShardedContentStore}. So it
  * never reaps ({@link #sweepOrphans} is a no-op; adopt/de-register is the reconcile engine's job),
  * and it cannot mint a key blind ({@link #write} throws): its key is the URI path, so writes go
- * through {@link #writeAt} once that URI is known.
+ * through {@link #stageAt} once that URI is known.
  */
 public final class MirrorContentStore implements PathKeyedStore {
 
@@ -76,12 +76,15 @@ public final class MirrorContentStore implements PathKeyedStore {
     }
 
     /**
-     * Write bytes to the blob at {@code key} (the resource's path under the mount), creating the
-     * parent directories as needed, and atomically replacing any file already there. Content-first,
-     * as in the sharded store: the bytes are fsynced and moved into place before the caller commits.
+     * Write the bytes for {@code key} beside their destination, fsynced but not yet visible
+     * there, and hand back the handle that publishes or discards them.
+     *
+     * <p>The file the key names is not touched until {@link Staged#publish} — which is the
+     * point: an upload whose transaction is then refused must leave the resource exactly as it
+     * was, and a store that wrote in place could only restore it by having kept a copy.
      */
     @Override
-    public Written writeAt(String key, InputStream in) throws IOException {
+    public Staged stageAt(String key, InputStream in) throws IOException {
         Path target = pathFor(key, null);
         Files.createDirectories(target.getParent());
         // A per-write temp name so two concurrent writes to the same path do not clobber each other's
@@ -104,11 +107,47 @@ public final class MirrorContentStore implements PathKeyedStore {
                 out.flush();
                 ch.force(true);
             }
-            move(tmp, target);
-            return new Written(key, size, HexFormat.of().formatHex(sha.digest()));
+            return new StagedFile(tmp, target,
+                    new Written(key, size, HexFormat.of().formatHex(sha.digest())));
         } catch (IOException | RuntimeException e) {
             Files.deleteIfExists(tmp);
             throw e;
+        }
+    }
+
+    /** Staged bytes: a temp file beside the target, published by the move that replaces it. */
+    private static final class StagedFile implements Staged {
+
+        private final Path tmp;
+        private final Path target;
+        private final Written written;
+
+        StagedFile(Path tmp, Path target, Written written) {
+            this.tmp = tmp;
+            this.target = target;
+            this.written = written;
+        }
+
+        @Override
+        public Written written() {
+            return written;
+        }
+
+        @Override
+        public void publish() throws IOException {
+            move(tmp, target);
+        }
+
+        @Override
+        public void close() {
+            try {
+                // Gone already once published, so this is the discard path and nothing else.
+                Files.deleteIfExists(tmp);
+            } catch (IOException e) {
+                // The resource is intact either way; all that is left is a temp file, which the
+                // reconciler ignores and the next write does not collide with (the name is unique).
+                LOG.warn("could not discard staged file {}: {}", tmp, e.toString());
+            }
         }
     }
 
