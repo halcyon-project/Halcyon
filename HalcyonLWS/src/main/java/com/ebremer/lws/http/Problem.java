@@ -120,8 +120,19 @@ public final class Problem extends RuntimeException {
         return new Problem(404, "Not Found", detail);
     }
 
-    public static Problem methodNotAllowed(String detail) {
-        return new Problem(405, "Method Not Allowed", detail);
+    /**
+     * The method is understood but not allowed on this resource.
+     *
+     * <p>The {@code allow} argument is not optional, and the signature is what makes that
+     * true: RFC 9110 §15.5.6 says the origin server "MUST generate an Allow header field in
+     * a 405 response containing a list of the target resource's currently supported methods".
+     * Every call site used to be free to forget it, and every one of them did — a client was
+     * told "not that method" and never told which ones.
+     *
+     * @param allow the target's supported methods, e.g. {@code "OPTIONS, HEAD, GET, POST"}
+     */
+    public static Problem methodNotAllowed(String detail, String allow) {
+        return new Problem(405, "Method Not Allowed", detail).header("Allow", allow);
     }
 
     /** No response media type the request finds acceptable can be produced. */

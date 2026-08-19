@@ -444,7 +444,8 @@ public class LwsServlet extends HttpServlet {
             case LINKSET -> patchLinkset(rq, t, req, resp);
             case RESOURCE -> patchContent(rq, t, req, resp);
             default -> throw Problem.methodNotAllowed(
-                    "PATCH is defined on a data resource and on any resource's linkset");
+                    "PATCH is defined on a data resource and on any resource's linkset",
+                    allowFor(t.kind(), null));
         }
     }
 
@@ -762,7 +763,8 @@ public class LwsServlet extends HttpServlet {
             return;
         }
         if (!"GET".equals(method)) {
-            throw Problem.methodNotAllowed("this endpoint supports OPTIONS and GET");
+            throw Problem.methodNotAllowed("this endpoint supports OPTIONS and GET",
+                    "OPTIONS, GET");
         }
         String target = cap.targetResource(req, cfg);
         if (target == null) {
@@ -1430,7 +1432,8 @@ public class LwsServlet extends HttpServlet {
             return;
         }
         if (t.kind() != Target.Kind.RESOURCE && t.kind() != Target.Kind.STORAGE_ROOT) {
-            throw Problem.methodNotAllowed("POST is only defined on a container");
+            throw Problem.methodNotAllowed("POST is only defined on a container",
+                    allowFor(t.kind(), null));
         }
 
         // A POST carrying application/sparql-query to a data resource is a query, not a create —
@@ -1454,7 +1457,8 @@ public class LwsServlet extends HttpServlet {
             return c;
         });
         if (!parent.isContainer()) {
-            throw Problem.methodNotAllowed("POST is only defined on a container");
+            throw Problem.methodNotAllowed("POST is only defined on a container",
+                    allowFor(t.kind(), parent));
         }
 
         List<LinkHeader.Parsed> links = LinkHeader.parse(req);
@@ -1726,7 +1730,8 @@ public class LwsServlet extends HttpServlet {
 
         LwsResource existing = store.read(() -> registry().find(uri).orElse(null));
         if (existing != null && existing.isContainer()) {
-            throw Problem.methodNotAllowed("a container's membership is server-managed");
+            throw Problem.methodNotAllowed("a container's membership is server-managed",
+                    allowFor(t.kind(), existing));
         }
         if (existing == null && mirror.exists(key, null)) {
             // The path is already occupied on disk — case-insensitively on Windows, so by a name of a
@@ -1955,7 +1960,8 @@ public class LwsServlet extends HttpServlet {
             return;
         }
         if (t.kind() != Target.Kind.RESOURCE) {
-            throw Problem.methodNotAllowed("PUT is not defined on this resource");
+            throw Problem.methodNotAllowed("PUT is not defined on this resource",
+                    allowFor(t.kind(), null));
         }
         if (mirror != null) {
             // The path-mirrored storage infers the parent from the URI, so a PUT MAY create (with any
@@ -1972,7 +1978,8 @@ public class LwsServlet extends HttpServlet {
             return r;
         });
         if (existing.isContainer()) {
-            throw Problem.methodNotAllowed("a container's membership is server-managed");
+            throw Problem.methodNotAllowed("a container's membership is server-managed",
+                    allowFor(t.kind(), existing));
         }
 
         // Prefer: set-linkset — the Link headers replace the linkset, atomically with the content
@@ -2083,7 +2090,8 @@ public class LwsServlet extends HttpServlet {
             return r;
         });
         if (base.isContainer()) {
-            throw Problem.methodNotAllowed("a container's membership is server-managed");
+            throw Problem.methodNotAllowed("a container's membership is server-managed",
+                    allowFor(t.kind(), base));
         }
         if (!MediaTypes.isJson(base.mediaType())) {
             throw Problem.unsupportedMediaType("a patch applies only to a JSON document; this "
@@ -2299,10 +2307,12 @@ public class LwsServlet extends HttpServlet {
             return;
         }
         if (t.kind() == Target.Kind.STORAGE_ROOT) {
-            throw Problem.methodNotAllowed("the storage root cannot be deleted");
+            throw Problem.methodNotAllowed("the storage root cannot be deleted",
+                    allowFor(t.kind(), null));
         }
         if (t.kind() != Target.Kind.RESOURCE) {
-            throw Problem.methodNotAllowed("DELETE is not defined on this resource");
+            throw Problem.methodNotAllowed("DELETE is not defined on this resource",
+                    allowFor(t.kind(), null));
         }
 
         boolean recursive = "infinity".equalsIgnoreCase(
@@ -2536,24 +2546,60 @@ public class LwsServlet extends HttpServlet {
 
     // --- OPTIONS ------------------------------------------------------------
 
+    /**
+     * The methods this target supports — the {@code Allow} header, for OPTIONS and for every
+     * {@code 405}.
+     *
+     * <p>One source of truth on purpose. OPTIONS and the refusals have to agree: a client told
+     * "not POST" and then handed a different list by OPTIONS learns nothing it can act on.
+     *
+     * @param r the resolved resource, for the kinds whose answer depends on what it is
+     *          (a container takes POST, a data resource takes PUT). Null where the caller
+     *          could not resolve it, which narrows the list to what holds for either.
+     */
+    private static String allowFor(Target.Kind kind, LwsResource r) {
+        return switch (kind) {
+            // QUERY is the form this service is built around; GET and POST remain
+            // because the published draft still requires them until #179 merges.
+            case TYPE_SEARCH -> "OPTIONS, HEAD, GET, POST, QUERY";
+            case LINKSET -> "OPTIONS, HEAD, GET, PATCH";
+            case ACR -> "OPTIONS, HEAD, GET, PUT";
+            case SUBSCRIPTIONS -> "OPTIONS, HEAD, GET, POST";
+            case SUBSCRIPTION -> "OPTIONS, HEAD, GET, DELETE";
+            case ACCESS_REQUESTS, ACCESS_GRANTS -> "OPTIONS, HEAD, GET, POST";
+            case ACCESS_REQUEST, ACCESS_GRANT -> "OPTIONS, HEAD, GET, DELETE";
+            case DESCRIPTION, TYPE_INDEX -> "OPTIONS, HEAD, GET";
+            // The root is a container, but it is the one container that cannot be deleted
+            // (delete() refuses it), so DELETE is left off rather than promised and refused.
+            case STORAGE_ROOT -> "OPTIONS, HEAD, GET, POST";
+            case RESOURCE -> {
+                if (r == null) {
+                    yield "OPTIONS, HEAD, GET, DELETE";
+                }
+                if (r.isContainer()) {
+                    yield "OPTIONS, HEAD, GET, POST, DELETE";
+                }
+                if (MediaTypes.isJson(r.mediaType())) {
+                    yield "OPTIONS, HEAD, GET, PUT, PATCH, DELETE";
+                }
+                // PATCH is left off deliberately. The server supports the method, but the
+                // only patch format it supports cannot apply to these bytes, so listing it
+                // would be a promise it would then break with a 415.
+                yield "OPTIONS, HEAD, GET, PUT, DELETE";
+            }
+        };
+    }
+
     private void options(Req rq, Target t, HttpServletResponse resp) {
         switch (t.kind()) {
             case TYPE_SEARCH -> {
-                // QUERY is the form this service is built around; GET and POST remain
-                // because the published draft still requires them until #179 merges.
-                resp.setHeader("Allow", "OPTIONS, HEAD, GET, POST, QUERY");
+                resp.setHeader("Allow", allowFor(t.kind(), null));
                 resp.setHeader("Accept-Query", MediaTypes.LWS_QUERY_JSON);
             }
             case LINKSET -> {
-                resp.setHeader("Allow", "OPTIONS, HEAD, GET, PATCH");
+                resp.setHeader("Allow", allowFor(t.kind(), null));
                 resp.setHeader("Accept-Patch", MediaTypes.MERGE_PATCH_JSON);
             }
-            case ACR -> resp.setHeader("Allow", "OPTIONS, HEAD, GET, PUT");
-            case SUBSCRIPTIONS -> resp.setHeader("Allow", "OPTIONS, HEAD, GET, POST");
-            case SUBSCRIPTION -> resp.setHeader("Allow", "OPTIONS, HEAD, GET, DELETE");
-            case ACCESS_REQUESTS, ACCESS_GRANTS -> resp.setHeader("Allow", "OPTIONS, HEAD, GET, POST");
-            case ACCESS_REQUEST, ACCESS_GRANT -> resp.setHeader("Allow", "OPTIONS, HEAD, GET, DELETE");
-            case DESCRIPTION, TYPE_INDEX -> resp.setHeader("Allow", "OPTIONS, HEAD, GET");
 
             // A resource -- including the storage root. This is gated like every other verb
             // that names a resource, and it was not: OPTIONS used to answer for anything,
@@ -2562,20 +2608,11 @@ public class LwsServlet extends HttpServlet {
             // disclosed whether the resource was a container.
             case STORAGE_ROOT, RESOURCE -> {
                 LwsResource r = knownNow(rq, t.uri());
-                if (r.isContainer()) {
-                    resp.setHeader("Allow", "OPTIONS, HEAD, GET, POST, DELETE");
-                } else if (MediaTypes.isJson(r.mediaType())) {
-                    resp.setHeader("Allow", "OPTIONS, HEAD, GET, PUT, PATCH, DELETE");
-                } else {
-                    // PATCH is left off deliberately. The server supports the method, but the
-                    // only patch format it supports cannot apply to these bytes, so listing it
-                    // would be a promise it would then break with a 415.
-                    resp.setHeader("Allow", "OPTIONS, HEAD, GET, PUT, DELETE");
-                }
+                resp.setHeader("Allow", allowFor(t.kind(), r));
                 addPatchHeader(resp, r);
                 resp.setHeader("Want-Content-Digest", DigestFields.WANT);
             }
-            default -> throw hidden(rq);
+            default -> resp.setHeader("Allow", allowFor(t.kind(), null));
         }
         resp.setStatus(HttpServletResponse.SC_NO_CONTENT);
     }
@@ -2614,8 +2651,15 @@ public class LwsServlet extends HttpServlet {
         if (serveResourceCapability(rq, t, req, resp)) {
             return;
         }
+        // Resolved through the same gate OPTIONS uses, so the Allow list is the resource's real
+        // one and no more disclosing than OPTIONS already is: an agent holding no mode on it is
+        // told the resource is not there (401/404) rather than which methods it would take.
+        LwsResource r = t.kind() == Target.Kind.RESOURCE || t.kind() == Target.Kind.STORAGE_ROOT
+                ? knownNow(rq, t.uri())
+                : null;
         throw Problem.methodNotAllowed(
-                "QUERY is defined on the Type Search Service and on queryable resources");
+                "QUERY is defined on the Type Search Service and on queryable resources",
+                allowFor(t.kind(), r));
     }
 
     /** The POST form of Type Search, whose body is {@code application/lws+json}. */
