@@ -123,7 +123,9 @@ Full replacement of an existing **data resource's** content (or an ACR — see b
 ### DELETE
 
 Requires `Write` on the resource **and** `Append` on its parent (the delete mutates the parent's
-`items`). The conditional applies (`428`/`412`).
+`items`). The conditional applies (`428`/`412`), but a **`409` is reported ahead of it** — a request
+that will be refused whatever entity tag it carries says so on the first round trip rather than
+sending the client away to fetch a conditional it turns out not to need.
 
 - A **non-empty container** → **`409 Conflict`** unless `Depth: infinity` is sent; with it, the whole
   subtree is deleted. Every descendant is authorized *before* anything is removed — one forbidden

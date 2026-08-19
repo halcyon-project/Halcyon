@@ -2362,10 +2362,27 @@ public class LwsServlet extends HttpServlet {
             if (r.parent() != null) {
                 demand(rq, r.parent(), AccessMode.APPEND);
             }
-            Preconditions.requireIfMatch(req, r.etag());
 
+            // The subtree walk comes BEFORE the precondition, and the order is the whole point.
+            //
+            // lws10-core: a non-empty container deleted without recursion "MUST be rejected with
+            // 409 Conflict". Demanding If-Match first made that 409 unreachable for the client
+            // most likely to need it — the one that sent no conditional gets 428, fixes the
+            // conditional, and only then learns the request was never going to be honoured. Two
+            // round trips to be told the thing that was true the first time.
+            //
+            // RFC 9110 §13.2.2 puts it as a rule for received preconditions: ignore them when the
+            // request would have failed anyway with something other than 2xx or 412. A precondition
+            // the server DEMANDS is not literally that case, but the reasoning carries — a
+            // conditional is asked for so a write can be made safe, and this request is not going
+            // to write regardless.
+            //
+            // Nothing is mutated by either check, so this is purely which refusal the client is
+            // told about; both still happen under the single writer, in this one transaction.
             List<LwsResource> tree = new ArrayList<>();
             collect(reg, r, tree, recursive, 0);
+
+            Preconditions.requireIfMatch(req, r.etag());
 
             // Authorize EVERY descendant before removing ANY of them.
             //
