@@ -100,7 +100,11 @@ public final class HalcyonSession extends VandegraphSession {
             userURI = "urn:uuid:"+UUID.randomUUID().toString();
             principal = new HalcyonPrincipal(userURI, true);
         }
-        if (webidLogin == null && profile.isPresent()) {
+        // The Keycloak admin REST calls below (users, groups, group members) only mean
+        // anything when that subsystem is running. With :AuthServer commented out there is
+        // no pac4j profile to be had either, so this is belt and braces — but it states the
+        // dependency instead of leaving it to be inferred from the profile being empty.
+        if (webidLogin == null && profile.isPresent() && s.isKeycloakEnabled()) {
             OidcProfile oidcProfile = (OidcProfile) profile.get();
             String jwt = oidcProfile.getAccessToken().getValue();
             ResteasyClientBuilder builder = (ResteasyClientBuilder) ClientBuilder.newBuilder();

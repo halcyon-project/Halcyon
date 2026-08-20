@@ -13,6 +13,7 @@ import org.pac4j.oidc.config.KeycloakOidcConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.pac4j.oidc.exceptions.OidcTokenException;
+import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -20,8 +21,14 @@ import org.springframework.context.annotation.Lazy;
 
 /**
  * Configures and builds security settings for the application.
+ *
+ * <p>Keycloak-only, so the whole class is conditional: with no {@code :AuthServer} in
+ * {@code settings.ttl} none of these beans exist, and authentication is the LWS
+ * WebID-OIDC stack instead. Nothing here is removed — restoring the setting restores the
+ * class. See {@link KeycloakEnabled}.
  */
 @Configuration
+@Conditional(KeycloakEnabled.class)
 public class HalcyonConfigFactory implements ConfigFactory {
 
     private static final Logger logger = LoggerFactory.getLogger(HalcyonConfigFactory.class);

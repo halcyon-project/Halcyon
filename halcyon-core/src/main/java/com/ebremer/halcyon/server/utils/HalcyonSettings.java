@@ -151,16 +151,52 @@ public final class HalcyonSettings {
         return DEFAULTHOSTNAME + ":" + DEFAULTHTTPPORT;
     }
 
+    /**
+     * The Keycloak authorization server's base URI, or {@code null} when the
+     * subsystem is switched off.
+     *
+     * <p>Absence of {@code :AuthServer} in {@code settings.ttl} is the OFF switch for
+     * the whole Keycloak stack — comment the line out and Halcyon runs entirely on the
+     * LWS auth system (WebID-OIDC via {@code lws-oidc.json}); put it back and Keycloak
+     * returns exactly as it was. Nothing is deleted either way; see
+     * {@link #isKeycloakEnabled()}.
+     *
+     * <p>This used to fall back to {@code http://localhost:8888} — this server's own
+     * address, not an authorization server's — so a settings file with no
+     * {@code :AuthServer} did not disable anything. It pointed the OIDC client and the
+     * bearer verifier at Halcyon itself and let them fail at discovery time, which is
+     * both wrong and unusable as a switch. Returning null says the thing that is true:
+     * no authorization server is configured.
+     *
+     * @return the configured base URI, or null if {@code :AuthServer} is absent
+     */
     public String getAuthServer() {
         ParameterizedSparqlString pss = new ParameterizedSparqlString("select ?AuthServer where {?s :AuthServer ?AuthServer}");
         pss.setNsPrefix("", HAL.NS);
         try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m)) {
             ResultSet results = qe.execSelect();
             if (results.hasNext()) {
-                return results.nextSolution().get("AuthServer").asLiteral().getString();
+                String v = results.nextSolution().get("AuthServer").asLiteral().getString();
+                if (v != null && !v.isBlank()) {
+                    return v.trim();
+                }
             }
         }
-        return DEFAULTHOSTNAME + ":" + DEFAULTHTTPPORT;
+        return null;
+    }
+
+    /**
+     * Whether the Keycloak subsystem is switched on, which it is iff {@code :AuthServer}
+     * names one.
+     *
+     * <p>Every Keycloak-specific bean — the pac4j OIDC client, the {@code /callback} and
+     * logout filters, the security filters guarding the Wicket pages, and the
+     * {@code /auth} reverse proxy — is conditional on this, as is the Keycloak bearer
+     * verifier in the LWS credential chain. Off, they are never constructed, so nothing
+     * reaches out to an authorization server that is not there.
+     */
+    public boolean isKeycloakEnabled() {
+        return getAuthServer() != null;
     }
 
     public boolean isDevMode() {

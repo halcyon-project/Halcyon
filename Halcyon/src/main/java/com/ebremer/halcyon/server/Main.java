@@ -11,6 +11,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 import org.springframework.boot.web.servlet.ServletRegistrationBean;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Conditional;
 import org.springframework.core.Ordered;
 import org.springframework.context.annotation.Lazy;
 import com.ebremer.halcyon.fuseki.HalcyonProxyServlet;
@@ -61,7 +62,9 @@ public class Main {
         SLF4JBridgeHandler.install();
     }
 
+    // Keycloak-only: absent :AuthServer means this is never built. See KeycloakEnabled.
     @Bean
+    @Conditional(KeycloakEnabled.class)
     public KeycloakOidcConfiguration keycloakOidcConfiguration() {
         KeycloakOidcConfiguration config = new KeycloakOidcConfiguration();
         config.setClientId(HalcyonSettings.CLIENT_ID);
@@ -168,7 +171,11 @@ public class Main {
         return srb;
     }
 
+    // The reverse proxy that puts Keycloak on this origin at /auth. With the subsystem
+    // off there is nothing behind it, so the mount goes away with the rest of the stack
+    // rather than answering 502 on a path nothing should be visiting.
     @Bean
+    @Conditional(KeycloakEnabled.class)
     public ServletRegistrationBean proxyServletKeycloakRegistrationBean() {
         ServletRegistrationBean bean = new ServletRegistrationBean(new HalcyonProxyServlet(), "/auth/*");
         bean.addInitParameter("targetUri", "http://localhost:8080/auth");

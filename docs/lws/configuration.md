@@ -147,6 +147,46 @@ At storage initialization, `AcpBootstrap.seed()` writes the storage root's ACP a
 
 ## Keycloak
 
+### Turning it off (and back on)
+
+Keycloak is switched by a single line in `settings.ttl`:
+
+```turtle
+    :AuthServer  "https://vulcan.bmi.stonybrook.edu/auth" ;   # present -> Keycloak ON
+  # :AuthServer  "https://vulcan.bmi.stonybrook.edu/auth" ;   # commented -> Keycloak OFF
+```
+
+With it **commented out**, `HalcyonSettings.isKeycloakEnabled()` is false and nothing Keycloak-shaped
+is constructed:
+
+| Off | Consequence |
+|---|---|
+| pac4j `KeycloakOidcClient`, `Config`, `/callback` + logout filters, and the security filters over `URLControl.getSecuredURLs()`/`getAdminURLs()` | Wicket pages are guarded by `HalcyonAuthorizationStrategy` alone, off the WebID seated by the interactive login |
+| the `/auth/*` reverse proxy to `localhost:8080` | the path is not mounted at all, rather than 502-ing |
+| `BearerTokenVerifier` in every storage's `CredentialChain` | no OIDC discovery at startup — which is the real reason to skip it, since that call would otherwise hang waiting on a Keycloak that is not running |
+| the "Login" menu item, the Account page's Keycloak console link, and the logout redirect to the end-session endpoint | "WebID Login" is the way in; logout invalidates the session and goes home |
+
+Authentication then runs entirely on the LWS stack — WebID-OIDC, enabled in `lws-oidc.json` — for both
+bearer tokens (`LwsOidcVerifier`) and interactive sign-in (`/webid-login`). The `WWW-Authenticate`
+challenge's required `as_uri` becomes `{site}/webid-login`, because under WebID-OIDC the issuer is
+whichever OP the agent's own WebID nominates and cannot be named before one is presented.
+
+**Nothing is deleted.** Every class, bean and filter is still there; restoring the `:AuthServer` line
+brings the whole subsystem back exactly as it was. The gate is `@Conditional(KeycloakEnabled.class)`,
+which reads the settings singleton (loaded by `INIT.init()` before the Spring context is built) and
+logs once at startup which stack is live.
+
+Note that a `settings.ttl` which never had an `:AuthServer` now also starts with Keycloak off. That
+line previously fell back to `http://localhost:8888` — this server's own address, not an
+authorization server's — so such a deployment was pointing the OIDC client and the bearer verifier at
+Halcyon itself and failing at discovery. It was never working; now it says so.
+
+If **both** Keycloak and `lws-oidc.json` are off the credential chain is empty: no credential is
+accepted, every request is `PUBLIC`, and a presented token is `invalid_token`. That is the
+fail-closed direction — an unconfigured server authenticates nobody rather than everybody.
+
+### Realm and mappers
+
 Tokens are validated per storage by `BearerTokenValidator`. The realm is **`Halcyon`** (read from
 `keycloak.json`; note the module deliberately does **not** use `HalcyonSettings.getRealm()`, which
 returns a hardcoded `"master"` that does not describe this deployment).

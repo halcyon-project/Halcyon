@@ -68,9 +68,13 @@ public class AccountPage extends BasePage {
         add(new Label("webid", String.valueOf(hp.getUserURI())));
         add(new Label("groups", hp.getGroups() == null || hp.getGroups().isEmpty()
                 ? "(none)" : String.join(", ", hp.getGroups())));
+        // Only offered while Keycloak is running: with :AuthServer commented out /auth is
+        // not mounted, and a WebID user's profile and credentials live at their own OP
+        // anyway, which is not ours to link to.
         add(new ExternalLink("keycloak",
                 "/auth/realms/" + HalcyonSettings.REALM + "/account",
-                "Manage profile & credentials (Keycloak) ↗"));
+                "Manage profile & credentials (Keycloak) ↗")
+                .setVisible(HalcyonSettings.getSettings().isKeycloakEnabled()));
 
         // --- Annotation color classes ------------------------------------------
         List<ColorClassesStore.Row> classes = loadColorClasses(hp, user);

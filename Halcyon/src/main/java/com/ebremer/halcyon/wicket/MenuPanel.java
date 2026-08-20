@@ -75,7 +75,11 @@ public class MenuPanel extends Panel {
         webidlogin.setVisible(false);
         revisionhistory.setVisible(false);
         if (hp.isAnon()) {
-            login.setVisible(true);
+            // The plain "Login" link starts the Keycloak redirect, so it is only offered
+            // when that subsystem is switched on (:AuthServer in settings.ttl). With it
+            // commented out the WebID login is the way in, and showing a dead link beside
+            // it would just be a trap.
+            login.setVisible(HalcyonSettings.getSettings().isKeycloakEnabled());
             webidlogin.setVisible(WebIdLogin.enabled());
         } else {
             revisionhistory.setVisible(true);

@@ -64,7 +64,10 @@ public class ServerConfig extends BasePage {
         rows.add(new String[]{"Proxy host name", String.valueOf(hs.getProxyHostName())});
         rows.add(new String[]{"HTTP / HTTPS port", hs.GetHTTPPort() + " / " + hs.GetHTTPSPort()});
         rows.add(new String[]{"Mode", hs.isDevMode() ? "dev" : "release"});
-        rows.add(new String[]{"Auth server", String.valueOf(hs.getAuthServer())});
+        // Say "disabled" rather than "null": with :AuthServer commented out the Keycloak
+        // stack is deliberately not running, which is a configuration, not a missing value.
+        rows.add(new String[]{"Auth server", hs.isKeycloakEnabled()
+                ? hs.getAuthServer() : "(Keycloak disabled — LWS auth only)"});
         rows.add(new String[]{"Realm", String.valueOf(hs.getRealm())});
         rows.add(new String[]{"Classic RDF store", String.valueOf(hs.getRDFStoreLocation())});
         rows.add(new String[]{"LWS RDF store", String.valueOf(LwsSettings.get().storeLocation())});

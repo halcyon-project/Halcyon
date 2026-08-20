@@ -13,12 +13,21 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.ssl.DefaultSslBundleRegistry;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * The pac4j/Keycloak wiring: the OIDC client, the {@code /callback} and logout filters,
+ * and the security filters over the secured and admin URL sets.
+ *
+ * <p>Every bean here except {@link #httpSessionListener()} is conditional on Keycloak
+ * being switched on — i.e. on {@code settings.ttl} naming an {@code :AuthServer}. With it
+ * commented out none of them are built and the Wicket pages are guarded by
+ * {@code HalcyonAuthorizationStrategy} alone, off the WebID seated by the LWS interactive
+ * login. The code is untouched and returns with the setting. See {@link KeycloakEnabled}.
  *
  * @author erich
  */
@@ -35,6 +44,7 @@ public class Cool {
     
     /** Authentication for every secured URL. See the authorizer note below. */
     @Bean
+    @Conditional(KeycloakEnabled.class)
     public HalcyonSecurityFilter securityFilter(Config pac4jConfig) {
         HalcyonSecurityFilter securityFilter = new HalcyonSecurityFilter();
         securityFilter.setConfig(pac4jConfig);
@@ -69,6 +79,7 @@ public class Cool {
      * authorizer applies ONLY to {@code URLControl.getAdminURLs()}.
      */
     @Bean
+    @Conditional(KeycloakEnabled.class)
     public HalcyonSecurityFilter adminSecurityFilter(Config pac4jConfig) {
         HalcyonSecurityFilter securityFilter = new HalcyonSecurityFilter();
         securityFilter.setConfig(pac4jConfig);
@@ -78,6 +89,7 @@ public class Cool {
     }
 
     @Bean
+    @Conditional(KeycloakEnabled.class)
     public FilterRegistrationBean<HalcyonSecurityFilter> adminSecurityFilterRegistration(
             @Qualifier("adminSecurityFilter") HalcyonSecurityFilter adminSecurityFilter) {
         FilterRegistrationBean<HalcyonSecurityFilter> registration = new FilterRegistrationBean<>();
@@ -99,6 +111,7 @@ public class Cool {
     }
    
     @Bean
+    @Conditional(KeycloakEnabled.class)
     public Config config() {
         final KeycloakOidcConfiguration keyconfig = new KeycloakOidcConfiguration();
         keyconfig.setClientId(HalcyonSettings.CLIENT_ID);
@@ -119,6 +132,7 @@ public class Cool {
     }
 
     @Bean
+    @Conditional(KeycloakEnabled.class)
     public FilterRegistrationBean<CallbackFilter> callbackFilterRegistration(CallbackFilter callbackFilter) {
         FilterRegistrationBean<CallbackFilter> registration = new FilterRegistrationBean<>();
         registration.setFilter(callbackFilter);
@@ -128,6 +142,7 @@ public class Cool {
     }
 
     @Bean
+    @Conditional(KeycloakEnabled.class)
     public FilterRegistrationBean logoutFilter() {
         final LogoutFilter filter = new LogoutFilter(config(), "/?defaulturlafterlogout");
         filter.setDestroySession(true);
@@ -138,6 +153,7 @@ public class Cool {
     }
     
     @Bean
+    @Conditional(KeycloakEnabled.class)
     public CallbackFilter callbackFilter(Config pac4jConfig) {
         CallbackFilter callbackFilter = new CallbackFilter();
         callbackFilter.setConfig(pac4jConfig);
@@ -151,6 +167,7 @@ public class Cool {
     // -parameters, which this build does not set — hence the explicit @Qualifier
     // on both registrations rather than relying on parameter-name retention.
     @Bean
+    @Conditional(KeycloakEnabled.class)
     public FilterRegistrationBean<HalcyonSecurityFilter> securityFilterRegistration(
             @Qualifier("securityFilter") HalcyonSecurityFilter securityFilter) {
         FilterRegistrationBean<HalcyonSecurityFilter> registration = new FilterRegistrationBean<>();
