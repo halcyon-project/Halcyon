@@ -520,15 +520,42 @@ public class LwsServlet extends HttpServlet {
      * "In cases where revealing resource existence poses a security risk, the server MAY
      * return 404 Not Found instead."
      *
-     * <p>For an anonymous request the answer is 401, not 404. That is uniform across both
-     * cases too, so it discloses nothing — and unlike a 404 it tells the client that
-     * authenticating might change the answer, which is the entire purpose of a challenge.
+     * <p>Which answer an anonymous agent gets turns on whether a challenge could tell it
+     * anything. On a storage that grants the public nothing, 401 is the useful reply: it
+     * names where to authenticate, and authenticating is indeed what would change the
+     * answer — which is the entire purpose of a challenge. On a storage that already
+     * grants the public access, it is a lie of omission. That agent is not short of
+     * credentials; the resource it addressed is simply not there, and lws10-core wants that
+     * said plainly — a POST into a container that does not exist "MUST return a 404 error
+     * status unless another status code is more appropriate".
+     *
+     * <p>The standing test is taken against the storage ROOT, never the resource in hand,
+     * and that is what keeps the oracle shut. Asked of the resource it would answer 401 for
+     * the ones the public may not see and 404 for the ones that were never there — exactly
+     * the distinction this method exists to erase, rebuilt one level down. Asked of the
+     * root it returns the same answer for every URI in the storage, so it discloses nothing
+     * about any of them.
+     *
+     * <p>Assumes an ambient transaction.
      */
     private Problem hidden(Req rq) {
-        if (!rq.agent().isAuthenticated()) {
+        if (!rq.agent().isAuthenticated() && !publicHasStanding(rq)) {
             return auth.unauthenticated("authentication is required to access this resource");
         }
         return Problem.notFound("no such resource");
+    }
+
+    /**
+     * Whether this storage grants the anonymous public anything at all.
+     *
+     * <p>Any mode on the root will do, for the reason {@link #known} gives at greater
+     * length: an agent holding nothing but {@code acl:Append} has still been let in, even
+     * though it may not look inside.
+     *
+     * <p>Assumes an ambient transaction.
+     */
+    private boolean publicHasStanding(Req rq) {
+        return !rq.acp().modes(rq.agent(), cfg.storageRootUri()).isEmpty();
     }
 
     /**
