@@ -2393,23 +2393,34 @@ public class LwsServlet extends HttpServlet {
             // The subtree walk comes BEFORE the precondition, and the order is the whole point.
             //
             // lws10-core: a non-empty container deleted without recursion "MUST be rejected with
-            // 409 Conflict". Demanding If-Match first made that 409 unreachable for the client
-            // most likely to need it — the one that sent no conditional gets 428, fixes the
-            // conditional, and only then learns the request was never going to be honoured. Two
+            // 409 Conflict". Checking the entity tag first made that 409 unreachable for the
+            // client most likely to need it — it would be told its validator was stale, fix the
+            // validator, and only then learn the request was never going to be honoured. Two
             // round trips to be told the thing that was true the first time.
             //
-            // RFC 9110 §13.2.2 puts it as a rule for received preconditions: ignore them when the
-            // request would have failed anyway with something other than 2xx or 412. A precondition
-            // the server DEMANDS is not literally that case, but the reasoning carries — a
-            // conditional is asked for so a write can be made safe, and this request is not going
-            // to write regardless.
+            // RFC 9110 §13.2.2 states it as the rule for received preconditions: ignore them when
+            // the request would have failed anyway with something other than 2xx or 412. This is
+            // literally that case — the 409 is neither.
             //
             // Nothing is mutated by either check, so this is purely which refusal the client is
             // told about; both still happen under the single writer, in this one transaction.
             List<LwsResource> tree = new ArrayList<>();
             collect(reg, r, tree, recursive, 0);
 
-            Preconditions.requireIfMatch(req, r.etag());
+            // checkIfMatch, NOT requireIfMatch: an unconditional DELETE is allowed to succeed.
+            //
+            // This used to demand the validator, which made every delete a 428 until the client
+            // had fetched the resource first. lws10-core mandates the 428 for unconditional PUT
+            // and for a linkset PUT/PATCH — nowhere else — and of DELETE says only that "on
+            // success, the server MUST respond with 204 No Content. Servers SHOULD support
+            // conditional requests." Requiring one inverted that MUST: the 204 the spec demands
+            // on success was unreachable, because success was.
+            //
+            // The compare-and-swap is undiminished for anyone who wants it. A client that sends
+            // a stale tag is still refused 412, still inside this write transaction, still under
+            // TDB2's single writer. What changes is only that not sending one is no longer an
+            // error — which is the client's call to make, as it always was for PUT's cousins.
+            Preconditions.checkIfMatch(req, r.etag());
 
             // Authorize EVERY descendant before removing ANY of them.
             //

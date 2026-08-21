@@ -123,9 +123,15 @@ Full replacement of an existing **data resource's** content (or an ACR — see b
 ### DELETE
 
 Requires `Write` on the resource **and** `Append` on its parent (the delete mutates the parent's
-`items`). The conditional applies (`428`/`412`), but a **`409` is reported ahead of it** — a request
-that will be refused whatever entity tag it carries says so on the first round trip rather than
-sending the client away to fetch a conditional it turns out not to need.
+`items`). The conditional is **optional here** — unlike PUT and the linkset writes, an unconditional
+DELETE succeeds. Send `If-Match` and it is enforced (stale → `412`, still compared inside the write
+transaction); send none and the delete proceeds. lws10-core mandates the `428` for unconditional PUT
+and for a linkset `PUT`/`PATCH`, and asks of DELETE only that servers *SHOULD support* conditional
+requests — an obligation to honour a validator that arrives, not to require one.
+
+A **`409` is reported ahead of any conditional** — a request that will be refused whatever entity tag
+it carries says so on the first round trip rather than sending the client away to fetch a conditional
+it turns out not to need.
 
 - A **non-empty container** → **`409 Conflict`** unless `Depth: infinity` is sent; with it, the whole
   subtree is deleted. Every descendant is authorized *before* anything is removed — one forbidden
@@ -254,7 +260,7 @@ Two conveniences on top of the bearer contract, both deliberately narrow:
 | `412 Precondition Failed` | `If-Match`/`If-None-Match` mismatch (compare-and-swap failed) |
 | `415 Unsupported Media Type` | wrong `Content-Type` for PATCH or QUERY (+ `Accept-Patch`/`Accept-Query`) |
 | `422 Unprocessable` | Type Search filter too complex; access grant carries a constraint ACP cannot enforce |
-| `428 Precondition Required` | a write that requires `If-Match` sent none |
+| `428 Precondition Required` | a write that requires `If-Match` sent none (`PUT`, linkset/ACR writes — never `DELETE`) |
 | `501 Not Implemented` | an HTTP method the server does not dispatch |
 
 All error bodies are `application/problem+json` (RFC 9457) with `Cache-Control: no-store`.
@@ -265,7 +271,7 @@ All error bodies are `application/problem+json` (RFC 9457) with `Cache-Control: 
 |---|---|
 | `Authorization: Bearer <jwt>` | Validated (signature, issuer, audience, expiry). Absent → the public agent. Malformed/invalid → `401`. |
 | `Accept` | Content negotiation (containers, linkset, ACR, search, JSON docs). |
-| `If-Match` | Required on writes to a resource with an `ETag`; absent → `428`, mismatch → `412`; `*` means "must exist". |
+| `If-Match` | Required on `PUT` and on linkset/ACR writes to a resource with an `ETag`: absent → `428`. Optional on `DELETE`, which succeeds without one. Mismatch → `412` either way; `*` means "must exist". |
 | `If-None-Match` | `304` on match; `*` supported; takes precedence over `If-Modified-Since`. |
 | `If-Modified-Since` | `304` by RFC 1123 date (data resources only; containers/linkset/ACR do not honor it). |
 | `Slug` | Naming hint on `POST` (honored only by `/W3ClwsSlash`); also an extension fallback for metadata. |
