@@ -50,6 +50,10 @@ cacerts.p12
 application-local.yml
 application-*.local.yml
 
+# Claude Code local settings (machine-specific permission allowlist).
+# A shared .claude/settings.json, if one is ever added, stays tracked.
+.claude/settings.local.json
+
 # IDE / OS
 .idea/
 *.iml
