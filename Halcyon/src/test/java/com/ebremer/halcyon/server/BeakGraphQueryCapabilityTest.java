@@ -16,12 +16,12 @@ class BeakGraphQueryCapabilityTest {
 
     private static LwsResource dataResource(String mediaType, String ext) {
         return new LwsResource("https://h.example/s/r", ResourceType.DATA_RESOURCE, List.of(),
-                mediaType, 0L, null, null, "key", ext, "https://h.example/s/", 1L, null, null);
+                mediaType, 0L, null, null, "key", ext, "https://h.example/s/", 1L, null, null, null);
     }
 
     private static LwsResource container() {
         return new LwsResource("https://h.example/s/c", ResourceType.CONTAINER, List.of(),
-                null, 0L, null, null, null, null, "https://h.example/s/", 1L, null, null);
+                null, 0L, null, null, null, null, "https://h.example/s/", 1L, null, null, null);
     }
 
     @Test
