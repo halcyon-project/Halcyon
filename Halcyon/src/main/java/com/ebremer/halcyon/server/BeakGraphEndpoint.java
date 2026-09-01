@@ -89,6 +89,16 @@ public final class BeakGraphEndpoint {
             response.sendError(HttpServletResponse.SC_BAD_REQUEST, "query parse error: " + ex.getMessage());
             return;
         }
+
+        // A SERVICE clause here is an outbound request made by this server, so the caller's query
+        // is put through the deployment's egress policy before it runs. Federation itself stays
+        // allowed -- self-federation to this origin is a feature -- but not at the internal network.
+        try {
+            SparqlEgress.check(query);
+        } catch (com.ebremer.lws.sparql.SparqlGuard.RefusedException ex) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, ex.getMessage());
+            return;
+        }
         java.net.URI key = content.toUri();
         BeakGraph bg = null;
         try {

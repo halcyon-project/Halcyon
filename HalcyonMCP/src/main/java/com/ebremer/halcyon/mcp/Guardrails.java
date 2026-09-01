@@ -1,13 +1,10 @@
 package com.ebremer.halcyon.mcp;
 
+import com.ebremer.lws.sparql.SparqlGuard;
 import java.time.Duration;
 import org.apache.jena.query.Query;
 import org.apache.jena.query.QueryException;
 import org.apache.jena.query.QueryFactory;
-import org.apache.jena.sparql.syntax.ElementService;
-import org.apache.jena.sparql.syntax.ElementSubQuery;
-import org.apache.jena.sparql.syntax.ElementVisitorBase;
-import org.apache.jena.sparql.syntax.ElementWalker;
 
 /**
  * MCP-5: bounded by construction. Every reading tool this module ever grows
@@ -70,9 +67,14 @@ public final class Guardrails {
      *       {@code LOAD} do not parse here at all — there is no flag to
      *       forget.</li>
      *   <li><strong>No federation:</strong> a {@code SERVICE} clause anywhere
-     *       (subqueries included) is refused — it would let a caller aim this
-     *       server's network position at arbitrary URLs (SSRF), and no P1
-     *       tool has a reason to federate.</li>
+     *       is refused — it would let a caller aim this server's network
+     *       position at arbitrary URLs (SSRF), and no P1 tool has a reason to
+     *       federate. The detection lives in {@link SparqlGuard}, shared with
+     *       the HTTP query endpoints: the check this class used to carry
+     *       walked the syntax tree, which never enters an expression, so a
+     *       {@code SERVICE} inside {@code FILTER EXISTS},
+     *       {@code FILTER NOT EXISTS} or {@code BIND(EXISTS{...})} passed
+     *       straight through it.</li>
      *   <li><strong>Bounded:</strong> a missing {@code LIMIT} becomes
      *       {@code maxRows}; a larger one is clamped down; a smaller one is
      *       kept. ({@code ASK} has no rows to bound.)</li>
@@ -93,10 +95,10 @@ public final class Guardrails {
             throw new IllegalArgumentException(
                     "not a valid SPARQL query (updates are not accepted): " + e.getMessage(), e);
         }
-        if (containsService(q)) {
-            throw new IllegalArgumentException(
-                    "SERVICE is not accepted: a federated clause would make this server "
-                    + "fetch caller-chosen URLs");
+        try {
+            SparqlGuard.refuseFederation(q);
+        } catch (SparqlGuard.RefusedException e) {
+            throw new IllegalArgumentException(e.getMessage(), e);
         }
         if (!q.isAskType()) {
             long limit = q.getLimit();
@@ -107,25 +109,4 @@ public final class Guardrails {
         return q;
     }
 
-    /** {@code SERVICE} anywhere in the pattern, descending into subqueries. */
-    private static boolean containsService(Query q) {
-        if (q.getQueryPattern() == null) {
-            return false;
-        }
-        boolean[] found = new boolean[1];
-        ElementWalker.walk(q.getQueryPattern(), new ElementVisitorBase() {
-            @Override
-            public void visit(ElementService el) {
-                found[0] = true;
-            }
-
-            @Override
-            public void visit(ElementSubQuery el) {
-                if (el.getQuery().getQueryPattern() != null) {
-                    ElementWalker.walk(el.getQuery().getQueryPattern(), this);
-                }
-            }
-        });
-        return found[0];
-    }
 }

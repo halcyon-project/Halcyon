@@ -129,6 +129,16 @@ public class LwsSparqlServlet extends HttpServlet {
             return;
         }
 
+        // A SERVICE clause here is an outbound request made by this server, so the caller's query
+        // is put through the deployment's egress policy before it runs. Federation itself stays
+        // allowed -- self-federation to this origin is a feature -- but not at the internal network.
+        try {
+            SparqlEgress.check(query);
+        } catch (com.ebremer.lws.sparql.SparqlGuard.RefusedException ex) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, ex.getMessage());
+            return;
+        }
+
         LwsStore store = LwsStore.get();
         // The caller's ACP-secured view, default graph served as the ACP-filtered union of the named
         // graphs (see LwsSparql). Built fresh per request, per AcpSecurityEvaluator's contract.

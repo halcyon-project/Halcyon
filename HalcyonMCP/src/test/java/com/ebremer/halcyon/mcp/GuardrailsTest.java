@@ -64,6 +64,24 @@ class GuardrailsTest {
                 "SERVICE hidden in a subquery must be refused too");
     }
 
+    /**
+     * F016. The ban used to walk the parsed syntax tree, which never enters an expression — so a
+     * {@code SERVICE} inside {@code FILTER EXISTS}, {@code FILTER NOT EXISTS} or
+     * {@code BIND(EXISTS{...})} went straight through it while the shapes above were caught. The
+     * tool surface therefore advertised a federation ban it did not have. Detection now walks the
+     * algebra ({@code SparqlGuard}); these three are the shapes that used to get through.
+     */
+    @Test
+    void serviceHiddenInsideAnExistsExpressionIsRefused() {
+        for (String sparql : List.of(
+                "SELECT * WHERE { ?s ?p ?o FILTER EXISTS { SERVICE <http://internal/> { ?a ?b ?c } } }",
+                "SELECT * WHERE { ?s ?p ?o FILTER NOT EXISTS { SERVICE <http://internal/> { ?a ?b ?c } } }",
+                "SELECT * WHERE { ?s ?p ?o BIND(EXISTS { SERVICE <http://internal/> { ?a ?b ?c } } AS ?x) }")) {
+            assertThrows(IllegalArgumentException.class, () -> Guardrails.readOnlyQuery(sparql, 100),
+                    "SERVICE must be refused however it is nested: " + sparql);
+        }
+    }
+
     @Test
     void askConstructAndDescribeAreAcceptedReadForms() {
         assertTrue(Guardrails.readOnlyQuery("ASK { ?s ?p ?o }", 100).isAskType());
