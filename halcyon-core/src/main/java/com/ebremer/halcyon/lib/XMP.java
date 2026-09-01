@@ -13,10 +13,13 @@ import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.UUID;
+import javax.xml.XMLConstants;
 import javax.xml.namespace.NamespaceContext;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerConfigurationException;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
@@ -31,6 +34,7 @@ import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.rdf.model.Resource;
+import org.apache.jena.util.JenaXMLInput;
 import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFParserBuilder;
 import org.apache.jena.riot.RDFWriterBuilder;
@@ -152,13 +156,53 @@ public class XMP {
         return packet;
     }
     
+    /**
+     * A {@link DocumentBuilderFactory} that will not resolve external entities.
+     *
+     * <p>XMP packets arrive inside uploaded images, so this XML is attacker-controlled. Parsed by a
+     * stock factory, a packet carrying {@code <!DOCTYPE r [ <!ENTITY xxe SYSTEM "file:///etc/passwd"> ]>}
+     * has that file read and inlined into the {@code //rdf:RDF} subtree, which {@link #getXMP} then
+     * asserts as triples on the resource — handing the uploader any file the server process can read,
+     * and giving SSRF to internal hosts through an {@code http:} entity. Reproduced end to end against
+     * this class before the fix.
+     *
+     * <p>Jena already ships exactly this hardening for its own parsers (external general entities,
+     * external parameter entities and external DTD loading all off), so reusing it keeps the two in
+     * step rather than restating the feature names here and letting them drift.
+     */
+    private static DocumentBuilderFactory secureDocumentBuilderFactory() throws ParserConfigurationException {
+        DocumentBuilderFactory factory = JenaXMLInput.newDocumentBuilderFactory();
+        factory.setNamespaceAware(true);
+        // Defence in depth, and the reason it is safe: an XMP packet is
+        // <?xpacket?><x:xmpmeta>...</x:xmpmeta>, which never needs a DTD, so refusing the doctype
+        // outright costs nothing and stops entity expansion before it starts.
+        factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+        return factory;
+    }
+
+    /**
+     * A {@link Transformer} that will not fetch an external DTD or stylesheet while re-serialising
+     * the extracted {@code rdf:RDF} node. The DOM it is handed came from an untrusted packet, so the
+     * same reasoning as {@link #secureDocumentBuilderFactory()} applies on the way back out.
+     */
+    private static Transformer secureTransformer() throws TransformerConfigurationException {
+        TransformerFactory tf = TransformerFactory.newInstance();
+        // Not every implementation knows these attributes; refusing to transform would be worse than
+        // running on a JDK whose default factory already forbids both.
+        try {
+            tf.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+            tf.setAttribute(XMLConstants.ACCESS_EXTERNAL_STYLESHEET, "");
+        } catch (IllegalArgumentException e) {
+            logger.debug("TransformerFactory does not support external-access limits", e);
+        }
+        return tf.newTransformer();
+    }
+
     public static Model getXMP(String base, String xml) {
         InputStream xmlis = new ByteArrayInputStream(xml.getBytes());
         Model xmp = ModelFactory.createDefaultModel();
         try {
-            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-            factory.setNamespaceAware(true);
-            DocumentBuilder builder = factory.newDocumentBuilder();
+            DocumentBuilder builder = secureDocumentBuilderFactory().newDocumentBuilder();
             Document doc = builder.parse(xmlis);
             XPathFactory xpathFactory = XPathFactory.newInstance();
             XPath xpath = xpathFactory.newXPath();
@@ -181,7 +225,7 @@ public class XMP {
             if (node != null) {
                 //System.out.println("Found node: " + node.getNodeName());
                 StringWriter writer = new StringWriter();
-                Transformer transformer = TransformerFactory.newInstance().newTransformer();
+                Transformer transformer = secureTransformer();
                 transformer.transform(new DOMSource(node), new StreamResult(writer));                
                 //System.out.println(writer.toString());
                 byte[] byteArray = writer.toString().getBytes(StandardCharsets.UTF_8);
@@ -199,9 +243,7 @@ public class XMP {
     
     public static InputStream grab() {
         try {
-            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-            factory.setNamespaceAware(true);
-            DocumentBuilder builder = factory.newDocumentBuilder();
+            DocumentBuilder builder = secureDocumentBuilderFactory().newDocumentBuilder();
             Document doc = builder.parse("xmp.xml");
             XPathFactory xpathFactory = XPathFactory.newInstance();
             XPath xpath = xpathFactory.newXPath();
@@ -224,7 +266,7 @@ public class XMP {
             if (node != null) {
                 logger.debug("Found node: {}", node.getNodeName());
                 StringWriter writer = new StringWriter();
-                Transformer transformer = TransformerFactory.newInstance().newTransformer();
+                Transformer transformer = secureTransformer();
                 transformer.transform(new DOMSource(node), new StreamResult(writer));                
                 logger.debug("{}", writer.toString());
                 byte[] byteArray = writer.toString().getBytes(StandardCharsets.UTF_8);
