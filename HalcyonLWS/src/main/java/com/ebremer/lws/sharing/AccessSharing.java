@@ -17,10 +17,8 @@ import jakarta.json.JsonArrayBuilder;
 import jakarta.json.JsonObject;
 import jakarta.json.JsonString;
 import jakarta.json.JsonValue;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.Deque;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
@@ -32,7 +30,6 @@ import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.rdf.model.Statement;
-import org.apache.jena.rdf.model.StmtIterator;
 import org.apache.jena.vocabulary.RDF;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,7 +68,6 @@ public final class AccessSharing {
 
     private static final Set<String> ACTIONS = Set.of("read", "modify", "create", "delete");
     private static final String PUBLIC_AGENT = "http://xmlns.com/foaf/0.1/Agent";
-    private static final int MAX_CLOSURE_HOPS = 8;
 
     /** The validity window a time-boxed grant records on its ACR node; the ACP engine enforces it. */
     private static final org.apache.jena.rdf.model.Property VALID_FROM =
@@ -386,7 +382,7 @@ public final class AccessSharing {
             Model acp = store.acp();
             for (RDFNode pn : g.listObjectsOfProperty(s, LWSX.grantedPolicy).toList()) {
                 if (pn.isURIResource()) {
-                    removeClosure(acp, pn.asResource());
+                    removeGrantPolicy(acp, pn.asResource());
                 }
             }
             store.bumpAcpEpoch();
@@ -394,30 +390,29 @@ public final class AccessSharing {
         g.removeAll(s, null, null);
     }
 
-    /** Remove everything reachable from {@code seed} — a grant's ACR node and its policy tree. */
-    private static void removeClosure(Model m, Resource seed) {
-        Model doomed = org.apache.jena.rdf.model.ModelFactory.createDefaultModel();
-        Set<Resource> seen = new HashSet<>();
-        Deque<Resource> frontier = new ArrayDeque<>();
-        frontier.add(seed);
-        int hops = 0;
-        while (!frontier.isEmpty() && hops++ < MAX_CLOSURE_HOPS) {
-            int n = frontier.size();
-            for (int i = 0; i < n; i++) {
-                Resource r = frontier.poll();
-                if (r == null || !seen.add(r)) {
-                    continue;
-                }
-                for (StmtIterator it = m.listStatements(r, null, (RDFNode) null); it.hasNext();) {
-                    Statement st = it.next();
-                    doomed.add(st);
-                    if (st.getObject().isResource()) {
-                        frontier.add(st.getObject().asResource());
-                    }
-                }
-            }
+    /**
+     * Remove exactly the nodes {@link #installPolicy} minted for one grant policy, and nothing else.
+     *
+     * <p>This used to delete the graph reachable from the grant's ACR node, which walked straight
+     * through the matcher's {@code acp:agent} object — a URI the requester supplies. Naming the
+     * storage root's ACR as the assignee therefore made revoking one's own grant delete the root's
+     * entire policy tree, well inside the hop budget: an authenticated agent with Control over a
+     * single resource of their own could destroy authorization for the whole storage. (F061.)
+     *
+     * <p>Reachability was never the right rule here. {@code installPolicy} mints a closed, known
+     * node set — {@code {acr}}, {@code #ac}, {@code #policy}, {@code #matcher} — and its javadoc
+     * already promises revocation "removes exactly this and nothing else". Enumerating those four
+     * keeps that promise by construction: nothing a client can write into the policy can widen what
+     * a revocation deletes, so no reference counting is needed to make it safe.
+     */
+    private static void removeGrantPolicy(Model m, Resource acr) {
+        String base = acr.getURI();
+        if (base == null) {
+            return;
         }
-        m.remove(doomed);
+        for (String uri : List.of(base, base + "#ac", base + "#policy", base + "#matcher")) {
+            m.removeAll(m.getResource(uri), null, null);
+        }
     }
 
     // --- Parsing and validation ---------------------------------------------

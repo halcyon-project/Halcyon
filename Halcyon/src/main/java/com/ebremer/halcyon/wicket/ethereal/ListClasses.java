@@ -1,19 +1,15 @@
 package com.ebremer.halcyon.wicket.ethereal;
 
+import org.danekja.java.util.function.serializable.SerializableSupplier;
 import com.ebremer.vandegraph.SparqlVarColumn;
 import com.ebremer.vandegraph.SelectDataProvider;
 import com.ebremer.vandegraph.Solution;
-import com.ebremer.halcyon.wicket.DatabaseLocator;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.ParameterizedSparqlString;
-import org.apache.jena.query.QueryExecution;
-import org.apache.jena.query.QueryExecutionFactory;
-import org.apache.jena.query.ReadWrite;
-import org.apache.jena.query.ResultSetFormatter;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.rdf.model.ResourceFactory;
@@ -42,7 +38,12 @@ public class ListClasses extends Panel {
     private final SelectDataProvider rdfsdf;
     private final HashSet<String> selected;
     
-    public ListClasses(String id) {
+    /**
+     * The predicate picker over ANY dataset — Graph3D hands in the store the
+     * page is pointed at (the classic dataset, or the caller's ACP-secured
+     * view of the LWS store).
+     */
+    public ListClasses(String id, SerializableSupplier<Dataset> datasetSource) {
         super(id);
         selected = new HashSet<>();
         List<IColumn<Solution, String>> columns = new ArrayList<>();
@@ -60,14 +61,11 @@ public class ListClasses extends Panel {
             order by ?p
             """);
         pss.setNsPrefix("so", SchemaDO.NS);
-        //Dataset ds = DatabaseLocator.getDatabase().getSecuredDataset();
-        Dataset ds = DatabaseLocator.getDatabase().getDataset();
-        ds.begin(ReadWrite.READ);
-        QueryExecution qe = QueryExecutionFactory.create(pss.toString(),ds);
-        ResultSetFormatter.out(System.out,qe.execSelect());
-        ds.end();
-        rdfsdf = new SelectDataProvider(ds,pss.toString());
-        rdfsdf.setQuery(pss.toString());        
+        // (The render-time debug dump of the whole predicate list to System.out
+        // is gone — L1 discipline, and it re-ran the provider's own query.)
+        // M18: supplier form — see ListImages.
+        rdfsdf = new SelectDataProvider(datasetSource, pss.toString());
+        rdfsdf.setQuery(pss.toString());
         AjaxFallbackDefaultDataTable table = new AjaxFallbackDefaultDataTable<>("table", columns, rdfsdf, 35);
         add(table);
     }

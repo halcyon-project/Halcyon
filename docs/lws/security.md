@@ -45,6 +45,92 @@ everywhere. See [configuration.md](configuration.md) for the required Keycloak m
 The agent context that reaches ACP carries the WebID plus the token's client id, issuer, and any
 verifiable-credential types — all four are matchable attributes (below).
 
+### LWS-OIDC credentials (optional, off by default)
+
+In addition to the Keycloak bearer token above, a storage can accept an **LWS 1.0 OpenID Connect**
+credential: an ID Token whose `sub` is a **WebID**, trusted *dynamically* from the credential itself
+rather than against one pre-configured issuer. Both kinds are tried behind the same
+`Authorization: Bearer` header (a `CredentialChain`): a token whose `iss` is the configured Keycloak
+takes the path above, unchanged; otherwise, if its `sub` is an absolute URL, the LWS verifier runs:
+
+1. the credential MUST be signed (`alg` ≠ `none`);
+2. **dereference `sub`** to its controlled identifier document (CID);
+3. the CID MUST name the token's `iss` as an `lws:OpenIdProvider` service for `sub`;
+4. **OIDC discovery** on `iss`, confirm it self-identifies, fetch its JWKS;
+5. verify the signature (key pinned to the token's `alg`), the `iss` claim, and `exp`.
+
+The authenticated agent's WebID is the `sub` itself and its issuer is the *dynamically discovered* OP —
+both matchable in ACP, so a policy can name a WebID from any provider, or gate on `acp:issuer`:
+
+```turtle
+<#m> a acp:Matcher ; acp:agent <https://alice.example/#me> ;
+                     acp:issuer <https://op.example/realms/foo> .
+```
+
+**Enable it** with an `lws-oidc.json` in the working directory (absent ⇒ disabled — so a deployment
+that does nothing keeps exactly the behaviour it had before):
+
+```json
+{ "enabled": true, "allowedInternalHosts": [] }
+```
+
+Security specifics — this path fetches URLs taken from an *unverified* credential, so it is guarded
+accordingly (see also `PLAN.md`):
+
+- **SSRF.** Steps 2 and 4 go through `SsrfGuard`: only `http(s)`, and no host resolving to a
+  loopback/private/link-local/reserved address (incl. the `169.254.169.254` metadata endpoint).
+  `allowedInternalHosts` opts specific hosts back in — needed only when a WebID is served on an
+  internal address (e.g. the OP hosts its own CIDs behind the same reverse proxy). Fetches use normal
+  CA-validated TLS (unlike the same-box Keycloak JWKS fetch) and never follow redirects. Residual,
+  undefended: DNS rebinding and redirect-to-internal.
+- **Audience.** An LWS ID Token's `aud` is the OIDC *client*, not this storage, so the
+  audience-covers-this-storage rule does **not** apply on this path — a bare bearer LWS credential is
+  replayable to any storage that trusts the WebID's OP. This matches the suite (presentation binding is
+  deferred to Resource Indicators / DPoP) but is weaker than the Keycloak-audience model; enable it
+  deliberately.
+- **Algorithm confusion.** The signing key is pinned to the token's `alg`; a symmetric / `none` /
+  unknown `alg` never matches an RSA/EC verification key.
+
+### Interactive WebID login (optional, off by default)
+
+The credential path above verifies a token a client *already holds*. For a person at a browser with no
+token, the same trust model drives an **interactive login**: they type a WebID, and the storage
+discovers *their* OP from the WebID's CID and runs a standard OpenID Connect Authorization-Code + PKCE
+login against it (`/webid-login` → the OP → `/webid-callback`). On return the ID Token is validated as
+above (signature via the OP's JWKS, `iss`, `nonce`, `exp`) and — crucially — must **assert the typed
+WebID**, as its `sub` or a `webid` claim; otherwise the login is refused. The seated session identity is
+that WebID, matchable in ACP exactly like a presented LWS credential.
+
+Authorization Code is OAuth's, not LWS's, so it needs a `client_id` at the OP. Two ways to get one,
+configured in the same `lws-oidc.json`:
+
+- **Pre-arranged** (default) — a `client_id` you registered at the OP, named by `webIdLoginClientId`
+  (default `halcyon-local`). Works only for OPs you control.
+- **Dynamic** (`"webIdLoginDynamicRegistration": true`) — the storage self-registers at the OP's
+  `registration_endpoint` (RFC 7591) at login time and caches the returned `client_id` per issuer, so
+  the login works with **any** conformant OP with no pre-arrangement. The registration endpoint is
+  `SsrfGuard`-checked like every other outbound call; the registered client is public (PKCE,
+  `token_endpoint_auth_method: none`), authorization-code only, with `/webid-callback` as its sole
+  redirect URI.
+
+  Registration only yields a `client_id`; the login still requires the OP to **assert the WebID** in the
+  ID Token. For a Keycloak OP that means the WebID mapper on a *default* client scope (so a
+  dynamically-registered client inherits it) and a realm that permits anonymous client registration —
+  otherwise the callback's WebID binding fails even though registration succeeded.
+
+A WebID login establishes an **authenticated identity** (the WebID), which ACP matches per resource like
+any other. It does **not** grant *local* roles: an id_token's `groups`/roles are an assertion by whatever
+OP the WebID names, and trusting that to grant a role such as `admin` would let an arbitrary OP (worse,
+one reached via dynamic registration) seize local power. So local group membership for a WebID login is a
+**local policy**, a WebID→groups map in the same `lws-oidc.json` — the OP's token is never consulted for it:
+
+```json
+{ "webIdGroups": { "https://ebremer.com/id/erich": ["admin"] } }
+```
+
+Only WebIDs you list here receive local groups; every other WebID logs in with none (authorized purely
+through ACP). The Keycloak-token path is unchanged — its groups still come from the verified access token.
+
 ## Authorization (ACP)
 
 ### Access modes
@@ -121,6 +207,19 @@ A resource the caller has **no** access mode on returns `404`, identical to a re
 exist. Only once the caller holds *some* mode does a more specific `403` (has access, but not the mode
 this operation needs) become observable. This keeps `GET` and `OPTIONS` from disclosing the existence of
 resources the caller may not see.
+
+### Serving untrusted content
+
+Representations are agent-uploaded bytes served from the storage's own origin, so the raw serving path
+(`sendContent` — whole, ranged or multipart alike) neuters them:
+
+- **`X-Content-Type-Options: nosniff`** on every representation — a browser must never "discover" HTML
+  inside a file the storage declared as something else.
+- **`Content-Security-Policy: sandbox`** on every *actively scriptable* type
+  (`MediaTypes.scriptable`: `text/html`, `text/xml`, `application/xml`, anything `+xml` — XHTML, SVG,
+  RDF/XML). The document still renders when navigated to or embedded, but as a **unique opaque origin
+  with no script** — otherwise any agent with write access could hand every later reader a stored XSS
+  running as this site. Passive media (images, video, audio, PDF) are served plain.
 
 ## Access requests & grants (DataSharingService)
 

@@ -12,6 +12,7 @@ import java.util.logging.Logger;
  * @author erich
  */
 public class HURI {
+    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HURI.class);
 
     public static URI getParent(URI uri) {
         String[] parts = uri.getPath().split("/");
@@ -63,6 +64,6 @@ public class HURI {
     
     public static void main(String[] args) throws URISyntaxException {
         URI uri = new URI("https://localhost:8888/a/b/c/d/e/f/image.svs");
-        System.out.println(getParent(uri));
+        logger.debug("{}", getParent(uri));
     }
 }

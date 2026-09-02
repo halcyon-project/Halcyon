@@ -11,6 +11,7 @@ import java.util.logging.Logger;
  * @author erich
  */
 public class PathFinder {
+    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PathFinder.class);
     public static String Path2URL(String path) {
         URI uri = null;
         try {
@@ -24,7 +25,7 @@ public class PathFinder {
             if (src.startsWith(sl.urlPath())) {
                 return sl.urlPath()+src.toUri().toString().substring(sl.resourceBase().getPath().length());
             } else { 
-                System.out.println("NO MATCH : "+path);
+                logger.debug("NO MATCH : {}", path);
             }
         }
         return null;

@@ -31,7 +31,15 @@
     <script src="multi-viewer/src/layerUI.js"></script>
     <script src="multi-viewer/src/layerPopup.js"></script>
     <script src="multi-viewer/src/synchronizeViewers.js"></script>
-    <span wicket:id="inlineScript"></span>
+    <!--
+      C5: a real <script> tag, so the CSP nonce can be stamped on it. This was a
+      <span wicket:id> whose BODY was a "<script>...</script>" string built in
+      ViewerPanel.java — invisible to Wicket's nonce decorator (which only touches
+      tags it renders), so enabling script-src blocked it and the viewer came up
+      empty. It stays LAST in the panel on purpose: pageSetup needs #contentDiv
+      above and every vendor script before it to have run.
+    -->
+    <script wicket:id="inlineScript"></script>
 </wicket:panel>
 </body>
 </html>

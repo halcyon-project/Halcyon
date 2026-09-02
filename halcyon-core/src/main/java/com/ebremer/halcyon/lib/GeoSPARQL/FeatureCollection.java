@@ -101,10 +101,12 @@ public class FeatureCollection {
         }
 
         public Builder setRoot(String root) {
+            // L10: `this.root = "";` used to follow, discarding the argument on the
+            // very next line, so every FeatureCollection rooted at the empty URI
+            // no matter what the caller passed.
             this.root = root;
-            this.root = "";
             return this;
-        }        
+        }
         
         public Builder references(String referencesUri) {
             this.references = referencesUri;

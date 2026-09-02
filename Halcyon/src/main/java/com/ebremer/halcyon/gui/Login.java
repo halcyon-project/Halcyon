@@ -9,6 +9,8 @@ import org.apache.wicket.request.cycle.RequestCycle;
 import org.apache.wicket.request.mapper.parameter.PageParameters;
 import org.apache.wicket.util.resource.IResourceStream;
 import org.apache.wicket.util.resource.StringResourceStream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 //import org.keycloak.KeycloakSecurityContext;
 
 /**
@@ -16,6 +18,7 @@ import org.apache.wicket.util.resource.StringResourceStream;
  * @author erich
  */
 public class Login extends WebPage implements IMarkupResourceStreamProvider {
+    private static final Logger logger = LoggerFactory.getLogger(Login.class);
     
     public Login(PageParameters parameters) {
         //super(parameters);         
@@ -24,9 +27,9 @@ public class Login extends WebPage implements IMarkupResourceStreamProvider {
     //    ServletWebRequest request = (ServletWebRequest) RequestCycle.get().getRequest();
       //      HttpServletRequest containerRequest = request.getContainerRequest();
         //    KeycloakSecurityContext securityContext = (KeycloakSecurityContext) containerRequest.getAttribute(KeycloakSecurityContext.class.getName());
-            System.out.println("===============");
+            logger.debug("===============");
 //            System.out.println(securityContext!=null);
-            System.out.println("===============");
+            logger.debug("===============");
   //          getSession().invalidate();
     }
     

@@ -1,6 +1,7 @@
 package com.ebremer.halcyon.wicket;
 
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
+import com.ebremer.halcyon.server.WebIdLogin;
 import com.ebremer.halcyon.datum.HalcyonPrincipal;
 import com.ebremer.halcyon.gui.Blank;
 import com.ebremer.halcyon.gui.HalcyonSession;
@@ -11,28 +12,31 @@ import org.apache.wicket.markup.html.link.ExternalLink;
 import org.apache.wicket.markup.html.link.Link;
 import org.apache.wicket.markup.html.panel.Panel;
 import org.apache.wicket.request.resource.CssResourceReference;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author erich
  */
 public class MenuPanel extends Panel {
+    private static final Logger logger = LoggerFactory.getLogger(MenuPanel.class);
     
     public MenuPanel(String id) {
         super(id);
         HalcyonPrincipal hp = HalcyonSession.get().getHalcyonPrincipal();
         String host = HalcyonSettings.getSettings().getProxyHostName();
         add(new ExternalLink("home", host+"/","Home"));
-        add(new ExternalLink("images", host+"/ListImages","Images"));
         add(new ExternalLink("about", host+"/about","About"));
-        ExternalLink security = new ExternalLink("security", host+"/admin","Security");
+        ExternalLink images = new ExternalLink("images", host+"/ListImages","Images");
+        ExternalLink security = new ExternalLink("security", host+"/admin","Settings");
         ExternalLink stacks = new ExternalLink("stacks", host+"/stacks","Stacks");
         ExternalLink sparql = new ExternalLink("sparql", host+"/sparql","SPARQL");
         ExternalLink account = new ExternalLink("account", host+"/user/account","Account");
         ExternalLink colorclasses = new ExternalLink("colorclasses", host+"/user/colorclasses","Color Classes");
         ExternalLink threed = new ExternalLink("threed", host+"/threed","3D");
-        ExternalLink containers = new ExternalLink("containers", host+"/containers","Containers");
         ExternalLink storage = new ExternalLink("storage", host+"/storage","Storage");
+        ExternalLink lwscontainers = new ExternalLink("lwscontainers", host+"/lwscontainers","LWS Containers");
         ExternalLink revisionhistory = new ExternalLink("revisionhistory", host+"/revisionhistory","Revision History");
         //ExternalLink login = new ExternalLink("loginLink", host+"/gui/login","Login");
         Link login = new Link<Void>("loginLink") {
@@ -43,49 +47,64 @@ public class MenuPanel extends Panel {
             }
         };
         LogoutLink logout = new LogoutLink("logoutLink");
+        ExternalLink webidlogin = new ExternalLink("webidLoginLink", host+"/webid-login","WebID Login");
+        add(images);
         add(account);
         add(colorclasses);
         add(security);
         add(sparql);
         add(stacks);
-        add(containers);
         add(storage);
+        add(lwscontainers);
         add(threed);
         add(logout);
         add(login);
+        add(webidlogin);
         add(revisionhistory);
+        images.setVisible(false);
         security.setVisible(false);
         threed.setVisible(false);
         account.setVisible(false);
         colorclasses.setVisible(false);
-        containers.setVisible(false);
         storage.setVisible(false);
+        lwscontainers.setVisible(false);
         sparql.setVisible(false);
         stacks.setVisible(false);
         logout.setVisible(false);
         login.setVisible(false);
+        webidlogin.setVisible(false);
         revisionhistory.setVisible(false);
         if (hp.isAnon()) {
-            login.setVisible(true);
+            // The plain "Login" link starts the Keycloak redirect, so it is only offered
+            // when that subsystem is switched on (:AuthServer in settings.ttl). With it
+            // commented out the WebID login is the way in, and showing a dead link beside
+            // it would just be a trap.
+            login.setVisible(HalcyonSettings.getSettings().isKeycloakEnabled());
+            webidlogin.setVisible(WebIdLogin.enabled());
         } else {
             revisionhistory.setVisible(true);
             login.setVisible(false);
             logout.setVisible(true);
-            //account.setVisible(true);
+            // The account page shows the user THEIR OWN data — every signed-in
+            // user gets it, not only admins.
+            account.setVisible(true);
+            // Color classes are the user's OWN per-user document in their LWS
+            // storage (edited with vandegraph's SHACLForm, saved via
+            // LwsCommandNode), so every signed-in user gets it, like Account.
+            colorclasses.setVisible(true);
+            images.setVisible(true);
             sparql.setVisible(true);
             stacks.setVisible(true);
             // Visible to every signed-in user. The page shows only what ACP
             // permits them, so gating it by role here would be redundant.
             storage.setVisible(true);
+            lwscontainers.setVisible(true);
             hp.getGroups().forEach(k->{
-                System.out.println("GROUP : "+k);
+                logger.debug("GROUP : {}", k);
             });
             if (hp.getGroups().contains("admin")) {
                 security.setVisible(true);
                 //threed.setVisible(true);
-                account.setVisible(true);
-                colorclasses.setVisible(true);
-                containers.setVisible(true);
             }
         } 
     }

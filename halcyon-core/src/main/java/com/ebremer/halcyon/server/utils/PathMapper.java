@@ -4,6 +4,7 @@ import com.ebremer.halcyon.lib.OperatingSystemInfo;
 import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -36,46 +37,59 @@ public class PathMapper {
     }
     
     public Optional<URI> http2file(URI uri) {
-        logger.trace("http2fileU: {}", uri);
-        String f = uri.toString();
-        if (f.startsWith(hostname)) {
-            String cut = f.substring(hostname.length());
-            logger.trace("http2fileU/cut: {}", cut);
-            for (PathMap pm : sortByHttp) {
-                String key = pm.http();
-                logger.trace("http2fileU/key: {}", key);
-                if (cut.startsWith(key)) {
-                    String chunk = cut.substring(key.length());
-                    logger.trace("http2fileU/chunk: {}", chunk);
-                    Path wow = Path.of(pm.file(), chunk);
-                    logger.trace("http2fileU/wow: {}", wow);
-                    return Optional.of(wow.toUri());
-                }
+        return (uri == null) ? Optional.empty() : http2file(uri.toString());
+    }
+
+    public Optional<URI> http2file(String f) {
+        logger.trace("http2fileS: {}", f);
+        if (f == null || !f.startsWith(hostname)) {
+            return Optional.empty();
+        }
+        String cut = f.substring(hostname.length());
+        logger.trace("http2fileS/cut: {}", cut);
+        for (PathMap pm : sortByHttp) {
+            String key = pm.http();
+            logger.trace("http2fileS/key: {}", key);
+            if (cut.startsWith(key)) {
+                String chunk = cut.substring(key.length());
+                logger.trace("http2fileS/chunk: {}", chunk);
+                return resolveWithin(pm.file(), chunk);
             }
         }
         return Optional.empty();
     }
 
-    public Optional<URI> http2file(String f) {
-        logger.trace("http2fileS: {}", f);
-        if (f.startsWith(hostname)) {
-            String cut = f.substring(hostname.length());
-            logger.trace("http2fileS/cut: {}", cut);
-            for (PathMap pm : sortByHttp) {
-                String key = pm.http();
-                logger.trace("http2fileS/key: {}", key);
-                if (cut.startsWith(key)) {
-                    String chunk = cut.substring(key.length());
-                    logger.trace("http2fileS/chunk: {}", chunk);
-                    if (chunk.isEmpty()) {
-                        return Optional.of(Path.of(pm.file()).toUri());
-                    } else {
-                        return Optional.of(Path.of(pm.file(), chunk).toUri());
-                    }
-                }
+    /**
+     * Resolve {@code chunk} under the resource root {@code base} and PROVE the
+     * result stays inside it (H9).
+     * <p>
+     * This used to be a bare {@code Path.of(base, chunk).toUri()} with no
+     * normalization and no containment check. {@code chunk} is attacker-supplied:
+     * for the image path it comes out of the {@code ?iiif=} QUERY PARAMETER, not
+     * the request URI, so the servlet container never normalizes it — a
+     * {@code ../} walked straight out of the configured resource root.
+     * {@code startsWith} compares path COMPONENTS, so a sibling root whose name
+     * merely shares a prefix cannot masquerade as being inside this one.
+     *
+     * @return the contained target, or empty if it escapes / is unusable — which
+     *         callers already treat as "not found" (fail closed).
+     */
+    private static Optional<URI> resolveWithin(String base, String chunk) {
+        try {
+            Path root = Path.of(base).toAbsolutePath().normalize();
+            Path target = (chunk == null || chunk.isEmpty())
+                    ? root
+                    : root.resolve(chunk).normalize();
+            if (!target.startsWith(root)) {
+                logger.warn("Refusing path that escapes its resource root: base={} chunk={}", base, chunk);
+                return Optional.empty();
             }
+            logger.trace("http2fileS/target: {}", target);
+            return Optional.of(target.toUri());
+        } catch (InvalidPathException ex) {
+            logger.warn("Refusing unusable path: base={} chunk={} ({})", base, chunk, ex.getMessage());
+            return Optional.empty();
         }
-        return Optional.empty();
     }
     
     public Optional<URI> file2http(String furi) {
@@ -119,8 +133,13 @@ public class PathMapper {
             pathmapper = new PathMapper(settings);            
         }
         
-        pathmapper.sortByFile.forEach(p->System.out.println("by file ---> "+p));
-        pathmapper.sortByHttp.forEach(p->System.out.println("by http ---> "+p));
+        // L1: these dumped the whole path map to stdout on EVERY call to a plain
+        // getter, and println ignores the configured log level, so there was no
+        // way to turn them off short of a rebuild.
+        if (logger.isDebugEnabled()) {
+            pathmapper.sortByFile.forEach(p->logger.debug("by file ---> {}", p));
+            pathmapper.sortByHttp.forEach(p->logger.debug("by http ---> {}", p));
+        }
         
         return pathmapper;
     }    

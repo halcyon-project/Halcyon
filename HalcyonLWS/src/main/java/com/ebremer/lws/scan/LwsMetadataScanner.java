@@ -3,6 +3,7 @@ package com.ebremer.lws.scan;
 import com.ebremer.halcyon.filereaders.FileReader;
 import com.ebremer.halcyon.filereaders.FileReaderFactory;
 import com.ebremer.halcyon.filereaders.FileReaderFactoryProvider;
+import com.ebremer.halcyon.filereaders.RDFFileReaderFactory;
 import com.ebremer.lws.config.LwsStorageConfig;
 import com.ebremer.lws.store.ContentStore;
 import com.ebremer.lws.store.LwsResource;
@@ -52,16 +53,24 @@ public final class LwsMetadataScanner {
      * stamp at all and are <em>grandfathered</em> to this version without re-reading — they were
      * enriched by whatever readers existed when they were stored, and re-reading unchanged bytes
      * with unchanged readers would gain nothing. Only a genuine bump forces a re-read.
+     *
+     * <p>v2: RDF documents now go to the RDF <em>document</em> reader (see {@link #readerFor}) —
+     * under v1 the image-pipeline reader shadowed {@code ttl} and typed nothing, so every stored
+     * {@code .ttl} (including saved Zephyr stacks) needs one re-read to surface its own types.
      */
-    static final long CURRENT_SCAN_VERSION = 1;
+    static final long CURRENT_SCAN_VERSION = 2;
 
     /**
      * Virtual threads, not {@code StructuredTaskScope}.
      *
-     * <p>The reactor compiles with {@code --enable-preview} but <em>nothing passes it to
-     * the runtime</em> — so touching any preview API would mark these class files as
-     * preview-flagged and the JVM would refuse to load them. Virtual threads have been
-     * final since 21 and carry no such hazard.
+     * <p>M27: this used to warn that the reactor compiled with {@code --enable-preview}
+     * while <em>nothing passed it to the runtime</em>, so touching any preview API would
+     * mark these class files preview-flagged and the JVM would refuse to load them. That
+     * warning was exactly right, and the flag is now gone from the compiler: nothing in
+     * the codebase used a preview feature, so it bought nothing while arming precisely
+     * the trap described here. The reasoning still applies in general — a preview API
+     * would need the flag on BOTH sides, including the jpackage {@code javaOptions}.
+     * Virtual threads have been final since 21 and carry no such hazard.
      */
     private static final ExecutorService POOL =
             Executors.newVirtualThreadPerTaskExecutor();
@@ -128,16 +137,14 @@ public final class LwsMetadataScanner {
             ext = ext.substring(1);
         }
         ext = ext.toLowerCase(Locale.ROOT);
-        if (ext.isEmpty() || !FileReaderFactoryProvider.contains(ext)) {
-            return discovered;
-        }
-        FileReaderFactory factory = FileReaderFactoryProvider.getReaderForFormat(ext);
+        FileReaderFactory factory = readerFor(ext);
         if (factory == null) {
             return discovered;
         }
         Path blob = content.pathFor(r.storageKey(), r.ext());
         // The reader describes the resource by its LWS URI, not by its path on disk — so the
-        // metadata it emits is about the resource a client can actually dereference.
+        // metadata it emits is about the resource a client can actually dereference. For a
+        // relative RDF document that base is load-bearing: a stored stack names itself <>.
         URI subject = URI.create(r.uri());
         try (FileReader fr = factory.create(blob.toUri(), subject)) {
             Model m = fr.getMeta(subject);
@@ -149,6 +156,30 @@ public final class LwsMetadataScanner {
                     factory.getClass().getSimpleName(), r.uri(), blob, e.toString());
         }
         return discovered;
+    }
+
+    /** RDF documents: metadata comes from the document reader, never the image pipeline. */
+    private static final java.util.Set<String> RDF_DOCUMENT_EXTS =
+            java.util.Set.of("ttl", "nt", "jsonld", "rdf");
+
+    /**
+     * The reader factory for an extension.
+     *
+     * <p>RDF document extensions go STRAIGHT to {@link RDFFileReaderFactory}. The ServiceLoader
+     * provider keeps one winner per extension, and for {@code ttl} that winner is the
+     * image-pipeline reader ({@code RDFImageReaderFactory} — feature layers rendered as tiles),
+     * whose {@code getMeta(URI)} throws — so every stored Turtle document, including a saved
+     * Zephyr stack that types itself {@code zeph:Stack}, scanned as nothing at all. Metadata
+     * wants the document's own statements; the tile pipeline keeps its winner untouched.
+     */
+    static FileReaderFactory readerFor(String ext) {
+        if (RDF_DOCUMENT_EXTS.contains(ext)) {
+            return new RDFFileReaderFactory();
+        }
+        if (ext.isEmpty() || !FileReaderFactoryProvider.contains(ext)) {
+            return null;
+        }
+        return FileReaderFactoryProvider.getReaderForFormat(ext);
     }
 
     /**

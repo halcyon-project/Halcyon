@@ -7,8 +7,11 @@ import org.apache.wicket.markup.head.JavaScriptHeaderItem;
 import org.apache.wicket.request.resource.CssResourceReference;
 import org.apache.wicket.request.resource.JavaScriptResourceReference;
 import org.apache.wicket.request.resource.ResourceReference;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class MultiViewerFoundation {
+    private static final Logger logger = LoggerFactory.getLogger(MultiViewerFoundation.class);
     private static MultiViewerFoundation mvf = null;
     private static final LinkedHashMap<CSS,ResourceReference> css = new LinkedHashMap<>();
     private static final LinkedHashMap<JS,ResourceReference> js  = new LinkedHashMap<>();
@@ -98,11 +101,11 @@ public class MultiViewerFoundation {
     public static void AddJSCSS(IHeaderResponse response) {
         if (mvf==null) {mvf = new MultiViewerFoundation();}
         css.forEach((k, v) -> {
-            System.out.println(v);
+            logger.debug("{}", v);
             response.render(CssHeaderItem.forReference((CssResourceReference) v));
         });
         js.forEach((k, v) -> {
-            System.out.println(v);
+            logger.debug("{}", v);
             response.render(JavaScriptHeaderItem.forReference((JavaScriptResourceReference) v));
         });        
     }

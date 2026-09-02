@@ -19,8 +19,10 @@ public class ZEPH {
     public static final Resource Stack = m.createResource(NS + "Stack");
     public static final Resource ImageLayer = m.createResource(NS + "ImageLayer");
     public static final Resource FeatureLayer = m.createResource(NS + "FeatureLayer");
+    public static final Resource AnnotationLayer = m.createResource(NS + "AnnotationLayer");
 
     public static final Property layers = m.createProperty(NS + "layers");
+    public static final Property annotations = m.createProperty(NS + "annotations");
     public static final Property src = m.createProperty(NS + "src");
     public static final Property zorder = m.createProperty(NS + "zorder");
     public static final Property offsetx = m.createProperty(NS + "offsetx");

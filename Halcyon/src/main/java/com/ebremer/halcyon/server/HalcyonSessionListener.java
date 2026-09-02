@@ -11,11 +11,11 @@ public class HalcyonSessionListener implements HttpSessionListener {
 
     @Override
     public void sessionCreated(final HttpSessionEvent event) {
-        System.out.println("================================================== Session created");
+        logger.debug("================================================== Session created");
     }
 
     @Override
     public void sessionDestroyed(HttpSessionEvent var1) {
-        System.out.println("================================================== Session destroyed");
+        logger.debug("================================================== Session destroyed");
     }
 }

@@ -121,6 +121,15 @@ A crash can therefore only ever leak an **unreferenced blob** (invisible, GC-abl
 registry entry, and never a container pointing at a resource that does not exist. `PUT` always writes a
 **new** blob under a new key and flips the pointer in-transaction; it never mutates a blob in place.
 
+**The mirror storage inverts steps 3 and 4, and has to.** Its key IS the resource's path, so there is no
+new key to write under: step 3 would land the new bytes *on the live file*, and the transaction in step 4
+is where the client's `If-Match` is compared. A refused write — 428, 412, a lost re-authorization — would
+then have already destroyed the resource it was refused permission to replace. So the mirror **stages**
+(steps 1–2, into a `.tmp-{uuid}` beside the target), commits the transaction, and only then moves the
+staged file into place (`PathKeyedStore.Staged`). The crash window that buys is the harmless direction:
+committed metadata over the resource's *old* bytes, which the reconciler corrects from disk — the
+direction it already trusts for this storage.
+
 **Delete:** commit TDB2 first (removing the entry), then unlink the blob after a grace period. On Windows
 an open read handle *blocks* deletion (`AccessDeniedException`), unlike POSIX — the GC tolerates that and
 retries. A startup reconciliation sweep GCs any blob with no registry entry.

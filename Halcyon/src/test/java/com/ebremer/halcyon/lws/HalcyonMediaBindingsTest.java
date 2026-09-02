@@ -1,0 +1,192 @@
+package com.ebremer.halcyon.lws;
+
+import com.ebremer.ns.HAL;
+import com.ebremer.ns.VG;
+import com.ebremer.ns.ZEPH;
+import com.ebremer.vandegraph.media.MediaBindings;
+import java.io.InputStream;
+import java.util.Set;
+import org.apache.jena.rdf.model.Model;
+import org.apache.jena.rdf.model.ModelFactory;
+import org.apache.jena.riot.Lang;
+import org.apache.jena.riot.RDFDataMgr;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+/**
+ * Pins Halcyon's media-binding overlay ({@code halcyon/media-bindings.ttl}):
+ * Zephyr is the default viewer/editor for whole-slide TIFFs and zeph:Stack
+ * resources, the plain image viewer survives as a listed alternate, and the
+ * vandegraph defaults stay untouched for everything else.
+ */
+class HalcyonMediaBindingsTest {
+
+    private static MediaBindings bindings() {
+        Model overlay = ModelFactory.createDefaultModel();
+        try (InputStream in = Thread.currentThread().getContextClassLoader()
+                .getResourceAsStream("halcyon/media-bindings.ttl")) {
+            assertNotNull(in, "halcyon/media-bindings.ttl not on the classpath");
+            RDFDataMgr.read(overlay, in, Lang.TURTLE);
+        } catch (java.io.IOException e) {
+            throw new RuntimeException(e);
+        }
+        return MediaBindings.parseWithDefaults(overlay);
+    }
+
+    @Test
+    void wholeSlideTiffsOpenInZephyr() {
+        MediaBindings.Resolved r = bindings().resolve("image/tiff", Set.of());
+        assertEquals(HAL.ZephyrViewer.asNode(), r.viewer(),
+                "exact image/tiff beats the defaults' image/* pattern");
+        assertTrue(r.alternates().contains(VG.HtmlImageViewer.asNode()),
+                "the plain image viewer stays listed as an alternate");
+        assertEquals(HAL.ZephyrEditor.asNode(), r.editor());
+    }
+
+    @Test
+    void turtleTypedAsStackOpensInZephyr() {
+        // The real listing case: mediaType text/turtle AND the scanner's
+        // discovered zeph:Stack type. The conjunctive binding must beat the
+        // defaults' text/* source view, which survives as an alternate.
+        MediaBindings.Resolved r = bindings().resolve("text/turtle",
+                Set.of(ZEPH.NS + "Stack"));
+        assertNotNull(r);
+        assertEquals(HAL.ZephyrViewer.asNode(), r.viewer(),
+                "typed stack Turtle opens in Zephyr, not a source view — the "
+                + "matched zeph:Stack condition wins the exact text/turtle tie "
+                + "against the vandegraph Turtle-in-Monaco default");
+        assertTrue(r.alternates().contains(VG.MonacoViewer.asNode()),
+                "the outranked Monaco source view joins the alternates");
+        assertTrue(r.alternates().contains(VG.HtmlTextViewer.asNode()),
+                "the escaped source view stays available as an alternate");
+        assertEquals(HAL.ZephyrEditor.asNode(), r.editor());
+    }
+
+    @Test
+    void plainTurtleOpensInMonacoWithTheTurtleLanguage() {
+        // The vandegraph defaults now pin text/turtle to Monaco, tokenized by
+        // the library's own monaco-turtle.js contribution. Untyped (or
+        // not-yet-scanned) Turtle must still never open in Zephyr.
+        MediaBindings.Resolved r = bindings().resolve("text/turtle", Set.of());
+        assertEquals(VG.MonacoViewer.asNode(), r.viewer(),
+                "an untyped Turtle document opens as highlighted source");
+        assertEquals(VG.MonacoEditor.asNode(), r.editor(),
+                "and edits in Monaco (Halcyon registers the saving panel)");
+        assertTrue(r.alternates().contains(VG.HtmlTextViewer.asNode()),
+                "the escaped view survives as the text/* alternate");
+    }
+
+    @Test
+    void beakGraphHdf5OpensInZephyr() {
+        // BeakGraph feature sets have no browser rendering, but the IIIF
+        // engine tiles them — Zephyr is their viewer, under either recorded
+        // spelling of the HDF media type.
+        for (String mt : java.util.List.of("application/x-hdf5", "application/x-hdf")) {
+            MediaBindings.Resolved r = bindings().resolve(mt, Set.of());
+            assertNotNull(r, mt + " must resolve to a viewer");
+            assertEquals(HAL.ZephyrViewer.asNode(), r.viewer(), mt);
+            assertEquals(HAL.ZephyrEditor.asNode(), r.editor(), mt);
+        }
+    }
+
+    @Test
+    void ordinaryImagesKeepTheDefaultViewer() {
+        MediaBindings.Resolved r = bindings().resolve("image/png", Set.of());
+        assertEquals(VG.HtmlImageViewer.asNode(), r.viewer(),
+                "the overlay must not disturb the vandegraph defaults");
+    }
+
+    @Test
+    void storedHtmlRendersAsAPageWithSourceAndEditorBound() {
+        MediaBindings.Resolved r = bindings().resolve("text/html", Set.of());
+        assertEquals(HAL.HtmlPageViewer.asNode(), r.viewer(),
+                "exact text/html beats the defaults' text/* source view");
+        assertTrue(r.alternates().contains(VG.MonacoViewer.asNode()),
+                "the highlighted source view is offered as an alternate");
+        assertTrue(r.alternates().contains(VG.HtmlTextViewer.asNode()),
+                "the escaped source view stays available as an alternate");
+        assertEquals(HAL.HtmlPageEditor.asNode(), r.editor(),
+                "the TipTap document editor stays the bound editor for HTML");
+    }
+
+    @Test
+    void xhtmlRendersAsAPageWithMonacoSourceEditing() {
+        MediaBindings.Resolved r = bindings().resolve("application/xhtml+xml", Set.of());
+        assertEquals(HAL.HtmlPageViewer.asNode(), r.viewer());
+        assertTrue(r.alternates().contains(VG.MonacoViewer.asNode()),
+                "the highlighted source view is offered as an alternate");
+        assertEquals(VG.MonacoEditor.asNode(), r.editor(),
+                "XHTML edits as SOURCE (Monaco writes the buffer verbatim) — "
+                + "never through TipTap, whose HTML serialization is not "
+                + "guaranteed to stay well-formed XML");
+    }
+
+    @Test
+    void codeTypesOpenInMonacoWithMonacoEditing() {
+        // One per category of the overlay's enumeration; each must beat the
+        // defaults (exact json/xml/sparql bindings and the text/* pattern)
+        // via sh:order, with the escaped text view surviving as an alternate.
+        for (String mt : java.util.List.of("application/json", "application/xml",
+                "text/css", "text/markdown", "application/sparql-query",
+                "text/x-python", "application/x-shellscript")) {
+            MediaBindings.Resolved r = bindings().resolve(mt, Set.of());
+            assertNotNull(r, mt + " must resolve");
+            assertEquals(VG.MonacoViewer.asNode(), r.viewer(),
+                    mt + " opens in Monaco by default");
+            assertEquals(VG.MonacoEditor.asNode(), r.editor(),
+                    mt + " edits in Monaco");
+            assertTrue(r.alternates().contains(VG.HtmlTextViewer.asNode()),
+                    mt + " keeps the escaped source view as an alternate");
+        }
+    }
+
+    @Test
+    void structuredSyntaxSuffixesOpenInMonaco() {
+        // The +json/+xml patterns must beat the defaults' identical patterns
+        // deterministically (sh:order), not by luck of document order.
+        for (String mt : java.util.List.of("application/ld+json", "application/rdf+xml")) {
+            MediaBindings.Resolved r = bindings().resolve(mt, Set.of());
+            assertEquals(VG.MonacoViewer.asNode(), r.viewer(), mt);
+            assertEquals(VG.MonacoEditor.asNode(), r.editor(), mt);
+        }
+    }
+
+    @Test
+    void svgStaysASourceViewNowHighlighted() {
+        // SVG remains source-not-image by default (script host by nature);
+        // the upgrade is only from escaped text to Monaco's xml highlighting.
+        // Both prior renderings survive as alternates.
+        MediaBindings.Resolved r = bindings().resolve("image/svg+xml", Set.of());
+        assertEquals(VG.MonacoViewer.asNode(), r.viewer());
+        assertTrue(r.alternates().contains(VG.HtmlTextViewer.asNode()),
+                "the escaped source view stays listed");
+        assertTrue(r.alternates().contains(VG.HtmlImageViewer.asNode()),
+                "the image rendering stays a deliberate alternate");
+        assertEquals(VG.MonacoEditor.asNode(), r.editor());
+    }
+
+    @Test
+    void unmappedTextStaysOnTheEscapedTextView() {
+        // A text type Monaco has no language for (CSV) stays on the
+        // defaults' escaped view — no Monaco default, no editor.
+        MediaBindings.Resolved r = bindings().resolve("text/csv", Set.of());
+        assertEquals(VG.HtmlTextViewer.asNode(), r.viewer());
+        assertNull(r.editor(), "text/csv gets no editor");
+    }
+
+    @Test
+    void plainTextOpensInMonacoFromTheVandegraphDefaults() {
+        // No overlay binding needed: the vandegraph defaults pin exact
+        // text/plain to Monaco (file-name language inference), and Halcyon's
+        // registration of vg:MonacoEditor is what lights up the editor.
+        MediaBindings.Resolved r = bindings().resolve("text/plain", Set.of());
+        assertEquals(VG.MonacoViewer.asNode(), r.viewer());
+        assertEquals(VG.MonacoEditor.asNode(), r.editor());
+        assertTrue(r.alternates().contains(VG.HtmlTextViewer.asNode()),
+                "the escaped view survives as the text/* alternate");
+    }
+}

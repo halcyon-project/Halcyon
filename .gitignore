@@ -7,6 +7,12 @@
 
 REVIEW.md
 TODO.md
+CLAUDE.md
+PLAN.md
+PLAN-CAPABILITY.md
+tdb2
+settings.ttl
+lws-oidc.json
 
 # Logs
 /logs/
@@ -17,6 +23,7 @@ hs_err_pid*
 # Runtime RDF state / data
 /Halcyon/tdb2/
 /Halcyon/lws-tdb2/
+/HalcyonLWS/lws-tdb2/
 /Halcyon/rdfdata/
 /Halcyon/data/
 /Halcyon/*.ttl.gz
@@ -43,6 +50,10 @@ cacerts.p12
 application-local.yml
 application-*.local.yml
 
+# Claude Code local settings (machine-specific permission allowlist).
+# A shared .claude/settings.json, if one is ever added, stays tracked.
+.claude/settings.local.json
+
 # IDE / OS
 .idea/
 *.iml
@@ -57,3 +68,5 @@ $SP/
 dependency-reduced-pom.xml
 /jena-permissions/target/
 /HalcyonLWS/target/
+/HalcyonMCP/target/
+/HalcyonLWS-S3/target/

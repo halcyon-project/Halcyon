@@ -194,7 +194,7 @@ public class NDPIImageReader extends AbstractImageReader {
     public static void main(String[] args) throws IOException {
         File file = new File("E:\\images\\Hamamatsu-NDPI\\openslide\\CMU-1\\CMU-1.ndpi");
         try (NDPIImageReader reader = new NDPIImageReader(file.toURI(), file.toURI())) {
-            System.out.println(reader.getImageMeta());
+            logger.debug("{}", reader.getImageMeta());
             RDFDataMgr.write(System.out, reader.getMeta(), Lang.TURTLE);
         } catch (Exception ex) {
             Logger.getLogger(NDPIImageReader.class.getName()).log(Level.SEVERE, null, ex);

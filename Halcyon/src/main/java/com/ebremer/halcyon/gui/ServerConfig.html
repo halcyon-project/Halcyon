@@ -1,0 +1,45 @@
+<html>
+    <body>
+        <wicket:extend>
+            <style>
+                .cfg { margin: 14px; font-size: 14px; color: #333; max-width: 1100px; }
+                .cfg h3 { color: #0000ab; margin: 8px 0; }
+                .cfg table { border-collapse: collapse; background: #fff; border: 1px solid #ddd; border-radius: 4px; }
+                .cfg th, .cfg td { text-align: left; padding: 5px 12px; border-bottom: 1px solid #eee;
+                                   font-size: 13px; vertical-align: top; }
+                .cfg th { color: #0000ab; white-space: nowrap; font-weight: 600; }
+                .cfg td { font-family: monospace; word-break: break-all; }
+                .cfg .kc { display: inline-block; margin: 10px 0; color: #0000ab; }
+                .cfg textarea { width: 100%; min-height: 420px; font-family: monospace; font-size: 12px;
+                                border: 1px solid #ccc; border-radius: 4px; padding: 8px; box-sizing: border-box; }
+                .cfg .actions { margin: 10px 0; display: flex; gap: 12px; align-items: center; }
+                .cfg button { background: #0000ab; color: #fff; border: none; padding: 6px 16px;
+                              border-radius: 4px; cursor: pointer; }
+                .cfg button.plain { background: #888; }
+                .cfg .msg { margin: 8px 0; color: #0000ab; }
+                .cfg .note { color: #888; font-size: 13px; margin: 6px 0; }
+            </style>
+            <div class="cfg">
+                <h3>Halcyon instance configuration</h3>
+                <div class="note">Effective values, as loaded at startup:</div>
+                <table>
+                    <tr wicket:id="rows"><th wicket:id="key"></th><td wicket:id="value"></td></tr>
+                </table>
+                <a class="kc" wicket:id="keycloak">Open Keycloak administration ↗</a>
+
+                <h3>settings.ttl</h3>
+                <div class="note">Edits are validated as Turtle before anything is written; the previous
+                    file is kept as a timestamped backup beside it. Settings load at startup —
+                    <b>restart Halcyon to apply</b>.</div>
+                <form wicket:id="form">
+                    <textarea wicket:id="raw" spellcheck="false"></textarea>
+                    <div class="actions">
+                        <button wicket:id="save" type="submit">Save</button>
+                        <button wicket:id="reload" type="submit" class="plain">Reload from disk</button>
+                    </div>
+                </form>
+                <div class="msg" wicket:id="message"></div>
+            </div>
+        </wicket:extend>
+    </body>
+</html>

@@ -13,12 +13,15 @@ import org.apache.jena.sparql.syntax.Element;
 import org.apache.jena.sparql.syntax.ElementGroup;
 import org.apache.jena.sparql.syntax.ElementNamedGraph;
 import org.apache.jena.sparql.syntax.ElementPathBlock;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author erich
  */
 public class QueryMapper {
+    private static final Logger logger = LoggerFactory.getLogger(QueryMapper.class);
     
     private final HashMap<String, Node> variables;
     private final Query q;
@@ -30,9 +33,9 @@ public class QueryMapper {
     }
     
     private void Process(Query q) {
-        System.out.println("Process : "+q.toString());
+        logger.debug("Process : {}", q.toString());
         Element e = q.getQueryPattern();
-        System.out.println("QP : "+e.toString());
+        logger.debug("QP : {}", e.toString());
         Process(e);
     }
     
@@ -44,12 +47,12 @@ public class QueryMapper {
         } else if (e instanceof ElementNamedGraph) {
             Process((ElementNamedGraph) e);
         } else {
-            System.out.println("Process Element - Unknown : "+e.getClass().getCanonicalName());
+            logger.debug("Process Element - Unknown : {}", e.getClass().getCanonicalName());
         }        
     }
     
     private void Process(ElementGroup eg) {
-         System.out.println("EG : "+eg.toString());
+         logger.debug("EG : {}", eg.toString());
         List<Element> es = eg.getElements();
         Iterator<Element> i = es.iterator();
         while (i.hasNext()) {
@@ -62,30 +65,30 @@ public class QueryMapper {
     }
     
     private void Process(TriplePath tp) {
-        System.out.println("TP > "+tp.toString());
-        System.out.println("Subject   : "+ tp.getSubject());
-        System.out.println("Predicate : "+ tp.getPredicate());
-        System.out.println("Object    : "+ tp.getObject());
-        System.out.println("Path      : "+ tp.getPath());
+        logger.debug("TP > {}", tp.toString());
+        logger.debug("Subject   : {}", tp.getSubject());
+        logger.debug("Predicate : {}", tp.getPredicate());
+        logger.debug("Object    : {}", tp.getObject());
+        logger.debug("Path      : {}", tp.getPath());
         Node s = tp.getSubject();
         Node o = tp.getObject();
-        System.out.println("SU "+s.isURI());
-        System.out.println("SV "+s.isVariable());
-        System.out.println("OU "+o.isURI());
-        System.out.println("OL "+o.isLiteral());
-        System.out.println("OV "+o.isVariable());
+        logger.debug("SU {}", s.isURI());
+        logger.debug("SV {}", s.isVariable());
+        logger.debug("OU {}", o.isURI());
+        logger.debug("OL {}", o.isLiteral());
+        logger.debug("OV {}", o.isVariable());
         
         //variables.put(s.getName(), s);
         //variables.put(o.getName(), o).
         if (tp.isTriple()) {
             Node p = tp.getPredicate();
-            System.out.println("PU "+p.isURI());    
-            System.out.println("PV "+p.isVariable());
+            logger.debug("PU {}", p.isURI());    
+            logger.debug("PV {}", p.isVariable());
         }
     }
     
     private void Process(ElementPathBlock epb) {
-        System.out.println("EPB : "+epb.toString());
+        logger.debug("EPB : {}", epb.toString());
         Iterator<TriplePath> i = epb.patternElts();
         while (i.hasNext()) {
             Process(i.next());
@@ -93,8 +96,8 @@ public class QueryMapper {
     }
 
     private void Process(ElementNamedGraph eng) {
-        System.out.println("ENG : "+eng.toString());
-        System.out.println("NG : "+eng.getGraphNameNode().getName());
+        logger.debug("ENG : {}", eng.toString());
+        logger.debug("NG : {}", eng.getGraphNameNode().getName());
         Process(eng.getElement());
     }
     

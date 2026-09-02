@@ -5,13 +5,15 @@
     <groupId>com.ebremer.HalcyonProject</groupId>
     <artifactId>HalcyonProject</artifactId>
     <packaging>pom</packaging>
-    <version>1.1.0</version>
+    <version>0.9.0</version>
     <description>A whole slide image annotation, management, and visualization system</description>
     
     <modules>
         <module>jena-permissions</module>
         <module>halcyon-core</module>
         <module>HalcyonLWS</module>
+        <module>HalcyonLWS-S3</module>
+        <module>HalcyonMCP</module>
         <module>Halcyon</module>
     </modules>
     
@@ -88,9 +90,9 @@
         <springboot.version>4.1.0</springboot.version>
 	<resteasy.version>6.2.15.Final</resteasy.version>
         <jetty.version>12.1.10</jetty.version>
-        <jena.version>6.1.0</jena.version>
+        <jena.version>6.2.0</jena.version>
         <wicket.ver>10.9.1</wicket.ver>
-        <beakgraph.version>0.17.0</beakgraph.version>
+        <beakgraph.version>0.18.0</beakgraph.version>
         <hilbert.ver>0.2.3</hilbert.ver>
         <commons-pool2.ver>2.13.1</commons-pool2.ver>
         <jakarta.json.version>2.1.3</jakarta.json.version> 
@@ -102,6 +104,16 @@
         <jts.version>1.20.0</jts.version>
         <twelvemonkeys.version>3.13.1</twelvemonkeys.version>
         <cygnus.version>0.1.0-SNAPSHOT</cygnus.version>
+        <vandegraph.version>0.2.0-SNAPSHOT</vandegraph.version>
+        <!-- MCP server (module HalcyonMCP). Pin discipline: 2.0.x patches only;
+             a minor/major gets its own review (the MCP SDK moves fast and the
+             transport-provider override in HalcyonMcpAutoConfiguration tracks
+             Spring AI's own auto-config shape). -->
+        <spring-ai.version>2.0.1</spring-ai.version>
+        <!-- S3 backend (module HalcyonLWS-S3). BOM-managed; the sync client rides
+             the default apache-client. -->
+        <awssdk.version>2.48.3</awssdk.version>
+        <maven-surefire-plugin.version>3.5.3</maven-surefire-plugin.version>
         <maven-compiler-plugin.version>3.15.0</maven-compiler-plugin.version>
         <maven-shade-plugin.version>3.6.2</maven-shade-plugin.version>
         <maven-enforcer-plugin.version>3.6.3</maven-enforcer-plugin.version>
@@ -203,6 +215,31 @@
                 <artifactId>HalcyonLWS</artifactId>
                 <type>jar</type>
                 <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <!-- Model Context Protocol server (module HalcyonMCP/): the
+                     Spring AI MCP endpoint at /mcp plus Halcyon's tools. -->
+                <groupId>com.ebremer.HalcyonProject</groupId>
+                <artifactId>HalcyonMCP</artifactId>
+                <type>jar</type>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <!-- Amazon S3 ContentStore backend (module HalcyonLWS-S3/): plugs
+                     into HalcyonLWS's ContentStoreProvider SPI. Optional by
+                     nature - a deployment that omits it simply cannot declare
+                     :hasBackend [ a :S3 ... ] storages. -->
+                <groupId>com.ebremer.HalcyonProject</groupId>
+                <artifactId>HalcyonLWS-S3</artifactId>
+                <type>jar</type>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>software.amazon.awssdk</groupId>
+                <artifactId>bom</artifactId>
+                <version>${awssdk.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
             </dependency>
             <dependency>
                 <groupId>org.apache.jena</groupId>
@@ -371,11 +408,40 @@
           <id>halcyon</id>
             <name>Halcyon</name>
             <url>https://cursus.bmi.stonybrookmedicine.edu/releases</url>
+            <!-- H15: releases-only, stated explicitly. This is also Maven's default
+                 for a <repository> with no <snapshots> element, which is precisely
+                 why the cygnus SNAPSHOTs below were never resolvable from here.
+                 M28: checksumPolicy=fail. Maven's DEFAULT is `warn` — on a checksum
+                 MISMATCH it logs a line and uses the artifact anyway, which is not a
+                 policy so much as the absence of one. Every artifact this repo serves
+                 publishes a .sha1 (verified), so failing closed costs nothing. -->
+            <releases><enabled>true</enabled><checksumPolicy>fail</checksumPolicy></releases>
+            <snapshots><enabled>false</enabled></snapshots>
+        </repository>
+        <!-- H15: the cygnus ImageIO plug-ins (svs, ndpi, jpeg2000, jpegxl — see
+             ${cygnus.version}) are published ONLY as 0.1.0-SNAPSHOT, and only here.
+             Without this repository they resolved solely from a developer's local
+             ~/.m2, so a clean CI checkout could not resolve them and the build could
+             not start. Snapshots must be enabled explicitly — Maven disables them by
+             default, and the `halcyon` repository above is releases-only. -->
+        <repository>
+            <id>halcyon-snapshots</id>
+            <name>Halcyon Snapshots</name>
+            <url>https://cursus.bmi.stonybrookmedicine.edu/snapshots</url>
+            <releases><enabled>false</enabled></releases>
+            <!-- M28: fail on a checksum mismatch (see the release repo above). This
+                 matters MORE here than there: a SNAPSHOT is refetched as it changes,
+                 so it is the one artifact whose bytes can move under a build. -->
+            <snapshots><enabled>true</enabled><checksumPolicy>fail</checksumPolicy></snapshots>
         </repository>
         <repository>
             <id>dcm4che</id>
             <name>dcm4che Repository</name>
             <url>https://www.dcm4che.org/maven2</url>
+            <!-- M28: as above. This is the one third-party repo besides Central, and
+                 the only one not operated by either us or Sonatype. -->
+            <releases><enabled>true</enabled><checksumPolicy>fail</checksumPolicy></releases>
+            <snapshots><enabled>false</enabled></snapshots>
         </repository>
     </repositories>
     <distributionManagement>
@@ -383,54 +449,121 @@
             <id>halcyon</id>
             <url>https://cursus.bmi.stonybrookmedicine.edu/releases</url>
         </repository>
+        <!-- H15: publish.yml runs `mvn deploy`. With only the release repository above,
+             that fails the moment ${project.version} is a SNAPSHOT ("snapshotRepository
+             element was not specified"). The /snapshots repository exists and already
+             hosts this author's cygnus artifacts, so point at it.
+             The id MUST stay `halcyon`, matching the release repository above: a
+             distributionManagement id is looked up as a <server> in settings.xml for
+             credentials, and the only server CI defines is `halcyon` (see the
+             maven-settings-action block in publish.yml / main.yml). A distinct id such
+             as `halcyon-snapshots` would deploy anonymously and 401. This mirrors what
+             the already-published cygnus pom does. (The <repositories> section above is
+             different: those ids must be unique, and reads are anonymous.) -->
+        <snapshotRepository>
+            <id>halcyon</id>
+            <name>Halcyon Snapshots</name>
+            <url>https://cursus.bmi.stonybrookmedicine.edu/snapshots</url>
+        </snapshotRepository>
     </distributionManagement>
         <build>
         <!--<finalName>library-${project.version}</finalName>-->
         <plugins>
+            <!-- H15: fail fast, and say why. The release pipeline ran on JDK 21 against
+                 <maven.compiler.release>25</maven.compiler.release> for long enough to
+                 ship, because the only symptom was "error: release version 25 not
+                 supported" appearing partway into a module compile — easy to read as a
+                 code error rather than a wrong-JDK error. This checks the JDK during
+                 `validate` on the root module, before anything compiles, and names the
+                 actual problem. -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>${maven-compiler-plugin.version}</version>
-                <configuration>
-                    <compilerArgs>
-                        <arg>--enable-preview</arg>
-                    </compilerArgs>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
-                <version>${maven-shade-plugin.version}</version>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>${maven-enforcer-plugin.version}</version>
                 <executions>
                     <execution>
-                        <id>libraryshade</id>
-                        <phase>package</phase>
+                        <id>enforce-jdk</id>
                         <goals>
-                            <goal>shade</goal>
+                            <goal>enforce</goal>
                         </goals>
                         <configuration>
-                            <filters>
-                                <filter>
-                                    <artifact>*:*</artifact>
-                                    <excludes>
-                                        <exclude>META-INF/*.SF</exclude>
-                                        <exclude>META-INF/*.DSA</exclude>
-                                        <exclude>META-INF/*.RSA</exclude>
-                                    </excludes>
-                                </filter>
-                            </filters>
-                            <transformers>
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"></transformer>
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <manifestEntries>
-                                        <Multi-Release>true</Multi-Release>
-                                    </manifestEntries>
-                                </transformer>
-                            </transformers>
+                            <rules>
+                                <!-- Keyed off maven.compiler.release, NOT ${java.version}:
+                                     `java.version` is a built-in JVM system property, and
+                                     system properties shadow pom <properties>, so
+                                     ${java.version} here resolves to the full running
+                                     version ("25.0.2") rather than the pom's "25" — which
+                                     would make this rule read [25.0.2,) and reject a
+                                     perfectly good JDK 25.0.1. (The pom's own
+                                     <java.version>25</java.version> is unused and
+                                     unusable for the same reason.) -->
+                                <requireJavaVersion>
+                                    <version>[${maven.compiler.release},)</version>
+                                    <message>This build targets Java ${maven.compiler.release} (see maven.compiler.release). javac cannot target a release newer than the JDK running it, so an older JDK fails with "error: release version ${maven.compiler.release} not supported". Install JDK ${maven.compiler.release} or newer. CI sets this via java-version in .github/workflows/*.yml — keep the two in step.</message>
+                                </requireJavaVersion>
+                            </rules>
                         </configuration>
                     </execution>
                 </executions>
             </plugin>
+            <!-- F1: pin surefire for the whole reactor. Maven's DEFAULT surefire
+                 binding does not detect the JUnit 5 platform, so an unpinned module
+                 runs its tests silently as zero — the failure mode HalcyonLWS worked
+                 around locally. Pinned here once instead. `mvn test` across the reactor
+                 is green at the time of writing (29,019 jena-permissions + 57 LWS), so
+                 wiring CI to it (see .github/workflows/ci.yml) is safe. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>${maven-surefire-plugin.version}</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>${maven-compiler-plugin.version}</version>
+                <!-- H15: the "enable preview" compiler arg was removed here.
+                     It bought nothing and cost a lot. Nothing in the codebase uses a
+                     preview feature (verified: of 453 compiled classes, ZERO carry the
+                     preview marker minor_version=65535 — javac sets that only on classes
+                     which actually use one), so the flag was a no-op.
+                     What it was, though, was a loaded gun: the first time anyone did use
+                     a preview feature, that class would be marked preview, and a
+                     preview-marked class REFUSES to load unless the JVM is given the
+                     matching runtime flag AND is the exact same JDK major version. The
+                     jpackage javaOptions in Halcyon/pom.xml do not pass it, so every
+                     installer this pipeline produces would have failed at startup with
+                     UnsupportedClassVersionError — a failure visible only in the packaged
+                     artifact, never in a dev build.
+                     Restoring it means also adding the runtime flag to the jpackage
+                     javaOptions and pinning the runtime to one exact JDK. -->
+            </plugin>
+            <!--
+              L17: the maven-shade-plugin execution that used to sit here has been
+              removed. It lived in <build><plugins>, so EVERY module inherited it,
+              and the result was measurable rather than theoretical:
+
+                * it ran on this parent POM itself (packaging=pom) and cheerfully
+                  logged "Replacing original artifact with shaded artifact";
+                * jena-permissions shipped 2,230 foreign org.apache.jena classes it
+                  should only have DEPENDED on (14 MB);
+                * Halcyon was shaded and THEN spring-boot-repackaged, so the 483 MB
+                  jar carried 288 nested jars in BOOT-INF/lib AND the same
+                  dependencies a second time, flattened into BOOT-INF/classes.
+
+              Nothing here needs shade: the app is made executable by
+              spring-boot-maven-plugin (see Halcyon/pom.xml), and the rest are
+              libraries, which should stay thin and let Maven resolve their
+              dependencies. HalcyonLWS had already reached this conclusion on its own
+              and pinned libraryshade to <phase>none</phase> to escape the
+              inheritance; that override has been removed along with what it escaped.
+
+              NOTE: there is no <pluginManagement> entry for shade to fall back on.
+              The <dependency> entries for maven plugins up in <dependencyManagement>
+              look like version pins but are inert — dependencyManagement does not
+              manage plugin versions. The version lived ONLY in the block that was
+              here, so any module that genuinely needs shading must declare its own
+              version (or a real <pluginManagement> entry should be added first).
+            -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-deploy-plugin</artifactId>

@@ -2,13 +2,13 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <artifactId>Halcyon</artifactId>
-    <version>1.1.0</version>
+    <version>0.9.0</version>
     <packaging>jar</packaging>
     <name>Halcyon</name>
     <parent>
         <groupId>com.ebremer.HalcyonProject</groupId>
         <artifactId>HalcyonProject</artifactId>
-        <version>1.1.0</version>
+        <version>0.9.0</version>
     </parent>      
     <properties>
         <exec.longClasspath>true</exec.longClasspath>
@@ -173,6 +173,11 @@
                         <artifactId>spring-boot-maven-plugin</artifactId>
                         <configuration>
                             <mainClass>com.ebremer.halcyon.server.Main</mainClass>
+                            <!-- MCP-F3: pin the SLF4J binding for `mvn spring-boot:run`
+                                 too (the packaged jar gets it from Main's static block).
+                                 See Main.java for why BeakGraph's embedded provider
+                                 makes this necessary. -->
+                            <jvmArguments>-Dslf4j.provider=ch.qos.logback.classic.spi.LogbackServiceProvider</jvmArguments>
                         </configuration>
                         <executions>
                             <execution>
@@ -426,13 +431,9 @@
             <version>${wicket.ver}</version>
         </dependency>
         <dependency>
-            <!-- The standalone vandegraph library (Wicket+Jena+SHACL forms);
-                 replaces the old in-tree com.ebremer.vandegraph prototype.
-                 Currently resolved from the local Maven repository until a
-                 release lands on the same repo as the Halcyon artifacts. -->
             <groupId>com.ebremer</groupId>
             <artifactId>vandegraph</artifactId>
-            <version>0.9.0-SNAPSHOT</version>
+            <version>${vandegraph.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.jena</groupId>
@@ -449,12 +450,6 @@
         <dependency>
             <groupId>org.apache.shiro</groupId>
             <artifactId>shiro-core</artifactId>
-            <classifier>jakarta</classifier>
-            <version>${shiro.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.shiro</groupId>
-            <artifactId>shiro-web</artifactId>
             <classifier>jakarta</classifier>
             <version>${shiro.version}</version>
         </dependency>
@@ -483,6 +478,16 @@
             <scope>runtime</scope>
         </dependency>
         <dependency>
+            <!-- BEFORE BeakGraph on purpose: BeakGraph's jar bundles stale
+                 copies of com.ebremer.ns classes (HAL, LWS, EXIF, GEO, GEOF,
+                 PYR). The classpath resolves duplicate classes in dependency
+                 order, so halcyon-core — the canonical vocabulary — must come
+                 first or new vocabulary constants silently fail to resolve. -->
+            <groupId>${project.groupId}</groupId>
+            <artifactId>halcyon-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
             <groupId>com.ebremer</groupId>
             <artifactId>BeakGraph</artifactId>
             <exclusions>
@@ -507,11 +512,6 @@
         <dependency>
             <groupId>com.apicatalog</groupId>
             <artifactId>titanium-json-ld</artifactId>
-        </dependency>        
-        <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>halcyon-core</artifactId>
-            <version>${project.version}</version>
         </dependency>
         <dependency>
             <!-- W3C Linked Web Storage server. Halcyon depends on it only to
@@ -521,6 +521,24 @@
                  legacy com.ebremer.halcyon.server.lws servlet, which is unchanged. -->
             <groupId>${project.groupId}</groupId>
             <artifactId>HalcyonLWS</artifactId>
+        </dependency>
+        <dependency>
+            <!-- S3 ContentStore backend: a ServiceLoader provider for the
+                 HalcyonLWS storage SPI. Nothing here calls it by name - its
+                 presence is what lets settings.ttl declare
+                 :hasBackend [ a :S3 ... ] storages. Drop this dependency and
+                 such declarations are refused at boot (and the AWS SDK leaves
+                 the classpath with it). -->
+            <groupId>${project.groupId}</groupId>
+            <artifactId>HalcyonLWS-S3</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <!-- Model Context Protocol server: mounts the Spring AI Streamable
+                 HTTP endpoint at /mcp (starter auto-configuration) and
+                 contributes Halcyon's tools. See HalcyonMCP/TODO.md. -->
+            <groupId>${project.groupId}</groupId>
+            <artifactId>HalcyonMCP</artifactId>
         </dependency>
         <!--
         <dependency>
@@ -560,10 +578,39 @@
             <groupId>org.jboss.logging</groupId>
             <artifactId>jboss-logging</artifactId>
         </dependency>
-        <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-fileupload2-core</artifactId>
-            <version>2.0.0-M4</version>
+        <!--
+          L15: commons-fileupload2-core is deliberately NOT declared here.
+
+          It used to be pinned to 2.0.0-M4, and no first-party code imports
+          fileupload at all — the only thing that needs it is Wicket's multipart
+          handling, which arrives as wicket-util -> commons-fileupload2-jakarta-servlet5.
+          Wicket 10.9.1 brings servlet5:2.0.0-M5, whose own core dependency is
+          2.0.0-M5; because our declaration was DIRECT it won Maven's nearest-wins
+          and downgraded it ("omitted for conflict with 2.0.0-M4" in the tree).
+          Production multipart therefore ran servlet5-M5 against core-M4 — two
+          different milestones of one library mixed, i.e. a LinkageError waiting
+          for whichever method moved between them.
+
+          Removing the declaration lets the matched M5/M5 pair resolve. The
+          review's prescription ("move to GA") is not available and would
+          re-create the same split: Wicket 10.9.1 is compiled against the M5 line,
+          so forcing core to a GA 2.0.0 would mismatch it in the other direction.
+          The version to track is Wicket's; revisit when Wicket moves to GA.
+        -->
+            <dependency>
+            <!-- F1: version comes from the junit-bom managed in the reactor root. -->
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
         </dependency>
-    </dependencies>
+        <dependency>
+            <!-- C5: WicketTester renders a real page through the real CSP settings, so
+                 the nonce plumbing can be asserted instead of reasoned about. Version
+                 tracks wicket-core, which Wicket's own BOM manages. -->
+            <groupId>org.apache.wicket</groupId>
+            <artifactId>wicket-tester</artifactId>
+            <version>${wicket.ver}</version>
+            <scope>test</scope>
+        </dependency>
+</dependencies>
 </project>

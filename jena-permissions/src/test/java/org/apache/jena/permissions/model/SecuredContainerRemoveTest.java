@@ -22,6 +22,8 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -248,6 +250,71 @@ public class SecuredContainerRemoveTest {
         final Statement first = seq.getProperty(RDF.li(1));
 
         secure(seq, new RuleEvaluator()).remove(first);
+
+        assertEquals(2, seq.size());
+        assertEquals("B shifted down to _1", "B", seq.getString(1));
+        assertEquals("C shifted down to _2", "C", seq.getString(2));
+    }
+
+    // ---- impl.ContainerRemove#remove(int, RDFNode) (L12) ----
+
+    /**
+     * Drive Jena's package-private {@code impl.ContainerRemove} mixin exactly
+     * as an internal caller would: through the interface method the secured
+     * proxy exposes (the base containers implement it, so the proxy carries
+     * it). Before L12 this fell through {@code SecuredItemInvoker} to the raw
+     * base container — an unchecked membership delete.
+     */
+    private static Object removeViaContainerRemove(final Object securedContainer, final int index,
+            final RDFNode object) throws Throwable {
+        final Class<?> containerRemove = Class.forName("org.apache.jena.rdf.model.impl.ContainerRemove");
+        assertTrue("the secured proxy exposes the base's ContainerRemove interface",
+                containerRemove.isInstance(securedContainer));
+        final Method m = containerRemove.getMethod("remove", int.class, RDFNode.class);
+        m.setAccessible(true); // the interface itself is package-private
+        try {
+            return m.invoke(securedContainer, index, object);
+        } catch (final InvocationTargetException e) {
+            throw e.getCause();
+        }
+    }
+
+    @Test
+    public void bag_containerRemoveByIndex_deniedSecondaryDelete_isRejected() throws Throwable {
+        final Bag bag = freshBag();
+        final RDFNode a = bag.getProperty(RDF.li(1)).getObject();
+        final RDFNode c = bag.getProperty(RDF.li(3)).getObject();
+        // Removing member _1 swaps the last member in, deleting (bag, _3, C).
+        final RuleEvaluator eval = new RuleEvaluator().denyDelete(member(bag, RDF.li(3), c));
+
+        try {
+            removeViaContainerRemove(secure(bag, eval), 1, a);
+            fail("ContainerRemove#remove(int, RDFNode) must take the checked removal path");
+        } catch (final DeleteDeniedException expected) {
+            // correct
+        }
+        assertEquals("container must be untouched by a denied removal", 3, bag.size());
+        assertTrue(bag.contains(bag.getModel().createLiteral("A")));
+    }
+
+    @Test
+    public void bag_containerRemoveByIndex_fullyPermitted_succeeds() throws Throwable {
+        final Bag bag = freshBag();
+        final RDFNode a = bag.getProperty(RDF.li(1)).getObject();
+
+        removeViaContainerRemove(secure(bag, new RuleEvaluator()), 1, a);
+
+        assertEquals(2, bag.size());
+        assertFalse("A was removed", bag.contains(bag.getModel().createLiteral("A")));
+        assertTrue("C moved into the vacated slot", bag.contains(bag.getModel().createLiteral("C")));
+    }
+
+    @Test
+    public void seq_containerRemoveByIndex_fullyPermitted_shiftsDown() throws Throwable {
+        final Seq seq = freshSeq();
+        final RDFNode a = seq.getProperty(RDF.li(1)).getObject();
+
+        removeViaContainerRemove(secure(seq, new RuleEvaluator()), 1, a);
 
         assertEquals(2, seq.size());
         assertEquals("B shifted down to _1", "B", seq.getString(1));

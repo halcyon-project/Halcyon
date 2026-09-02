@@ -2,7 +2,21 @@
 <html lang="en">
 <wicket:head>
   <style> body { margin: 0; } </style>
-  <script src="//unpkg.com/3d-force-graph"></script>
+  <!--
+    L18: served from ourselves, not from unpkg. This was
+    <script src="//unpkg.com/3d-force-graph"></script> — an UNVERSIONED,
+    protocol-relative URL, so /threed executed whatever "latest" unpkg happened
+    to be serving at page load, from a third party, with no integrity check and
+    no offline story. The vendored copies under /graph3d/ are the exact versions
+    unpkg resolved to when they were pinned (3d-force-graph 1.80.0,
+    three-spritetext 1.10.0, three 0.185.1), so behaviour is unchanged.
+
+    NOTE: these deliberately do NOT reuse the shared /threejs/ copy — that one is
+    three r160 and is what Zephyr is built against, while
+    3d-force-graph 1.80.0 declares three ">=0.179 <1". Pointing this page at
+    /threejs/ would satisfy L18 and quietly break the graph.
+  -->
+  <script src="/graph3d/3d-force-graph.min.js"></script>
   <style>
     .node-label {
       font-size: 12px;
@@ -25,9 +39,14 @@
 </wicket:head>
 
 <body>
-  <wicket:extend>    
+  <wicket:extend>
     <div class="row">
         <div class="column">
+            <div class="row" style="margin: 6px 0; font-size: 14px;">
+                Graph of <b><span wicket:id="which"></span></b><br/>
+                Store: <a wicket:id="classic">Halcyon (tdb2)</a> ·
+                <a wicket:id="lws">W3C LWS (lws-tdb2)</a>
+            </div>
             <div class="row">
                 <input type="submit" wicket:id="button"/>
             </div>
@@ -40,9 +59,9 @@
         </div>
     </div> 
 
-  <script type="importmap">{ "imports": { "three": "//unpkg.com/three/build/three.module.js" }}</script>
-  <script type="module">
-    import SpriteText from "//unpkg.com/three-spritetext/dist/three-spritetext.mjs";   
+  <script type="importmap" wicket:id="cspImportMap">{ "imports": { "three": "/graph3d/three.module.js" }}</script>
+  <script type="module" wicket:id="cspModule">
+    import SpriteText from "/graph3d/three-spritetext.mjs";   
     const Graph = ForceGraph3D();
     window.Graph = Graph
     (document.getElementById('3d-graph'))

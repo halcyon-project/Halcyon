@@ -22,17 +22,26 @@ public class ListFiles {
 	GenericExtFilter filter = new GenericExtFilter(ext);
 	File dir = new File(folder);
 	String[] list = dir.list(filter);
+        // File.list returns null — not an empty array — when the path is not a
+        // directory, does not exist, or the read fails. Straight to
+        // list.length was an NPE that read as "the directory is empty".
+        if (list == null) {
+            return new String[0];
+        }
         String[] fullpath = new String[list.length];
 	for (int i=0; i<list.length; i++) {
             fullpath[i] = new StringBuffer(FILE_DIR).append(File.separator).append(list[i]).toString();
 	}
         return fullpath;
     }
-    
+
     public String[] listFile(File dir, String ext) {
         FILE_TEXT_EXT = ext;
 	GenericExtFilter filter = new GenericExtFilter(ext);
 	String[] list = dir.list(filter);
+        if (list == null) {
+            return new String[0];
+        }
         String[] fullpath = new String[list.length];
 	for (int i=0; i<list.length; i++) {
             fullpath[i] = new StringBuffer(dir.getAbsolutePath()).append(File.separator).append(list[i]).toString();

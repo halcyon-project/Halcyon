@@ -59,7 +59,7 @@ public class FileReaderFactoryProvider {
             ServiceLoader<FileReaderFactory> loaderx = ServiceLoader.load(FileReaderFactory.class, classLoader);
             for (FileReaderFactory impl : loaderx) {
                 impl.getSupportedFormats().forEach(f->{
-                    System.out.println("GET LOADER ====> "+f);
+                    logger.debug("GET LOADER ====> {}", f);
                     readersMap.put(f, impl);
                 });
             }
@@ -91,7 +91,7 @@ public class FileReaderFactoryProvider {
     }
     
     public static FileReaderFactory getReaderForFormat(Resource iri) {
-        System.out.println(iri.getURI());
+        logger.debug("{}", iri.getURI());
         //readersMap.forEach((k,v)->{
           //  System.out.println("reader --> "+k+"  "+v.getClass().toGenericString());
         //});      

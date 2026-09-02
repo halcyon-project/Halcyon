@@ -6,6 +6,10 @@ import com.ebremer.lws.acp.AcpEngine;
 import com.ebremer.lws.acp.AcrStore;
 import com.ebremer.lws.auth.AgentContext;
 import com.ebremer.lws.auth.BearerTokenValidator;
+import com.ebremer.lws.capability.CapabilityRequest;
+import com.ebremer.lws.capability.CapabilitySet;
+import com.ebremer.lws.capability.EndpointCapability;
+import com.ebremer.lws.capability.ResourceCapability;
 import com.ebremer.lws.config.LwsSettings;
 import com.ebremer.lws.config.LwsStorageConfig;
 import com.ebremer.lws.json.LinksetJson;
@@ -21,6 +25,7 @@ import com.ebremer.lws.store.ContentStore;
 import com.ebremer.lws.store.LinksetStore;
 import com.ebremer.lws.store.LwsResource;
 import com.ebremer.lws.store.LwsStore;
+import com.ebremer.lws.store.PathKeyedStore;
 import com.ebremer.lws.store.ResourceRegistry;
 import com.ebremer.lws.store.ResourceType;
 import com.ebremer.lws.store.naming.NamingPolicy;
@@ -28,8 +33,10 @@ import com.ebremer.lws.store.naming.Slugs;
 import com.ebremer.lws.vocab.LWS;
 import com.ebremer.lws.vocab.LWSX;
 import jakarta.json.Json;
+import jakarta.json.JsonException;
 import jakarta.json.JsonObject;
 import jakarta.json.JsonReader;
+import jakarta.json.JsonStructure;
 import jakarta.json.JsonValue;
 import jakarta.json.JsonWriter;
 import jakarta.json.stream.JsonParsingException;
@@ -42,6 +49,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -164,8 +172,8 @@ public class LwsServlet extends HttpServlet {
     private final transient LwsStorageConfig cfg;
     private transient LwsStore store;
     private transient ContentStore content;
-    /** Non-null iff this storage mirrors the URI to a real path (the {@code /W3ClwsSlash} model). */
-    private transient com.ebremer.lws.store.MirrorContentStore mirror;
+    /** Non-null iff this storage's keys are URI paths (the {@code /W3ClwsSlash} model). */
+    private transient com.ebremer.lws.store.PathKeyedStore mirror;
     /** Non-null iff this is the mirror storage: watches disk for real-time adopt/de-register. */
     private transient com.ebremer.lws.store.MirrorWatcher watcher;
     private transient NamingPolicy naming;
@@ -173,15 +181,33 @@ public class LwsServlet extends HttpServlet {
     private transient Notifications notify;
     private transient com.ebremer.lws.sharing.AccessSharing sharing;
 
+    /**
+     * Capabilities installed on this storage — the per-resource SPARQL endpoint, the IIIF Image
+     * service, the store-wide SPARQL advertisement, and future ones. Never {@code null}
+     * ({@link CapabilitySet#EMPTY} when none), consulted per request in
+     * {@link #serveResourceCapability} and {@link #serveEndpointCapability}, and for the storage
+     * description via {@link CapabilitySet#descriptors}. See PLAN-CAPABILITY.md.
+     */
+    private final CapabilitySet capabilities;
+
     public LwsServlet(LwsStorageConfig cfg) {
+        this(cfg, CapabilitySet.EMPTY);
+    }
+
+    /**
+     * @param capabilities the installed capabilities (per-resource query, IIIF, store-wide SPARQL
+     *     advertisement, …), or {@link CapabilitySet#EMPTY} for none.
+     */
+    public LwsServlet(LwsStorageConfig cfg, CapabilitySet capabilities) {
         this.cfg = cfg;
+        this.capabilities = capabilities == null ? CapabilitySet.EMPTY : capabilities;
     }
 
     @Override
     public void init() {
         this.store = LwsStore.get();
         this.content = store.contentStore(cfg);
-        this.mirror = content instanceof com.ebremer.lws.store.MirrorContentStore m ? m : null;
+        this.mirror = content instanceof com.ebremer.lws.store.PathKeyedStore p ? p : null;
         this.naming = NamingPolicy.of(cfg);
         this.auth = new BearerTokenValidator(cfg);
         this.notify = new Notifications(store, cfg);
@@ -218,9 +244,9 @@ public class LwsServlet extends HttpServlet {
         // start now catches anything that changes while this first pass is still in flight. The one
         // cost is a brief window where a while-down drop 404s until the pass reaches it — it self-heals
         // within that single pass, which is exactly the disk-authoritative contract.
-        if (mirror != null) {
+        if (content instanceof com.ebremer.lws.store.MirrorContentStore mc) {
             SWEEPER.schedule(this::sweepOrphans, 0, TimeUnit.SECONDS);
-            this.watcher = new com.ebremer.lws.store.MirrorWatcher(store, cfg, mirror, content);
+            this.watcher = new com.ebremer.lws.store.MirrorWatcher(store, cfg, mc, content);
             this.watcher.start();
         }
 
@@ -247,10 +273,12 @@ public class LwsServlet extends HttpServlet {
      */
     private void sweepOrphans() {
         try {
-            if (mirror != null) {
+            if (content instanceof com.ebremer.lws.store.MirrorContentStore mc) {
                 // The mirror storage is disk-authoritative, so its background hygiene is the reverse
                 // of reaping: adopt files that appeared on disk, drop entries whose file is gone.
-                new com.ebremer.lws.store.MirrorReconciler(store, cfg, mirror, content).reconcile();
+                // (Gated on the concrete disk mirror: a third-party PathKeyedStore decides its own
+                // hygiene through sweepOrphans below.)
+                new com.ebremer.lws.store.MirrorReconciler(store, cfg, mc, content).reconcile();
                 return;
             }
             Set<String> live = store.read(this::liveStorageKeys);
@@ -320,6 +348,19 @@ public class LwsServlet extends HttpServlet {
 
     private void dispatch(Req rq, HttpServletRequest req, HttpServletResponse resp)
             throws IOException {
+        // Endpoint capabilities own a reserved dot-led sub-path (e.g. .iiif), checked before
+        // Target — which is about stable identity and does not know the pluggable set. The slug
+        // sanitiser strips leading dots, so no client resource can collide with a reserved path.
+        if (capabilities.hasEndpointCapabilities()) {
+            String path = req.getPathInfo();
+            String rel = (path == null || path.isEmpty() || "/".equals(path))
+                    ? null : (path.startsWith("/") ? path.substring(1) : path);
+            EndpointCapability endpoint = capabilities.endpointFor(rel);
+            if (endpoint != null) {
+                serveEndpointCapability(rq, endpoint, req, resp);
+                return;
+            }
+        }
         Target t = Target.resolve(cfg, req);
         switch (req.getMethod().toUpperCase(Locale.ROOT)) {
             case "GET" -> get(rq, t, req, resp, true);
@@ -384,6 +425,7 @@ public class LwsServlet extends HttpServlet {
         resp.setContentType(MediaTypes.LINKSET_JSON);
         resp.setCharacterEncoding(StandardCharsets.UTF_8.name());
         resp.setContentLength(bytes.length);
+        addBytesDigests(req, resp, bytes);
         if (body) {
             resp.getOutputStream().write(bytes);
         }
@@ -403,7 +445,8 @@ public class LwsServlet extends HttpServlet {
             case LINKSET -> patchLinkset(rq, t, req, resp);
             case RESOURCE -> patchContent(rq, t, req, resp);
             default -> throw Problem.methodNotAllowed(
-                    "PATCH is defined on a data resource and on any resource's linkset");
+                    "PATCH is defined on a data resource and on any resource's linkset",
+                    allowFor(t.kind(), null));
         }
     }
 
@@ -424,6 +467,7 @@ public class LwsServlet extends HttpServlet {
         }
 
         byte[] raw = readBounded(req.getInputStream(), MAX_PATCH_BYTES);
+        DigestFields.verify(req.getHeader("Content-Digest"), raw);
         JsonObject patch;
         try (var r = jakarta.json.Json.createReader(new java.io.ByteArrayInputStream(raw))) {
             patch = r.readObject();
@@ -476,15 +520,42 @@ public class LwsServlet extends HttpServlet {
      * "In cases where revealing resource existence poses a security risk, the server MAY
      * return 404 Not Found instead."
      *
-     * <p>For an anonymous request the answer is 401, not 404. That is uniform across both
-     * cases too, so it discloses nothing — and unlike a 404 it tells the client that
-     * authenticating might change the answer, which is the entire purpose of a challenge.
+     * <p>Which answer an anonymous agent gets turns on whether a challenge could tell it
+     * anything. On a storage that grants the public nothing, 401 is the useful reply: it
+     * names where to authenticate, and authenticating is indeed what would change the
+     * answer — which is the entire purpose of a challenge. On a storage that already
+     * grants the public access, it is a lie of omission. That agent is not short of
+     * credentials; the resource it addressed is simply not there, and lws10-core wants that
+     * said plainly — a POST into a container that does not exist "MUST return a 404 error
+     * status unless another status code is more appropriate".
+     *
+     * <p>The standing test is taken against the storage ROOT, never the resource in hand,
+     * and that is what keeps the oracle shut. Asked of the resource it would answer 401 for
+     * the ones the public may not see and 404 for the ones that were never there — exactly
+     * the distinction this method exists to erase, rebuilt one level down. Asked of the
+     * root it returns the same answer for every URI in the storage, so it discloses nothing
+     * about any of them.
+     *
+     * <p>Assumes an ambient transaction.
      */
     private Problem hidden(Req rq) {
-        if (!rq.agent().isAuthenticated()) {
+        if (!rq.agent().isAuthenticated() && !publicHasStanding(rq)) {
             return auth.unauthenticated("authentication is required to access this resource");
         }
         return Problem.notFound("no such resource");
+    }
+
+    /**
+     * Whether this storage grants the anonymous public anything at all.
+     *
+     * <p>Any mode on the root will do, for the reason {@link #known} gives at greater
+     * length: an agent holding nothing but {@code acl:Append} has still been let in, even
+     * though it may not look inside.
+     *
+     * <p>Assumes an ambient transaction.
+     */
+    private boolean publicHasStanding(Req rq) {
+        return !rq.acp().modes(rq.agent(), cfg.storageRootUri()).isEmpty();
     }
 
     /**
@@ -572,7 +643,8 @@ public class LwsServlet extends HttpServlet {
             // webhook verification key is published in it.
             case DESCRIPTION -> {
                 resp.setHeader("Cache-Control", "public, max-age=60");
-                sendJson(req, resp, LwsJson.storageDescription(cfg), body);
+                sendJson(req, resp,
+                        LwsJson.storageDescription(cfg, capabilities.descriptors(cfg)), body);
             }
             case TYPE_INDEX -> typeIndex(rq, req, resp, body);
             // The GET form of Type Search: ?type=A,B&type=C. Superseded by QUERY in
@@ -602,7 +674,14 @@ public class LwsServlet extends HttpServlet {
             case ACCESS_GRANTS -> listSharing(rq, t, req, resp, body, true);
             case ACCESS_REQUEST -> getSharing(rq, t, req, resp, body, false);
             case ACCESS_GRANT -> getSharing(rq, t, req, resp, body, true);
-            case STORAGE_ROOT, RESOURCE -> getResource(rq, t, req, resp, body);
+            case STORAGE_ROOT, RESOURCE -> {
+                // A GET carrying ?query= against a queryable resource is a per-resource SPARQL
+                // request (a capability claims it); everything else is a normal read. HEAD never
+                // matches — the capability's marker is the GET method.
+                if (!serveResourceCapability(rq, t, req, resp)) {
+                    getResource(rq, t, req, resp, body);
+                }
+            }
             default -> throw Problem.notFound("no such resource");
         }
     }
@@ -684,12 +763,107 @@ public class LwsServlet extends HttpServlet {
             resp.setContentType(MediaTypes.TURTLE);
             resp.setCharacterEncoding(StandardCharsets.UTF_8.name());
             resp.setContentLength(bytes.length);
+            addBytesDigests(req, resp, bytes);
             if (body) {
                 resp.getOutputStream().write(bytes);
             }
             return;
         }
         sendJson(req, resp, LwsJson.container(r.uri(), v.total(), v.items()), body);
+    }
+
+    /**
+     * Serve a request to an {@link EndpointCapability}'s reserved sub-path (e.g. {@code .iiif}).
+     *
+     * <p>The module owns the HTTP-method envelope and the policy: it answers {@code OPTIONS} and
+     * confines endpoint capabilities to {@code GET}; for a GET it asks the capability which
+     * resource the request targets, <strong>confines that to this storage</strong> (an image
+     * service is a storage capability, not an open proxy), demands {@code acl:Read} through ACP,
+     * and resolves the content — the same authorization a normal GET runs — before handing off to
+     * {@link EndpointCapability#serve}. The capability writes only the GET response.
+     */
+    private void serveEndpointCapability(Req rq, EndpointCapability cap, HttpServletRequest req,
+            HttpServletResponse resp) throws IOException {
+        String method = req.getMethod().toUpperCase(Locale.ROOT);
+        if ("OPTIONS".equals(method)) {
+            resp.setHeader("Allow", "OPTIONS, GET");
+            resp.setStatus(HttpServletResponse.SC_NO_CONTENT);
+            return;
+        }
+        if (!"GET".equals(method)) {
+            throw Problem.methodNotAllowed("this endpoint supports OPTIONS and GET",
+                    "OPTIONS, GET");
+        }
+        String target = cap.targetResource(req, cfg);
+        if (target == null) {
+            throw Problem.badRequest("the request does not identify a resource of this storage");
+        }
+        if (!target.startsWith(cfg.baseUri() + "/")) {
+            throw Problem.badRequest("the identified resource must be a data resource of this storage");
+        }
+        record Src(LwsResource r, Path content, String ext) {
+        }
+        Src src = store.read(() -> {
+            LwsResource r = known(rq, target);
+            demandOn(rq, r, AccessMode.READ);
+            if (r.isContainer() || r.storageKey() == null) {
+                throw Problem.badRequest("the identified resource has no content");
+            }
+            return new Src(r, content.pathFor(r.storageKey(), r.ext()), r.ext());
+        });
+        cap.serve(new CapabilityRequest(req, resp, cfg, rq.agent(),
+                src.r(), src.content(), src.ext()));
+    }
+
+    /**
+     * Offer the request to the installed {@link ResourceCapability}s — the per-resource
+     * SPARQL endpoint (and future ones) answering a request on a resource's own URL.
+     *
+     * <p>Two-phase, so a plain request is never slowed and a pass-through never loses its
+     * body: {@link CapabilitySet#candidate} matches the request marker (headers/params only)
+     * and gates whether we resolve at all; {@link ResourceCapability#claims} then decides from
+     * the resolved resource's metadata whether the capability takes it. Only once it does are
+     * {@code known} + {@code acl:Read} demanded and the content resolved — the same envelope a
+     * normal GET runs in — before {@link ResourceCapability#serve}.
+     *
+     * @return true if a capability served the request (response written); false to continue
+     *     normal LWS handling with the request untouched
+     */
+    private boolean serveResourceCapability(Req rq, Target t, HttpServletRequest req,
+            HttpServletResponse resp) throws IOException {
+        if (!capabilities.hasResourceCapabilities()) {
+            return false;
+        }
+        ResourceCapability cap = capabilities.candidate(req);
+        if (cap == null) {
+            return false;
+        }
+        // Resolve metadata to ask claims(). A find() without authorization is safe here: the
+        // claim result is not observable to the agent — a claimed request is authorized below,
+        // and a passed-through one is authorized by the normal handler it falls to — so this
+        // cannot become an existence oracle.
+        LwsResource meta = store.read(() -> registry().find(t.uri()).orElse(null));
+        if (meta == null || !cap.claims(meta, req)) {
+            return false;
+        }
+        // Claimed. Authorize exactly as a GET would (uniform existence-hiding via known()), then
+        // resolve the content, in one read transaction. serve() runs outside it: the query
+        // executes against the resource's own content, not TDB, and must not hold a txn while
+        // streaming.
+        record Src(LwsResource r, Path content, String ext) {
+        }
+        Src src = store.read(() -> {
+            LwsResource r = known(rq, t.uri());
+            demandOn(rq, r, AccessMode.READ);
+            if (r.isContainer() || r.storageKey() == null) {
+                // claims() already excluded containers; a data resource always has content.
+                throw Problem.badRequest("this resource has no content to query");
+            }
+            return new Src(r, content.pathFor(r.storageKey(), r.ext()), r.ext());
+        });
+        cap.serve(new CapabilityRequest(req, resp, cfg, rq.agent(),
+                src.r(), src.content(), src.ext()));
+        return true;
     }
 
     /** An entity tag for a variant serialization: the base tag with a marker before its closing quote. */
@@ -944,8 +1118,8 @@ public class LwsServlet extends HttpServlet {
             return container;
         }
         String c = Cursor.at(container, filter, afterSeq).encode();
-        // The parameter is `cursor`. It may never be `query`: Halcyon registers a filter on /*
-        // that forwards any request bearing a `query` parameter to a different servlet entirely.
+        // The parameter is `cursor`, never `query`: on a resource URL `?query=` is the marker
+        // for the per-resource SPARQL capability, so pagination keeps its parameter distinct.
         return container + "?cursor=" + URLEncoder.encode(c, StandardCharsets.UTF_8);
     }
 
@@ -977,6 +1151,17 @@ public class LwsServlet extends HttpServlet {
         String mediaType = r.mediaType() == null ? MediaTypes.OCTET_STREAM : r.mediaType();
         resp.setHeader("Accept-Ranges", "bytes");
 
+        // These are untrusted, agent-uploaded bytes served from the storage's own origin.
+        // nosniff pins the declared type (a browser must never "discover" HTML inside a
+        // text file), and the actively scriptable types are additionally served under
+        // CSP sandbox: an HTML/SVG/XML document still renders when opened or embedded,
+        // but as a unique opaque origin with no script — otherwise any agent with write
+        // access could hand every later reader a stored XSS running as this site.
+        resp.setHeader("X-Content-Type-Options", "nosniff");
+        if (MediaTypes.scriptable(mediaType)) {
+            resp.setHeader("Content-Security-Policy", "sandbox");
+        }
+
         List<long[]> ranges = parseRanges(req.getHeader("Range"), size);
 
         // A well-formed Range nothing could satisfy -> 416 with the entity length (parseRanges
@@ -985,6 +1170,8 @@ public class LwsServlet extends HttpServlet {
             throw new Problem(416, "Range Not Satisfiable", null)
                     .header("Content-Range", "bytes */" + size);
         }
+
+        addBinaryDigests(req, resp, r, ranges != null);
 
         // No range, or one this server declines (malformed, too many, amplifying): the whole entity.
         if (ranges == null) {
@@ -1273,7 +1460,15 @@ public class LwsServlet extends HttpServlet {
             return;
         }
         if (t.kind() != Target.Kind.RESOURCE && t.kind() != Target.Kind.STORAGE_ROOT) {
-            throw Problem.methodNotAllowed("POST is only defined on a container");
+            throw Problem.methodNotAllowed("POST is only defined on a container",
+                    allowFor(t.kind(), null));
+        }
+
+        // A POST carrying application/sparql-query to a data resource is a query, not a create —
+        // let a resource capability claim it before the container-create path reads the body. A
+        // POST to a container (including the storage root) is not claimed and falls through.
+        if (serveResourceCapability(rq, t, req, resp)) {
+            return;
         }
 
         // A cheap first look, so that a client with no business here is turned away before it
@@ -1290,7 +1485,8 @@ public class LwsServlet extends HttpServlet {
             return c;
         });
         if (!parent.isContainer()) {
-            throw Problem.methodNotAllowed("POST is only defined on a container");
+            throw Problem.methodNotAllowed("POST is only defined on a container",
+                    allowFor(t.kind(), parent));
         }
 
         List<LinkHeader.Parsed> links = LinkHeader.parse(req);
@@ -1304,14 +1500,15 @@ public class LwsServlet extends HttpServlet {
         } else if (makeContainer) {
             created = store.write(() -> commitCreation(rq, parent, slug, webId, true, null));
         } else {
-            String mediaType = MediaTypes.bare(req.getContentType());
-            if (mediaType == null) {
-                mediaType = MediaTypes.OCTET_STREAM;
-            }
             // Extension from the slug, else from the media type. Without this fallback a
             // whole-slide image POSTed as image/tiff with no Slug had no extension for the reader
             // to dispatch on, and so vanished into the Type Index as opaque bytes. (M2.)
             String slugExt = Slugs.extensionOf(slug);
+            // Record a REAL media type when the client's was absent/opaque but the slug names a
+            // known format — browsers upload .svs as application/octet-stream, and recording that
+            // starves every media-type-driven consumer (the UI's viewer bindings included).
+            String mediaType = MediaTypeFormats.recordedMediaType(
+                    MediaTypes.bare(req.getContentType()), slugExt);
             String ext = slugExt.isEmpty() ? MediaTypeFormats.extensionFor(mediaType) : slugExt;
 
             // The blob is written, fsynced and moved into place BEFORE anything is committed. A
@@ -1323,6 +1520,7 @@ public class LwsServlet extends HttpServlet {
             // inside the transaction below necessary rather than fussy.
             ContentStore.Written w = content.write(req.getInputStream(), ext);
             final String mt = mediaType;
+            verifyUpload(req, w, ext);
             try {
                 created = store.write(() ->
                         commitCreation(rq, parent, slug, webId, false, new Content(w, mt, ext)));
@@ -1391,13 +1589,13 @@ public class LwsServlet extends HttpServlet {
         LwsResource r = makeContainer
                 ? new LwsResource(uri, ResourceType.CONTAINER, List.of(),
                         null, 0, when, ResourceRegistry.containerEtag(0),
-                        null, null, parent.uri(), reg.nextSeq(), webId, webId)
+                        null, null, parent.uri(), reg.nextSeq(), webId, webId, null)
                 : new LwsResource(uri, ResourceType.DATA_RESOURCE, List.of(),
                         content.mediaType(), content.written().size(), when,
                         ResourceRegistry.dataEtag(content.written().sha256(),
                                 content.mediaType(), content.written().size()),
                         content.written().key(), content.ext(), parent.uri(),
-                        reg.nextSeq(), webId, webId);
+                        reg.nextSeq(), webId, webId, content.written().sha256());
 
         reg.create(r, slug);
         return reg.find(uri).orElseThrow(() -> Problem.internal("the resource vanished on create"));
@@ -1495,29 +1693,28 @@ public class LwsServlet extends HttpServlet {
                     commitMirrorCreate(rq, parent.uri(), uri, key, webId, true, null, null, null));
         }
 
-        String mediaType = MediaTypes.bare(req.getContentType());
-        if (mediaType == null) {
-            mediaType = MediaTypes.OCTET_STREAM;
-        }
         String ext = extOfPath(key);
+        // Same upgrade as the object-store POST: an opaque client type with a known
+        // extension records the known format (browsers send octet-stream for .svs).
+        String mediaType = MediaTypeFormats.recordedMediaType(
+                MediaTypes.bare(req.getContentType()), ext);
         if (ext.isEmpty()) {
             ext = MediaTypeFormats.extensionFor(mediaType);
         }
         // Outside the transaction (an upload is seconds to minutes; the single TDB2 writer must not
-        // wait on it). writeAt creates the parent directories on disk as it goes.
-        ContentStore.Written w = mirror.writeAt(key, req.getInputStream());
+        // wait on it), and STAGED beside the target rather than written at it: nothing appears at
+        // the minted path until the create commits. stageAt makes the parent directories on the way.
         final String mt = mediaType;
         final String fext = ext;
-        LwsResource created;
-        try {
-            created = store.write(() ->
+        try (PathKeyedStore.Staged staged = mirror.stageAt(key, req.getInputStream())) {
+            ContentStore.Written w = staged.written();
+            verifyUpload(req, w, fext);
+            LwsResource created = store.write(() ->
                     commitMirrorCreate(rq, parent.uri(), uri, key, webId, false, w, mt, fext));
-        } catch (RuntimeException e) {
-            content.delete(key, fext);
-            throw e;
+            staged.publish();
+            LwsMetadataScanner.enrichAsync(store, cfg, content, created);
+            return created;
         }
-        LwsMetadataScanner.enrichAsync(store, cfg, content, created);
-        return created;
     }
 
     private LwsResource commitMirrorCreate(Req rq, String parentUri, String uri, String key,
@@ -1533,10 +1730,10 @@ public class LwsServlet extends HttpServlet {
         Instant when = Instant.now();
         LwsResource r = makeContainer
                 ? new LwsResource(uri, ResourceType.CONTAINER, List.of(), null, 0, when,
-                        ResourceRegistry.containerEtag(0), key, null, parentUri, reg.nextSeq(), webId, webId)
+                        ResourceRegistry.containerEtag(0), key, null, parentUri, reg.nextSeq(), webId, webId, null)
                 : new LwsResource(uri, ResourceType.DATA_RESOURCE, List.of(), mediaType, w.size(), when,
                         ResourceRegistry.dataEtag(w.sha256(), mediaType, w.size()), key, ext, parentUri,
-                        reg.nextSeq(), webId, webId);
+                        reg.nextSeq(), webId, webId, w.sha256());
         reg.create(r, null);
         return reg.find(uri).orElseThrow(() -> Problem.internal("the resource vanished on create"));
     }
@@ -1559,7 +1756,8 @@ public class LwsServlet extends HttpServlet {
 
         LwsResource existing = store.read(() -> registry().find(uri).orElse(null));
         if (existing != null && existing.isContainer()) {
-            throw Problem.methodNotAllowed("a container's membership is server-managed");
+            throw Problem.methodNotAllowed("a container's membership is server-managed",
+                    allowFor(t.kind(), existing));
         }
         if (existing == null && mirror.exists(key, null)) {
             // The path is already occupied on disk — case-insensitively on Windows, so by a name of a
@@ -1582,38 +1780,46 @@ public class LwsServlet extends HttpServlet {
         // Validated before the upload so a rejected combined update wastes no bytes.
         Map<String, List<String>> setLinks = setLinksetLinks(req);
 
-        String mediaType = MediaTypes.bare(req.getContentType());
-        if (mediaType == null) {
-            mediaType = existing != null ? existing.mediaType() : MediaTypes.OCTET_STREAM;
-        }
+        String bare = MediaTypes.bare(req.getContentType());
         String ext = extOfPath(key);
+        // No Content-Type on a replace keeps the existing recorded type; otherwise the
+        // same opaque-type upgrade as create (octet-stream + known extension → known type).
+        String mediaType = bare == null && existing != null
+                ? existing.mediaType()
+                : MediaTypeFormats.recordedMediaType(bare, ext);
         if (ext.isEmpty()) {
             ext = MediaTypeFormats.extensionFor(mediaType);
         }
-        ContentStore.Written w = mirror.writeAt(key, req.getInputStream());
         final String mt = mediaType;
         final String fext = ext;
-        PutOutcome out;
-        try {
-            out = store.write(() -> commitMirrorPut(rq, uri, key, req, mt, fext, w, setLinks));
-        } catch (RuntimeException e) {
-            content.delete(key, fext);
-            throw e;
-        }
-        LwsMetadataScanner.enrichAsync(store, cfg, content, out.r());
-        notify.emit(out.created() ? "Create" : "Update", out.r().uri(), false, out.r().parent(),
-                rq.agent().webId());
+        // Staged beside the file, not written over it. commitMirrorPut is where the client's
+        // If-Match is compared, and it is compared inside the write transaction on purpose — so
+        // the upload it guards has to still be undoable when it fails. Writing in place made the
+        // refusal meaningless: the 428 came back with the resource already overwritten, and the
+        // rollback then deleted the file outright, leaving registered metadata pointing at
+        // nothing. Nothing at `key` changes until the transaction has committed.
+        try (PathKeyedStore.Staged staged = mirror.stageAt(key, req.getInputStream())) {
+            ContentStore.Written w = staged.written();
+            verifyUpload(req, w, fext);
+            PutOutcome out = store.write(() ->
+                    commitMirrorPut(rq, uri, key, req, mt, fext, w, setLinks));
+            staged.publish();
 
-        resp.setStatus(out.created()
-                ? HttpServletResponse.SC_CREATED : HttpServletResponse.SC_NO_CONTENT);
-        if (out.created()) {
-            resp.setHeader("Location", out.r().uri());
+            LwsMetadataScanner.enrichAsync(store, cfg, content, out.r());
+            notify.emit(out.created() ? "Create" : "Update", out.r().uri(), false, out.r().parent(),
+                    rq.agent().webId());
+
+            resp.setStatus(out.created()
+                    ? HttpServletResponse.SC_CREATED : HttpServletResponse.SC_NO_CONTENT);
+            if (out.created()) {
+                resp.setHeader("Location", out.r().uri());
+            }
+            resp.setHeader("ETag", out.r().etag());
+            if (setLinks != null) {
+                resp.setHeader("Preference-Applied", "set-linkset");
+            }
+            addCommonHeaders(resp, out.r());
         }
-        resp.setHeader("ETag", out.r().etag());
-        if (setLinks != null) {
-            resp.setHeader("Preference-Applied", "set-linkset");
-        }
-        addCommonHeaders(resp, out.r());
     }
 
     private PutOutcome commitMirrorPut(Req rq, String uri, String key, HttpServletRequest req,
@@ -1628,7 +1834,7 @@ public class LwsServlet extends HttpServlet {
             Preconditions.requireIfMatch(req, cur.etag());
             LwsResource r = new LwsResource(uri, ResourceType.DATA_RESOURCE, cur.extraTypes(), mt,
                     w.size(), when, ResourceRegistry.dataEtag(w.sha256(), mt, w.size()), key, ext,
-                    cur.parent(), cur.seq(), cur.createdBy(), cur.ownedBy());
+                    cur.parent(), cur.seq(), cur.createdBy(), cur.ownedBy(), w.sha256());
             reg.replaceContent(r);
             if (setLinks != null) {
                 applySetLinkset(uri, setLinks, false);
@@ -1642,7 +1848,7 @@ public class LwsServlet extends HttpServlet {
         demandOn(now, known(now, parentUri), AccessMode.APPEND);
         LwsResource r = new LwsResource(uri, ResourceType.DATA_RESOURCE, List.of(), mt, w.size(), when,
                 ResourceRegistry.dataEtag(w.sha256(), mt, w.size()), key, ext, parentUri,
-                reg.nextSeq(), webId, webId);
+                reg.nextSeq(), webId, webId, w.sha256());
         reg.create(r, null);
         if (setLinks != null) {
             applySetLinkset(uri, setLinks, false);
@@ -1702,7 +1908,7 @@ public class LwsServlet extends HttpServlet {
                 }
                 LwsResource c = new LwsResource(childUri, ResourceType.CONTAINER, List.of(), null, 0,
                         Instant.now(), ResourceRegistry.containerEtag(0), key, null, cur,
-                        reg.nextSeq(), webId, webId);
+                        reg.nextSeq(), webId, webId, null);
                 reg.create(c, null);
             }
             cur = childUri;
@@ -1785,7 +1991,8 @@ public class LwsServlet extends HttpServlet {
             return;
         }
         if (t.kind() != Target.Kind.RESOURCE) {
-            throw Problem.methodNotAllowed("PUT is not defined on this resource");
+            throw Problem.methodNotAllowed("PUT is not defined on this resource",
+                    allowFor(t.kind(), null));
         }
         if (mirror != null) {
             // The path-mirrored storage infers the parent from the URI, so a PUT MAY create (with any
@@ -1802,27 +2009,30 @@ public class LwsServlet extends HttpServlet {
             return r;
         });
         if (existing.isContainer()) {
-            throw Problem.methodNotAllowed("a container's membership is server-managed");
+            throw Problem.methodNotAllowed("a container's membership is server-managed",
+                    allowFor(t.kind(), existing));
         }
 
         // Prefer: set-linkset — the Link headers replace the linkset, atomically with the content
         // below. Validated here, before the upload, so a rejected combined update wastes no bytes.
         Map<String, List<String>> setLinks = setLinksetLinks(req);
 
-        String mediaType = MediaTypes.bare(req.getContentType());
-        if (mediaType == null) {
-            mediaType = existing.mediaType();
-        }
         // A resource first created without a usable extension (no Slug) gets one now, from the
         // media type, so a PUT is a second chance at enrichment. If it already had one, keep it —
-        // the identity was fixed at creation. (M2.)
+        // the identity was fixed at creation. (M2.) The media type gets the same second chance:
+        // no Content-Type keeps the recorded one; an opaque one with a known extension upgrades.
+        String bare = MediaTypes.bare(req.getContentType());
         String existingExt = existing.ext() == null ? "" : existing.ext();
+        String mediaType = bare == null
+                ? existing.mediaType()
+                : MediaTypeFormats.recordedMediaType(bare, existingExt);
         String ext = existingExt.isEmpty() ? MediaTypeFormats.extensionFor(mediaType) : existingExt;
 
         // A fresh blob under a fresh key, never an in-place overwrite: mutating bytes
         // under a concurrent reader is neither atomic nor safe.
         ContentStore.Written w = content.write(req.getInputStream(), ext);
         final String mt = mediaType;
+        verifyUpload(req, w, ext);
 
         record Result(LwsResource r, String oldKey) {
         }
@@ -1845,7 +2055,7 @@ public class LwsServlet extends HttpServlet {
                 LwsResource r = new LwsResource(cur.uri(), ResourceType.DATA_RESOURCE,
                         cur.extraTypes(), mt, w.size(), Instant.now(),
                         ResourceRegistry.dataEtag(w.sha256(), mt, w.size()),
-                        w.key(), ext, cur.parent(), cur.seq(), cur.createdBy(), cur.ownedBy());
+                        w.key(), ext, cur.parent(), cur.seq(), cur.createdBy(), cur.ownedBy(), w.sha256());
                 reg.replaceContent(r);
                 if (setLinks != null) {
                     applySetLinkset(cur.uri(), setLinks, false);
@@ -1893,14 +2103,16 @@ public class LwsServlet extends HttpServlet {
     private void patchContent(Req rq, Target t, HttpServletRequest req, HttpServletResponse resp)
             throws IOException {
         String ct = MediaTypes.bare(req.getContentType());
-        if (!MediaTypes.MERGE_PATCH_JSON.equals(ct)) {
+        boolean jsonPatch = MediaTypes.JSON_PATCH.equals(ct);
+        if (!jsonPatch && !MediaTypes.MERGE_PATCH_JSON.equals(ct)) {
             throw Problem.unsupportedMediaType("a resource's content is patched with "
-                    + MediaTypes.MERGE_PATCH_JSON)
-                    .header("Accept-Patch", MediaTypes.MERGE_PATCH_JSON);
+                    + MediaTypes.ACCEPT_PATCH_JSON)
+                    .header("Accept-Patch", MediaTypes.ACCEPT_PATCH_JSON);
         }
 
         // Parsed first: a bad patch is the client's mistake and should cost the store nothing.
         byte[] rawPatch = readBounded(req.getInputStream(), MAX_PATCH_BYTES);
+        DigestFields.verify(req.getHeader("Content-Digest"), rawPatch);
         JsonValue patch = parsePatch(rawPatch);
 
         LwsResource base = store.read(() -> {
@@ -1909,15 +2121,16 @@ public class LwsServlet extends HttpServlet {
             return r;
         });
         if (base.isContainer()) {
-            throw Problem.methodNotAllowed("a container's membership is server-managed");
+            throw Problem.methodNotAllowed("a container's membership is server-managed",
+                    allowFor(t.kind(), base));
         }
         if (!MediaTypes.isJson(base.mediaType())) {
-            throw Problem.unsupportedMediaType("a merge patch applies to a JSON document; this "
+            throw Problem.unsupportedMediaType("a patch applies only to a JSON document; this "
                     + "resource is " + base.mediaType())
                     .header("Allow", "OPTIONS, HEAD, GET, PUT, DELETE");
         }
         if (base.size() > MAX_PATCHABLE_BYTES) {
-            throw Problem.conflict("this resource is " + base.size() + " bytes and a merge patch "
+            throw Problem.conflict("this resource is " + base.size() + " bytes and a patch "
                     + "has to parse the whole document; the limit is " + MAX_PATCHABLE_BYTES);
         }
 
@@ -1941,11 +2154,18 @@ public class LwsServlet extends HttpServlet {
         }
         JsonValue current = parseContent(currentBytes, base);
 
-        byte[] patched = serialize(Json.createMergePatch(patch).apply(current));
-        // The mirror store's key is the URI path, so it overwrites the file in place (atomic move)
-        // rather than mint a new opaque key the way the sharded store does.
-        ContentStore.Written w = mirror != null
-                ? mirror.writeAt(keyForUri(t.uri()), new java.io.ByteArrayInputStream(patched))
+        byte[] patched = serialize(applyPatch(jsonPatch, patch, current));
+        // The mirror store's key is the URI path, so the patched bytes are STAGED beside the file
+        // and published only once the swap below commits — a refused patch (either precondition,
+        // or a lost re-authorization) must leave the document it could not replace exactly as it
+        // is. The sharded store mints a fresh opaque key instead, so its blob is written straight
+        // out and simply deleted when the swap is refused; the resource's own bytes are untouched
+        // either way.
+        final PathKeyedStore.Staged staged = mirror != null
+                ? mirror.stageAt(keyForUri(t.uri()), new java.io.ByteArrayInputStream(patched))
+                : null;
+        final ContentStore.Written w = staged != null
+                ? staged.written()
                 : content.write(new java.io.ByteArrayInputStream(patched), ext);
 
         record Result(LwsResource r, String oldKey) {
@@ -1982,20 +2202,29 @@ public class LwsServlet extends HttpServlet {
                 LwsResource r = new LwsResource(cur.uri(), ResourceType.DATA_RESOURCE,
                         cur.extraTypes(), cur.mediaType(), w.size(), Instant.now(),
                         ResourceRegistry.dataEtag(w.sha256(), cur.mediaType(), w.size()),
-                        w.key(), ext, cur.parent(), cur.seq(), cur.createdBy(), cur.ownedBy());
+                        w.key(), ext, cur.parent(), cur.seq(), cur.createdBy(), cur.ownedBy(), w.sha256());
                 reg.replaceContent(r);
                 if (setLinks != null) {
                     applySetLinkset(cur.uri(), setLinks, true);
                 }
                 return new Result(r, cur.storageKey());
             });
-        } catch (RuntimeException e) {
-            // Refused. The patched blob is discarded rather than left behind unreferenced.
-            content.delete(w.key(), ext);
+            if (staged != null) {
+                staged.publish();
+            }
+        } catch (RuntimeException | IOException e) {
+            // Refused. The patched bytes are discarded rather than left behind — staged beside the
+            // resource in the mirror, unreferenced in the sharded store.
+            if (staged != null) {
+                staged.close();
+            } else {
+                content.delete(w.key(), ext);
+            }
             throw e;
         }
 
-        // Only now that the swap has committed is the old blob unreferenced.
+        // Only now that the swap has committed is the old blob unreferenced. In the mirror the
+        // patched bytes were just published over it, so there is nothing separate to reap.
         if (res.oldKey() != null && !res.oldKey().equals(w.key())) {
             content.delete(res.oldKey(), ext);
         }
@@ -2034,9 +2263,9 @@ public class LwsServlet extends HttpServlet {
             return r.readValue();
         } catch (JsonParsingException e) {
             // First: it is a subclass of JsonException, so catching that one first would eat it.
-            throw Problem.badRequest("the merge patch is not valid JSON: " + e.getMessage());
+            throw Problem.badRequest("the patch is not valid JSON: " + e.getMessage());
         } catch (RuntimeException e) {
-            throw Problem.badRequest("the merge patch is valid JSON but cannot be processed: "
+            throw Problem.badRequest("the patch is valid JSON but cannot be processed: "
                     + e.getMessage());
         }
     }
@@ -2071,6 +2300,34 @@ public class LwsServlet extends HttpServlet {
         return bos.toByteArray();
     }
 
+    /**
+     * Apply a JSON Merge Patch (RFC 7386) or a JSON Patch (RFC 6902) to a parsed JSON document.
+     *
+     * <p>The two formats fail differently. A merge patch is a recursive overlay that never fails on
+     * content. A JSON Patch is an array of operations, and an operation can fail — a {@code test}
+     * that does not hold, a {@code remove}/{@code replace}/{@code move} of a path that is not there —
+     * in which case RFC 6902 requires the <em>whole</em> patch to be rejected with nothing applied:
+     * a {@code 409}. A JSON Patch also has to address into an object or array, so a JSON scalar is a
+     * {@code 409}, and a body that is not an array is a malformed patch ({@code 400}).
+     */
+    static JsonValue applyPatch(boolean jsonPatch, JsonValue patch, JsonValue current) {
+        if (!jsonPatch) {
+            return Json.createMergePatch(patch).apply(current);
+        }
+        if (patch.getValueType() != JsonValue.ValueType.ARRAY) {
+            throw Problem.badRequest("a JSON Patch (RFC 6902) must be an array of operations");
+        }
+        if (!(current instanceof JsonStructure target)) {
+            throw Problem.conflict("a JSON Patch addresses into an object or array, but this "
+                    + "resource's content is a JSON scalar");
+        }
+        try {
+            return Json.createPatch(patch.asJsonArray()).apply(target);
+        } catch (JsonException e) {
+            throw Problem.conflict("the JSON Patch could not be applied: " + e.getMessage());
+        }
+    }
+
     // --- Delete -------------------------------------------------------------
 
     private void delete(Req rq, Target t, HttpServletRequest req, HttpServletResponse resp) {
@@ -2097,10 +2354,12 @@ public class LwsServlet extends HttpServlet {
             return;
         }
         if (t.kind() == Target.Kind.STORAGE_ROOT) {
-            throw Problem.methodNotAllowed("the storage root cannot be deleted");
+            throw Problem.methodNotAllowed("the storage root cannot be deleted",
+                    allowFor(t.kind(), null));
         }
         if (t.kind() != Target.Kind.RESOURCE) {
-            throw Problem.methodNotAllowed("DELETE is not defined on this resource");
+            throw Problem.methodNotAllowed("DELETE is not defined on this resource",
+                    allowFor(t.kind(), null));
         }
 
         boolean recursive = "infinity".equalsIgnoreCase(
@@ -2130,10 +2389,38 @@ public class LwsServlet extends HttpServlet {
             if (r.parent() != null) {
                 demand(rq, r.parent(), AccessMode.APPEND);
             }
-            Preconditions.requireIfMatch(req, r.etag());
 
+            // The subtree walk comes BEFORE the precondition, and the order is the whole point.
+            //
+            // lws10-core: a non-empty container deleted without recursion "MUST be rejected with
+            // 409 Conflict". Checking the entity tag first made that 409 unreachable for the
+            // client most likely to need it — it would be told its validator was stale, fix the
+            // validator, and only then learn the request was never going to be honoured. Two
+            // round trips to be told the thing that was true the first time.
+            //
+            // RFC 9110 §13.2.2 states it as the rule for received preconditions: ignore them when
+            // the request would have failed anyway with something other than 2xx or 412. This is
+            // literally that case — the 409 is neither.
+            //
+            // Nothing is mutated by either check, so this is purely which refusal the client is
+            // told about; both still happen under the single writer, in this one transaction.
             List<LwsResource> tree = new ArrayList<>();
             collect(reg, r, tree, recursive, 0);
+
+            // checkIfMatch, NOT requireIfMatch: an unconditional DELETE is allowed to succeed.
+            //
+            // This used to demand the validator, which made every delete a 428 until the client
+            // had fetched the resource first. lws10-core mandates the 428 for unconditional PUT
+            // and for a linkset PUT/PATCH — nowhere else — and of DELETE says only that "on
+            // success, the server MUST respond with 204 No Content. Servers SHOULD support
+            // conditional requests." Requiring one inverted that MUST: the 204 the spec demands
+            // on success was unreachable, because success was.
+            //
+            // The compare-and-swap is undiminished for anyone who wants it. A client that sends
+            // a stale tag is still refused 412, still inside this write transaction, still under
+            // TDB2's single writer. What changes is only that not sending one is no longer an
+            // error — which is the client's call to make, as it always was for PUT's cousins.
+            Preconditions.checkIfMatch(req, r.etag());
 
             // Authorize EVERY descendant before removing ANY of them.
             //
@@ -2334,24 +2621,60 @@ public class LwsServlet extends HttpServlet {
 
     // --- OPTIONS ------------------------------------------------------------
 
+    /**
+     * The methods this target supports — the {@code Allow} header, for OPTIONS and for every
+     * {@code 405}.
+     *
+     * <p>One source of truth on purpose. OPTIONS and the refusals have to agree: a client told
+     * "not POST" and then handed a different list by OPTIONS learns nothing it can act on.
+     *
+     * @param r the resolved resource, for the kinds whose answer depends on what it is
+     *          (a container takes POST, a data resource takes PUT). Null where the caller
+     *          could not resolve it, which narrows the list to what holds for either.
+     */
+    private static String allowFor(Target.Kind kind, LwsResource r) {
+        return switch (kind) {
+            // QUERY is the form this service is built around; GET and POST remain
+            // because the published draft still requires them until #179 merges.
+            case TYPE_SEARCH -> "OPTIONS, HEAD, GET, POST, QUERY";
+            case LINKSET -> "OPTIONS, HEAD, GET, PATCH";
+            case ACR -> "OPTIONS, HEAD, GET, PUT";
+            case SUBSCRIPTIONS -> "OPTIONS, HEAD, GET, POST";
+            case SUBSCRIPTION -> "OPTIONS, HEAD, GET, DELETE";
+            case ACCESS_REQUESTS, ACCESS_GRANTS -> "OPTIONS, HEAD, GET, POST";
+            case ACCESS_REQUEST, ACCESS_GRANT -> "OPTIONS, HEAD, GET, DELETE";
+            case DESCRIPTION, TYPE_INDEX -> "OPTIONS, HEAD, GET";
+            // The root is a container, but it is the one container that cannot be deleted
+            // (delete() refuses it), so DELETE is left off rather than promised and refused.
+            case STORAGE_ROOT -> "OPTIONS, HEAD, GET, POST";
+            case RESOURCE -> {
+                if (r == null) {
+                    yield "OPTIONS, HEAD, GET, DELETE";
+                }
+                if (r.isContainer()) {
+                    yield "OPTIONS, HEAD, GET, POST, DELETE";
+                }
+                if (MediaTypes.isJson(r.mediaType())) {
+                    yield "OPTIONS, HEAD, GET, PUT, PATCH, DELETE";
+                }
+                // PATCH is left off deliberately. The server supports the method, but the
+                // only patch format it supports cannot apply to these bytes, so listing it
+                // would be a promise it would then break with a 415.
+                yield "OPTIONS, HEAD, GET, PUT, DELETE";
+            }
+        };
+    }
+
     private void options(Req rq, Target t, HttpServletResponse resp) {
         switch (t.kind()) {
             case TYPE_SEARCH -> {
-                // QUERY is the form this service is built around; GET and POST remain
-                // because the published draft still requires them until #179 merges.
-                resp.setHeader("Allow", "OPTIONS, HEAD, GET, POST, QUERY");
+                resp.setHeader("Allow", allowFor(t.kind(), null));
                 resp.setHeader("Accept-Query", MediaTypes.LWS_QUERY_JSON);
             }
             case LINKSET -> {
-                resp.setHeader("Allow", "OPTIONS, HEAD, GET, PATCH");
+                resp.setHeader("Allow", allowFor(t.kind(), null));
                 resp.setHeader("Accept-Patch", MediaTypes.MERGE_PATCH_JSON);
             }
-            case ACR -> resp.setHeader("Allow", "OPTIONS, HEAD, GET, PUT");
-            case SUBSCRIPTIONS -> resp.setHeader("Allow", "OPTIONS, HEAD, GET, POST");
-            case SUBSCRIPTION -> resp.setHeader("Allow", "OPTIONS, HEAD, GET, DELETE");
-            case ACCESS_REQUESTS, ACCESS_GRANTS -> resp.setHeader("Allow", "OPTIONS, HEAD, GET, POST");
-            case ACCESS_REQUEST, ACCESS_GRANT -> resp.setHeader("Allow", "OPTIONS, HEAD, GET, DELETE");
-            case DESCRIPTION, TYPE_INDEX -> resp.setHeader("Allow", "OPTIONS, HEAD, GET");
 
             // A resource -- including the storage root. This is gated like every other verb
             // that names a resource, and it was not: OPTIONS used to answer for anything,
@@ -2360,19 +2683,11 @@ public class LwsServlet extends HttpServlet {
             // disclosed whether the resource was a container.
             case STORAGE_ROOT, RESOURCE -> {
                 LwsResource r = knownNow(rq, t.uri());
-                if (r.isContainer()) {
-                    resp.setHeader("Allow", "OPTIONS, HEAD, GET, POST, DELETE");
-                } else if (MediaTypes.isJson(r.mediaType())) {
-                    resp.setHeader("Allow", "OPTIONS, HEAD, GET, PUT, PATCH, DELETE");
-                } else {
-                    // PATCH is left off deliberately. The server supports the method, but the
-                    // only patch format it supports cannot apply to these bytes, so listing it
-                    // would be a promise it would then break with a 415.
-                    resp.setHeader("Allow", "OPTIONS, HEAD, GET, PUT, DELETE");
-                }
+                resp.setHeader("Allow", allowFor(t.kind(), r));
                 addPatchHeader(resp, r);
+                resp.setHeader("Want-Content-Digest", DigestFields.WANT);
             }
-            default -> throw hidden(rq);
+            default -> resp.setHeader("Allow", allowFor(t.kind(), null));
         }
         resp.setStatus(HttpServletResponse.SC_NO_CONTENT);
     }
@@ -2388,23 +2703,38 @@ public class LwsServlet extends HttpServlet {
      */
     private void query(Req rq, Target t, HttpServletRequest req, HttpServletResponse resp)
             throws IOException {
-        if (t.kind() != Target.Kind.TYPE_SEARCH) {
-            throw Problem.methodNotAllowed("QUERY is only defined on the Type Search Service");
+        if (t.kind() == Target.Kind.TYPE_SEARCH) {
+            // RFC 10008 requires a server to reject a QUERY with no Content-Type: with the
+            // filter in the body, there is otherwise no way to know how to read it.
+            String ct = MediaTypes.bare(req.getContentType());
+            if (ct == null || ct.isBlank()) {
+                throw Problem.badRequest("QUERY requires a Content-Type identifying the query format");
+            }
+            if (!MediaTypes.LWS_QUERY_JSON.equals(ct)) {
+                // Advertises query formats only. It must never disclose which relations are
+                // indexed — those stay unobservable so the filter interface cannot become a
+                // discovery oracle for the server's configuration.
+                throw Problem.unsupportedMediaType("unsupported query format: " + ct)
+                        .header("Accept-Query", MediaTypes.LWS_QUERY_JSON);
+            }
+            typeSearch(rq, parseFilter(req), req, resp, true);
+            return;
         }
-        // RFC 10008 requires a server to reject a QUERY with no Content-Type: with the
-        // filter in the body, there is otherwise no way to know how to read it.
-        String ct = MediaTypes.bare(req.getContentType());
-        if (ct == null || ct.isBlank()) {
-            throw Problem.badRequest("QUERY requires a Content-Type identifying the query format");
+        // The RFC 10008 binding of the SPARQL query operation: QUERY {resource} with an
+        // application/sparql-query body, claimed by a resource capability when the resource is
+        // queryable. Everything else answers 405.
+        if (serveResourceCapability(rq, t, req, resp)) {
+            return;
         }
-        if (!MediaTypes.LWS_QUERY_JSON.equals(ct)) {
-            // Advertises query formats only. It must never disclose which relations are
-            // indexed — those stay unobservable so the filter interface cannot become a
-            // discovery oracle for the server's configuration.
-            throw Problem.unsupportedMediaType("unsupported query format: " + ct)
-                    .header("Accept-Query", MediaTypes.LWS_QUERY_JSON);
-        }
-        typeSearch(rq, parseFilter(req), req, resp, true);
+        // Resolved through the same gate OPTIONS uses, so the Allow list is the resource's real
+        // one and no more disclosing than OPTIONS already is: an agent holding no mode on it is
+        // told the resource is not there (401/404) rather than which methods it would take.
+        LwsResource r = t.kind() == Target.Kind.RESOURCE || t.kind() == Target.Kind.STORAGE_ROOT
+                ? knownNow(rq, t.uri())
+                : null;
+        throw Problem.methodNotAllowed(
+                "QUERY is defined on the Type Search Service and on queryable resources",
+                allowFor(t.kind(), r));
     }
 
     /** The POST form of Type Search, whose body is {@code application/lws+json}. */
@@ -2533,9 +2863,9 @@ public class LwsServlet extends HttpServlet {
         SearchService svc = new SearchService(store, cfg, rq.agent(), rq.acp());
         SearchService.Page page = svc.search(q, cursor);
 
-        // Page URIs are opaque and travel only in Link headers, never in the body. Note
-        // the parameter is `cursor`: a parameter named `query` would be intercepted by
-        // Halcyon's CustomFilter and forwarded to another servlet entirely.
+        // Page URIs are opaque and travel only in Link headers, never in the body. The
+        // parameter is `cursor`, not `query`: on a resource URL `?query=` is the marker for
+        // the per-resource SPARQL capability, so pagination keeps its parameter distinct.
         String base = cfg.typeSearchUri();
         resp.addHeader("Link", LinkHeader.link(base, LinkHeader.REL_FIRST));
         if (page.more()) {
@@ -2590,17 +2920,18 @@ public class LwsServlet extends HttpServlet {
      * implicit indication that PATCH is allowed on the resource identified by the Request-URI",
      * and the formats it lists are the ones allowed. So a client that has merely GET'd a JSON
      * document already knows it may patch it, and with what, without a second round trip. The
-     * header is emitted only where a merge patch could actually succeed.
+     * header is emitted only where a patch could actually succeed.
      */
     private static void addPatchHeader(HttpServletResponse resp, LwsResource r) {
         if (!r.isContainer() && MediaTypes.isJson(r.mediaType())) {
-            resp.setHeader("Accept-Patch", MediaTypes.MERGE_PATCH_JSON);
+            resp.setHeader("Accept-Patch", MediaTypes.ACCEPT_PATCH_JSON);
         }
     }
 
     private void addCommonHeaders(HttpServletResponse resp, LwsResource r) {
         agentSpecific(resp);
         addPatchHeader(resp, r);
+        resp.setHeader("Want-Content-Digest", DigestFields.WANT);
         resp.addHeader("Link", LinkHeader.link(cfg.descriptionUri(), LWS.REL_STORAGE_DESCRIPTION));
         resp.addHeader("Link", LinkHeader.link(
                 r.isContainer() ? LWS.Container.getURI() : LWS.DataResource.getURI(),
@@ -2655,8 +2986,55 @@ public class LwsServlet extends HttpServlet {
         resp.setCharacterEncoding(StandardCharsets.UTF_8.name());
         resp.setContentLength(bytes.length);
         resp.addHeader("Vary", "Accept");
+        addBytesDigests(req, resp, bytes);
         if (body) {
             resp.getOutputStream().write(bytes);
+        }
+    }
+
+    // --- RFC 9530 Digest Fields ---------------------------------------------
+
+    /** Emit Repr-Digest / Content-Digest over an in-memory representation when the client asked
+     *  (via a Want-* field). For a whole in-memory body both are over the same bytes. */
+    private static void addBytesDigests(HttpServletRequest req, HttpServletResponse resp,
+            byte[] representation) {
+        DigestFields.chooseAlgorithm(req.getHeader("Want-Repr-Digest"), DigestFields.SUPPORTED_SET)
+                .ifPresent(alg -> resp.setHeader("Repr-Digest", DigestFields.format(alg, representation)));
+        DigestFields.chooseAlgorithm(req.getHeader("Want-Content-Digest"), DigestFields.SUPPORTED_SET)
+                .ifPresent(alg -> resp.setHeader("Content-Digest", DigestFields.format(alg, representation)));
+    }
+
+    /** Emit digests for a data resource from its stored sha-256 (no blob re-read). Repr-Digest is over
+     *  the whole representation (emitted for a partial response too); Content-Digest is over the bytes
+     *  sent, so it is omitted from a partial (206) response. */
+    private static void addBinaryDigests(HttpServletRequest req, HttpServletResponse resp,
+            LwsResource r, boolean partial) {
+        if (r.sha256() == null) {
+            return;
+        }
+        if (DigestFields.chooseAlgorithm(req.getHeader("Want-Repr-Digest"), DigestFields.STORED_SET)
+                .isPresent()) {
+            resp.setHeader("Repr-Digest", DigestFields.sha256FromHex(r.sha256()));
+        }
+        if (!partial && DigestFields.chooseAlgorithm(req.getHeader("Want-Content-Digest"),
+                DigestFields.STORED_SET).isPresent()) {
+            resp.setHeader("Content-Digest", DigestFields.sha256FromHex(r.sha256()));
+        }
+    }
+
+    /** Enforce an inbound Content-Digest on a streamed upload: it must match the sha-256 computed while
+     *  the blob was written (a sha-512 the client asserted is checked by re-reading the just-stored
+     *  blob). On mismatch the orphaned blob is removed and the request is a 400, before any commit. */
+    private void verifyUpload(HttpServletRequest req, ContentStore.Written w, String ext) {
+        String header = req.getHeader("Content-Digest");
+        if (header == null) {
+            return;
+        }
+        try {
+            DigestFields.verifyStreamed(header, w.sha256(), () -> content.read(w.key(), ext));
+        } catch (Problem p) {
+            content.delete(w.key(), ext);
+            throw p;
         }
     }
 

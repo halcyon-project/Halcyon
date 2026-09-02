@@ -3,7 +3,7 @@ import { makeImageViewer } from './imageLayer.js';
 import { createAnnotationLayer, createImageAnnotationLayer, moveRideAlong } from '../helpers/annotationTarget.js';
 import { getContext, cfg } from '../context.js';
 import { LayerEntry } from './LayerRegistry.js';
-import { saveStack, serializeStackTurtle } from './stackPersistence.js';
+import { saveStack } from './stackPersistence.js';
 import { saveAllAnnotationLayers } from '../helpers/save.js';
 import { encodeViewState, applyViewState } from '../helpers/deepLink.js';
 import { invalidate } from '../renderLoop.js';
@@ -66,7 +66,7 @@ export function initLayerPanel(registry, stack) {
     saveBtn.className = 'annotationBtn';
     saveBtn.style.margin = '4px 0';
     saveBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save stack';
-    saveBtn.title = 'Write this stack (layers, z-order, offsets) to its named graph';
+    saveBtn.title = 'Write this stack (layers, z-order, offsets) back to its storage';
     saveBtn.addEventListener('click', () => saveStackAction(registry));
     panel.appendChild(saveBtn);
 
@@ -681,17 +681,16 @@ function topZ(group) {
 }
 
 function saveStackAction(registry) {
-    // Zephyr3 injects the stack's own named-graph URI; fall back to a prompt
-    // (e.g. the dev harness) when it isn't set.
+    // Zephyr injects the stack's own URI; fall back to a prompt if it isn't set.
     let uri = cfg('stackUri');
     if (!uri) {
         const root = registry.roots()[0];
-        uri = prompt('Save this stack to its named graph (URI):', (root && root.node) || '');
+        uri = prompt('Save this stack to its URI:', (root && root.node) || '');
         if (!uri) return;
     }
     const name = prompt('Name for this stack:', defaultStackName(registry));
     if (name === null) return;
-    // Save hand-drawn annotation layers to LDP first (sets their src) so the
+    // Save hand-drawn annotation layers to LWS first (sets their src) so the
     // stack graph can persist them and reload them on open.
     saveAllAnnotationLayers(registry)
         .then((failed) => saveStack(uri, registry, name).then(() => failed))

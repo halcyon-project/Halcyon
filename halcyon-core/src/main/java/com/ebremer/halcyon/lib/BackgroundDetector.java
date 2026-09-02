@@ -13,6 +13,7 @@ import java.util.logging.Logger;
 import javax.imageio.ImageIO;
 
 public class BackgroundDetector {
+    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BackgroundDetector.class);
 
     public static Color getDominantColor(BufferedImage image) {
         Map<Color, Integer> colorCount = new HashMap<>();
@@ -42,7 +43,7 @@ public class BackgroundDetector {
     public static boolean[][] getBackgroundMask(BufferedImage bi, int a, int b, int tolerance) {
         boolean[][] mask = new boolean[bi.getWidth()][bi.getHeight()];
         Color dominant = getDominantColor(bi);
-        System.out.println("Dominant color: " + dominant.toString());
+        logger.debug("Dominant color: {}", dominant.toString());
         for (int i = 0; i < bi.getWidth(); i++) {
             for (int j = 0; j < bi.getHeight(); j++) {
                 if (isBackgroundColor(bi, new Color(bi.getRGB(i, j)), dominant, tolerance)) {
@@ -88,7 +89,7 @@ public class BackgroundDetector {
     public static BufferedImage getMask(BufferedImage image, int tolerance) {
         Color dominant = getDominantColor(image);
         BufferedImage bi = new BufferedImage(image.getWidth(), image.getHeight(), image.getType());
-        System.out.println("Dominant color: " + dominant.toString());
+        logger.debug("Dominant color: {}", dominant.toString());
         for (int i = 0; i < image.getWidth(); i++) {
             for (int j = 0; j < image.getHeight(); j++) {
                 if (isBackgroundColor(image, new Color(image.getRGB(i, j)), dominant, tolerance)) {
@@ -104,7 +105,7 @@ public class BackgroundDetector {
     public static boolean[][] getBooleanMask(BufferedImage image, int tolerance) {
         Color dominant = getDominantColor(image);
         boolean[][] mask = new boolean[image.getWidth()][image.getHeight()];
-        System.out.println("Dominant color: " + dominant.toString());
+        logger.debug("Dominant color: {}", dominant.toString());
         for (int i = 0; i < image.getWidth(); i++) {
             for (int j = 0; j < image.getHeight(); j++) {
                 mask[i][j] = !isBackgroundColor(image, new Color(image.getRGB(i, j)), dominant, tolerance);

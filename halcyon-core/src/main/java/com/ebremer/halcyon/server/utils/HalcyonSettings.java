@@ -19,6 +19,7 @@ import org.apache.jena.query.QueryExecutionFactory;
 import org.apache.jena.query.QueryFactory;
 import org.apache.jena.query.QuerySolution;
 import org.apache.jena.query.ResultSet;
+import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.Property;
@@ -54,6 +55,13 @@ public final class HalcyonSettings {
     private final HashMap<String, String> file2httpMappings;
     private final String Realm = "master";
     public static final String REALM = "Halcyon";
+    /**
+     * The OIDC client this application authenticates its users through. Single
+     * definition so the pac4j config and the JWT verifier cannot drift: H2 —
+     * the verifier rejects a token whose {@code azp}/{@code aud} names some
+     * OTHER client of the realm, which it previously accepted.
+     */
+    public static final String CLIENT_ID = "account";
     public static final int DEFAULTHTTPPORT = 8888;
     public static final int DEFAULTHTTPSPORT = 9999;
     public static final int DEFAULTSPARQLPORT = 8887;
@@ -61,7 +69,7 @@ public final class HalcyonSettings {
     public static final int DEFAULTFILEPROCESSORTHREEADS = 4;
     public static final String DEFAULTHOSTNAME = "http://localhost";
     public static final String DEFAULTHOSTIP = "0.0.0.0";
-    public static final String VERSION = "1.1.0";
+    public static final String VERSION = "0.9.0";
     public static String HALCYONSOFTWARE = "Halcyon Version " + VERSION;
     private String mode;
     private static final Logger logger = LoggerFactory.getLogger(HalcyonSettings.class);
@@ -70,12 +78,12 @@ public final class HalcyonSettings {
         http2fileMappings = new HashMap<>();
         file2httpMappings = new HashMap<>();
         if (!f.exists()) {
-            System.out.println("no config file found!");
+            logger.debug("no config file found!");
             GenerateDefaultSettings();
         } else {
-            System.out.println("loading configuration file : " + f);
+            logger.debug("loading configuration file : {}", f);
             m = RDFDataMgr.loadModel(f.toString(), Lang.TTL);
-            System.out.println("# of triples " + m.size());
+            logger.debug("# of triples {}", m.size());
             GetMasterID();
         }
         // Define the properties for the settings
@@ -120,11 +128,12 @@ public final class HalcyonSettings {
     public String getHostName() {
         String qs = "prefix : <" + HAL.NS + "> select ?HostName where {?s :HostName ?HostName}";
         Query query = QueryFactory.create(qs);
-        QueryExecution qe = QueryExecutionFactory.create(query, m);
-        ResultSet results = qe.execSelect();
-        if (results.hasNext()) {
-            QuerySolution sol = results.nextSolution();
-            return sol.get("HostName").asLiteral().getString();
+        try (QueryExecution qe = QueryExecutionFactory.create(query, m)) {
+            ResultSet results = qe.execSelect();
+            if (results.hasNext()) {
+                QuerySolution sol = results.nextSolution();
+                return sol.get("HostName").asLiteral().getString();
+            }
         }
         return DEFAULTHOSTNAME + ":" + DEFAULTHTTPPORT;
     }
@@ -132,24 +141,62 @@ public final class HalcyonSettings {
     public String getProxyHostName() {
         String qs = "prefix : <" + HAL.NS + "> select ?ProxyHostName where {?s :ProxyHostName ?ProxyHostName}";
         Query query = QueryFactory.create(qs);
-        QueryExecution qe = QueryExecutionFactory.create(query, m);
-        ResultSet results = qe.execSelect();
-        if (results.hasNext()) {
-            QuerySolution sol = results.nextSolution();
-            return sol.get("ProxyHostName").asLiteral().getString();
+        try (QueryExecution qe = QueryExecutionFactory.create(query, m)) {
+            ResultSet results = qe.execSelect();
+            if (results.hasNext()) {
+                QuerySolution sol = results.nextSolution();
+                return sol.get("ProxyHostName").asLiteral().getString();
+            }
         }
         return DEFAULTHOSTNAME + ":" + DEFAULTHTTPPORT;
     }
 
+    /**
+     * The Keycloak authorization server's base URI, or {@code null} when the
+     * subsystem is switched off.
+     *
+     * <p>Absence of {@code :AuthServer} in {@code settings.ttl} is the OFF switch for
+     * the whole Keycloak stack — comment the line out and Halcyon runs entirely on the
+     * LWS auth system (WebID-OIDC via {@code lws-oidc.json}); put it back and Keycloak
+     * returns exactly as it was. Nothing is deleted either way; see
+     * {@link #isKeycloakEnabled()}.
+     *
+     * <p>This used to fall back to {@code http://localhost:8888} — this server's own
+     * address, not an authorization server's — so a settings file with no
+     * {@code :AuthServer} did not disable anything. It pointed the OIDC client and the
+     * bearer verifier at Halcyon itself and let them fail at discovery time, which is
+     * both wrong and unusable as a switch. Returning null says the thing that is true:
+     * no authorization server is configured.
+     *
+     * @return the configured base URI, or null if {@code :AuthServer} is absent
+     */
     public String getAuthServer() {
         ParameterizedSparqlString pss = new ParameterizedSparqlString("select ?AuthServer where {?s :AuthServer ?AuthServer}");
         pss.setNsPrefix("", HAL.NS);
-        QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m);
-        ResultSet results = qe.execSelect();
-        if (results.hasNext()) {
-            return results.nextSolution().get("AuthServer").asLiteral().getString();
+        try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m)) {
+            ResultSet results = qe.execSelect();
+            if (results.hasNext()) {
+                String v = results.nextSolution().get("AuthServer").asLiteral().getString();
+                if (v != null && !v.isBlank()) {
+                    return v.trim();
+                }
+            }
         }
-        return DEFAULTHOSTNAME + ":" + DEFAULTHTTPPORT;
+        return null;
+    }
+
+    /**
+     * Whether the Keycloak subsystem is switched on, which it is iff {@code :AuthServer}
+     * names one.
+     *
+     * <p>Every Keycloak-specific bean — the pac4j OIDC client, the {@code /callback} and
+     * logout filters, the security filters guarding the Wicket pages, and the
+     * {@code /auth} reverse proxy — is conditional on this, as is the Keycloak bearer
+     * verifier in the LWS credential chain. Off, they are never constructed, so nothing
+     * reaches out to an authorization server that is not there.
+     */
+    public boolean isKeycloakEnabled() {
+        return getAuthServer() != null;
     }
 
     public boolean isDevMode() {
@@ -171,7 +218,9 @@ public final class HalcyonSettings {
     public boolean IsFileScanDisabled() {
         ParameterizedSparqlString pss = new ParameterizedSparqlString("ask where {?s hal:fileScanDisabled true}");
         pss.setNsPrefix("hal", HAL.NS);
-        return QueryExecutionFactory.create(pss.toString(), m).execAsk();
+        try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m)) {
+            return qe.execAsk();
+        }
     }
 
     public static HalcyonSettings getSettings() {
@@ -206,12 +255,13 @@ public final class HalcyonSettings {
     public String GetMasterID() {
         String qs = "prefix : <" + HAL.NS + "> select ?s where {?s a :HalcyonSettingsFile}";
         Query query = QueryFactory.create(qs);
-        QueryExecution qe = QueryExecutionFactory.create(query, m);
-        ResultSet results = qe.execSelect();
-        if (results.hasNext()) {
-            QuerySolution sol = results.nextSolution();
-            Master = sol.get("s").asResource();
-            return Master.getURI();
+        try (QueryExecution qe = QueryExecutionFactory.create(query, m)) {
+            ResultSet results = qe.execSelect();
+            if (results.hasNext()) {
+                QuerySolution sol = results.nextSolution();
+                Master = sol.get("s").asResource();
+                return Master.getURI();
+            }
         }
         return null;
     }
@@ -219,11 +269,12 @@ public final class HalcyonSettings {
     public int GetNumberOfFileProcessorThreads() {
         ParameterizedSparqlString pss = new ParameterizedSparqlString("select ?threads where {?s :fileProcessors ?threads}");
         pss.setNsPrefix("", HAL.NS);
-        QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m);
-        ResultSet results = qe.execSelect();
-        if (results.hasNext()) {
-            QuerySolution sol = results.nextSolution();
-            return sol.get("threads").asLiteral().getInt();
+        try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m)) {
+            ResultSet results = qe.execSelect();
+            if (results.hasNext()) {
+                QuerySolution sol = results.nextSolution();
+                return sol.get("threads").asLiteral().getInt();
+            }
         }
         return DEFAULTFILEPROCESSORTHREEADS;
     }
@@ -231,11 +282,12 @@ public final class HalcyonSettings {
     public int GetSPARQLPort() {
         ParameterizedSparqlString pss = new ParameterizedSparqlString("select ?port where {?s :SPARQLport ?port}");
         pss.setNsPrefix("", HAL.NS);
-        QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m);
-        ResultSet results = qe.execSelect();
-        if (results.hasNext()) {
-            QuerySolution sol = results.nextSolution();
-            return sol.get("port").asLiteral().getInt();
+        try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m)) {
+            ResultSet results = qe.execSelect();
+            if (results.hasNext()) {
+                QuerySolution sol = results.nextSolution();
+                return sol.get("port").asLiteral().getInt();
+            }
         }
         return DEFAULTSPARQLPORT;
     }
@@ -244,11 +296,12 @@ public final class HalcyonSettings {
         ParameterizedSparqlString pss = new ParameterizedSparqlString("select ?ip where {?s ?p ?ip}");
         pss.setNsPrefix("", HAL.NS);
         pss.setIri("p", HAL.HostIP.getURI());
-        QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m);
-        ResultSet results = qe.execSelect();
-        if (results.hasNext()) {
-            QuerySolution sol = results.next();
-            return sol.get("ip").asLiteral().getString();
+        try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m)) {
+            ResultSet results = qe.execSelect();
+            if (results.hasNext()) {
+                QuerySolution sol = results.next();
+                return sol.get("ip").asLiteral().getString();
+            }
         }
         return DEFAULTHOSTIP;
     }
@@ -263,8 +316,10 @@ public final class HalcyonSettings {
         );
         pss.setNsPrefix("", HAL.NS);
         pss.setNsPrefix("lws", LWS.NS);
-        QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m);
-        ResultSet results = qe.execSelect();
+        ResultSet results;
+        try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m)) {
+            results = qe.execSelect().materialise();
+        }
         ArrayList<ResourceHandler> list = new ArrayList<>();
         while (results.hasNext()) {
             QuerySolution sol = results.next();
@@ -286,6 +341,55 @@ public final class HalcyonSettings {
         return list;
     }
 
+    /**
+     * Origins allowed to read image / SPARQL-proxy responses cross-origin (M26).
+     * <p>
+     * Configure with one or more {@code hal:corsAllowedOrigin} literals in
+     * settings.ttl, each an exact scheme+host+port with no trailing slash, e.g.
+     * {@code :corsAllowedOrigin "https://viewer.example.org"}. The single value
+     * {@code "*"} restores the old wildcard for every listed surface — deliberately
+     * explicit, so it is a decision someone made rather than a default nobody noticed.
+     * <p>
+     * The default (no setting present) is this deployment's own origin, i.e.
+     * same-origin only. That is what the first-party viewers need: Zephyr and the
+     * IIIF endpoints are served from this same host, so they never send an Origin
+     * that has to be approved. **If you publish IIIF to third-party viewers**
+     * (Mirador/OpenSeadragon hosted elsewhere), list those origins here — a IIIF
+     * Image API endpoint is often meant to be read cross-origin, and this default
+     * intentionally does not assume that for you.
+     *
+     * @return exact origins to allow; never null, never empty
+     */
+    public List<String> getCorsAllowedOrigins() {
+        ParameterizedSparqlString pss = new ParameterizedSparqlString(
+                "select ?origin where { ?s :corsAllowedOrigin ?origin }");
+        pss.setNsPrefix("", HAL.NS);
+        List<String> list = new ArrayList<>();
+        try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m)) {
+            qe.execSelect().forEachRemaining(qs -> {
+                RDFNode n = qs.get("origin");
+                if (n != null && n.isLiteral()) {
+                    String v = n.asLiteral().getLexicalForm().trim();
+                    if (!v.isEmpty()) {
+                        // Normalise away a trailing slash: an Origin header never has one,
+                        // so "https://x/" in config would silently match nothing.
+                        list.add(v.endsWith("/") ? v.substring(0, v.length() - 1) : v);
+                    }
+                }
+            });
+        } catch (RuntimeException ex) {
+            logger.error("Unreadable hal:corsAllowedOrigin setting — falling back to same-origin only", ex);
+            list.clear();
+        }
+        if (list.isEmpty()) {
+            String self = getProxyHostName();
+            if (self != null && !self.isBlank()) {
+                list.add(self.endsWith("/") ? self.substring(0, self.length() - 1) : self);
+            }
+        }
+        return list;
+    }
+
     public List<String> getRootContainers() {
         ParameterizedSparqlString pss = new ParameterizedSparqlString(
                 """
@@ -296,8 +400,10 @@ public final class HalcyonSettings {
         );
         pss.setNsPrefix("", HAL.NS);
         pss.setNsPrefix("lws", LWS.NS);
-        QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m);
-        ResultSet results = qe.execSelect().materialise();
+        ResultSet results;
+        try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m)) {
+            results = qe.execSelect().materialise();
+        }
         boolean ha = results.hasNext();
         ArrayList<String> list = new ArrayList<>();
         results.forEachRemaining(qs -> {
@@ -317,11 +423,12 @@ public final class HalcyonSettings {
     public int GetHTTPPort() {
         String qs = "prefix : <" + HAL.NS + "> select ?port where {?s :HTTPPort ?port}";
         Query query = QueryFactory.create(qs);
-        QueryExecution qe = QueryExecutionFactory.create(query, m);
-        ResultSet results = qe.execSelect();
-        if (results.hasNext()) {
-            QuerySolution sol = results.nextSolution();
-            return sol.get("port").asLiteral().getInt();
+        try (QueryExecution qe = QueryExecutionFactory.create(query, m)) {
+            ResultSet results = qe.execSelect();
+            if (results.hasNext()) {
+                QuerySolution sol = results.nextSolution();
+                return sol.get("port").asLiteral().getInt();
+            }
         }
         return DEFAULTHTTPPORT;
     }
@@ -329,22 +436,28 @@ public final class HalcyonSettings {
     public boolean isHTTPS2enabled() {
         ParameterizedSparqlString pss = new ParameterizedSparqlString("ask where {?s hal:HTTPS2enabled true}");
         pss.setNsPrefix("hal", HAL.NS);
-        return QueryExecutionFactory.create(pss.toString(), m).execAsk();
+        try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m)) {
+            return qe.execAsk();
+        }
     }
 
     public boolean isHTTPS3enabled() {
         ParameterizedSparqlString pss = new ParameterizedSparqlString("ask where {?s hal:HTTPS3enabled true}");
         pss.setNsPrefix("hal", HAL.NS);
-        return QueryExecutionFactory.create(pss.toString(), m).execAsk();
+        try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m)) {
+            return qe.execAsk();
+        }
     }
 
     public int GetHTTPSPort() {
         ParameterizedSparqlString pss = new ParameterizedSparqlString("select ?port where {?s hal:HTTPSPort ?port}");
         pss.setNsPrefix("hal", HAL.NS);
-        ResultSet results = QueryExecutionFactory.create(pss.toString(), m).execSelect();
-        if (results.hasNext()) {
-            QuerySolution sol = results.nextSolution();
-            return sol.get("port").asLiteral().getInt();
+        try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m)) {
+            ResultSet results = qe.execSelect();
+            if (results.hasNext()) {
+                QuerySolution sol = results.nextSolution();
+                return sol.get("port").asLiteral().getInt();
+            }
         }
         return DEFAULTHTTPSPORT;
     }
@@ -357,9 +470,15 @@ public final class HalcyonSettings {
         return null;
     }
 
+    /**
+     * L6: this tested for {@code RDFSecurityStoreLocation} but then read
+     * {@code HAL.RDFStoreLocation} — so configuring a separate security store
+     * silently handed back the path of the MAIN store, and the two would have
+     * been opened on top of each other.
+     */
     public String getRDFSecurityStoreLocation() {
         if (m.contains(Master, m.createProperty(HAL.NS + "RDFSecurityStoreLocation"))) {
-            return m.getProperty(Master, HAL.RDFStoreLocation).getString();
+            return m.getProperty(Master, m.createProperty(HAL.NS + "RDFSecurityStoreLocation")).getString();
         }
         return null;
     }

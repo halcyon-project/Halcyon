@@ -10,12 +10,15 @@ import java.awt.Polygon;
 import java.io.StringWriter;
 import java.util.HashMap;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author erich
  */
 public class GeoUtil {
+    private static final Logger logger = LoggerFactory.getLogger(GeoUtil.class);
 
     public static String prettyPrint(JsonObject obj) {
         StringWriter sw = new StringWriter();
@@ -49,6 +52,6 @@ public class GeoUtil {
         int x[] = {  10,  30, 40, 50, 110, 140 }; 
         int y[] = { 140, 110, 50, 40,  30,  10 };
         Polygon p = new Polygon(x, y, x.length); 
-        System.out.println(Poly2Json(p));
+        logger.debug("{}", Poly2Json(p));
     }   
 }

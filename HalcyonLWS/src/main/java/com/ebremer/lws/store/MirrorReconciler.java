@@ -65,40 +65,76 @@ public final class MirrorReconciler {
     }
 
     /** A registered mirror resource, keyed by its storage key (its path under the mount). */
-    private record Idx(String uri, String key, boolean container, long size, long mtime) {
+    private record Idx(String uri, String key, boolean container, long size, long mtime,
+            String mediaType) {
     }
 
     private record FileInfo(long size, Instant mtime) {
     }
 
     public void reconcile() {
-        Path root = mirror.root();
-        if (!Files.isDirectory(root)) {
+        if (!Files.isDirectory(mirror.root())) {
             return;
         }
+        MountTable table = mirror.mounts();
 
-        List<String> diskDirs = new ArrayList<>();
+        Set<String> diskDirSet = new java.util.LinkedHashSet<>();
         Map<String, FileInfo> diskFiles = new HashMap<>();
-        try (var walk = Files.walk(root)) {
-            for (Path p : (Iterable<Path>) walk::iterator) {
-                if (p.equals(root)) {
-                    continue;
+        // Mount prefixes whose disk is UNAVAILABLE this pass. An offline disk is
+        // not deleted content: everything under such a prefix is exempt from
+        // de-registration and simply reappears when the disk does.
+        List<String> offline = new ArrayList<>();
+
+        for (MountTable.WalkRoot wr : table.walkRoots()) {
+            Path root = wr.root();
+            boolean isMain = wr.prefix().isEmpty();
+            if (!Files.isDirectory(root)) {
+                if (!isMain) {
+                    offline.add(wr.prefix());
+                    LOG.warn("reconcile: mount {} at {} is unavailable — leaving its subtree registered",
+                            wr.prefix(), root);
                 }
-                String name = p.getFileName().toString();
-                if (name.startsWith(TMP_PREFIX)) {
-                    continue;
-                }
-                String rel = root.relativize(p).toString().replace('\\', '/');
-                if (Files.isDirectory(p)) {
-                    diskDirs.add(rel);
-                } else if (Files.isRegularFile(p)) {
-                    diskFiles.put(rel, new FileInfo(Files.size(p), Files.getLastModifiedTime(p).toInstant()));
-                }
+                continue;
             }
-        } catch (IOException e) {
-            LOG.warn("reconcile: walking {} failed", root, e);
-            return;
+            if (!isMain) {
+                // The mount's own directory IS the sub-container at its prefix
+                // (no directory for it exists under the main root), and a deep
+                // mount's ancestors may exist on no disk at all — synthesize
+                // them so the adoption pass has a parent chain to hang off.
+                String p = wr.prefix();
+                for (int i = p.indexOf('/'); i >= 0; i = p.indexOf('/', i + 1)) {
+                    diskDirSet.add(p.substring(0, i));
+                }
+                diskDirSet.add(p);
+            }
+            try (var walk = Files.walk(root)) {
+                for (Path p : (Iterable<Path>) walk::iterator) {
+                    if (p.equals(root)) {
+                        continue;
+                    }
+                    String name = p.getFileName().toString();
+                    if (name.startsWith(TMP_PREFIX)) {
+                        continue;
+                    }
+                    String key = wr.keyOf(root.relativize(p).toString().replace('\\', '/'));
+                    if (!table.ownerPrefix(key).equals(wr.prefix())) {
+                        continue;   // shadowed: another (deeper) mount owns this key
+                    }
+                    if (Files.isDirectory(p)) {
+                        diskDirSet.add(key);
+                    } else if (Files.isRegularFile(p)) {
+                        diskFiles.put(key, new FileInfo(Files.size(p), Files.getLastModifiedTime(p).toInstant()));
+                    }
+                }
+            } catch (IOException e) {
+                LOG.warn("reconcile: walking {} failed", root, e);
+                if (isMain) {
+                    return;     // a half-seen main tree must not drive de-registrations
+                }
+                offline.add(wr.prefix());   // half-walked mount: treat as unavailable
+            }
         }
+        List<String> diskDirs = new ArrayList<>(diskDirSet);
 
         Set<String> diskPaths = new HashSet<>(diskDirs);
         diskPaths.addAll(diskFiles.keySet());
@@ -106,10 +142,10 @@ public final class MirrorReconciler {
         Map<String, Idx> index = store.read(this::readIndex);
 
         // 1. De-register anything the index has but disk does not — deepest first, so a container is
-        //    removed only after its (already-gone) members.
+        //    removed only after its (already-gone) members. Keys under an offline mount are spared.
         List<Idx> gone = new ArrayList<>();
         for (Idx e : index.values()) {
-            if (!diskPaths.contains(e.key())) {
+            if (!diskPaths.contains(e.key()) && !underAny(offline, e.key())) {
                 gone.add(e);
             }
         }
@@ -147,8 +183,26 @@ public final class MirrorReconciler {
                 stampMtimeOnly(rel, diskMtime);
             } else if (idx.size() != fi.size() || idx.mtime() != diskMtime) {
                 adoptFile(rel, fi, true);
+            } else if (typeUpgradeable(idx.mediaType(), rel)) {
+                // Adopted before the name→type mapping existed, so the record says
+                // application/octet-stream for a format the name identifies
+                // (.svs → image/tiff). Re-adopt once to correct the record — the
+                // disk is the source of truth in this storage, and the type is a
+                // fact about the file. The fresh type/etag flow to listings and
+                // every media-type-driven consumer downstream.
+                adoptFile(rel, fi, true);
             }
         }
+    }
+
+    /** A recorded opaque type, for a file name the format map now identifies. */
+    private static boolean typeUpgradeable(String recorded, String rel) {
+        if (recorded != null && !recorded.isBlank()
+                && !"application/octet-stream".equalsIgnoreCase(recorded)) {
+            return false;
+        }
+        String name = rel.substring(rel.lastIndexOf('/') + 1);
+        return com.ebremer.lws.scan.MediaTypeFormats.mediaTypeForName(name) != null;
     }
 
     /** Record a grandfathered entry's disk mtime without a full re-adopt (its size already matched). */
@@ -200,7 +254,12 @@ public final class MirrorReconciler {
                     // leave 0
                 }
             }
-            out.put(key, new Idx(uri, key, container, size, mtime));
+            String mediaType = null;
+            var mtypeStmt = g.getProperty(s, com.ebremer.lws.vocab.AS.mediaType);
+            if (mtypeStmt != null && mtypeStmt.getObject().isLiteral()) {
+                mediaType = mtypeStmt.getString();
+            }
+            out.put(key, new Idx(uri, key, container, size, mtime, mediaType));
         }
         return out;
     }
@@ -221,7 +280,7 @@ public final class MirrorReconciler {
             }
             LwsResource c = new LwsResource(uri, ResourceType.CONTAINER, List.of(), null, 0,
                     Instant.now(), ResourceRegistry.containerEtag(0), rel, null, parentUri,
-                    reg.nextSeq(), owner, owner);
+                    reg.nextSeq(), owner, owner, null);
             reg.create(c, null);
         });
         LOG.info("reconcile: adopted container {}", uri);
@@ -253,7 +312,7 @@ public final class MirrorReconciler {
                 }
                 LwsResource r = new LwsResource(uri, ResourceType.DATA_RESOURCE, cur.extraTypes(),
                         mediaType, fi.size(), fi.mtime(), etag, rel, ext, cur.parent(), cur.seq(),
-                        cur.createdBy(), cur.ownedBy());
+                        cur.createdBy(), cur.ownedBy(), sha256);
                 reg.replaceContent(r);
                 reg.stampSourceMtime(uri, mtimeMillis);
                 return reg.find(uri).orElse(null);
@@ -262,7 +321,7 @@ public final class MirrorReconciler {
                 return null;                                // race, or parent not ready
             }
             LwsResource r = new LwsResource(uri, ResourceType.DATA_RESOURCE, List.of(), mediaType,
-                    fi.size(), fi.mtime(), etag, rel, ext, parentUri, reg.nextSeq(), owner, owner);
+                    fi.size(), fi.mtime(), etag, rel, ext, parentUri, reg.nextSeq(), owner, owner, sha256);
             reg.create(r, null);
             reg.stampSourceMtime(uri, mtimeMillis);
             return reg.find(uri).orElse(null);
@@ -275,6 +334,17 @@ public final class MirrorReconciler {
     }
 
     // --- helpers ------------------------------------------------------------
+
+    /** Whether {@code key} sits at or under any of the given mount prefixes. */
+    private static boolean underAny(List<String> prefixes, String key) {
+        for (String p : prefixes) {
+            if (key.equals(p) || (key.length() > p.length()
+                    && key.startsWith(p) && key.charAt(p.length()) == '/')) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     private ResourceRegistry registry() {
         return new ResourceRegistry(store, cfg);
@@ -304,7 +374,15 @@ public final class MirrorReconciler {
 
     /** A media type from the filename, cross-platform (no OS registry lookup); octet-stream otherwise. */
     private static String mediaTypeOf(String rel) {
-        String guess = URLConnection.guessContentTypeFromName(rel.substring(rel.lastIndexOf('/') + 1));
+        String name = rel.substring(rel.lastIndexOf('/') + 1);
+        // The specialist formats first: URLConnection has never heard of .svs or
+        // .ndpi, and adopting a whole-slide image as application/octet-stream
+        // starves every media-type-driven consumer downstream.
+        String known = com.ebremer.lws.scan.MediaTypeFormats.mediaTypeForName(name);
+        if (known != null) {
+            return known;
+        }
+        String guess = URLConnection.guessContentTypeFromName(name);
         return guess != null ? guess : "application/octet-stream";
     }
 

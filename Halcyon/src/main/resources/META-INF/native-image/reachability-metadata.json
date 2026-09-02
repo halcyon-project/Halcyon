@@ -181,24 +181,6 @@
       "type": "com.ebremer.halcyon.filereaders.ZarrImageReaderFactory"
     },
     {
-      "type": "com.ebremer.halcyon.fuseki.shiro.JwtAuthenticatingFilter",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": []
-        }
-      ]
-    },
-    {
-      "type": "com.ebremer.halcyon.fuseki.shiro.JwtRealm",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": []
-        }
-      ]
-    },
-    {
       "type": "com.ebremer.halcyon.server.AddResponseHeaderFilter",
       "allDeclaredFields": true,
       "methods": [

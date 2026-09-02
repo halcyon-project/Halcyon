@@ -176,6 +176,47 @@ public final class AcrStore {
             throw Problem.badRequest("the access control resource must declare "
                     + "<" + acr.getURI() + "> acp:resource <" + resourceUri + ">");
         }
+
+        // ...and ONLY that resource. The engine resolves a resource's ACRs by acp:resource
+        // alone -- it does not require the subject to be typed, or to be named {resource}.acr --
+        // so any acp:resource triple in this model is a claim on whatever it points at. One extra
+        // object here, or one on a node hung off the ACR, aims the submitter's policies at a
+        // resource they were never given Control over. Every such triple must therefore be
+        // exactly the one claim this ACR is entitled to make.
+        for (StmtIterator it = submitted.listStatements(null, ACP.resource, (RDFNode) null);
+                it.hasNext();) {
+            Statement st = it.next();
+            if (!st.getSubject().equals(acr) || !target.equals(st.getObject())) {
+                throw Problem.badRequest("an access control resource may only claim its own "
+                        + "resource; refusing <" + st.getSubject() + "> acp:resource <"
+                        + st.getObject() + ">");
+            }
+        }
+
+        // Nothing may declare itself a second access control resource in the same breath.
+        for (StmtIterator it = submitted.listStatements(null, RDF.type, ACP.AccessControlResource);
+                it.hasNext();) {
+            Resource s = it.next().getSubject();
+            if (!s.equals(acr)) {
+                throw Problem.badRequest("refusing to install a second access control resource <"
+                        + s + "> from a write to <" + acr.getURI() + ">");
+            }
+        }
+
+        // Every triple must be one this ACR actually reaches. All ACP data shares one graph, so
+        // acp.add(submitted) below writes whatever it is given: without this, a PUT could carry a
+        // triple whose subject is ANOTHER resource's ACR node and edit policy it does not control,
+        // or leave detached policy behind that only surfaces later. Reachability, not naming, is
+        // the right test -- it is the same rule read() uses to carve the ACR back out, so anything
+        // it would refuse to serve is also something it must refuse to store.
+        Model reachable = ModelFactory.createDefaultModel();
+        closure(submitted, acr, reachable);
+        Model stray = submitted.difference(reachable);
+        if (!stray.isEmpty()) {
+            Statement first = stray.listStatements().next();
+            throw Problem.badRequest("every triple must be reachable from <" + acr.getURI()
+                    + ">; refusing <" + first.getSubject() + "> <" + first.getPredicate() + "> ...");
+        }
         for (var it = submitted.listSubjectsWithProperty(RDF.type, ACP.Policy); it.hasNext();) {
             Resource p = it.next();
             if (!submitted.contains(p, ACP.allOf) && !submitted.contains(p, ACP.anyOf)) {
@@ -225,14 +266,26 @@ public final class AcrStore {
      * write transaction as the rest of the delete.
      */
     public static void purge(LwsStore store, String resourceUri) {
-        Resource acr = ResourceFactory.createResource(acrUri(resourceUri));
         Model acp = store.acp();
-        if (!acp.contains(acr, RDF.type, ACP.AccessControlResource)) {
+        Resource target = ResourceFactory.createResource(resourceUri);
+
+        // Every ACR that targets this resource, not merely {resource}.acr. An access grant installs
+        // its policy under its OWN node (urn:lws:grantacr:{id}-{n}) carrying acp:resource <target>,
+        // and that separation is deliberate -- it is what lets a grant survive the owner rewriting
+        // their own ACR. On delete it is a leak: the grant outlives the resource, and under the slug
+        // naming policy the URI is reused, so the next resource created with that name inherits a
+        // stranger's grant. Once the resource is gone, nothing may still govern its URI. (F059.)
+        List<Resource> acrs = acp.listSubjectsWithProperty(ACP.resource, target).toList();
+        if (acrs.isEmpty()) {
             // Most resources have no ACR of their own — they inherit via memberAccessControl —
             // so there is nothing to purge, and iterating every other ACR would be wasted work.
             return;
         }
-        purgeExclusive(acp, acr);
+        // One at a time, so purgeExclusive's reference count sees the ones not yet removed and a
+        // node shared with a survivor is kept; the last purge that can reach it reclaims it.
+        for (Resource acr : acrs) {
+            purgeExclusive(acp, acr);
+        }
     }
 
     /**

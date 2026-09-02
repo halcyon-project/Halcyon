@@ -27,12 +27,15 @@ import org.davidmoten.hilbert.SmallHilbertCurve;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.GeometryFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author erich
  */
 public final class HilbertSpace {
+    private static final Logger logger = LoggerFactory.getLogger(HilbertSpace.class);
     public SmallHilbertCurve hc;
     public static final byte N = 0;
     public static final byte NE = 1;
@@ -61,8 +64,15 @@ public final class HilbertSpace {
         return false;
     }
     
+    /**
+     * This was an arrow-switch STATEMENT, so every {@code case N -> contains(...)}
+     * evaluated the call and threw the answer away, then fell through to
+     * {@code return false} — the method could not return true for any input.
+     * The {@code LinkedList} overload above is identical apart from using
+     * {@code case N: return ...}, which is why only this one was broken.
+     */
     public boolean inRange(Ranges rr, Point p, Byte neighbor) {
-        switch (neighbor) {
+        return switch (neighbor) {
             case N -> contains(rr,p.x,p.y-1);
             case NE -> contains(rr,p.x+1,p.y-1);
             case E -> contains(rr,p.x+1,p.y);
@@ -70,9 +80,9 @@ public final class HilbertSpace {
             case S -> contains(rr,p.x,p.y+1);
             case SW -> contains(rr,p.x-1,p.y+1);
             case W -> contains(rr,p.x-1,p.y);
-            case NW ->contains(rr,p.x-1,p.y-1);
-        }
-        return false;
+            case NW -> contains(rr,p.x-1,p.y-1);
+            default -> false;
+        };
     }
     
     public Point getPoint(long p) {
@@ -147,20 +157,30 @@ public final class HilbertSpace {
         }
         Collections.sort(nr);
         Ranges neo = new Ranges(nr.size());
+        // The nested-while version emitted exactly ONE range no matter the input:
+        // the inner loop had no break, so on a non-consecutive value it neither
+        // closed the run nor put the value back — it just kept draining until the
+        // iterator was empty, silently discarding every later run and extending
+        // `last` across gaps whenever some far-away value happened to land at
+        // last+1. Same single pass, but a gap now closes the current run and the
+        // value that revealed the gap starts the next one.
         Iterator<Long> ii = nr.iterator();
-        long first;
-        long last;
-        while (ii.hasNext()) {
-            first = ii.next();
-            last = first;
-            while (ii.hasNext()) {
-                long next = ii.next();
-                if ((next-last)==1) {
-                    last = next;
-                }
-            }
-            neo.add(new Range(first,last));
+        if (!ii.hasNext()) {
+            return neo;
         }
+        long first = ii.next();
+        long last = first;
+        while (ii.hasNext()) {
+            long next = ii.next();
+            if ((next-last)<=1) {   // sorted, so this is "duplicate or contiguous"
+                last = next;
+            } else {
+                neo.add(new Range(first,last));
+                first = next;
+                last = next;
+            }
+        }
+        neo.add(new Range(first,last));
         return neo;
     }
     
@@ -337,13 +357,13 @@ public final class HilbertSpace {
                 bb.TopLeft = Vector2D.SmallestMag(bb.TopLeft, new Point(px[k],py[k]));
             }
         }
-        System.out.println((System.nanoTime()-start)/1000000d);
-        System.out.println(bb.toString());
+        logger.debug("{}", (System.nanoTime()-start)/1000000d);
+        logger.debug("{}", bb.toString());
         return bb;
     }
     
     public String JsonPolygons(int px, int py, int width, int height, HashMap<Integer,LinkedList<Range>> ranges, HashMap<Integer,Float> values, HashMap<Integer,Integer> classids) {      
-        System.out.println("Convert to JSON String...");
+        logger.debug("Convert to JSON String...");
         long start = System.nanoTime();
         JsonArrayBuilder jab = Json.createArrayBuilder();
         for (Integer id : ranges.keySet()) {
@@ -371,34 +391,34 @@ public final class HilbertSpace {
                 if (values.containsKey(id)) {
                     job.add("hasValue", values.get(id));
                 } else {
-                    System.out.println("something seriously wrong here....");
+                    logger.debug("something seriously wrong here....");
                 }
                 if (classids.containsKey(id)) {
                     job.add("hasClass", classids.get(id));
                 } else {
-                    System.out.println("something seriously wrong here with ClassIDS....");
+                    logger.debug("something seriously wrong here with ClassIDS....");
                 }
                 jab.add(job);
             }
         }
         long delta = System.nanoTime() - start;
         delta = delta / 1000000000;
-        System.out.println("DONE!!! "+delta);
+        logger.debug("DONE!!! {}", delta);
         return jab.build().toString();
     }
         
     public void Print(Ranges rr) {
         for (Range r : rr) {
-            System.out.println(r.low()+" "+r.high()+" "+(r.high()-r.low()));
-            System.out.println("X");
+            logger.debug("{}", r.low()+" "+r.high()+" "+(r.high()-r.low()));
+            logger.debug("X");
             for (long wow = r.low(); wow<=r.high(); wow++) {
                 long[] p = hc.point(wow);
-                System.out.println(p[0]);
+                logger.debug("{}", p[0]);
             }
-            System.out.println("Y");
+            logger.debug("Y");
             for (long wow = r.low(); wow<=r.high(); wow++) {
                 long[] p = hc.point(wow);
-                System.out.println(p[1]);
+                logger.debug("{}", p[1]);
             }
         }
     }
@@ -495,7 +515,7 @@ public final class HilbertSpace {
             } else {
              //   System.out.println("ERROR in polygon traversal....");
                 if (v.getNumVisits(cp)>10) {
-                    System.out.println("OBSURD ISSUE FAILOUT "+cp);
+                    logger.debug("OBSURD ISSUE FAILOUT {}", cp);
                     return getSkinnyPoint(cp.x,cp.y);
                 }
                 /*
@@ -599,12 +619,12 @@ public final class HilbertSpace {
     }
     
     public static void print(LinkedList<Range> list) {
-        System.out.println("vvvvvvvvvvvvvvvvvvvvvvvvvvvvv");
+        logger.debug("vvvvvvvvvvvvvvvvvvvvvvvvvvvvv");
         Iterator<Range> i = list.iterator();
         while (i.hasNext()) {
-            System.out.println(i.next());
+            logger.debug("{}", i.next());
         }
-        System.out.println("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
+        logger.debug("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
     }
     
     public int len(int x1, int x2, int y1, int y2) {
@@ -656,7 +676,13 @@ public final class HilbertSpace {
             }
             i++;
         }
-        rah.add(new Range(sv,ev));
+        // Guarded: sv/ev are still their 0 initialisers when the polygon enclosed
+        // no lattice point, and Hilbert index 0 is a real cell at the origin, so
+        // an unconditional add() made an empty selection claim a tile at the
+        // corner of the slide.
+        if (!pp.isEmpty()) {
+            rah.add(new Range(sv,ev));
+        }
         return rah;
     }
 
@@ -696,7 +722,13 @@ public final class HilbertSpace {
             }
             i++;
         }
-        rah.add(new Range(sv,ev));
+        // Guarded: sv/ev are still their 0 initialisers when the polygon enclosed
+        // no lattice point, and Hilbert index 0 is a real cell at the origin, so
+        // an unconditional add() made an empty selection claim a tile at the
+        // corner of the slide.
+        if (!pp.isEmpty()) {
+            rah.add(new Range(sv,ev));
+        }
         return rah;
     }
     
@@ -736,13 +768,19 @@ public final class HilbertSpace {
             }
             i++;
         }
-        rah.add(new Range(sv,ev));
+        // Guarded: sv/ev are still their 0 initialisers when the polygon enclosed
+        // no lattice point, and Hilbert index 0 is a real cell at the origin, so
+        // an unconditional add() made an empty selection claim a tile at the
+        // corner of the slide.
+        if (!pp.isEmpty()) {
+            rah.add(new Range(sv,ev));
+        }
         return rah;
     }
     
     public static void Hexes(long si[]) {
         for (int i=0; i<si.length; i++) {
-            System.out.println(si[i]+" "+SpaceIT(Long.toBinaryString(si[i])));
+            logger.debug("{}", si[i]+" "+SpaceIT(Long.toBinaryString(si[i])));
         }
     }
 }

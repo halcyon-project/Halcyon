@@ -1,6 +1,7 @@
 package com.ebremer.lws.config;
 
 import java.nio.file.Path;
+import java.util.List;
 
 /**
  * One configured LWS storage.
@@ -12,12 +13,36 @@ import java.nio.file.Path;
  *                    two storages differ
  * @param siteUrl     the instance's site URL (Halcyon's {@code ProxyHostName}),
  *                    with no trailing slash
+ * @param mounts      other physical disks backing sub-containers of a MIRROR
+ *                    storage ({@link LwsMount}); always empty for the flat
+ *                    storage, whose keys are not paths
+ * @param backend     the storage's {@code :hasBackend} node from {@code settings.ttl},
+ *                    or {@code null} for the built-in disk backends. Carried verbatim —
+ *                    a {@link com.ebremer.lws.store.spi.ContentStoreProvider} recognises
+ *                    its own node (typically by {@code rdf:type}) and parses its own
+ *                    vocabulary from it; core never interprets it. For a remote backend
+ *                    (e.g. S3), {@code contentRoot} is the LOCAL side: the materialization
+ *                    cache root.
  */
 public record LwsStorageConfig(
         String urlPath,
         Path contentRoot,
         NamingPolicyType naming,
-        String siteUrl) {
+        String siteUrl,
+        List<LwsMount> mounts,
+        org.apache.jena.rdf.model.Resource backend) {
+
+    /** The common case: a storage on one disk. */
+    public LwsStorageConfig(String urlPath, Path contentRoot, NamingPolicyType naming,
+            String siteUrl) {
+        this(urlPath, contentRoot, naming, siteUrl, List.of(), null);
+    }
+
+    /** A storage with mounts and no pluggable backend. */
+    public LwsStorageConfig(String urlPath, Path contentRoot, NamingPolicyType naming,
+            String siteUrl, List<LwsMount> mounts) {
+        this(urlPath, contentRoot, naming, siteUrl, mounts, null);
+    }
 
     /**
      * Service endpoints, reserved by their <em>leading dot</em>. The slug sanitiser strips
@@ -32,6 +57,15 @@ public record LwsStorageConfig(
     /** The DataSharingService endpoints (lws-access-requests): ODRL access requests and grants. */
     public static final String ACCESS_REQUESTS = ".access/requests";
     public static final String ACCESS_GRANTS = ".access/grants";
+
+    /**
+     * The IIIF Image service endpoint. Unlike the endpoints above, it is <em>routed and advertised
+     * by an {@code EndpointCapability}</em> the hosting application installs, not by this module.
+     * The name is kept here — reserved like the others (a leading dot no client slug can mint) — as
+     * the single source of truth for the path, shared by that capability and by other modules that
+     * build IIIF URLs (the MCP tools, the image servlet's forward target).
+     */
+    public static final String IIIF = ".iiif";
 
     /**
      * Suffix of a resource's linkset (its metadata resource).
@@ -57,6 +91,13 @@ public record LwsStorageConfig(
         }
         while (siteUrl != null && siteUrl.endsWith("/")) {
             siteUrl = siteUrl.substring(0, siteUrl.length() - 1);
+        }
+        mounts = mounts == null ? List.of() : List.copyOf(mounts);
+        if (!mounts.isEmpty() && naming != NamingPolicyType.SLUG) {
+            // A mount maps a KEY PREFIX to a disk, and only the mirror storage's
+            // keys are paths — a UUID key has no prefix a mount could claim.
+            throw new IllegalArgumentException(
+                    "mounts require the slug (mirror) naming policy: " + urlPath);
         }
     }
 
@@ -115,6 +156,10 @@ public record LwsStorageConfig(
 
     public String accessGrantsUri() {
         return baseUri() + "/" + ACCESS_GRANTS;
+    }
+
+    public String iiifUri() {
+        return baseUri() + "/" + IIIF;
     }
 
     /**

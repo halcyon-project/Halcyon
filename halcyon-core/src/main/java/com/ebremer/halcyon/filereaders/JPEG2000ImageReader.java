@@ -180,7 +180,7 @@ public class JPEG2000ImageReader extends AbstractImageReader {
     public static void main(String[] args) throws IOException {
         File file = new File("D:\\HalcyonStorage\\jp2\\sample.jp2");
         try (JPEG2000ImageReader reader = new JPEG2000ImageReader(file.toURI(), file.toURI())) {
-            System.out.println(reader.getImageMeta());
+            logger.debug("{}", reader.getImageMeta());
             RDFDataMgr.write(System.out, reader.getMeta(), Lang.TURTLE);
         } catch (Exception ex) {
             Logger.getLogger(JPEG2000ImageReader.class.getName()).log(Level.SEVERE, null, ex);

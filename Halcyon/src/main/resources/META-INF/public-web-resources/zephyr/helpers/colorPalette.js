@@ -1,4 +1,4 @@
-import { getContext, cfg } from '../context.js';
+import { getContext } from '../context.js';
 
 export function colorPalette() {
   // Create the container for the custom dropdown
@@ -9,52 +9,24 @@ export function colorPalette() {
   // Insert the container before the canvas element
   document.body.insertBefore(paletteContainer, document.querySelector('canvas'));
 
-  const url = colorClassesUrl(cfg('useriri'));
-  if (!url) {
-    buildColorPalette(paletteContainer);
-  } else {
-    fetch(url, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/ld+json',
-        'Prefer': 'return=representation; shacl=https://halcyon.is/ns/AnnotationClassListShape'
+  // The user's classes now live in the LWS storage; /colorclasses is the
+  // session-authenticated relay that reads them with the user's own token
+  // (the browser holds no bearer — C5) and answers [{name, color}, …].
+  // Its first call also migrates the user's legacy classes automatically.
+  fetch('/colorclasses', { headers: { 'Accept': 'application/json' } })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Network response was not ok. Status code:' + response.status);
       }
+      return response.json();
     })
-      .then(response => {
-        if (!response.ok) {
-          throw new Error('Network response was not ok. Status code:' + response.status);
-        }
-        return response.json();
-      })
-      .then(data => {
-        buildColorPalette(paletteContainer, data);
-      })
-      .catch(error => {
-        console.error('There was a problem with the fetch operation:', error);
-        console.error(url);
-        buildColorPalette(paletteContainer);
-      });
-  }
-}
-
-/**
- * Derive the user's colorclasses resource from their IRI, swapping only the
- * path segment "user" for "users" — a plain string replace could hit the
- * host name or an unrelated segment.
- */
-function colorClassesUrl(useriri) {
-  if (!useriri) return null;
-  try {
-    const u = new URL(useriri);
-    u.pathname = u.pathname
-      .split('/')
-      .map(segment => (segment === 'user' ? 'users' : segment))
-      .join('/');
-    return `${u.href.replace(/\/+$/, '')}/colorclasses`;
-  } catch (err) {
-    console.error('Cannot derive colorclasses URL from useriri:', useriri, err);
-    return null;
-  }
+    .then(data => {
+      buildColorPalette(paletteContainer, data);
+    })
+    .catch(error => {
+      console.error('color classes unavailable, using defaults:', error);
+      buildColorPalette(paletteContainer);
+    });
 }
 
 function buildColorPalette(paletteContainer, data) {
@@ -62,18 +34,10 @@ function buildColorPalette(paletteContainer, data) {
   paletteContainer.innerHTML = '';
 
   let options;
-  if (data && Array.isArray(data.hasAnnotationClass)) {
-    options = [];
-    // console.log("data:", JSON.stringify(data));
-
-    // Add data-based options
-    data.hasAnnotationClass.forEach(annotationClass => {
-      if (annotationClass.hasClass) {
-        const color = annotationClass.color;
-        const name = annotationClass.hasClass.name;
-        options.push({ value: `${color}:${name}`, text: name });
-      }
-    });
+  if (Array.isArray(data) && data.length > 0) {
+    options = data
+      .filter(c => c && c.name && c.color)
+      .map(c => ({ value: `${c.color}:${c.name}`, text: c.name }));
   } else {
     options = [
       { value: '#ffff00:Tumor', text: 'Tumor' },

@@ -5,6 +5,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -13,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 public class Zork {
+    private static final Logger logger = LoggerFactory.getLogger(Zork.class);
         
     @GetMapping("/skunkworks/yay")
     public String yay(HttpServletRequest request, HttpServletResponse response) {
@@ -25,7 +28,7 @@ public class Zork {
     public String RAM(HttpServletRequest request, HttpServletResponse response) {
   //      response.setHeader("Alt-Svc", "h3=\":8888\"; ma=86400; persist=1");
          response.getHeaderNames().forEach(h->{
-             System.out.println("RAM : "+h);
+             logger.debug("RAM : {}", h);
          });
         return "RAM!!!! "+response.getStatus()+"   "+request.getProtocol();
     }

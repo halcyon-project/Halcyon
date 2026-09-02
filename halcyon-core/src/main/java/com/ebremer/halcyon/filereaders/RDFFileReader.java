@@ -144,7 +144,16 @@ public class RDFFileReader extends AbstractFileReader {
 
     @Override
     public Model getMeta(URI uri) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        // The document IS RDF; its metadata is what it says about the resource
+        // itself. Root-focused and namespace-filtered (rdf/dcterms/prov) via
+        // getBaseRDF — enough to carry the document's own rdf:type (a Zephyr
+        // stack saved into an LWS storage types itself zeph:Stack, which is
+        // what the storage listings and viewer bindings key on) without
+        // merging the entire content graph into the resource's metadata.
+        // This overload is the one the LWS metadata scanner calls; it used to
+        // throw UnsupportedOperationException, so RDF resources were never
+        // typed at all.
+        return getBaseRDF(m.createResource(uri.toString()));
     }
 
     @Override

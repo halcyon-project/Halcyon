@@ -1,0 +1,47 @@
+<wicket:panel xmlns:wicket="http://wicket.apache.org">
+    <h4>Access — who can reach this</h4>
+    <div class="uri" wicket:id="target"></div>
+    <div class="lws-err" wicket:id="error"></div>
+    <form wicket:id="form">
+        <div wicket:id="simple" class="lws-rows">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Agent</th><th>WebID</th><th>Read</th><th>Write</th><th>Append</th>
+                        <th>Control</th><th>This</th><th>Contents</th><th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr wicket:id="rows">
+                        <td><select wicket:id="agentType"></select></td>
+                        <td><input type="text" size="34" wicket:id="webid"/></td>
+                        <td><input type="checkbox" wicket:id="read"/></td>
+                        <td><input type="checkbox" wicket:id="write"/></td>
+                        <td><input type="checkbox" wicket:id="append"/></td>
+                        <td><input type="checkbox" wicket:id="control"/></td>
+                        <td><input type="checkbox" wicket:id="self"/></td>
+                        <td><input type="checkbox" wicket:id="members"/></td>
+                        <td><a wicket:id="remove" href="#">remove</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <a wicket:id="addRow" href="#">+ add rule</a>
+            <div class="lws-note">Saving replaces this item's own rules with the rows above.
+                Rules inherited from an ancestor container are edited on that container.</div>
+        </div>
+        <div wicket:id="advanced">
+            <div class="lws-note">These rules use ACP features the simple editor cannot show
+                (deny, noneOf, client/issuer/VC matchers, validity windows). Edit the Turtle
+                directly — the storage validates it on save.</div>
+            <textarea wicket:id="raw"></textarea>
+        </div>
+        <div class="lws-actions">
+            <button class="lws-save" wicket:id="save" type="submit">Save</button>
+            <span class="lws-msg" wicket:id="message"></span>
+        </div>
+    </form>
+    <details>
+        <summary>Current document (Turtle)</summary>
+        <pre wicket:id="preview"></pre>
+    </details>
+</wicket:panel>

@@ -1,5 +1,7 @@
 package com.ebremer.halcyon.wicket.ethereal;
 
+import com.ebremer.halcyon.gui.CspNonce;
+import org.apache.wicket.markup.html.WebMarkupContainer;
 import com.apicatalog.jsonld.JsonLd;
 import com.apicatalog.jsonld.JsonLdError;
 import com.apicatalog.jsonld.JsonLdOptions;
@@ -9,8 +11,10 @@ import com.apicatalog.jsonld.document.JsonDocument;
 import com.apicatalog.jsonld.serialization.RdfToJsonld;
 import com.apicatalog.rdf.RdfDataset;
 import com.ebremer.halcyon.data.DataCore;
+import com.ebremer.halcyon.lws.LwsDatasets;
 import com.ebremer.halcyon.wicket.BasePage;
 import com.ebremer.ns.HAL;
+import org.danekja.java.util.function.serializable.SerializableSupplier;
 import jakarta.json.Json;
 import jakarta.json.JsonArray;
 import jakarta.json.JsonObject;
@@ -31,8 +35,6 @@ import org.apache.jena.query.QueryExecutionFactory;
 import org.apache.jena.query.ReadWrite;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.RDFNode;
-import org.apache.jena.riot.Lang;
-import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.riot.system.jsonld.JenaToTitanium;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.SchemaDO;
@@ -40,28 +42,65 @@ import org.apache.jena.vocabulary.XSD;
 import org.apache.wicket.ajax.AjaxEventBehavior;
 import org.apache.wicket.ajax.AjaxRequestTarget;
 import org.apache.wicket.markup.head.IHeaderResponse;
+import org.apache.wicket.markup.html.basic.Label;
 import org.apache.wicket.markup.html.form.Button;
+import org.apache.wicket.markup.html.link.BookmarkablePageLink;
+import org.apache.wicket.request.mapper.parameter.PageParameters;
 
 /**
+ * The 3d-force-graph explorer, pointable at EITHER triple store — the same
+ * {@code ?endpoint=rdf2} convention as the SPARQL page: {@code /threed} walks
+ * the classic store, {@code /threed?endpoint=rdf2} walks the W3C LWS store.
+ * The LWS side is never the raw dataset: it is the caller's own ACP-secured
+ * view, so the graph shows exactly the resources this user could read over
+ * the LWS API and the internal graphs do not exist to be drawn.
  *
  * @author erich
  */
 public class Graph3D extends BasePage {
+    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Graph3D.class);
     private static final long serialVersionUID = 102163948377788566L;
-    
+
+    /** Which store this instance draws. Allowlisted from the page parameter. */
+    private final boolean lws;
+
     public Graph3D() {
-        ListClasses cc = new ListClasses("chosen");
+        this(new PageParameters());
+    }
+
+    public Graph3D(PageParameters parameters) {
+        this.lws = "rdf2".equals(parameters.get("endpoint").toString(""));
+
+        add(new Label("which", lws ? "the W3C LWS store (lws-tdb2)" : "the Halcyon store (tdb2)"));
+        BookmarkablePageLink<Void> classic = new BookmarkablePageLink<>("classic", Graph3D.class);
+        classic.setEnabled(lws);
+        add(classic);
+        BookmarkablePageLink<Void> lwsLink = new BookmarkablePageLink<>("lws", Graph3D.class,
+                new PageParameters().add("endpoint", "rdf2"));
+        lwsLink.setEnabled(!lws);
+        add(lwsLink);
+
+        ListClasses cc = new ListClasses("chosen", datasetSupplier(lws));
         add(cc);
         Button button = new Button("button", org.apache.wicket.model.Model.of("Update"));
         button.add(new AjaxEventBehavior("click") {
             @Override
             protected void onEvent(AjaxRequestTarget target) {
                 String zam = getData(cc.getClasses());
-                System.out.println(zam);
+                logger.debug("{}", zam);
                 target.appendJavaScript("console.log(\"UPDATE GRAPH\"); Graph.graphData("+zam+");");
             }
         });
         add(button);
+    }
+
+    /**
+     * The chosen store as a per-call dataset: the classic {@code DataCore},
+     * or the LWS store through the CALLER's ACP-secured view — never raw
+     * (see {@link LwsDatasets}).
+     */
+    static SerializableSupplier<Dataset> datasetSupplier(boolean lws) {
+        return lws ? LwsDatasets.securedForSession() : () -> DataCore.getInstance().getDataset();
     }
     
     @Override
@@ -75,7 +114,7 @@ public class Graph3D extends BasePage {
 
     public String getData(List<RDFNode> list) {
         try {
-            Dataset xs = DataCore.getInstance().getDataset();
+            Dataset xs = datasetSupplier(lws).get();
             ParameterizedSparqlString pss;
             pss = new ParameterizedSparqlString(
                 """
@@ -116,13 +155,14 @@ public class Graph3D extends BasePage {
             pss.setNsPrefix("hal", HAL.NS);
             pss.setNsPrefix("so", SchemaDO.NS);
             pss.setValues("typelist", list);
-            QueryExecution qe = QueryExecutionFactory.create(pss.toString(), xs);
+            // H13: guarded end() + a closed QueryExecution.
+            Model m;
             xs.begin(ReadWrite.READ);
-            Model m = qe.execConstruct();
-            xs.end();
-            System.out.println("=================================================================================");
-            RDFDataMgr.write(System.out, m, Lang.TURTLE);
-            System.out.println("=================================================================================");
+            try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), xs)) {
+                m = qe.execConstruct();
+            } finally {
+                xs.end();
+            }
             pss = new ParameterizedSparqlString(
                 """
                 construct {
@@ -163,14 +203,19 @@ public class Graph3D extends BasePage {
             pss.setNsPrefix("hal", HAL.NS);
             pss.setNsPrefix("so", SchemaDO.NS);
             pss.setValues("typelist", list);
-            System.out.println("SPARQL :\n"+pss.toString());
-            qe = QueryExecutionFactory.create(pss.toString(), xs);
+            logger.debug("SPARQL :\n{}", pss.toString());
+            // H13: this used to REASSIGN the `qe` above, so the first execution was
+            // dropped on the floor unclosed, and this one was never closed either.
+            // The debug dump also sat INSIDE the transaction — execConstruct()
+            // materialises into a Model, so it does not need one; it now runs after
+            // end(), which keeps the transaction window as small as possible.
+            Model m2;
             xs.begin(ReadWrite.READ);
-            Model m2 = qe.execConstruct();       
-            System.out.println("=================================================================================");
-            RDFDataMgr.write(System.out, m2, Lang.TURTLE);
-            System.out.println("=================================================================================");
-            xs.end();
+            try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), xs)) {
+                m2 = qe.execConstruct();
+            } finally {
+                xs.end();
+            }
             m.add(m2);
             Dataset ds = DatasetFactory.createGeneral();
             ds.getDefaultModel().add(m);
@@ -211,11 +256,24 @@ public class Graph3D extends BasePage {
             JsonObject jo = JsonLd.frame(JsonDocument.of(ja), contextDocument).options(options).get();
             out.writeObject(jo);
             String yay = new String(baos.toByteArray());
-            System.out.println("RESULTS :\n"+yay);
+            logger.debug("RESULTS :\n{}", yay);
             return yay;
         } catch (JsonLdError ex) {
             Logger.getLogger(Graph3D.class.getName()).log(Level.SEVERE, null, ex);
             return null;
         }
+    }
+
+    /**
+     * C5: bind the inline <script> tags in this page's markup so they receive the
+     * request's CSP nonce. Done in onInitialize rather than a constructor because
+     * these classes have several constructors that do not delegate to one another —
+     * onInitialize runs exactly once whichever was used.
+     */
+    @Override
+    protected void onInitialize() {
+        super.onInitialize();
+        add(new WebMarkupContainer("cspImportMap").add(new CspNonce()));
+        add(new WebMarkupContainer("cspModule").add(new CspNonce()));
     }
 }

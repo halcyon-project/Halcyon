@@ -8,16 +8,20 @@ import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LinearRing;
+import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.util.AffineTransformation;
 import org.locationtech.jts.io.ParseException;
 import org.locationtech.jts.io.WKTReader;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author erich
  */
 public class GeometryTools {
+    private static final Logger logger = LoggerFactory.getLogger(GeometryTools.class);
     
     public static BufferedImage copyBufferedImage(BufferedImage original) {
         // Create a new BufferedImage with the same dimensions and type as the original
@@ -87,27 +91,77 @@ public class GeometryTools {
         return new java.awt.Polygon(xpoints, ypoints, coordinates.length);
     } 
     
-    public static Polygon WKT2Polygon(String swkt) {
-        if ("POLYGON EMPTY".equals(swkt)) return null;
-        WKTReader reader = new WKTReader();
-        Geometry geometry = null;
-        Polygon polygon = null;
+    /**
+     * Parse any WKT geometry, or null if it cannot be read (M6).
+     * <p>
+     * Callers that only need area/length/intersection should use this rather
+     * than {@link #WKT2Polygon}: JTS implements {@code getArea()},
+     * {@code getLength()} and {@code intersects()} polymorphically, so a
+     * {@code MULTIPOLYGON} (a pathology region with multiple parts) is handled
+     * correctly — {@code getArea()}/{@code getLength()} already sum the parts.
+     */
+    public static Geometry WKT2Geometry(String swkt) {
+        if (swkt == null || "POLYGON EMPTY".equals(swkt)) return null;
         try {
-            geometry = reader.read(swkt);
-            polygon = (Polygon) geometry;
+            return new WKTReader().read(swkt);
         } catch (ParseException ex) {
-            System.out.println("Parse Exception --> "+swkt);
+            logger.debug("Parse Exception --> {}", swkt);
         } catch (IllegalArgumentException ex) {
-            if (geometry!=null) {
-                System.out.println("ARGH --> "+geometry.getCoordinates().length);
-            } else {
-                System.out.println("ARGH --> "+swkt);
-            }
+            logger.debug("ARGH --> {}", swkt);
         }
-        return polygon;
+        return null;
+    }
+
+    /**
+     * Parse WKT that is expected to be a single {@code POLYGON}, else null.
+     * <p>
+     * M6: this used to blind-cast the parsed geometry — {@code (Polygon) geometry}
+     * — while catching only ParseException/IllegalArgumentException, so a
+     * perfectly legal {@code MULTIPOLYGON} threw an uncaught ClassCastException
+     * that aborted the whole enclosing SPARQL query. It now fails soft to null
+     * (every caller already null-checks), so a multi-part geometry degrades to
+     * "not handled here" instead of taking the request down.
+     */
+    public static Polygon WKT2Polygon(String swkt) {
+        Geometry geometry = WKT2Geometry(swkt);
+        if (geometry == null) return null;
+        if (geometry instanceof Polygon polygon) {
+            return polygon;
+        }
+        logger.debug("WKT2Polygon: not a POLYGON ({}) --> {}", geometry.getGeometryType(), swkt);
+        return null;
     }
     
-    public static Polygon scaleAndSimplifyPolygon(Polygon polygon, double scaleFactor) {        
+    /**
+     * Scale+simplify any polygonal geometry (M6). A {@code POLYGON} behaves
+     * exactly as before; a {@code MULTIPOLYGON} has each part scaled
+     * independently and is re-assembled, so a multi-part annotation survives
+     * {@code hal:scale} instead of being dropped (or, before M6, throwing a
+     * ClassCastException that failed the query). Parts that simplify away to
+     * fewer than 4 points are discarded; null if nothing survives.
+     */
+    public static Geometry scaleAndSimplify(Geometry geometry, double scaleFactor) {
+        if (geometry instanceof Polygon polygon) {
+            return scaleAndSimplifyPolygon(polygon, scaleFactor);
+        }
+        if (geometry instanceof MultiPolygon multi) {
+            ArrayList<Polygon> parts = new ArrayList<>();
+            for (int i = 0; i < multi.getNumGeometries(); i++) {
+                if (multi.getGeometryN(i) instanceof Polygon part) {
+                    Polygon scaled = scaleAndSimplifyPolygon(part, scaleFactor);
+                    if (scaled != null) {
+                        parts.add(scaled);
+                    }
+                }
+            }
+            if (parts.isEmpty()) return null;
+            if (parts.size() == 1) return parts.get(0);
+            return new GeometryFactory().createMultiPolygon(parts.toArray(new Polygon[0]));
+        }
+        return null;
+    }
+
+    public static Polygon scaleAndSimplifyPolygon(Polygon polygon, double scaleFactor) {
         AffineTransformation transformation = new AffineTransformation();
         transformation.scale(scaleFactor, scaleFactor);
         Geometry scaledPolygon = transformation.transform(polygon);

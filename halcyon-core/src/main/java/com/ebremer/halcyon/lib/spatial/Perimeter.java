@@ -7,7 +7,7 @@ import org.apache.jena.sparql.expr.ExprList;
 import org.apache.jena.sparql.expr.NodeValue;
 import org.apache.jena.sparql.expr.nodevalue.NodeValueNode;
 import org.apache.jena.sparql.function.FunctionBase;
-import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.geom.Geometry;
 
 public class Perimeter extends FunctionBase {
     
@@ -31,11 +31,14 @@ public class Perimeter extends FunctionBase {
             ppp = nnn.asString();
         }
         if (POLYGONEMPTY.equals(ppp)) return NodeValue.makeDouble(0d);
-        Polygon polygon = GeometryTools.WKT2Polygon(ppp);
-        if (polygon == null) {
+        // M6: see Area — a MULTIPOLYGON used to throw an uncaught
+        // ClassCastException. Geometry.getLength() already SUMS the parts'
+        // perimeters (and includes interior rings for a polygon with holes).
+        Geometry geometry = GeometryTools.WKT2Geometry(ppp);
+        if (geometry == null) {
             return NodeValue.makeDouble(0d);
         }
-        return NodeValue.makeDouble(polygon.getLength());
+        return NodeValue.makeDouble(geometry.getLength());
     }
 
     @Override

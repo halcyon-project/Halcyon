@@ -34,6 +34,12 @@ public final class MediaTypes {
     /** The minimum patch format a server MUST support, for resources and linksets alike. */
     public static final String MERGE_PATCH_JSON = "application/merge-patch+json";
 
+    /** JSON Patch (RFC 6902) — accepted on JSON data resources, in addition to merge patch. */
+    public static final String JSON_PATCH = "application/json-patch+json";
+
+    /** {@code Accept-Patch} for a JSON data resource: both patch formats it accepts. */
+    public static final String ACCEPT_PATCH_JSON = MERGE_PATCH_JSON + ", " + JSON_PATCH;
+
     /**
      * The baseline Type Search filter format, carried in the body of an HTTP
      * {@code QUERY} request.
@@ -130,6 +136,28 @@ public final class MediaTypes {
     public static boolean isJson(String mediaType) {
         String m = bare(mediaType);
         return m != null && (JSON.equals(m) || m.endsWith("+json"));
+    }
+
+    /**
+     * True if a media type is <em>actively scriptable</em> when a browser navigates to it:
+     * HTML, and the XML family (XHTML, SVG, and raw XML — all of which can carry script,
+     * event handlers, or an {@code xml-stylesheet} that executes in the document's origin).
+     *
+     * <p>These are the types the storage must never serve executable from its own origin:
+     * any agent granted write access could otherwise hand every later reader a stored XSS
+     * running as the storage's own site. The serving path answers them with
+     * {@code Content-Security-Policy: sandbox} — the document still renders when opened or
+     * embedded, but as a unique opaque origin with no script.
+     */
+    public static boolean scriptable(String mediaType) {
+        String m = bare(mediaType);
+        if (m == null) {
+            return false;
+        }
+        return m.equals("text/html")
+                || m.equals("text/xml")
+                || m.equals("application/xml")
+                || m.endsWith("+xml");
     }
 
     /** Strip any parameters: {@code application/json; charset=utf-8} -> {@code application/json}. */

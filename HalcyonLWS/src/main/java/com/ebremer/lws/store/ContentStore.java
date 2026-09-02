@@ -29,6 +29,13 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Reads, deletes and path lookups are uniform (key-based) and shared here as defaults; only the
  * write path and the sweep differ, which is where the servlet's create flow branches.
+ *
+ * <p>The axis those two embody is part of the contract, not an implementation detail:
+ * a store is either <em>key-minting</em> ({@link #write} mints an opaque key; TDB2 is
+ * authoritative; the sharded and remote/S3 stores) or <em>path-keyed</em> (the key is the
+ * resource's URI path; the backend is authoritative; it additionally implements
+ * {@link PathKeyedStore}). Third-party backends plug in through
+ * {@link com.ebremer.lws.store.spi.ContentStoreProvider} and must sit on exactly one side.
  */
 public interface ContentStore {
 
@@ -38,9 +45,17 @@ public interface ContentStore {
     Path root();
 
     /**
-     * Where a key's blob lives. The sharded store hashes the key into shard directories and appends
-     * {@code ext}; the mirror store resolves the key (already a path with its filename and
-     * extension) straight under the root and ignores {@code ext}.
+     * Where a key's blob lives, as a REAL LOCAL FILE. The sharded store hashes the key into shard
+     * directories and appends {@code ext}; the mirror store resolves the key (already a path with
+     * its filename and extension) straight under the root and ignores {@code ext}.
+     *
+     * <p>Contract for remote backends: the returned path must be a local filesystem path whose
+     * bytes are the blob's content — the IIIF engine, the metadata scanner and the SPARQL loader
+     * hand it to readers that do random access on a real file. A store whose bytes rest elsewhere
+     * (S3, another server) MATERIALIZES them into a local cache on demand (see
+     * {@code MaterializedContentStore}); such a call may block on the transfer and throws
+     * {@link java.io.UncheckedIOException} when it fails. A remote store that cannot materialize
+     * must not be handed to the servlet bare.
      */
     Path pathFor(String key, String ext);
 

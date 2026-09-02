@@ -191,7 +191,7 @@ public class SVSImageReader extends AbstractImageReader {
     public static void main(String[] args) throws IOException {
         File file = new File("D:\\acc\\TCGA-OR-A5JC-01Z-00-DX2.2B2144E0-651E-4F53-B2EB-01B56B942880.svs");
         try (SVSImageReader reader = new SVSImageReader(file.toURI(), file.toURI())) {
-            System.out.println(reader.getImageMeta());
+            logger.debug("{}", reader.getImageMeta());
             RDFDataMgr.write(System.out, reader.getMeta(), Lang.TURTLE);
         } catch (Exception ex) {
             Logger.getLogger(SVSImageReader.class.getName()).log(Level.SEVERE, null, ex);

@@ -1,0 +1,65 @@
+# Line-ending policy for the Halcyon repository.
+#
+# The repository's canonical form is LF: every blob already committed uses LF.
+# Without this file, git had no line-ending policy at all (no .gitattributes,
+# core.autocrlf unset), so a working tree checked out or edited by a Windows
+# tool acquired CRLF and every one of the ~5,300 tracked files reported as
+# modified. That made `git diff`, `git blame` and code review unusable.
+#
+# `text=auto eol=lf` normalizes to LF on commit and checks out LF on every
+# platform, so the working tree cannot drift back regardless of which git
+# binary (WSL or Windows) last touched it.
+
+* text=auto eol=lf
+
+# --- Explicit text types -----------------------------------------------------
+# Declared rather than left to git's heuristic, so a file that happens to
+# contain a NUL byte early on is still treated as source.
+*.java      text eol=lf
+*.js        text eol=lf
+*.mjs       text eol=lf
+*.ts        text eol=lf
+*.map       text eol=lf
+*.css       text eol=lf
+*.scss      text eol=lf
+*.less      text eol=lf
+*.html      text eol=lf
+*.ftl       text eol=lf
+*.xml       text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+*.json      text eol=lf
+*.jsonld    text eol=lf
+*.ttl       text eol=lf
+*.md        text eol=lf
+*.txt       text eol=lf
+*.ini       text eol=lf
+*.properties text eol=lf
+*.svg       text eol=lf
+
+# Executable scripts must be LF or the shebang breaks.
+*.sh        text eol=lf
+*.py        text eol=lf
+
+# --- Binary: never normalize, never diff as text -----------------------------
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.gif       binary
+*.ico       binary
+*.icns      binary
+*.webp      binary
+*.woff      binary
+*.woff2     binary
+*.ttf       binary
+*.eot       binary
+*.otf       binary
+*.wasm      binary
+*.jar       binary
+*.war       binary
+*.zip       binary
+*.gz        binary
+*.pdf       binary
+*.h5        binary
+*.svs       binary
+*.dcm       binary

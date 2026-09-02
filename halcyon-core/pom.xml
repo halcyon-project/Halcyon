@@ -7,7 +7,7 @@
     <parent>
         <groupId>com.ebremer.HalcyonProject</groupId>
         <artifactId>HalcyonProject</artifactId>
-        <version>1.1.0</version>
+        <version>0.9.0</version>
     </parent>
 
     <properties>
@@ -131,44 +131,24 @@
             <groupId>com.fasterxml.jackson.dataformat</groupId>
             <artifactId>jackson-dataformat-yaml</artifactId>
         </dependency>      
-    </dependencies>    
+            <dependency>
+            <!-- F1: version comes from the junit-bom managed in the reactor root. -->
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+</dependencies>    
     <build>
         <!--<finalName>library-${project.version}</finalName>-->
         <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
-                <version>${maven-shade-plugin.version}</version>
-                <executions>
-                    <execution>
-                        <id>libraryshade</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>shade</goal>
-                        </goals>
-                        <configuration>
-                            <filters>
-                                <filter>
-                                    <artifact>*:*</artifact>
-                                    <excludes>
-                                        <exclude>META-INF/*.SF</exclude>
-                                        <exclude>META-INF/*.DSA</exclude>
-                                        <exclude>META-INF/*.RSA</exclude>
-                                    </excludes>
-                                </filter>
-                            </filters>
-                            <transformers>
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"></transformer>
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <manifestEntries>
-                                        <Multi-Release>true</Multi-Release>
-                                    </manifestEntries>
-                                </transformer>
-                            </transformers>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
+            <!--
+              L17: halcyon-core is a LIBRARY, so it is no longer shaded — the same
+              reasoning HalcyonLWS already recorded. Shading produced a 70 MB jar with
+              all of Jena baked in, which then went into Halcyon's fat jar a second
+              time. A library should declare its dependencies and let Maven resolve
+              them; anything consuming halcyon-core from the Maven repo was otherwise
+              forced to take our bundled copy of Jena over its own.
+            -->
 <plugin>
     <groupId>org.apache.maven.plugins</groupId>
     <artifactId>maven-enforcer-plugin</artifactId>

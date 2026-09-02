@@ -7,9 +7,10 @@ server:
   port: 8888
   http2:
     enabled: true
-  ssl:
-    bundle: server
-    enabled-protocols: TLSv1.3
+  # No server.ssl block on purpose: a fresh install has no halcyonkeystore.jks yet
+  # and its settings.ttl defaults to hal:HTTPS2enabled false, so the connector must
+  # come up plain HTTP. Turning on hal:HTTPS2enabled in settings.ttl makes SslConfig
+  # put TLS (TLSv1.3, halcyonkeystore.jks) on the connector programmatically.
   servlet:
     session:
       timeout: 900
@@ -19,6 +20,18 @@ spring:
   main:
     lazy-initialization: false
     allow-circular-references: true
+  ai:
+    mcp:
+      server:
+        # The Model Context Protocol endpoint (module HalcyonMCP/): Streamable
+        # HTTP at /mcp. The skeleton exposes identification only; every tool
+        # that touches data is gated on the P0 auth work in HalcyonMCP/TODO.md.
+        name: halcyon
+        protocol: STREAMABLE
+        instructions: >-
+          Halcyon whole-slide-image annotation, management and visualization
+          server. Tools operate with the caller's own identity and access
+          rights - what a tool cannot read, the caller cannot read.
   h2:
     console:
       enabled: false
@@ -35,6 +48,9 @@ spring:
         transaction:
           jta:
             platform: org.hibernate.engine.transaction.jta.platform.internal.NoJtaPlatform
+  # The "server" SSL bundle backs the OIDC client's trust of this server's own
+  # self-signed certificate when hal:HTTPS2enabled is true; it is registered
+  # lazily, so the missing keystore files are harmless while HTTPS is off.
   ssl:
     bundle:
       jks:
@@ -48,16 +64,34 @@ spring:
           truststore:
             location: "./halcyontruststore.jks"
             password: "password"
-            type: "JKS"            
+            type: "JKS"
+# Per-principal rate limit on /mcp (MCP-17): calls per window, per verified
+# WebID. Generous for an interactive agent; caps a runaway.
+# NOTE: keep this top-level block BELOW the whole spring: tree. It once sat in the
+# middle of it, which re-parented spring.h2/datasource/jpa/ssl under halcyon.* and
+# broke fresh installs with "SSL bundle name 'server' cannot be found".
+halcyon:
+  mcp:
+    rate-limit:
+      capacity: 120
+      window-seconds: 60
 logging:
   pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    console: "%d{yyyy-MM-dd HH:mm:ss} %-5level %logger{36} - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
-    
   file:
     name: logs/halcyon.log
     max-size: 100MB
     max-history: 10
+  # Production default. root OFF used to hide everything, including Boot's
+  # "APPLICATION FAILED TO START" report — every startup problem looked like a
+  # silent hang. ERROR everywhere, plus Halcyon's own one-time/operational
+  # events: service startup, LWS storage mounts, Keycloak key loads, WebID
+  # login successes (INFO) and failures (WARN).
   level:
-    root: OFF
-    com.ebremer.halcyon.filesystem: OFF
+    root: ERROR
+    com.ebremer.halcyon: INFO
+    com.ebremer.lws: INFO
+    # The storage scanner logs per-file at INFO — too chatty on large stores;
+    # its warnings and errors still surface.
+    com.ebremer.halcyon.filesystem: WARN

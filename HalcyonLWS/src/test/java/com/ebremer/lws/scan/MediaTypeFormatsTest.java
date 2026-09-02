@@ -1,6 +1,7 @@
 package com.ebremer.lws.scan;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import org.junit.jupiter.api.Test;
 
@@ -34,6 +35,41 @@ class MediaTypeFormatsTest {
         assertEquals("", MediaTypeFormats.extensionFor("text/plain"));
         assertEquals("", MediaTypeFormats.extensionFor("application/x-unknown"));
         assertEquals("", MediaTypeFormats.extensionFor(null));
+    }
+
+    @Test
+    void specialistFileNamesMapToTheirMediaType() {
+        // The mirror gateway's adoption path: a .svs dropped on disk must record
+        // as image/tiff, not application/octet-stream, or nothing downstream
+        // (Type Index, the UI's viewer bindings) treats it as imagery.
+        assertEquals("image/tiff", MediaTypeFormats.mediaTypeForName("TCGA-AA-3872.svs"));
+        assertEquals("image/tiff", MediaTypeFormats.mediaTypeForName("slide.NDPI"));
+        assertEquals("image/tiff", MediaTypeFormats.mediaTypeForName("plain.tif"));
+        assertEquals("application/dicom", MediaTypeFormats.mediaTypeForName("scan.dcm"));
+        assertNull(MediaTypeFormats.mediaTypeForName("readme"));
+        assertNull(MediaTypeFormats.mediaTypeForName("trailing-dot."));
+        assertNull(MediaTypeFormats.mediaTypeForName("archive.zip"));
+        assertNull(MediaTypeFormats.mediaTypeForName(null));
+    }
+
+    @Test
+    void recordedMediaTypeUpgradesOpaqueClientTypesByKnownExtension() {
+        // Browsers upload .svs as application/octet-stream; the storage records
+        // the known format instead — but never second-guesses a specific type.
+        assertEquals("image/tiff",
+                MediaTypeFormats.recordedMediaType("application/octet-stream", ".svs"));
+        assertEquals("image/tiff", MediaTypeFormats.recordedMediaType(null, ".ndpi"));
+        assertEquals("image/tiff", MediaTypeFormats.recordedMediaType("  ", ".tif"));
+        assertEquals("image/jpeg",
+                MediaTypeFormats.recordedMediaType("image/jpeg", ".svs"),
+                "a specific client type always wins");
+        assertEquals("application/octet-stream",
+                MediaTypeFormats.recordedMediaType("application/octet-stream", ".zip"),
+                "an unknown extension upgrades nothing");
+        assertEquals("application/octet-stream",
+                MediaTypeFormats.recordedMediaType(null, ""));
+        assertEquals("application/octet-stream",
+                MediaTypeFormats.recordedMediaType(null, null));
     }
 
     @Test

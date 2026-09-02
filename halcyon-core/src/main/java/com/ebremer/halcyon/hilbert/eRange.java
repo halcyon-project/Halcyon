@@ -13,11 +13,21 @@ public class eRange implements Comparable<eRange> {
         this.high = Math.max(low, high);
     }
     
+    /**
+     * Ordered by {@code low}, then {@code high}.
+     * <p>
+     * The high tie-break is what makes this consistent with {@link #equals}:
+     * comparing on {@code low} alone reported 0 for [5,7] vs [5,9], which are
+     * not equal. {@code Collections.sort} tolerated that (it is a stable list
+     * sort — and hTools.Tran is the only caller), but a {@code TreeSet} or
+     * {@code TreeMap} deduplicates on compareTo==0, so the first such range to
+     * arrive would silently swallow every other range sharing its low.
+     */
     @Override
-    public int compareTo(eRange candidate) {          
-        return (this.low < candidate.low() ? -1 : 
-            (this.low == candidate.low() ? 0 : 1));     
-    }       
+    public int compareTo(eRange candidate) {
+        int c = Long.compare(this.low, candidate.low());
+        return c != 0 ? c : Long.compare(this.high, candidate.high());
+    }
     
     public static eRange create(long low, long high) {
         return new eRange(low, high);

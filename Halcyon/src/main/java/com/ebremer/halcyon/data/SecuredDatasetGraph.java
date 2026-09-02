@@ -57,14 +57,22 @@ public class SecuredDatasetGraph implements DatasetGraph {
         return securityEvaluator.evaluate(securityEvaluator.getPrincipal(), SecurityEvaluator.Action.Read, node);
     }
 
+    /**
+     * L5: nothing lives in the default graph — every resource is its own named
+     * graph — so this is unconditionally empty, matching {@code
+     * AcpSecuredDatasetGraph.getDefaultGraph()} in the LWS module.
+     * <p>
+     * It previously said {@code boolean isReadAllowed = false;} and branched on
+     * it, which reached the same answer but left a loaded gun on the table: the
+     * dead branch returned {@code base.getDefaultGraph()} — the RAW graph,
+     * unwrapped. The review's prescription ("drive the decision from the
+     * evaluator") would have armed exactly that, handing back a default graph
+     * with no triple-level enforcement, because unlike {@link #getGraph(Node)}
+     * this branch never wrapped it in {@code Factory.getInstance(...)}.
+     */
     @Override
     public Graph getDefaultGraph() {
-        boolean isReadAllowed = false;
-        if (isReadAllowed) {
-            return base.getDefaultGraph();
-        } else {
-            return GraphZero.instance();
-        }
+        return GraphZero.instance();
     }
 
     @Override
@@ -204,10 +212,18 @@ public class SecuredDatasetGraph implements DatasetGraph {
         return contains(quad.getGraph(), quad.getSubject(), quad.getPredicate(), quad.getObject());
     }
 
+    /**
+     * L5: the {@code return} is the fix. Without it the permitted path cleared
+     * the base dataset and then fell through and threw anyway — so a caller with
+     * full delete rights destroyed the data and was told the operation was
+     * denied. Whether the surrounding transaction then aborted the wipe or
+     * committed it depended entirely on who caught the exception.
+     */
     @Override
     public void clear() {
         if (getBaseGraphNodes().stream().allMatch(this::hasDeleteAccess)) {
             base.clear();
+            return;
         }
         throw new AccessDeniedException("User is not allowed to clear dataset.");
     }

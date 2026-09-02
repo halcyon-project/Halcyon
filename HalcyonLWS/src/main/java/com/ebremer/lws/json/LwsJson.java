@@ -1,5 +1,6 @@
 package com.ebremer.lws.json;
 
+import com.ebremer.lws.capability.CapabilityDescriptor;
 import com.ebremer.lws.config.LwsStorageConfig;
 import com.ebremer.lws.vocab.LWS;
 import jakarta.json.Json;
@@ -49,8 +50,16 @@ public final class LwsJson {
      * {@code StorageDescription} whose {@code serviceEndpoint} is the description's
      * own URL — that self-reference is how a client confirms it dereferenced the
      * right document.
+     *
+     * @param descriptors the installed capabilities' contributions. Each may add a
+     *     {@code service} entry, a {@code capability} entry, or both — advertised only when
+     *     installed, since a capability entry is a contract, not decoration. The IIIF Image
+     *     service and the store-wide SPARQL service both arrive this way (an app-tier endpoint
+     *     over this storage's data that the module never routes, so it is injected as a
+     *     descriptor rather than derived here).
      */
-    public static JsonObject storageDescription(LwsStorageConfig cfg) {
+    public static JsonObject storageDescription(LwsStorageConfig cfg,
+            List<CapabilityDescriptor> descriptors) {
         JsonArrayBuilder services = Json.createArrayBuilder()
                 .add(Json.createObjectBuilder()
                         .add("type", "StorageDescription")
@@ -79,6 +88,13 @@ public final class LwsJson {
                         .add("serviceEndpoint", cfg.accessGrantsUri())
                         .add("conformsTo", Json.createArrayBuilder()
                                 .add("https://www.w3.org/ns/lws#AccessProfile")));
+        // Capability-contributed service entries (the IIIF ImageService, the store-wide
+        // SparqlService, …), advertised only when the capability is installed.
+        for (CapabilityDescriptor d : descriptors) {
+            if (d.service() != null) {
+                services.add(serviceEntry(d.service()));
+            }
+        }
 
         // Advertise the patch formats we actually accept. A client is told not to
         // assume PUT or any particular patch format is supported unless it is
@@ -88,7 +104,26 @@ public final class LwsJson {
                         .add("type", "https://www.w3.org/ns/lws#PatchSupport")
                         .add("mediaType", Json.createObjectBuilder()
                                 .add("application/linkset+json", Json.createArrayBuilder()
-                                        .add("application/merge-patch+json"))));
+                                        .add("application/merge-patch+json"))
+                                // A JSON data resource accepts merge patch (RFC 7386) and
+                                // JSON Patch (RFC 6902).
+                                .add("application/json", Json.createArrayBuilder()
+                                        .add("application/merge-patch+json")
+                                        .add("application/json-patch+json"))))
+                // RFC 9530 Digest Fields: the algorithms this storage produces (Repr-Digest/
+                // Content-Digest) and verifies inbound. A client is told not to assume digest
+                // support unless it is advertised, so this is the contract, not decoration.
+                .add(Json.createObjectBuilder()
+                        .add("type", "https://www.rfc-editor.org/info/rfc9530")
+                        .add("algorithm", Json.createArrayBuilder()
+                                .add("sha-256").add("sha-512")));
+        // Capability-contributed capability entries (e.g. the IIIF query dialect), advertised only
+        // when the capability is installed.
+        for (CapabilityDescriptor d : descriptors) {
+            if (d.capability() != null) {
+                capabilities.add(capabilityEntry(d.capability()));
+            }
+        }
 
         // The key a subscriber uses to verify a webhook's HTTP Message Signature. It is
         // published here, rather than out of band, so a subscriber can find it by
@@ -109,6 +144,34 @@ public final class LwsJson {
                         .add(cfg.storageRootUri() + "#" + kid))
                 .add("service", services)
                 .build();
+    }
+
+    /** Render a capability's {@code service[]} entry. */
+    private static JsonObjectBuilder serviceEntry(CapabilityDescriptor.ServiceEntry se) {
+        JsonObjectBuilder b = Json.createObjectBuilder()
+                .add("type", se.type())
+                .add("serviceEndpoint", se.serviceEndpoint());
+        if (se.conformsTo() != null && !se.conformsTo().isEmpty()) {
+            JsonArrayBuilder ct = Json.createArrayBuilder();
+            se.conformsTo().forEach(ct::add);
+            b.add("conformsTo", ct);
+        }
+        if (se.note() != null) {
+            b.add("note", se.note());
+        }
+        return b;
+    }
+
+    /** Render a capability's {@code capability[]} entry. */
+    private static JsonObjectBuilder capabilityEntry(CapabilityDescriptor.CapabilityEntry ce) {
+        JsonObjectBuilder b = Json.createObjectBuilder().add("type", ce.type());
+        if (ce.serviceEndpoint() != null) {
+            b.add("serviceEndpoint", ce.serviceEndpoint());
+        }
+        if (ce.note() != null) {
+            b.add("note", ce.note());
+        }
+        return b;
     }
 
     /** One entry in a container's {@code items} array. */

@@ -23,6 +23,14 @@ public class HAL {
     public static final Resource ColorViewer  = m.createResource( NS + "ColorViewer" );
     public static final Resource ColorEditor  = m.createResource( NS + "ColorEditor" );
     public static final Resource SNOMEDEditor = m.createResource(NS+"SNOMEDEditor");
+    // Media viewer/editor IRIs for the Zephyr stack viewer — registered in the
+    // vandegraph MediaRegistry and selected by vg:MediaBinding shapes data
+    // (halcyon/media-bindings.ttl).
+    public static final Resource ZephyrViewer = m.createResource(NS+"ZephyrViewer");
+    public static final Resource ZephyrEditor = m.createResource(NS+"ZephyrEditor");
+    // Stored HTML: sandboxed page rendering, and the TipTap document editor.
+    public static final Resource HtmlPageViewer = m.createResource(NS+"HtmlPageViewer");
+    public static final Resource HtmlPageEditor = m.createResource(NS+"HtmlPageEditor");
     public static final Resource SHACLForm = m.createResource(NS+"SHACLForm");
     public static final Resource ValidationReport = m.createResource(NS+"ValidationReport");
     public static final Resource AnnotationClass = m.createResource(NS+"AnnotationClass");
@@ -40,7 +48,6 @@ public class HAL {
     public static final Resource SecurityGraph = m.createResource(NS+"SecurityGraph");
     public static final Resource ImagesAndFeatures = m.createResource(NS+"ImagesAndFeatures");
     public static final Resource GroupsAndUsers = m.createResource(NS+"GroupsAndUsers");
-    public static final Resource CollectionsAndResources = m.createResource(NS+"CollectionsAndResources");
     public static final Resource HilbertRange = m.createResource(NS+"HilbertRange");
     public static final Resource Object = m.createResource(NS+"Object");;
     public static final Resource HalcyonROCrate = m.createResource(NS+"HalcyonROCrate");
@@ -79,6 +86,7 @@ public class HAL {
     public static final Property hasRange = m.createProperty(NS+"hasRange");
     public static final Property hasValue = m.createProperty(NS+"hasValue");
     public static final Property hasAnnotationClass = m.createProperty(NS+"hasAnnotationClass");
+    public static final Property hasClass = m.createProperty(NS+"hasClass");
     public static final Property measurement = m.createProperty(NS+"measurement");
     public static final Property properties = m.createProperty(NS+"properties");
     public static final Property classification = m.createProperty(NS+"classification");

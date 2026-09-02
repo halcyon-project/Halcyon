@@ -1,18 +1,16 @@
 import { cfg } from '../context.js';
 /**
- * Stack persistence — read/write a stack's RDF to its OWN named graph.
+ * Stack persistence — serialise and save a stack's RDF.
  *
- * Each stack lives in a named graph keyed by the stack URI, keeping stacks
- * isolated. Save serialises the current LayerRegistry tree (including live edits
- * — z reorder, offsets, added layers) back to RDF and writes it with a
- * DROP + INSERT DATA over the authenticated /rdf SPARQL endpoint, the same
- * channel helpers/sparql.js already uses. Load CONSTRUCTs the graph back.
+ * Save serialises the current LayerRegistry tree (including live edits — z
+ * reorder, offsets, added layers) to N-Triples and POSTs it to the
+ * authenticated /savestack endpoint, which writes it through the LWS storage's
+ * own API as a RELATIVE Turtle file beside its imagery (the document names
+ * itself <> and its same-container annotation JSONs by bare name — StackTurtle).
+ * Loading is server-side: Zephyr fetches the stack over the LWS API and injects
+ * it as the scenegraph.
  *
- * NOTE: writes to the triple store. The serialise step is covered by a harness
- * round-trip test; the SPARQL write path requires an authenticated session and
- * should be exercised before relying on it.
- *
- * Uses the global $rdf (rdflib); auth comes from the context config (cfg).
+ * Uses the global $rdf (rdflib); auth rides the session cookie server-side.
  */
 
 const ZEPH_NS = 'https://halcyon.is/zephyr/ns/';
@@ -227,41 +225,24 @@ function serializeStackNTriples(registry, stackUri, name) {
     return $rdf.serialize(null, g, stackUri, 'application/n-triples');
 }
 
-async function rdfRequest(body, contentType) {
-    const endpoint = `${window.location.origin}/rdf`;
-    const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-            'Content-Type': contentType,
-            'Authorization': `Bearer ${cfg('token') || ''}`
-        },
-        body
-    });
-    if (!res.ok) throw new Error(`/rdf request failed: ${res.status} ${res.statusText}`);
-    return res.text();
-}
-
 /**
- * Replace the stack's named graph with the current state. DROP SILENT clears the
- * old contents; INSERT DATA writes the new triples into GRAPH <stackUri>.
+ * Persist the stack with the current state via the authenticated, WAC-gated
+ * server-side endpoint (POST /savestack?graph=<uri>). The endpoint writes it
+ * through the LWS storage's API with the signed-in user's own token, so the
+ * storage's ACP authorizes and stamps schema:creator itself. Auth rides the
+ * session cookie — the same way annotation layers save (helpers/save.js) — so
+ * no bearer token is sent here.
  */
 export async function saveStack(stackUri, registry, name) {
     const graph = validateGraphUri(stackUri);
     const triples = serializeStackNTriples(registry, stackUri, name);
-    const update =
-        `DROP SILENT GRAPH <${graph}> ;\n` +
-        `INSERT DATA { GRAPH <${graph}> {\n${triples}} }`;
-    await rdfRequest(update, 'application/sparql-update');
+    const endpoint = `${window.location.origin}/savestack?graph=${encodeURIComponent(graph)}`;
+    const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/n-triples' },
+        body: triples
+    });
+    if (res.redirected) throw new Error('not signed in (redirected to sign-in)');
+    if (!res.ok) throw new Error(`stack save failed: ${res.status} ${res.statusText}`);
     return true;
-}
-
-/**
- * CONSTRUCT the stack's named graph back as Turtle. The caller parses it into an
- * rdflib store (baseURI = stackUri) and hands the root subject to the builder.
- */
-export async function loadStackGraph(stackUri) {
-    const graph = validateGraphUri(stackUri);
-    const query =
-        `CONSTRUCT { ?s ?p ?o } WHERE { GRAPH <${graph}> { ?s ?p ?o } }`;
-    return rdfRequest(query, 'application/sparql-query');
 }

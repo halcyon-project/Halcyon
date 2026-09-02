@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <artifactId>HalcyonMCP</artifactId>
+    <packaging>jar</packaging>
+    <name>Halcyon Model Context Protocol</name>
+    <description>Model Context Protocol server for Halcyon: mounts a Streamable HTTP
+        MCP endpoint at /mcp into the Halcyon Spring Boot server (Spring AI) and
+        contributes Halcyon's tools. See TODO.md for the first-version plan.</description>
+
+    <parent>
+        <groupId>com.ebremer.HalcyonProject</groupId>
+        <artifactId>HalcyonProject</artifactId>
+        <version>0.9.0</version>
+    </parent>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <!-- Spring AI generation matched to the reactor's Spring Boot 4 /
+                     Framework 7 (spring-ai 1.x targets Boot 3.x and will not run
+                     here). Version property lives in the root pom. -->
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-bom</artifactId>
+                <version>${spring-ai.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <dependency>
+            <!-- HalcyonSettings (version banner, server configuration). -->
+            <groupId>${project.groupId}</groupId>
+            <artifactId>halcyon-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <!-- The shared Keycloak bearer-token verifier (lws.auth) — /mcp
+                 validates tokens with the SAME code as the LWS storages, per
+                 the H2 lesson: one definition cannot drift. -->
+            <groupId>${project.groupId}</groupId>
+            <artifactId>HalcyonLWS</artifactId>
+        </dependency>
+        <dependency>
+            <!-- The MCP server over Spring WebMVC: Streamable HTTP endpoint
+                 (default /mcp), sessions, tool/resource/prompt plumbing. The
+                 Halcyon app supplies the servlet container (Jetty); Tomcat is
+                 excluded here so this library can never smuggle a second
+                 container onto the app's classpath. -->
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-mcp-server-webmvc</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-starter-tomcat</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <!-- An embedded servlet container for the MCP-F1 integration test
+                 only (@SpringBootTest RANDOM_PORT). Test-scoped so it never
+                 reaches the app, which excludes Tomcat and runs on Jetty; this
+                 module's tests just need any container to expose /mcp on a real
+                 port and drive it with the MCP client SDK. -->
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-tomcat</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <!-- REQUIRED for the MCP tools: Spring AI derives each tool
+                         argument's JSON-schema property NAME from reflection
+                         (@ToolParam carries only the description, not the name).
+                         Without -parameters the names compile to arg0/arg1/…,
+                         so a client passing {"sparql": "..."} fails schema
+                         validation. The MCP-F1 integration test pins this. -->
+                    <parameters>true</parameters>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <systemPropertyVariables>
+                        <!-- BeakGraph ships as a fat jar that EMBEDS the
+                             log4j-slf4j2-impl classes and their SLF4J provider
+                             service file — invisible to Maven exclusions and to
+                             the reactor's enforcer ban, and whichever provider
+                             the classloader enumerates first wins. When the
+                             embedded one wins next to Boot's log4j-to-slf4j,
+                             log4j refuses the loop ("log4j-slf4j2-impl cannot
+                             be present with log4j-to-slf4j"). Pin the provider
+                             so the choice is not a classpath lottery. -->
+                        <slf4j.provider>ch.qos.logback.classic.spi.LogbackServiceProvider</slf4j.provider>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

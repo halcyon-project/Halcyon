@@ -1,5 +1,6 @@
 package com.ebremer.halcyon.server;
 
+import com.ebremer.halcyon.gui.PageAccess;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import com.ebremer.lws.config.LwsSettings;
 import java.util.ArrayList;
@@ -12,21 +13,42 @@ import java.util.List;
  */
 public class URLControl {
 
+    /**
+     * URL patterns the pac4j security filter guards (H4).
+     * <p>
+     * The page half is now DERIVED from {@link PageAccess} — the same table
+     * {@code HalcyonApplication} mounts from — so the two cannot drift apart
+     * again. They had: this list guarded {@code /collections} while the page was
+     * mounted at {@code /containers}, and {@code /admin}, {@code /upload},
+     * {@code /viewer}, {@code /stacks}, {@code /ListImages}, {@code /threed} and
+     * {@code /user/account} appeared nowhere, so they were reachable unauthenticated.
+     * <p>
+     * Only the non-page (servlet) entries are still listed by hand below.
+     */
     public static String[] getSecuredURLs() {
-        String[] secured = {
+        List<String> secured = new ArrayList<>(Arrays.asList(
            // "/users/*",
             //"/ldp/*",
-            "/blank",
             "/skunkworks/yay",
-            "/f*",
             "/callback",
-            "/about",
-            "/iiif*/",
-            "/sparql",
-            "/invalidateSession",
-            "/revisionhistory",
-            "/collections"};
-        return secured;
+            // Prefix specs, not exact ones. "/iiif*/" was not a legal servlet mapping at all --
+            // a glob may only sit at the end of a prefix spec -- and a filter pattern, unlike a
+            // servlet mapping, is never parsed, so Jetty accepted it silently and matched it
+            // against the literal seven characters. The IIIF servlet at "/iiif/*" was therefore
+            // unguarded with no error anywhere. "/invalidateSession" was legal but exact, and so
+            // covered nothing under the "/invalidateSession/*" the servlet is mounted on. A dead
+            // "/f*" -- an exact spec containing a glob, matching nothing, guarding nothing -- is
+            // gone. UrlMappingAudit now fails startup rather than let any of this recur silently.
+            "/iiif/*",
+            "/invalidateSession/*"
+        ));
+        secured.addAll(PageAccess.securedPaths());
+        return secured.toArray(String[]::new);
+    }
+
+    /** Mounted paths that additionally require the {@code admin} group (H4). */
+    public static String[] getAdminURLs() {
+        return PageAccess.adminPaths().toArray(String[]::new);
     }
 
     public static String getWicketIgnores() {
@@ -35,25 +57,42 @@ public class URLControl {
             "/ldp",
             "/lws/",
             "/HalcyonStorage",
-            "/raptor",
+            "/savestack",
             "/invalidateSession",
             "/callback",
             "/h2",
             "/skunkworks/",
             "/login",
+            // Interactive WebID login (Option B): the entry point and the OP's redirect target.
+            // Anonymous servlets (see Main.java), so Wicket must not claim their URL trees.
+            "/webid-login",
+            "/webid-callback",
             "/auth",
             "/three.js/",
+            // L18: Graph3D's vendored libraries — Wicket must not try to route these.
+            "/graph3d/",
             "/multi-viewer/",
             "/iiif/",
             "/halcyon/",
             "/images/",
             "/favicon.ico",
-            "/rdf",
             "/talon/",
             "/threejs/",
-            "/rdf/",
+            // /rdf2 (LWS SPARQL). Listed explicitly (the classic /rdf endpoint that
+            // used to prefix-cover it has been removed) so the Wicket filter never
+            // claims the LWS endpoint's URL tree.
+            "/rdf2",
+            "/rdf2/",
+            // The palette's color-classes relay servlet (session-authenticated).
+            "/colorclasses",
             "/zephyr/",
-            "/rdflib/"
+            "/rdflib/",
+            // The MCP endpoint (module HalcyonMCP, bearer-authenticated by its
+            // own filter) and the RFC 9728 metadata under /.well-known/ — both
+            // are Spring MVC routes; if the Wicket filter claims them the
+            // protocol answers with rendered HTML instead of JSON-RPC.
+            "/mcp",
+            "/.well-known/"
         };
         // The LWS data servlets (annotation save/fetch, LDP resources) are
         // mounted from the settings file's resource handlers; the Wicket

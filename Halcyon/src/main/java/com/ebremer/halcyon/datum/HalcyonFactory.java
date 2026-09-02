@@ -7,23 +7,26 @@ import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.SchemaDO;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author erich
  */
 public class HalcyonFactory {
+    private static final Logger logger = LoggerFactory.getLogger(HalcyonFactory.class);
     
     public static Resource CreateUUIDResource() {
         return ResourceFactory.createResource("urn:uuid:"+UUID.randomUUID().toString());
     }
            
     public static Model CreateCollection(Resource r) {
-        System.out.println("CreateCollection()");
+        logger.debug("CreateCollection()");
         Model m = ModelFactory.createDefaultModel();
         m.add(r, SchemaDO.name,"BLANK COLLECTION NAME");
         m.add(r, RDF.type, SchemaDO.Collection);
-        System.out.println(r.getURI());
+        logger.debug("{}", r.getURI());
         return m;
     }   
 }

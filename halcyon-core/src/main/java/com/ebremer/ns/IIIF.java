@@ -13,6 +13,13 @@ public class IIIF {
      * The namespace of the vocabulary as a string
      */
     
+    /**
+     * L11: the {@code hal:} binding here MUST stay identical to {@link com.ebremer.ns.HAL#NS}.
+     * It said {@code https://www.ebremer.com/halcyon/ns/} while everything that
+     * mints the terms uses {@code https://halcyon.is/ns/}, so JSON-LD compaction
+     * against this context matched nothing and silently passed our own terms
+     * through as unrecognised absolute IRIs instead of compacting them.
+     */
     public static final String CONTEXT = """
         {
             "iiif": "http://iiif.io/api/image/2#",
@@ -28,7 +35,7 @@ public class IIIF {
             "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
             "so": "https://schema.org/",
             "csvw": "https://www.w3.org/ns/csvw/",
-            "hal": "https://www.ebremer.com/halcyon/ns/",
+            "hal": "https://halcyon.is/ns/",
             "baseUriRedirect": {"@id": "iiif:baseUriRedirectFeature"},
             "cors": {"@id": "iiif:corsFeature"},
             "regionByPct": {"@id": "iiif:regionByPctFeature"},

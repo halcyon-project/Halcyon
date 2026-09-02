@@ -2,6 +2,8 @@ package com.ebremer.lws.notify;
 
 import com.ebremer.lws.acp.AccessMode;
 import com.ebremer.lws.acp.AcpEngine;
+import com.ebremer.lws.auth.oidc.LwsOidcSettings;
+import com.ebremer.lws.auth.oidc.SsrfGuard;
 import com.ebremer.lws.auth.AgentContext;
 import com.ebremer.lws.config.LwsSettings;
 import com.ebremer.lws.config.LwsStorageConfig;
@@ -24,6 +26,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -88,6 +91,32 @@ public final class Notifications {
 
     // --- Subscriptions ------------------------------------------------------
 
+    /**
+     * The hosts an inbox may resolve to despite being internal. Deliberately the same operator
+     * allow-list the OIDC fetches honour ({@code lws-oidc.json}'s {@code allowedInternalHosts}), so
+     * the process has one egress policy. Cached because {@code load()} re-reads the file and logs.
+     */
+    private static volatile Set<String> inboxHosts;
+
+    private static Set<String> allowedInboxHosts() {
+        Set<String> hosts = inboxHosts;
+        if (hosts == null) {
+            synchronized (Notifications.class) {
+                hosts = inboxHosts;
+                if (hosts == null) {
+                    try {
+                        hosts = Set.copyOf(LwsOidcSettings.load().allowedInternalHosts());
+                    } catch (RuntimeException e) {
+                        LOG.warn("could not read the internal-host allow-list; inbox egress stays restrictive", e);
+                        hosts = Set.of();
+                    }
+                    inboxHosts = hosts;
+                }
+            }
+        }
+        return hosts;
+    }
+
     private static Resource sub(String id) {
         return ResourceFactory.createResource("urn:lws:subscription:" + id);
     }
@@ -108,6 +137,18 @@ public final class Notifications {
         String inbox = body.getString("inbox", null);
         if (inbox == null || inbox.isBlank()) {
             throw Problem.badRequest("a WebhookSubscription requires an inbox");
+        }
+
+        // The inbox is a URL this server will POST to, repeatedly, on the subscriber's behalf --
+        // an outbound-request primitive handed over by a client, so it goes through the same
+        // egress policy as every other outbound call in the process. Without this a subscription
+        // is an SSRF: point the inbox at 169.254.169.254 or a service on the internal network and
+        // the server delivers to it on every matching event. Refused at subscribe time rather than
+        // at delivery, so the subscriber learns immediately instead of silently never being called.
+        try {
+            SsrfGuard.verify(inbox, allowedInboxHosts());
+        } catch (SsrfGuard.BlockedException e) {
+            throw Problem.badRequest("inbox refused: " + e.getMessage());
         }
         var topicArr = body.getJsonArray("topic");
         if (topicArr == null || topicArr.isEmpty()) {

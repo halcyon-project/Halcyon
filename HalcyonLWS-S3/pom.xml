@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <artifactId>HalcyonLWS-S3</artifactId>
+    <packaging>jar</packaging>
+    <name>Halcyon LWS S3 Backend</name>
+    <description>Amazon S3 (and S3-compatible) ContentStore backend for the HalcyonLWS storage SPI</description>
+
+    <parent>
+        <groupId>com.ebremer.HalcyonProject</groupId>
+        <artifactId>HalcyonProject</artifactId>
+        <version>0.9.0</version>
+    </parent>
+
+    <dependencies>
+        <!-- The SPI this module implements (ContentStoreProvider, ContentStore,
+             MaterializedContentStore) plus, transitively, Jena for reading the
+             :hasBackend node's vocabulary. The dependency arrow points here only:
+             HalcyonLWS never names this module. -->
+        <dependency>
+            <groupId>com.ebremer.HalcyonProject</groupId>
+            <artifactId>HalcyonLWS</artifactId>
+        </dependency>
+
+        <!-- AWS SDK v2, version from the root pom's BOM import. The sync client
+             is deliberate: ContentStore is a blocking, streaming contract, and
+             the servlet calls it on request threads. -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>s3</artifactId>
+        </dependency>
+
+        <!-- Unit tests run against an in-memory S3Blobs - the AWS client itself is
+             a thin adapter, and no test touches the network. -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>5.11.4</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

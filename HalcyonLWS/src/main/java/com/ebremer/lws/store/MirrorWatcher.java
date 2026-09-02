@@ -44,7 +44,6 @@ public final class MirrorWatcher {
     private final LwsStorageConfig cfg;
     private final MirrorContentStore mirror;
     private final ContentStore content;
-    private final Path root;
 
     private final Map<WatchKey, Path> watched = new ConcurrentHashMap<>();
     private final ScheduledExecutorService debouncer;
@@ -59,7 +58,6 @@ public final class MirrorWatcher {
         this.cfg = cfg;
         this.mirror = mirror;
         this.content = content;
-        this.root = mirror.root();
         this.debouncer = Executors.newSingleThreadScheduledExecutor(r -> {
             Thread th = new Thread(r, "lws-mirror-reconcile-" + cfg.urlPath());
             th.setDaemon(true);
@@ -70,7 +68,12 @@ public final class MirrorWatcher {
     public void start() {
         try {
             this.ws = FileSystems.getDefault().newWatchService();
-            registerTree(root);
+            // Every disk backing this storage: the content root plus each mount.
+            // registerTree quietly skips a root that is not there (offline disk);
+            // the periodic reconcile picks it up when it returns.
+            for (MountTable.WalkRoot wr : mirror.mounts().walkRoots()) {
+                registerTree(wr.root());
+            }
         } catch (IOException e) {
             LOG.warn("mirror watcher for {} could not start; relying on the periodic reconcile",
                     cfg.baseUri(), e);
@@ -80,7 +83,8 @@ public final class MirrorWatcher {
         eventThread = new Thread(this::loop, "lws-mirror-watch-" + cfg.urlPath());
         eventThread.setDaemon(true);
         eventThread.start();
-        LOG.info("mirror watcher active on {}", root);
+        LOG.info("mirror watcher active on {}", mirror.mounts().walkRoots().stream()
+                .map(MountTable.WalkRoot::root).toList());
     }
 
     public void stop() {

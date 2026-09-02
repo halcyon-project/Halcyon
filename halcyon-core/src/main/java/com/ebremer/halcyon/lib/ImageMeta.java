@@ -42,15 +42,36 @@ public class ImageMeta {
         return meta;
     }
     
+    /**
+     * The most-reduced level that still satisfies {@code ratio}, walking down
+     * from the smallest image; index 0 (full resolution) is the floor.
+     * <p>
+     * H12: an empty scale list used to walk straight off the front —
+     * {@code c = size()-1 = -1} → {@code scales.get(-1)} → IndexOutOfBounds, so
+     * EVERY tile of a non-pyramidal image 500'd. The readers are now all
+     * consistent about seeding the base (scale 1) themselves, but an image whose
+     * levels were all filtered out (see {@code Builder.addScale}'s aspect-ratio
+     * filter) can still land here with nothing: in that case the base IS the only
+     * resolution, so return it rather than throwing.
+     */
     public ImageScale getBestMatch(double ratio) {
+        if (scales.isEmpty()) {
+            logger.debug("No scales registered for {}x{} — falling back to the base image", width, height);
+            return baseScale();
+        }
         int iratio = (int) Math.round(ratio);
         int c = scales.size();
         ImageScale scale;
-        do {            
+        do {
             c--;
             scale = scales.get(c);
         } while ((c>0)&&(iratio<scale.scale));
         return scale;
+    }
+
+    /** Full resolution, synthesised from this image's own dimensions. */
+    private ImageScale baseScale() {
+        return new ImageScale(series, 1, width, height, ((double) width) / ((double) height));
     }
 
     public Double getMagnification() {

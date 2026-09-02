@@ -41,7 +41,71 @@ public final class MediaTypeFormats {
             Map.entry("application/n-triples", ".nt"),
             Map.entry("application/ld+json", ".jsonld"));
 
+    /**
+     * The other direction: file extension (lower-case, no dot) → media type, for the
+     * specialist formats the JDK's own name map has never heard of. {@code .svs} and
+     * {@code .ndpi} are TIFF containers, so they record as {@code image/tiff} —
+     * which is also what makes media-type-driven consumers (the UI's viewer
+     * bindings included) treat an adopted whole-slide image as imagery instead of
+     * an opaque {@code application/octet-stream} blob.
+     */
+    private static final Map<String, String> TYPE = Map.ofEntries(
+            Map.entry("svs", "image/tiff"),
+            Map.entry("ndpi", "image/tiff"),
+            Map.entry("tif", "image/tiff"),
+            Map.entry("tiff", "image/tiff"),
+            Map.entry("jp2", "image/jp2"),
+            Map.entry("jxl", "image/jxl"),
+            Map.entry("dcm", "application/dicom"),
+            Map.entry("h5", "application/x-hdf5"),
+            Map.entry("ttl", "text/turtle"),
+            Map.entry("nt", "application/n-triples"),
+            Map.entry("jsonld", "application/ld+json"));
+
     private MediaTypeFormats() {
+    }
+
+    /**
+     * The media type this module knows for a file <em>name</em>, or {@code null}
+     * when the extension is absent or unknown — the caller then falls back to the
+     * JDK's guess and its own default. Consulted by the mirror gateway's adoption
+     * path before {@code URLConnection.guessContentTypeFromName}.
+     */
+    public static String mediaTypeForName(String filename) {
+        if (filename == null) {
+            return null;
+        }
+        int dot = filename.lastIndexOf('.');
+        if (dot < 0 || dot == filename.length() - 1) {
+            return null;
+        }
+        return TYPE.get(filename.substring(dot + 1).toLowerCase(Locale.ROOT));
+    }
+
+    /**
+     * The media type to RECORD for a new representation: the client's, unless
+     * the client said nothing usable — {@code null}, blank, or
+     * {@code application/octet-stream}, which is what browsers send for
+     * formats they do not know ({@code .svs} included) — and the name's
+     * extension identifies a known format, in which case the known type wins.
+     * A client's own <em>specific</em> type is never second-guessed. Falls
+     * back to {@code application/octet-stream} when nothing is known at all.
+     *
+     * @param clientType the bare Content-Type the client sent, or {@code null}
+     * @param extWithDot the resource's extension including the leading dot
+     *     ({@code Slugs.extensionOf} convention), or empty/{@code null}
+     */
+    public static String recordedMediaType(String clientType, String extWithDot) {
+        boolean opaque = clientType == null || clientType.isBlank()
+                || "application/octet-stream".equalsIgnoreCase(clientType.trim());
+        if (opaque && extWithDot != null && extWithDot.length() > 1) {
+            String known = TYPE.get(extWithDot.substring(1).toLowerCase(Locale.ROOT));
+            if (known != null) {
+                return known;
+            }
+        }
+        return clientType == null || clientType.isBlank()
+                ? "application/octet-stream" : clientType;
     }
 
     /**

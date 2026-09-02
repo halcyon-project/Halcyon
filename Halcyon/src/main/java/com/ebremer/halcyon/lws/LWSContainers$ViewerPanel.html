@@ -1,0 +1,18 @@
+<wicket:panel xmlns:wicket="http://wicket.apache.org">
+    <h4 wicket:id="vname">Preview</h4>
+    <div class="uri" wicket:id="vuri"></div>
+    <div class="lws-vbar">
+        <span class="lws-vmedia" wicket:id="vmedia"></span>
+        <form wicket:id="vform" style="display:inline">
+            <label>open with <select wicket:id="openWith"></select></label>
+        </form>
+        <a wicket:id="vedit" href="#"
+           title="Edit this document and save it back to the storage">✎ edit</a>
+        <a wicket:id="vopen" target="_blank" rel="noopener"
+           title="Open directly from the storage in a new tab">open ↗</a>
+        <a wicket:id="vfull" class="lws-vfull" href="#"
+           title="Toggle full-screen preview (Esc exits)"></a>
+    </div>
+    <div wicket:id="vcontent"></div>
+    <div class="lws-note" wicket:id="vnote"></div>
+</wicket:panel>

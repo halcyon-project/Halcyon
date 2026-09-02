@@ -13,6 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.jena.query.ParameterizedSparqlString;
+import org.apache.jena.query.QueryExecution;
 import org.apache.jena.query.QueryExecutionFactory;
 import org.apache.jena.query.QuerySolution;
 import org.apache.jena.query.ResultSet;
@@ -28,26 +29,27 @@ import org.apache.jena.vocabulary.SchemaDO;
  * @author erich
  */
 public class ImageMeta {
+    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ImageMeta.class);
     private final Model tcga;
     public final ConcurrentHashMap<String,ImageObject> meta;
     
     public ImageMeta() {
         tcga = ModelFactory.createDefaultModel();
         meta = new ConcurrentHashMap<>();
-        System.out.println("Loading Image MetaData...");
+        logger.debug("Loading Image MetaData...");
         File f1 = new File("tcgameta.ttl.gz");
         File f2 = new File("cptac.ttl.gz");
         if (f1.exists()) {
-            System.out.println("Loading : "+f1);
+            logger.debug("Loading : {}", f1);
             RDFDataMgr.read(tcga, f1.toString(), Lang.TURTLE);
         } else {
-            System.out.println(f1);
+            logger.debug("{}", f1);
         }
         if (f2.exists()) {
-            System.out.println("Loading : "+f2);
+            logger.debug("Loading : {}", f2);
             RDFDataMgr.read(tcga, f2.toString(), Lang.TURTLE);
         } else {
-            System.out.println(f2);
+            logger.debug("{}", f2);
         }
         ParameterizedSparqlString pss = new ParameterizedSparqlString(
             """
@@ -63,7 +65,11 @@ public class ImageMeta {
         pss.setNsPrefix("so", SchemaDO.NS);
         pss.setNsPrefix("exif", EXIF.NS);
         pss.setNsPrefix("loc", LOC.NS);
-        ResultSet rs = QueryExecutionFactory.create(pss.toString(),tcga).execSelect();
+        // H13: in-memory model, but close the execution.
+        ResultSet rs;
+        try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), tcga)) {
+            rs = qe.execSelect().materialise();
+        }
         while (rs.hasNext()) {
             QuerySolution qs = rs.next();
             String name = qs.getResource("s").getURI();
@@ -83,14 +89,14 @@ public class ImageMeta {
                 Logger.getLogger(ImageMeta.class.getName()).log(Level.SEVERE, null, ex);
             }
         }
-        System.out.println("TCGA MetaData Loaded.");
-        System.out.println("# of images : "+meta.size());
+        logger.debug("TCGA MetaData Loaded.");
+        logger.debug("# of images : {}", meta.size());
     }
     
     public static void Scan(Path path) throws IOException {
         Model m = ModelFactory.createDefaultModel();
         Files.list(path).forEach(p->{
-            System.out.println(p);
+            logger.debug("{}", p);
             //SVSReader reader = new SVSReader();
             try {
               //  reader.setId(p.toString());

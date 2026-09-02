@@ -6,7 +6,7 @@ import java.util.List;
 import org.apache.jena.sparql.expr.ExprList;
 import org.apache.jena.sparql.expr.NodeValue;
 import org.apache.jena.sparql.function.FunctionBase;
-import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.geom.Geometry;
 
 public class Area extends FunctionBase {
     
@@ -27,11 +27,15 @@ public class Area extends FunctionBase {
         }
         String ppp = nwkt.getString();
         if (POLYGONEMPTY.equals(ppp)) return NodeValue.makeDouble(0d);
-        Polygon polygon = GeometryTools.WKT2Polygon(ppp);
-        if (polygon == null) {
+        // M6: read as a Geometry, not a Polygon. A MULTIPOLYGON (a region with
+        // several parts — routine in pathology annotations) used to hit an
+        // uncaught ClassCastException here and abort the whole query. JTS's
+        // Geometry.getArea() already SUMS the component areas.
+        Geometry geometry = GeometryTools.WKT2Geometry(ppp);
+        if (geometry == null) {
             return NodeValue.makeDouble(0d);
         }
-        return NodeValue.makeDouble(polygon.getArea());
+        return NodeValue.makeDouble(geometry.getArea());
     }
 
     @Override

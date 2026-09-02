@@ -102,6 +102,7 @@ curl -sk "$SITE/W3Clws/" -H "Authorization: Bearer $TOK" -H "Accept: text/turtle
 | [security.md](security.md) | Authentication (Keycloak, WebID, tokens, audience) and authorization (the ACP model, ACRs, access requests & grants) |
 | [notifications.md](notifications.md) | Webhook subscriptions, delivery, retry/expiry, and RFC 9421 signature verification |
 | [architecture.md](architecture.md) | Module layout, TDB2 and content-store design, write atomicity, cursors, the `QUERY` method, per-request security evaluator |
+| [ui.md](ui.md) | The storage UIs: the `/storage` browser and the `/lwscontainers` container tree (protocol-cursor pagination, media-type filter, right-click access properties, and the media-binding-driven preview pane with the Zephyr viewer) |
 
 ## Reactor position
 
@@ -114,6 +115,7 @@ jena-permissions      halcyon-core
               Halcyon           <- Spring Boot app: registers the servlets, hosts the UI
 ```
 
-`Halcyon` depends on `HalcyonLWS` only to **register the two servlets** and host the Wicket "Storage"
-UI. The UI talks to the storage over HTTP using LWS media types — it is itself an LWS client, not a
-caller of module internals.
+`Halcyon` depends on `HalcyonLWS` only to **register the two servlets** and host the Wicket storage
+UIs — the flat `/storage` browser and the `/lwscontainers` container tree ([ui.md](ui.md)). The UIs
+talk to the storage over HTTP using LWS media types — each is itself an LWS client, not a caller of
+module internals.
