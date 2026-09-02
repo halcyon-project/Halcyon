@@ -30,10 +30,17 @@ public class URLControl {
            // "/users/*",
             //"/ldp/*",
             "/skunkworks/yay",
-            "/f*",
             "/callback",
-            "/iiif*/",
-            "/invalidateSession"
+            // Prefix specs, not exact ones. "/iiif*/" was not a legal servlet mapping at all --
+            // a glob may only sit at the end of a prefix spec -- and a filter pattern, unlike a
+            // servlet mapping, is never parsed, so Jetty accepted it silently and matched it
+            // against the literal seven characters. The IIIF servlet at "/iiif/*" was therefore
+            // unguarded with no error anywhere. "/invalidateSession" was legal but exact, and so
+            // covered nothing under the "/invalidateSession/*" the servlet is mounted on. A dead
+            // "/f*" -- an exact spec containing a glob, matching nothing, guarding nothing -- is
+            // gone. UrlMappingAudit now fails startup rather than let any of this recur silently.
+            "/iiif/*",
+            "/invalidateSession/*"
         ));
         secured.addAll(PageAccess.securedPaths());
         return secured.toArray(String[]::new);

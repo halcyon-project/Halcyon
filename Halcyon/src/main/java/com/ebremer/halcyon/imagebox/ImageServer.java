@@ -11,6 +11,7 @@ import com.ebremer.halcyon.server.CorsPolicy;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import com.ebremer.halcyon.server.utils.ImageReaderPool;
 import com.ebremer.lws.config.LwsSettings;
+import com.ebremer.halcyon.server.RequestPrincipal;
 import com.ebremer.lws.config.LwsStorageConfig;
 import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.http.HttpServlet;
@@ -81,6 +82,26 @@ public class ImageServer extends HttpServlet {
                         return;
                     }
                 }
+            }
+            // Everything past this point is the CLASSIC path: a :hasResourceHandler root served
+            // straight off disk through PathMapper, with no ACP graph behind it and no per-resource
+            // policy to consult. It made no identity decision at all, and the filter that was meant
+            // to cover it could not: "/iiif*/" is not a legal servlet mapping, and a filter pattern
+            // is never parsed, so it silently matched nothing (F008). The filter is now registered
+            // on "/iiif/*", but it cannot be the only gate -- it is @Conditional(KeycloakEnabled),
+            // so in the configuration this project ships, with no :AuthServer in settings.ttl, it
+            // does not exist. Hence the endpoint's own check.
+            //
+            // This is deliberately NOT applied to the two paths above: source != null is the LWS
+            // bridge re-entering after LwsServlet has already run storage confinement and
+            // demandOn(acl:Read), and the forward hands an LWS identifier to the owning storage's
+            // .iiif capability, whose ACP decision may legitimately permit an anonymous reader.
+            // Requiring a session here would override a storage's own policy.
+            if (source == null && !RequestPrincipal.isSignedIn(
+                    RequestPrincipal.resolve(request, response))) {
+                reportError(response, HttpServletResponse.SC_UNAUTHORIZED,
+                        "sign in to read images from this server");
+                return;
             }
             if (i.tilerequest) {
                 handleTileRequest(i, request, response);
