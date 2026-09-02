@@ -29,6 +29,7 @@
             // A persisted tab keeps ITS OWN endpoint; steer it to the chosen one.
             if (typeof tab.setEndpoint === 'function') { tab.setEndpoint(sparqlEndpoint); }
             //tab.setQuery("select *\nwhere {graph ?g {?s ?p ?o}}\nlimit 20");
+            tab.yasqe.addPrefixes({ as: "https://www.w3.org/ns/activitystreams#" });
             tab.yasqe.addPrefixes({ sdo: "https://schema.org/" });
             tab.yasqe.addPrefixes({ hal: "https://halcyon.is/ns/" });
             tab.yasqe.addPrefixes({rdfs: "http://www.w3.org/2000/01/rdf-schema#" });
