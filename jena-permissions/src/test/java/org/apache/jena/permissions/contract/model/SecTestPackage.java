@@ -18,18 +18,16 @@
 package org.apache.jena.permissions.contract.model;
 
 import org.apache.jena.atlas.web.TypedInputStream;
-import org.apache.jena.graph.Graph;
 import org.apache.jena.irix.IRIs;
 import org.apache.jena.permissions.MockSecurityEvaluator;
 import org.apache.jena.permissions.SecurityEvaluator;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
-import org.apache.jena.rdf.model.test.AbstractTestPackage;
-import org.apache.jena.rdf.model.test.helpers.TestingModelFactory;
+import org.apache.jena.rdf.model.AbstractTestPackage;
+import org.apache.jena.rdf.model.helpers.ModelCreator;
 import org.apache.jena.riot.system.streammgr.Locator;
 import org.apache.jena.riot.system.streammgr.LocatorZip;
 import org.apache.jena.riot.system.streammgr.StreamManager;
-import org.apache.jena.shared.PrefixMapping;
 
 import junit.framework.TestSuite;
 
@@ -48,7 +46,15 @@ public class SecTestPackage extends AbstractTestPackage {
         sm.addLocator(new LocatorJarURL());
     }
 
-    /* package private */static class PlainModelFactory implements TestingModelFactory {
+    /**
+     * Jena 6.2.0 replaced {@code TestingModelFactory} with {@link ModelCreator}, which extends
+     * {@code Creator<Model>} and so declares only {@code create()}. The two methods that went with
+     * it -- {@code getPrefixMapping()} and {@code createModel(Graph)} -- have no callers in the
+     * upstream suite any more, and neither was doing security work here: the first delegated
+     * straight to the model this creates, the second wrapped a caller-supplied graph WITHOUT
+     * securing it. Only the secured construction below is load-bearing, and it is unchanged.
+     */
+    /* package private */static class PlainModelFactory implements ModelCreator {
         private final SecurityEvaluator eval;
 
         public PlainModelFactory() {
@@ -56,20 +62,9 @@ public class SecTestPackage extends AbstractTestPackage {
         }
 
         @Override
-        public Model createModel() {
-            // Graph graph = Factory.createDefaultGraph( style );
+        public Model create() {
             final Model model = ModelFactory.createDefaultModel();
             return org.apache.jena.permissions.Factory.getInstance(eval, "testModel", model);
-        }
-
-        @Override
-        public PrefixMapping getPrefixMapping() {
-            return createModel().getGraph().getPrefixMapping();
-        }
-
-        @Override
-        public Model createModel(Graph base) {
-            return ModelFactory.createModelForGraph(base);
         }
     }
 

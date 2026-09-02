@@ -90,7 +90,7 @@
         <springboot.version>4.1.0</springboot.version>
 	<resteasy.version>6.2.15.Final</resteasy.version>
         <jetty.version>12.1.10</jetty.version>
-        <jena.version>6.1.0</jena.version>
+        <jena.version>6.2.0</jena.version>
         <wicket.ver>10.9.1</wicket.ver>
         <beakgraph.version>0.18.0</beakgraph.version>
         <hilbert.ver>0.2.3</hilbert.ver>
@@ -109,7 +109,7 @@
              a minor/major gets its own review (the MCP SDK moves fast and the
              transport-provider override in HalcyonMcpAutoConfiguration tracks
              Spring AI's own auto-config shape). -->
-        <spring-ai.version>2.0.0</spring-ai.version>
+        <spring-ai.version>2.0.1</spring-ai.version>
         <!-- S3 backend (module HalcyonLWS-S3). BOM-managed; the sync client rides
              the default apache-client. -->
         <awssdk.version>2.48.3</awssdk.version>

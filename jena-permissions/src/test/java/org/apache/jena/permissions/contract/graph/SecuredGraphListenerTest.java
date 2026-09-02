@@ -19,7 +19,7 @@ package org.apache.jena.permissions.contract.graph;
 
 import org.apache.jena.graph.Graph;
 import org.apache.jena.graph.GraphMemFactory;
-import org.apache.jena.graph.test.TestGraphListener;
+import org.apache.jena.graph.TestGraphListener;
 import org.apache.jena.permissions.MockSecurityEvaluator;
 import org.apache.jena.permissions.SecurityEvaluator;
 
