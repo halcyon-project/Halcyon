@@ -32,18 +32,29 @@ public class UrlMappingAudit {
 
     private static final Logger LOG = LoggerFactory.getLogger(UrlMappingAudit.class);
 
+    /**
+     * Named distinctly from the enclosing class on purpose: a {@code @Configuration} class is itself
+     * registered under its decapitalised simple name, so a {@code @Bean} method called
+     * {@code urlMappingAudit} inside {@code UrlMappingAudit} is a second definition of that name and
+     * the context refuses to start. No test in this repository boots the application context, so
+     * that collision reached a real launch.
+     */
     @Bean
-    static SmartInitializingSingleton urlMappingAudit(
+    static SmartInitializingSingleton securityUrlPatternAudit(
             ObjectProvider<AbstractFilterRegistrationBean<?>> filters,
             ObjectProvider<ServletRegistrationBean<?>> servlets) {
         return () -> {
             // The declared lists first, so they are checked even when no filter is built from them.
+            // The lists this project maintains get the strict rule: they must be fit to GUARD.
             List<String> secured = Arrays.asList(URLControl.getSecuredURLs());
-            UrlPatternRules.assertLegal("URLControl.getSecuredURLs()", secured);
-            UrlPatternRules.assertLegal("URLControl.getAdminURLs()",
+            UrlPatternRules.assertGuardable("URLControl.getSecuredURLs()", secured);
+            UrlPatternRules.assertGuardable("URLControl.getAdminURLs()",
                     Arrays.asList(URLControl.getAdminURLs()));
 
             // Then whatever actually got registered, including filters from other modules.
+            // Registrations get form-legality only. Many are not ours -- Spring's dispatcherServlet
+            // is mapped on "/" and Wicket's filter on "/*", both correct -- so the "must not cover
+            // everything" rule above would reject the framework's own wiring.
             List<String> servletMappings = new ArrayList<>();
             filters.stream()
                     .filter(AbstractFilterRegistrationBean::isEnabled)

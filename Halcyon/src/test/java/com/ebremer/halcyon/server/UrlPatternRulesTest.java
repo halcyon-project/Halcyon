@@ -55,10 +55,26 @@ class UrlPatternRulesTest {
         assertDoesNotThrow(() -> UrlPatternRules.assertLegal("test", List.of(pattern)));
     }
 
+    /**
+     * The distinction that broke a real launch. {@code "/"} is the default mapping: correct for a
+     * dispatcher servlet, never right for a secured-URL list. Applying the strict rule to every
+     * registration rejected Spring's own {@code dispatcherServlet} and the application refused to
+     * start, so legality and guardability are separate questions with separate methods.
+     */
     @Test
-    void theDefaultMappingIsRefusedBecauseItWouldSwallowEverything() {
+    void theDefaultMappingIsLegalButNotGuardable() {
+        assertDoesNotThrow(() -> UrlPatternRules.assertLegal("test", List.of("/")),
+                "a dispatcher servlet is legitimately mapped on \"/\"");
         assertThrows(UrlPatternRules.IllegalPatternException.class,
-                () -> UrlPatternRules.assertLegal("test", List.of("/")));
+                () -> UrlPatternRules.assertGuardable("test", List.of("/")),
+                "but a secured-URL list must not cover the whole application");
+    }
+
+    @Test
+    void theCatchAllPrefixIsLegalEverywhere() {
+        assertDoesNotThrow(() -> UrlPatternRules.assertLegal("test", List.of("/*")),
+                "Wicket's filter is mapped on \"/*\"");
+        assertDoesNotThrow(() -> UrlPatternRules.assertGuardable("test", List.of("/*")));
     }
 
     @Test
@@ -66,7 +82,7 @@ class UrlPatternRulesTest {
         assertThrows(UrlPatternRules.IllegalPatternException.class,
                 () -> UrlPatternRules.assertLegal("test", List.of("  ")));
         assertThrows(UrlPatternRules.IllegalPatternException.class,
-                () -> UrlPatternRules.assertLegal("test", List.of("/callback", "/callback")));
+                () -> UrlPatternRules.assertGuardable("test", List.of("/callback", "/callback")));
     }
 
     @Test

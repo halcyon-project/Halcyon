@@ -57,22 +57,26 @@ public final class UrlPatternRules {
             + "an extension spec beginning \"*.\"; or an exact path containing no \"*\"";
 
     /**
-     * Every pattern is a usable security mapping.
+     * Every pattern is a well-formed servlet mapping.
+     *
+     * <p>Form only. {@code "/"} (the default mapping) and {@code "/*"} are perfectly legal here and
+     * are what a dispatcher or a framework filter is normally registered on — this is the check to
+     * apply to <em>registrations</em>, including ones this project does not own. The stricter
+     * question of whether a pattern is fit to <em>guard</em> something is
+     * {@link #assertGuardable}, and conflating the two rejects Spring's own
+     * {@code dispatcherServlet}.
      *
      * @param where human-readable source of the list, named in any failure
      */
     public static void assertLegal(String where, Collection<String> patterns) {
-        Set<String> seen = new LinkedHashSet<>();
         for (String p : patterns) {
             if (p == null || p.isBlank()) {
-                throw new IllegalPatternException(where + ": a blank URL pattern guards nothing. "
-                        + LEGAL_FORMS);
+                // The empty mapping is legal in the spec (it is the context root) but nothing in
+                // this application registers one, and a blank string is far more often a bug.
+                throw new IllegalPatternException(where + ": a blank URL pattern. " + LEGAL_FORMS);
             }
             if ("/".equals(p)) {
-                // The default mapping. Legal, but as a security pattern it silently swallows the
-                // whole application, which is never what was meant.
-                throw new IllegalPatternException(where + ": \"/\" is the default mapping and would "
-                        + "cover the entire application; name the paths to guard explicitly");
+                continue;   // the default mapping: legal, and correct for a dispatcher servlet
             }
             ServletPathSpec spec;
             try {
@@ -90,9 +94,29 @@ public final class UrlPatternRules {
                         + "mean \"" + prefixSuggestion(p) + "\"? " + LEGAL_FORMS);
             }
             if (group != PathSpecGroup.EXACT && group != PathSpecGroup.PREFIX_GLOB
-                    && group != PathSpecGroup.SUFFIX_GLOB) {
+                    && group != PathSpecGroup.SUFFIX_GLOB && group != PathSpecGroup.ROOT
+                    && group != PathSpecGroup.DEFAULT) {
                 throw new IllegalPatternException(where + ": \"" + p + "\" parses as " + group
-                        + ", which is not usable as a security mapping. " + LEGAL_FORMS);
+                        + ", which is not a servlet mapping form. " + LEGAL_FORMS);
+            }
+        }
+    }
+
+    /**
+     * Every pattern is fit to guard something.
+     *
+     * <p>{@link #assertLegal} plus the rules that only make sense for a <em>security</em> list: no
+     * default mapping (it would cover the entire application, which is never what a secured-URL
+     * list means), and no duplicates. Applied to the lists this project maintains, not to framework
+     * registrations — a dispatcher servlet on {@code "/"} is correct and must not be refused.
+     */
+    public static void assertGuardable(String where, Collection<String> patterns) {
+        assertLegal(where, patterns);
+        Set<String> seen = new LinkedHashSet<>();
+        for (String p : patterns) {
+            if ("/".equals(p)) {
+                throw new IllegalPatternException(where + ": \"/\" is the default mapping and would "
+                        + "cover the entire application; name the paths to guard explicitly");
             }
             if (!seen.add(p)) {
                 throw new IllegalPatternException(where + ": \"" + p + "\" is listed twice");
