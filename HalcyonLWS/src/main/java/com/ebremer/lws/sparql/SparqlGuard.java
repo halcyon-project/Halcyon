@@ -27,7 +27,9 @@ import org.apache.jena.sparql.expr.ExprVisitorBase;
  *       at all. The MCP tool surface uses this.</li>
  *   <li>{@link #checkEgress} — federation is allowed, but every target is put through
  *       {@link SsrfGuard} first, so a query cannot reach loopback, private, link-local or
- *       cloud-metadata addresses. The HTTP endpoints use this, because self-federation is a
+ *       cloud-metadata addresses. A variable endpoint has no target to check here and is passed
+ *       over deliberately: it is checked at execution time by the app tier's service executor.
+ *       The HTTP endpoints use this, because self-federation is a
  *       deliberate feature here: every LWS resource is a SPARQL endpoint on this server's own
  *       origin, and {@code ServiceHttpClient} exists specifically so a {@code SERVICE} back to it
  *       completes. That is why this is not simply a ban — banning would delete a working feature
@@ -106,18 +108,22 @@ public final class SparqlGuard {
      * {@code allowedInternalHosts}. It is deliberately the same allow-list the OIDC fetches use:
      * one egress policy for the process, not one per subsystem.
      *
-     * @throws RefusedException if any target is a variable, or is refused by {@link SsrfGuard}
+     * @throws RefusedException if a constant target is refused by {@link SsrfGuard}
      */
     public static void checkEgress(Query query, Set<String> allowedHosts) {
         Set<String> hosts = allowedHosts == null ? Set.of() : allowedHosts;
         Set<String> seen = new LinkedHashSet<>();
         for (String target : serviceTargets(query)) {
             if (target == null) {
-                // SERVICE ?endpoint: the destination is only known once bindings flow, which is
-                // after the point where it could be refused. Fail closed.
-                throw new RefusedException(
-                        "SERVICE with a variable endpoint is not accepted: its target cannot be "
-                        + "checked before the request is made");
+                // SERVICE ?endpoint. The destination is not known until bindings flow, so there is
+                // nothing to check here -- but refusing it outright was wrong: every LWS resource
+                // is itself a SPARQL endpoint, which makes "graph ?g {...} service ?g {...}" the
+                // natural way to ask one question of every matching resource, and a blanket refusal
+                // deleted that. The resolved target is checked instead at execution time, once per
+                // binding, by the ChainingServiceExecutor the app tier installs at startup
+                // (SparqlServiceEgressExecutor) -- immediately before the request is made, which
+                // also catches a target derived through VALUES or a sub-select.
+                continue;
             }
             if (!seen.add(target)) {
                 continue;

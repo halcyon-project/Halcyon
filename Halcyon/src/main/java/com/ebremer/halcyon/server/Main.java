@@ -205,6 +205,8 @@ public class Main {
         // Let SPARQL SERVICE calls to this server's own (self-signed) HTTPS origin complete their
         // TLS handshake — every LWS resource is a federatable SPARQL endpoint on that origin.
         ServiceHttpClient.install();
+        // Checks a SERVICE whose endpoint is a variable, which SparqlGuard cannot see statically.
+        SparqlServiceEgressExecutor.install();
         ServicesLoader.init();
         FileReaderFactoryProvider.init(Main.class.getClassLoader());
         //Iterator<javax.imageio.ImageReader> readers = ImageIO.getImageReadersByFormatName("tif");

@@ -136,14 +136,32 @@ class SparqlGuardTest {
                 "...and permitted when the operator allows that host");
     }
 
+    /**
+     * A variable endpoint passes the STATIC check, deliberately. Refusing it here was the first
+     * attempt and it broke a real query: every LWS resource is itself a SPARQL endpoint, so
+     * {@code graph ?g { ... } service ?g { ... }} is the natural way to ask one question of every
+     * matching resource, and that is the shape the refusal killed. The resolved target is checked
+     * instead at execution time, per binding, by the app tier's
+     * {@code SparqlServiceEgressExecutor}.
+     */
     @Test
-    void aVariableServiceEndpointIsRefusedBecauseItCannotBeCheckedInAdvance() {
+    void aVariableServiceEndpointIsDeferredToExecutionTimeNotRefused() {
         Query query = q("SELECT * { ?s <urn:endpoint> ?e . SERVICE ?e { ?a ?b ?c } }");
-        SparqlGuard.RefusedException e = assertThrows(SparqlGuard.RefusedException.class,
-                () -> SparqlGuard.checkEgress(query, Set.of()));
-        assertTrue(e.getMessage().contains("variable endpoint"), e.getMessage());
+        assertDoesNotThrow(() -> SparqlGuard.checkEgress(query, Set.of()),
+                "a variable endpoint has no target to check statically");
         assertTrue(SparqlGuard.serviceTargets(query).contains(null),
-                "a variable target is reported as null rather than silently dropped");
+                "but it is reported as null rather than silently dropped, so a caller that must "
+                + "fail closed still can");
+        assertTrue(SparqlGuard.federates(query),
+                "and it still counts as federation, so the MCP ban still refuses it");
+    }
+
+    /** The shape that regressed: federate to each graph the pattern matched. */
+    @Test
+    void theGraphThenServiceIdiomIsAccepted() {
+        Query query = q("SELECT DISTINCT ?g WHERE { GRAPH ?g { ?s <urn:p> \"x\" } "
+                + "SERVICE ?g { ?sx <urn:w> ?w } } LIMIT 2000");
+        assertDoesNotThrow(() -> SparqlGuard.checkEgress(query, Set.of()));
     }
 
     @Test
