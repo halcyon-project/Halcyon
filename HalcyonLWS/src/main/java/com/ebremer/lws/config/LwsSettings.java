@@ -65,6 +65,8 @@ public final class LwsSettings {
     private final boolean batchNotifications;
     private final boolean setLinkset;
     private final String userDataStoragePath;
+    private volatile com.ebremer.lws.auth.oidc.TrustPolicy issuerPolicy;
+    private volatile com.ebremer.lws.auth.oidc.TrustPolicy webIdHostPolicy;
 
     private LwsSettings() {
         Model m = load();
@@ -75,6 +77,10 @@ public final class LwsSettings {
         this.batchNotifications = readBoolean(m, "LWSBatchNotifications", false);
         this.setLinkset = readBoolean(m, "LWSSetLinkset", false);
         this.userDataStoragePath = readString(m, "LWSUserDataStorage");
+        this.issuerPolicy = com.ebremer.lws.auth.oidc.TrustPolicy.forIssuers(
+                readAll(m, "AllowedIssuer"), readAll(m, "DeniedIssuer"));
+        this.webIdHostPolicy = com.ebremer.lws.auth.oidc.TrustPolicy.forHosts(
+                readAll(m, "AllowedWebIdHost"), readAll(m, "DeniedWebIdHost"));
     }
 
     public static synchronized LwsSettings get() {
@@ -82,6 +88,70 @@ public final class LwsSettings {
             instance = new LwsSettings();
         }
         return instance;
+    }
+
+    /**
+     * Re-read the trust policies from {@code settings.ttl} without restarting.
+     *
+     * <p>Deliberately narrow. Reloading the WHOLE settings file at runtime is not safe — the store
+     * location and the storage mounts are bound into live objects at startup, and swapping them
+     * under a running server is a different and much larger problem. The trust policies are the one
+     * part that must be revocable at speed: when an identity provider turns out to be hostile, the
+     * answer cannot be "schedule a restart". So only these two fields are swapped, and they are
+     * volatile for that reason.
+     *
+     * <p>A malformed entry throws and leaves the previous policy in place, because a typo during an
+     * incident must not silently widen access — the same reason {@link
+     * com.ebremer.lws.auth.oidc.TrustPolicy} refuses an unreadable entry at startup rather than
+     * dropping it.
+     *
+     * @return a short description of what is now in force, for logging back to the operator
+     */
+    public synchronized String reloadTrustPolicies() {
+        Model m = load();
+        var issuers = com.ebremer.lws.auth.oidc.TrustPolicy.forIssuers(
+                readAll(m, "AllowedIssuer"), readAll(m, "DeniedIssuer"));
+        var hosts = com.ebremer.lws.auth.oidc.TrustPolicy.forHosts(
+                readAll(m, "AllowedWebIdHost"), readAll(m, "DeniedWebIdHost"));
+        // Both parsed: swap together, so a half-applied policy is never observable.
+        this.issuerPolicy = issuers;
+        this.webIdHostPolicy = hosts;
+        String desc = "issuers=" + issuers + ", webIdHosts=" + hosts;
+        LOG.info("trust policies reloaded from {}: {}", SETTINGS_FILE, desc);
+        return desc;
+    }
+
+    /**
+     * Which OpenID Providers may vouch for a user, from {@code :AllowedIssuer} and
+     * {@code :DeniedIssuer}.
+     *
+     * <p>Entries are whole issuer URIs ({@code https://id.example.org/auth/realms/Halcyon}), not
+     * hosts. OpenID Connect requires the {@code iss} claim to equal the issuer identifier exactly,
+     * and on a multi-tenant identity server two realms on one host are different trust domains, so
+     * a host-level list would read as a restriction while imposing almost none.
+     *
+     * <p>This is what gives {@code acp:AuthenticatedAgent} a defensible meaning. The WebID login
+     * takes the provider from the caller's OWN WebID document, so without a policy here
+     * "authenticated" means "anyone who can host a WebID document and run an OP" — which is correct
+     * for open federation and useless as a trust tier. Naming the providers you accept turns the
+     * middle tier into "someone an identity provider I named vouches for".
+     *
+     * <p>Unset means allow all, so this changes nothing until it is configured.
+     */
+    public com.ebremer.lws.auth.oidc.TrustPolicy issuerPolicy() {
+        return issuerPolicy;
+    }
+
+    /**
+     * Which hosts may serve a WebID, from {@code :AllowedWebIdHost} and {@code :DeniedWebIdHost}.
+     *
+     * <p>Separate from {@link #issuerPolicy()} and usually not needed: the provider is the trust
+     * anchor, since it is what signs the token, and a provider you trust will not vouch for a WebID
+     * it does not control. Constrain this as well when the deployment also wants the identifiers
+     * themselves to live somewhere it recognises. Unset means allow all.
+     */
+    public com.ebremer.lws.auth.oidc.TrustPolicy webIdHostPolicy() {
+        return webIdHostPolicy;
     }
 
     /** The configured storages, in declaration order. Possibly empty. */
@@ -203,6 +273,25 @@ public final class LwsSettings {
             }
         }
         return dflt;
+    }
+
+    /** Every value of a repeatable settings property, in declaration order. */
+    private static java.util.List<String> readAll(Model m, String localName) {
+        ParameterizedSparqlString pss = new ParameterizedSparqlString(
+                "select ?o where { ?s :" + localName + " ?o }");
+        pss.setNsPrefix("", HAL.NS);
+        java.util.List<String> out = new java.util.ArrayList<>();
+        try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m)) {
+            ResultSet rs = qe.execSelect();
+            while (rs.hasNext()) {
+                var n = rs.next().get("o");
+                if (n == null) {
+                    continue;
+                }
+                out.add(n.isURIResource() ? n.asResource().getURI() : n.asLiteral().getString());
+            }
+        }
+        return out;
     }
 
     private static String readOwner(Model m) {

@@ -46,17 +46,47 @@ public final class LwsOidcVerifier implements CredentialVerifier {
     private static final long SKEW_SECONDS = 60;
 
     private final LwsOidcSettings settings;
+    private final java.util.function.Supplier<TrustPolicy> issuers;
+    private final java.util.function.Supplier<TrustPolicy> webIdHosts;
     private final CidResolver cids;
     private final OidcKeys keys;
 
+    /**
+     * Uses this deployment's configured trust policies. The two-argument form exists so a test can
+     * supply its own without a settings file on disk — the surrounding code passes trust
+     * configuration as arguments ({@code CidResolver.dereference(sub, allowedHosts)}) rather than
+     * reading ambient state, and this follows it.
+     */
     public LwsOidcVerifier(LwsOidcSettings settings) {
-        this(settings, new CidResolver(), new OidcKeys());
+        // Suppliers, not snapshots: the policies live in settings.ttl precisely so a hostile
+        // identity provider can be revoked without a restart, and a value captured here would
+        // outlive the reload that was supposed to remove it.
+        this(settings, () -> com.ebremer.lws.config.LwsSettings.get().issuerPolicy(),
+                () -> com.ebremer.lws.config.LwsSettings.get().webIdHostPolicy());
     }
 
+    public LwsOidcVerifier(LwsOidcSettings settings,
+            java.util.function.Supplier<TrustPolicy> issuers,
+            java.util.function.Supplier<TrustPolicy> webIdHosts) {
+        this(settings, new CidResolver(), new OidcKeys(), issuers, webIdHosts);
+    }
+
+    /**
+     * Seam for tests: trust policies default to allow-all, which is what this class did before they
+     * existed, so a test that does not care about them is unaffected and needs no settings file.
+     */
     LwsOidcVerifier(LwsOidcSettings settings, CidResolver cids, OidcKeys keys) {
+        this(settings, cids, keys, () -> TrustPolicy.ALLOW_ALL, () -> TrustPolicy.ALLOW_ALL);
+    }
+
+    LwsOidcVerifier(LwsOidcSettings settings, CidResolver cids, OidcKeys keys,
+            java.util.function.Supplier<TrustPolicy> issuers,
+            java.util.function.Supplier<TrustPolicy> webIdHosts) {
         this.settings = settings;
         this.cids = cids;
         this.keys = keys;
+        this.issuers = issuers == null ? () -> TrustPolicy.ALLOW_ALL : issuers;
+        this.webIdHosts = webIdHosts == null ? () -> TrustPolicy.ALLOW_ALL : webIdHosts;
     }
 
     @Override
@@ -74,6 +104,19 @@ public final class LwsOidcVerifier implements CredentialVerifier {
         if (alg == null || "none".equalsIgnoreCase(alg)) {
             throw new InvalidBearerTokenException("invalid_token", "LWS credential must be signed (alg is 'none')");
         }
+        // 1b. This deployment's own view of who may vouch for a user. The CID check below
+        // establishes that the subject NOMINATED this provider; it cannot establish that the
+        // provider is one we accept, because the nomination comes from the credential itself.
+        // Unset means allow all, so this is inert until an operator configures it. Checked before
+        // any dereference, so a refused issuer costs no outbound request.
+        try {
+            issuers.get().require("OpenID Provider", iss);
+            webIdHosts.get().require("WebID host", sub);
+        } catch (TrustPolicy.RefusedException e) {
+            LOG.debug("rejecting LWS credential for <{}>: {}", sub, e.getMessage());
+            throw new InvalidBearerTokenException("invalid_token", e.getMessage());
+        }
+
         try {
             // 2-3. Trust: the subject's CID must name iss as its OpenID Provider.
             Model cid = cids.dereference(sub, settings.allowedInternalHosts());

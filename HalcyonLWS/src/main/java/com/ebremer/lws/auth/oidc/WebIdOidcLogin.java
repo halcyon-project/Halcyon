@@ -93,6 +93,8 @@ public final class WebIdOidcLogin {
     private final HttpClient http;
     private final Duration timeout;
     private final SecureRandom random = new SecureRandom();
+    private java.util.function.Supplier<TrustPolicy> issuers = () -> TrustPolicy.ALLOW_ALL;
+    private java.util.function.Supplier<TrustPolicy> webIdHosts = () -> TrustPolicy.ALLOW_ALL;
 
     public WebIdOidcLogin(String configuredClientId, String redirectUri, boolean dynamicRegistration,
             Set<String> allowedHosts) {
@@ -101,6 +103,31 @@ public final class WebIdOidcLogin {
                 HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10))
                         .followRedirects(HttpClient.Redirect.NEVER).build(),
                 DEFAULT_TIMEOUT);
+    }
+
+    /**
+     * Apply this deployment's trust policies to the WebID and the provider it nominates.
+     *
+     * <p>A setter rather than another constructor argument: this class already has a nine-argument
+     * test seam, and the policies default to allow-all so every existing caller — including the
+     * refresh path, whose issuer was already checked when the login began — behaves exactly as
+     * before until a deployment configures something.
+     *
+     * @return this, for chaining at the call site
+     */
+    public WebIdOidcLogin withTrust(java.util.function.Supplier<TrustPolicy> issuers,
+            java.util.function.Supplier<TrustPolicy> webIdHosts) {
+        this.issuers = issuers == null ? () -> TrustPolicy.ALLOW_ALL : issuers;
+        this.webIdHosts = webIdHosts == null ? () -> TrustPolicy.ALLOW_ALL : webIdHosts;
+        return this;
+    }
+
+    private TrustPolicy issuers() {
+        return issuers.get();
+    }
+
+    private TrustPolicy webIdHosts() {
+        return webIdHosts.get();
     }
 
     WebIdOidcLogin(String configuredClientId, String redirectUri, boolean dynamicRegistration,
@@ -128,6 +155,13 @@ public final class WebIdOidcLogin {
         if (!isUrl(webId)) {
             throw new WebIdLoginException("not an absolute http(s) WebID: " + webId);
         }
+        // Refuse a WebID this deployment does not accept before dereferencing it, so an
+        // unacceptable identifier costs no outbound request. Unset means allow all.
+        try {
+            webIdHosts().require("WebID host", webId);
+        } catch (TrustPolicy.RefusedException e) {
+            throw new WebIdLoginException(e.getMessage());
+        }
         String issuer;
         try {
             Model cid = cids.dereference(webId, allowedHosts);
@@ -137,6 +171,14 @@ public final class WebIdOidcLogin {
         }
         if (issuer == null) {
             throw new WebIdLoginException("the WebID document names no OpenIdProvider: " + webId);
+        }
+        // The provider is named BY the WebID document, so it is the caller's choice, not ours.
+        // This is where the deployment gets a say -- and it is checked before OIDC discovery, so a
+        // provider we do not accept is never contacted.
+        try {
+            issuers().require("OpenID Provider", issuer);
+        } catch (TrustPolicy.RefusedException e) {
+            throw new WebIdLoginException(e.getMessage());
         }
         OidcDiscovery disc;
         try {

@@ -158,8 +158,24 @@ public class ServerConfig extends BasePage {
             } catch (AtomicMoveNotSupportedException e) {
                 Files.move(tmp, SETTINGS, StandardCopyOption.REPLACE_EXISTING);
             }
+            // The trust policies are the exception to "restart to apply", and the reason is the
+            // incident this exists for: when an identity provider turns out to be hostile, the
+            // answer cannot be "schedule a restart". Everything else here is structural -- store
+            // locations and storage mounts are bound into live objects at startup -- so only these
+            // two are swapped, and a malformed entry leaves the previous policy standing rather
+            // than widening access mid-incident.
+            String trust;
+            try {
+                trust = " Identity-provider trust reloaded immediately: "
+                        + com.ebremer.lws.config.LwsSettings.get().reloadTrustPolicies() + ".";
+            } catch (RuntimeException ex) {
+                trust = " WARNING: the file saved, but its identity-provider trust settings were"
+                        + " NOT applied and the previous ones remain in force — " + ex.getMessage();
+                logger.warn("settings.ttl saved but trust policies were rejected", ex);
+            }
             message = "Saved (backup: " + backup.getFileName() + "). "
-                    + "Settings load at startup — RESTART Halcyon to apply." + warning;
+                    + "Other settings load at startup — RESTART Halcyon to apply those." + warning
+                    + trust;
             logger.info("settings.ttl updated by an admin; backup {}", backup.getFileName());
         } catch (IOException ex) {
             message = "NOT saved — " + ex.getMessage();

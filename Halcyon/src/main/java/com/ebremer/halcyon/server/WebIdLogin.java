@@ -75,8 +75,12 @@ public final class WebIdLogin {
             allowedHosts = settings.allowedInternalHosts();
             if (enabled) {
                 String redirectUri = HalcyonSettings.getSettings().getProxyHostName() + CALLBACK_PATH;
+                // Which providers this deployment accepts, from settings.ttl. Unset means allow
+                // all, so an unconfigured install logs in exactly as it did before.
                 flow = new WebIdOidcLogin(settings.webIdLoginClientId(), redirectUri,
-                        settings.webIdLoginDynamicRegistration(), settings.allowedInternalHosts());
+                        settings.webIdLoginDynamicRegistration(), settings.allowedInternalHosts())
+                        .withTrust(() -> com.ebremer.lws.config.LwsSettings.get().issuerPolicy(),
+                                () -> com.ebremer.lws.config.LwsSettings.get().webIdHostPolicy());
             }
             loaded = true;
         }
