@@ -39,35 +39,64 @@ public final class AcpBootstrap {
     private AcpBootstrap() {
     }
 
+    /**
+     * Thrown when a storage cannot be given a safe root policy. Aborts startup rather than mounting
+     * a storage whose access control does not mean what it appears to.
+     */
+    public static final class UnownedStorageException extends IllegalStateException {
+        private static final long serialVersionUID = 1L;
+
+        UnownedStorageException(String message) {
+            super(message);
+        }
+    }
+
+    private static String requireOwner(String root) {
+        String ownerWebId = LwsSettings.get().owner();
+        if (ownerWebId != null && !ownerWebId.isBlank()) {
+            return ownerWebId;
+        }
+        // This used to grant acp:AuthenticatedAgent Read+Write+Append+Control instead, reasoning
+        // that a root ACR naming nobody "would lock everyone out, including whoever is trying to
+        // configure the storage". That framing was wrong, and it is worth stating why so the
+        // permissive default is not reinstated: :LWSOwner lives in settings.ttl, a FILE, not behind
+        // the API this policy guards. An operator can always name an owner without first having
+        // access, so there was never a bootstrapping deadlock to avoid -- and the price of avoiding
+        // it was that the owner policy (Control included) hung off acp:memberAccessControl and so
+        // inherited to every resource the storage would ever hold. Combined with a WebID login that
+        // accepts any self-nominated provider, that is Control for anyone who can host a WebID
+        // document, and no per-resource ACR can narrow it: inheritance in AcpEngine is a union, and
+        // a stranger holding inherited Control can simply PUT the restriction away.
+        throw new UnownedStorageException(
+                "LWS storage " + root + " has no owner: set :LWSOwner <your-webid> in settings.ttl."
+                + " Refusing to start, because the alternative is a storage whose root policy grants"
+                + " full control -- Read, Write, Append AND Control, inherited by every resource in"
+                + " it -- to any authenticated agent, and this server accepts any WebID that names"
+                + " its own OpenID Provider unless :AllowedIssuer says otherwise.");
+    }
+
     /** Idempotent: TDB2's single writer serializes the check and the seed. */
     public static void seed(LwsStore store, LwsStorageConfig cfg) {
         store.write(() -> {
             Model acp = store.acp();
             String root = cfg.storageRootUri();
             Resource acr = ResourceFactory.createResource(root + LwsStorageConfig.ACR_SUFFIX);
+            String base = acr.getURI();
+            Resource ownerMatcher = ResourceFactory.createResource(base + "#m-owner");
+
             if (acp.contains(acr, RDF.type, ACP.AccessControlResource)) {
+                repairIfUnowned(acp, root, ownerMatcher);
                 return;
             }
 
+            String ownerWebId = requireOwner(root);
             Resource target = ResourceFactory.createResource(root);
-            String base = acr.getURI();
 
             acp.add(acr, RDF.type, ACP.AccessControlResource);
             acp.add(acr, ACP.resource, target);
 
-            String ownerWebId = LwsSettings.get().owner();
-            Resource ownerMatcher = ResourceFactory.createResource(base + "#m-owner");
-            if (ownerWebId != null && !ownerWebId.isBlank()) {
-                acp.add(ownerMatcher, ACP.agent, ResourceFactory.createResource(ownerWebId));
-                LOG.info("LWS storage {} owner: {}", root, ownerWebId);
-            } else {
-                // A root ACR naming nobody would lock everyone out, including whoever
-                // is trying to configure the storage. Grant to any authenticated agent
-                // and say so loudly, rather than fail silently or open up to anonymous.
-                acp.add(ownerMatcher, ACP.agent, ACP.AuthenticatedAgent);
-                LOG.warn("no :LWSOwner set for {} — granting full control to ANY authenticated "
-                        + "agent. Set :LWSOwner <webid> in settings.ttl to lock this down.", root);
-            }
+            acp.add(ownerMatcher, ACP.agent, ResourceFactory.createResource(ownerWebId));
+            LOG.info("LWS storage {} owner: {}", root, ownerWebId);
             acp.add(ownerMatcher, RDF.type, ACP.Matcher);
 
             Resource ownerPolicy = policy(acp, base + "#pol-owner", ownerMatcher,
@@ -90,6 +119,31 @@ public final class AcpBootstrap {
 
             LOG.info("seeded ACP root policy for {}", root);
         });
+    }
+
+    /**
+     * Replace a previously-seeded {@code acp:AuthenticatedAgent} owner with the configured one.
+     *
+     * <p>Without this the fix is unreachable on any storage that has already booted: {@link #seed}
+     * returns early once the root ACR is typed, so adding {@code :LWSOwner} afterwards is silently
+     * dead config and the permissive grant stays frozen in TDB2. Repairing on the next start is
+     * what makes the setting mean something on a live deployment — and the manual alternative is a
+     * PUT to {@code {root}.acr}, which needs Control that, in exactly this situation, every
+     * authenticated stranger also holds.
+     *
+     * <p>Only the owner matcher's agent changes; the policies, their modes and the creator rule are
+     * left alone, so an owner who has since edited the root ACR does not lose that work.
+     */
+    private static void repairIfUnowned(Model acp, String root, Resource ownerMatcher) {
+        if (!acp.contains(ownerMatcher, ACP.agent, ACP.AuthenticatedAgent)) {
+            return;   // already owned, or an owner has rewritten the root ACR themselves
+        }
+        String ownerWebId = requireOwner(root);
+        acp.remove(acp.listStatements(ownerMatcher, ACP.agent, ACP.AuthenticatedAgent).toList());
+        acp.add(ownerMatcher, ACP.agent, ResourceFactory.createResource(ownerWebId));
+        LOG.warn("LWS storage {} was seeded with full control granted to ANY authenticated agent;"
+                + " that grant has been replaced with the configured :LWSOwner {}. Any resource"
+                + " created in the meantime kept whatever its creator was given.", root, ownerWebId);
     }
 
     private static Resource policy(Model acp, String uri, Resource matcher, List<AccessMode> allow) {
