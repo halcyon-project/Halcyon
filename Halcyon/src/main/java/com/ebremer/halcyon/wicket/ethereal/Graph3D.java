@@ -95,12 +95,27 @@ public class Graph3D extends BasePage {
     }
 
     /**
-     * The chosen store as a per-call dataset: the classic {@code DataCore},
-     * or the LWS store through the CALLER's ACP-secured view — never raw
-     * (see {@link LwsDatasets}).
+     * The chosen store as a per-call dataset, through the CALLER's own secured view in both
+     * branches — never raw.
+     *
+     * <p>The classic branch used to call {@code DataCore.getDataset()}, the bare TDB2 store, while
+     * every sibling call site used a secured accessor. It was the only page on the authenticated
+     * surface that did, and the wrapper it skipped is the one whose job is to hide
+     * {@code hal:SecurityGraph} and {@code hal:GroupsAndUsers} — so an explorer meant for the data
+     * graph was serving the deployment's identity substrate instead: every realm user's name, email
+     * address and WebID, the group-membership graph, and the WAC rules themselves. The javadoc here
+     * already said "never raw"; only the code disagreed. (C01.)
+     *
+     * <p>{@code CLOSED} is deny-by-default, so this can only narrow what the page shows. The
+     * ambient accessor is deliberate over {@code getSecuredDataset(Level, Principal)}: the
+     * evaluator resolves the identity per evaluation, ending at
+     * {@code HalcyonSession.get().getHalcyonPrincipal()}, which is correct on the Wicket request
+     * path and — unlike capturing a principal here — keeps credentials out of the serialized page
+     * store, since this supplier is {@link SerializableSupplier} and lives on the page.
      */
     static SerializableSupplier<Dataset> datasetSupplier(boolean lws) {
-        return lws ? LwsDatasets.securedForSession() : () -> DataCore.getInstance().getDataset();
+        return lws ? LwsDatasets.securedForSession()
+                : () -> DataCore.getInstance().getSecuredDataset(DataCore.Level.CLOSED);
     }
     
     @Override
