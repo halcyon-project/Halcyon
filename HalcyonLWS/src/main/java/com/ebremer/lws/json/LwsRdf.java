@@ -51,10 +51,13 @@ public final class LwsRdf {
     /** JSON key -> predicate IRI. A key not here falls back to {@link LWS#NS} + key. */
     private static final Map<String, String> TERMS = Map.ofEntries(
             Map.entry("items", LWS.NS + "items"),
-            Map.entry("totalItems", AS.NS + "totalItems"),
-            Map.entry("mediaType", AS.NS + "mediaType"),
+            // Since w3c/lws-protocol#219 these three are Dublin Core / schema.org terms, not
+            // Activity Streams ones, and totalItems is minted by LWS itself.
+            Map.entry("totalItems", LWS.NS + "totalItems"),
+            Map.entry("format", DCT + "format"),
             Map.entry("size", SCHEMA + "size"),
-            Map.entry("modified", AS.NS + "updated"),
+            Map.entry("modified", DCT + "modified"),
+            Map.entry("expires", SCHEMA + "expires"),
             Map.entry("storage", LWS.NS + "storage"),
             Map.entry("subscription", LWS.NS + "subscription"),
             Map.entry("subscriptionType", LWS.NS + "subscriptionType"),
@@ -66,7 +69,12 @@ public final class LwsRdf {
             Map.entry("capability", LWS.NS + "capability"),
             Map.entry("conformsTo", DCT + "conformsTo"),
             Map.entry("verificationMethod", SEC + "verificationMethod"),
-            Map.entry("authentication", SEC + "authentication"),
+            // The CID v1 context maps the `authentication` verification relationship to
+            // sec:authenticationMethod; sec:authentication is not a term.
+            Map.entry("authentication", SEC + "authenticationMethod"),
+            Map.entry("publicKeyMultibase", SEC + "publicKeyMultibase"),
+            Map.entry("revoked", SEC + "revoked"),
+            Map.entry("access", LWS.NS + "access"),
             Map.entry("controller", SEC + "controller"),
             Map.entry("publicKeyJwk", SEC + "publicKeyJwk"),
             // ActivityStreams — a notification activity, if one is ever serialized here. ("target" is
@@ -100,7 +108,8 @@ public final class LwsRdf {
             Map.entry("ContainerPage", LWS.NS + "ContainerPage"),
             Map.entry("DataResource", LWS.NS + "DataResource"),
             Map.entry("TypeIndex", LWS.NS + "TypeIndex"),
-            Map.entry("StorageDescription", LWS.NS + "StorageDescription"),
+            Map.entry("StorageResource", LWS.NS + "StorageResource"),
+            Map.entry("StorageRoot", LWS.NS + "StorageRoot"),
             Map.entry("NotificationService", LWS.NS + "NotificationService"),
             Map.entry("TypeIndexService", LWS.NS + "TypeIndexService"),
             Map.entry("TypeSearchService", LWS.NS + "TypeSearchService"),
@@ -111,7 +120,9 @@ public final class LwsRdf {
             Map.entry("Notification", LWS.NS + "Notification"),
             Map.entry("AccessGrant", LWS.NS + "AccessGrant"),
             Map.entry("AccessRequest", LWS.NS + "AccessRequest"),
+            Map.entry("AccessPolicy", LWS.NS + "AccessPolicy"),
             Map.entry("JsonWebKey", SEC + "JsonWebKey"),
+            Map.entry("Multikey", SEC + "Multikey"),
             Map.entry("Announce", AS.NS + "Announce"));
 
     /** Keys whose value carries an explicit XSD datatype (matching the JSON-LD context). */

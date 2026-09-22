@@ -395,7 +395,7 @@ public class StoragePage extends BasePage {
             // what the file readers discovered — that is what makes the type search useful.
             types.removeIf(x -> "Container".equals(x) || "DataResource".equals(x));
             this.type = types.isEmpty() ? "" : String.join(", ", types);
-            this.mediaType = o.getString("mediaType", "");
+            this.mediaType = com.ebremer.lws.json.LwsJson.formatOf(o);
             this.size = o.containsKey("size") ? human(o.getJsonNumber("size").longValue()) : "";
             this.modified = o.getString("modified", "");
         }

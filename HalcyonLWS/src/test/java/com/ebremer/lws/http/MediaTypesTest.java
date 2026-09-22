@@ -108,4 +108,42 @@ class MediaTypesTest {
         assertEquals(MediaTypes.JSON, MediaTypes.negotiate("application/json"));
         assertEquals(MediaTypes.LWS_JSON, MediaTypes.negotiate("text/nonsense"));
     }
+
+    /**
+     * The storage URI is also the storage root container, so a GET on it has two honest answers
+     * and Accept decides. Only naming application/lws+cid asks for the description: a wildcard
+     * means "anything", and answering a browser's default Accept with a CID document instead of
+     * the container listing would break navigation for every existing client.
+     */
+    @Test
+    void onlyAnExplicitCidTypeSelectsTheStorageDescription() {
+        assertTrue(MediaTypes.prefersStorageDescription("application/lws+cid"));
+        assertTrue(MediaTypes.prefersStorageDescription(
+                "application/lws+cid, application/lws+json;q=0.5"));
+        assertFalse(MediaTypes.prefersStorageDescription(null));
+        assertFalse(MediaTypes.prefersStorageDescription("*/*"));
+        assertFalse(MediaTypes.prefersStorageDescription("application/lws+json"));
+        assertFalse(MediaTypes.prefersStorageDescription(
+                "text/html,application/xhtml+xml,*/*;q=0.8"));
+    }
+
+    @Test
+    void theDescriptionIsLabelledLwsCidUnlessAnotherFormIsAskedForByName() {
+        assertEquals(MediaTypes.LWS_CID, MediaTypes.negotiateDescription(null));
+        assertEquals(MediaTypes.LWS_CID, MediaTypes.negotiateDescription("*/*"));
+        assertEquals(MediaTypes.LWS_CID, MediaTypes.negotiateDescription("application/lws+cid"));
+        assertEquals(MediaTypes.LWS_JSON, MediaTypes.negotiateDescription("application/lws+json"));
+        assertEquals(MediaTypes.LD_JSON, MediaTypes.negotiateDescription("application/ld+json"));
+        assertEquals(MediaTypes.JSON, MediaTypes.negotiateDescription("application/json"));
+    }
+
+    @Test
+    void theDescriptionIsOfferedInEveryFormItIsSerializableAs() {
+        assertTrue(MediaTypes.admitsStorageDescription(null));
+        assertTrue(MediaTypes.admitsStorageDescription("application/lws+cid"));
+        assertTrue(MediaTypes.admitsStorageDescription("application/lws+json"));
+        assertTrue(MediaTypes.admitsStorageDescription("text/turtle"));
+        assertFalse(MediaTypes.admitsStorageDescription("image/png"),
+                "a client that will take none of them gets a 406, not a mislabelled body");
+    }
 }

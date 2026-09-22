@@ -700,7 +700,7 @@ public final class Notifications {
         for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
             try {
                 long created = Instant.now().getEpochSecond();
-                var signed = HttpMessageSignatures.sign("POST", target,
+                var signed = HttpMessageSignatures.sign(cfg.storageRootUri(), "POST", target,
                         "application/lws+json", body, created);
 
                 HttpRequest req = HttpRequest.newBuilder(target)

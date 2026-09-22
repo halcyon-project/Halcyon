@@ -66,9 +66,28 @@ public final class HttpMessageSignatures {
         return k;
     }
 
+    /**
+     * The bare key id: the RFC 7638 thumbprint, which is what the published JWK carries as its
+     * {@code kid} and what the fragment of {@link #verificationMethodId} is.
+     */
     public static String keyId() {
         keys();
         return keyId;
+    }
+
+    /**
+     * The {@code keyid} a signature carries, and the {@code id} of the verification method the
+     * storage description publishes: {@code {storage}#{thumbprint}}.
+     *
+     * <p>lws10-notifications-webhook requires the {@code keyid} to be "a URL with a fragment
+     * component", because that is what makes a signature self-describing: a receiver strips the
+     * fragment to get the storage identifier, dereferences it for the storage description,
+     * confirms the description's {@code id} matches, and finds the verification method whose
+     * {@code id} is either the whole keyid or just its fragment. A bare thumbprint — which is
+     * what this used to emit — gives a receiver nowhere to start.
+     */
+    public static String verificationMethodId(String storageUri) {
+        return storageUri + "#" + keyId();
     }
 
     /**
@@ -110,11 +129,14 @@ public final class HttpMessageSignatures {
     /**
      * Sign a delivery.
      *
+     * @param storageUri the canonical URI of the storage this delivery is about, which the
+     *                   {@code keyid} is built from so a receiver can resolve the key from the
+     *                   signature alone
      * @param created seconds since the epoch, covered by the signature so a subscriber
      *                can reject a replayed one outside its clock-skew window
      */
-    public static Signed sign(String method, URI target, String contentType, byte[] body,
-            long created) {
+    public static Signed sign(String storageUri, String method, URI target, String contentType,
+            byte[] body, long created) {
         String digest = "sha-256=:" + b64pad(sha256(body)) + ":";
 
         // The covered components, in the order they appear in the base. Order is part of
@@ -125,7 +147,7 @@ public final class HttpMessageSignatures {
                 "\"content-type\"", "\"content-digest\"");
         String params = "(" + String.join(" ", components) + ")"
                 + ";created=" + created
-                + ";keyid=\"" + keyId() + "\""
+                + ";keyid=\"" + verificationMethodId(storageUri) + "\""
                 + ";alg=\"ecdsa-p256-sha256\"";
 
         String scheme = target.getScheme();

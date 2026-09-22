@@ -102,7 +102,7 @@ public class LwsDiscoveryTools {
                     }
                     out.add(Json.createObjectBuilder()
                             .add("uri", o.getString("id", ""))
-                            .add("mediaType", o.getString("mediaType", ""))
+                            .add("mediaType", com.ebremer.lws.json.LwsJson.formatOf(o))
                             .add("types", types));
                 }
             }

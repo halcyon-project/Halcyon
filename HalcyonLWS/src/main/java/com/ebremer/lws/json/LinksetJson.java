@@ -31,9 +31,16 @@ public final class LinksetJson {
     private LinksetJson() {
     }
 
-    /** Relations the server owns. A client may not set or remove these. */
+    /**
+     * Relations the server owns. A client may not set or remove these.
+     *
+     * <p>The storage relation is among them: lws10-core lists the storage link as metadata a
+     * server must make discoverable, and letting a client rewrite it in the linkset would let
+     * a resource claim to belong to a storage it does not.
+     */
     public static final List<String> SERVER_MANAGED =
-            List.of("up", "linkset", "type", "acl", "first", "prev", "next", "last");
+            List.of("up", "linkset", "type", "acl", "first", "prev", "next", "last",
+                    com.ebremer.lws.vocab.LWS.REL_STORAGE);
 
     /**
      * Build a linkset document.
