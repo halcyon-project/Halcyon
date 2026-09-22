@@ -23,7 +23,7 @@ time, uploads, deletes, and the Type Search console.
 `/lwscontainers` shows the container **hierarchy** of a selected storage as a
 tree, rooted at the storage root container (any configured storage can be
 selected). Opening a container lists its sub-containers and resources with
-the metadata the listing itself carried (`lws:mediaType`, size, discovered
+the metadata the listing itself carried (`format`, size, discovered
 RDF types).
 
 **Pagination follows the protocol.** The storage serves fixed-size pages
@@ -34,7 +34,7 @@ members fetched so far, pulling the next protocol page only when a window
 actually needs it; a container with numerous entries is never slurped whole,
 and "page N of M" grows a `+` until the membership has actually been walked.
 
-**The media-type filter** narrows resources by the `lws:mediaType` the
+**The media-type filter** narrows resources by the `format` the
 listings reported. Sub-containers always stay visible — the filter narrows
 content, never navigation.
 

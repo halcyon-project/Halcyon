@@ -5,17 +5,25 @@ HalcyonLWS is a Maven sub-module (package root `com.ebremer.lws`) that implement
 conformant storage server inside Halcyon:
 
 - **[lws10-core](https://w3c.github.io/lws-protocol/lws10-core/)** — resources, containers, content
-  negotiation, conditional requests, linksets, discovery
-- **[lws10-notifications](https://w3c.github.io/lws-protocol/lws10-notifications/)** — webhook
-  subscriptions with RFC 9421 HTTP Message Signatures
-- **[lws10-searchindex](https://w3c.github.io/lws-protocol/lws10-searchindex/)** — a Type Index and a
-  Type Search service (the latter over the HTTP `QUERY` method, per
-  [PR #179](https://github.com/w3c/lws-protocol/pull/179))
-- **Access requests & grants** — an ODRL-based DataSharingService that installs real ACP policies
+  negotiation, conditional requests, linksets, discovery, the **authorization framework** (an
+  OAuth 2.0 authorization server exchanging credentials for access tokens), notifications, and
+  ODRL-based access requests & grants
+- **[lws10-index](https://w3c.github.io/lws-protocol/lws10-index/)** — a Type Index and a Type Search
+  service, the latter over the HTTP `QUERY` method
+- **[lws10-notifications-webhook](https://w3c.github.io/lws-protocol/lws10-notifications-webhook/)** —
+  webhook subscriptions with RFC 9421 HTTP Message Signatures
+- **[lws10-authn-openid](https://w3c.github.io/lws-protocol/lws10-authn-openid/)** — an OpenID Connect
+  ID Token as an authentication credential, trusted by resolving the subject's WebID to a controlled
+  identifier document that names its provider
+
+Which revision of these drafts the code follows, and every deliberate divergence from it, is recorded
+in **[conformance.md](conformance.md)**.
 
 Authorization is **ACP** (Access Control Policy), enforced through Halcyon's in-house `jena-permissions`
-fork. Authentication is the existing Keycloak OAuth, with the agent's **WebID** as the identifier in
-the data.
+fork, with the agent's **WebID** as the identifier in the data. An agent reaches a storage by
+exchanging an authentication credential for an access token at this instance's embedded authorization
+server, or — while `:LWSAcceptAuthenticationCredentials` is on — by presenting the credential
+directly.
 
 > This module is **separate from and independent of** the legacy `com.ebremer.halcyon.server.lws.*`
 > servlet mounted at `/lws/**`. That older server (which backs the Zephyr annotation save/fetch path)
@@ -56,8 +64,10 @@ a file into the folder and it appears as a resource within a second or two. See
 - Keyset pagination with opaque, HMAC-sealed cursors (`Link` headers only)
 - RFC 9264 linksets (`{resource}.meta`), ACP access-control resources (`{resource}.acr`)
 - Metadata enrichment from Halcyon's file readers (image dimensions, media type, …)
+- An embedded OAuth 2.0 authorization server: RFC 8414 metadata at
+  `/.well-known/lws-configuration`, RFC 8693 token exchange, RFC 9068 `at+jwt` access tokens
 - Webhook notifications signed with RFC 9421
-- Type Index / Type Search, authorization-filtered by construction
+- Type Index / Type Search (HTTP `QUERY`), authorization-filtered by construction
 - ODRL access requests and grants that install/remove ACP policies
 - RFC 9457 `application/problem+json` error bodies throughout
 
@@ -73,8 +83,18 @@ TOK=$(curl -sk "$SITE/auth/realms/Halcyon/protocol/openid-connect/token" \
   -d grant_type=password -d client_id=account \
   -d username=alice -d password=secret | jq -r .access_token)
 
-# 2. Discover the storage
-curl -sk "$SITE/W3Clws/.description" | jq .type       # -> "Storage"
+# 2. Discover the storage (the storage URI answers with its description; .description also works)
+curl -sk "$SITE/W3Clws/" -H "Accept: application/lws+cid" | jq .type   # -> "Storage"
+
+# 2b. …or go the conformant route: the 401 challenge names the authorization server, whose
+#     metadata names the token endpoint, which exchanges a credential for an access token.
+curl -skD- -o/dev/null "$SITE/W3Clws/private" | grep -i www-authenticate
+curl -sk "$SITE/.well-known/lws-configuration" | jq .token_endpoint
+AT=$(curl -sk "$SITE/lws-as/token" \
+  -d grant_type=urn:ietf:params:oauth:grant-type:token-exchange \
+  -d resource="$SITE/W3Clws" \
+  -d subject_token_type=urn:ietf:params:oauth:token-type:id_token \
+  --data-urlencode "subject_token=$ID_TOKEN" | jq -r .access_token)
 
 # 3. Create a data resource in the root container
 LOC=$(curl -sk -D- -o/dev/null -X POST "$SITE/W3Clws/" \
@@ -97,6 +117,7 @@ curl -sk "$SITE/W3Clws/" -H "Authorization: Bearer $TOK" -H "Accept: text/turtle
 
 | Document | Contents |
 |---|---|
+| [conformance.md](conformance.md) | The specification baseline (which editor's drafts the code follows), what changed in that revision, every deliberate divergence, and the open items |
 | [configuration.md](configuration.md) | `settings.ttl` declarations, storage roots, TDB2 location, owner bootstrap, Keycloak protocol mappers, running |
 | [http-api.md](http-api.md) | The full HTTP contract: endpoints, methods, status codes, headers, media types, negotiation, pagination, worked examples |
 | [security.md](security.md) | Authentication (Keycloak, WebID, tokens, audience) and authorization (the ACP model, ACRs, access requests & grants) |

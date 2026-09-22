@@ -35,15 +35,26 @@ can never collide with one.
 | any data resource | `GET HEAD OPTIONS PUT PATCH DELETE` | Read, replace, merge-patch, delete (`PATCH` only on JSON) |
 | `{resource}.meta` | `GET HEAD OPTIONS PATCH` | RFC 9264 linkset (`application/linkset+json`) |
 | `{resource}.acr` | `GET HEAD OPTIONS PUT` | ACP access-control resource (`text/turtle`); requires `Control` |
-| `/.description` | `GET HEAD OPTIONS` | Storage description; **public, no auth** |
+| `{root}` with `Accept: application/lws+cid` | `GET HEAD` | Storage description; **public, no auth** |
+| `/.description` | `GET HEAD OPTIONS` | The same description at a stable path; **public, no auth** |
 | `/.types/index` | `GET HEAD OPTIONS` | Paginated Type Index (ACP-filtered) |
-| `/.types/search` | `GET HEAD OPTIONS POST QUERY` | Type Search over a CNF filter |
+| `/.types/search` | `OPTIONS QUERY` | Type Search over a CNF filter. A **page link** of a result set additionally takes `GET HEAD` — it is a different URI, carrying the sealed filter |
 | `/.notifications/subscriptions` | `GET HEAD OPTIONS POST` | List own subscriptions; create one |
 | `/.notifications/subscriptions/{id}` | `GET HEAD OPTIONS DELETE` | Read/cancel a subscription (owner only) |
 | `/.access/requests` | `GET HEAD OPTIONS POST` | List/create ODRL access requests |
 | `/.access/requests/{id}` | `GET HEAD OPTIONS DELETE` | Read/cancel a request |
 | `/.access/grants` | `GET HEAD OPTIONS POST` | List/create access grants (create requires `Control`) |
 | `/.access/grants/{id}` | `GET HEAD OPTIONS DELETE` | Read a grant / revoke it (removes the ACP policy) |
+
+These three are **instance-wide**, not per storage — the embedded LWS authorization server, mounted at
+the host root when `:LWSAuthorizationServer` is on. All are anonymous: a client needs them before it
+has a credential. See [security.md](security.md).
+
+| Path | Methods | Purpose |
+|---|---|---|
+| `/.well-known/lws-configuration` | `GET HEAD OPTIONS` | RFC 8414 authorization server metadata; the path lws10-core fixes |
+| `/lws-as/token` | `POST OPTIONS` | RFC 8693 token exchange: a credential in, an access token out |
+| `/lws-as/jwks` | `GET HEAD OPTIONS` | The `jwks_uri`: the access-token verification key |
 
 ## Core operations
 
@@ -66,7 +77,7 @@ A container listing document:
   "totalItems": 3,
   "items": [
     { "id": "https://localhost:8888/W3Clws/3f2a…", "type": "DataResource",
-      "mediaType": "application/json", "size": 17, "modified": "2026-07-15T00:31:04Z" }
+      "format": "application/json", "size": 17, "modified": "2026-07-15T00:31:04Z" }
   ]
 }
 ```
@@ -143,9 +154,17 @@ it turns out not to need.
 
 Per RFC 10008, on `/.types/search` only (else `405`). The body is a CNF filter in
 `application/lws-query+json`; a missing `Content-Type` → `400`, a wrong one → `415` (with
-`Accept-Query`). `Accept` must admit `lws+json` or `406`. Returns `200` with a paginated result set. A
-`GET` and `POST` form are also accepted over the same normalized core, so the service is conformant
-whichever way PR #179 lands; `QUERY` is the advertised form.
+`Accept-Query`). An empty group inside a filter key → `400`; a value that is not an absolute IRI →
+`400`; a filter past this server's complexity bound → `422`, never silently narrowed. A body with no
+keys matches everything the client may see. `Accept` must admit `lws+json` or `406`. Returns `200` with
+a paginated `ContainerPage`.
+
+`QUERY` is the **only** way to run a search: w3c/lws-protocol#179 replaced the earlier `GET` and `POST`
+forms and they are gone, so `OPTIONS /.types/search` answers `Allow: OPTIONS, QUERY` with
+`Accept-Query: application/lws-query+json`. A *page* of a result set is still fetched with `GET`,
+because a page link is an opaque URI that carries the filter sealed alongside the cursor — the service
+keeps no per-search state. A page link this server did not seal, or one it no longer recognises, is
+`404`, and the client re-sends its `QUERY`.
 
 ## Auxiliary resources
 
@@ -164,26 +183,47 @@ representation — non-`text/turtle` `Accept` → `406`. See [security.md](secur
 
 ## Service endpoints
 
-### `/.description` — storage description
+### The storage description
 
-**Public** (no authentication), `Cache-Control: public, max-age=60`. Advertised on every authorized
-GET/HEAD via `Link: <…>; rel="https://www.w3.org/ns/lws#storageDescription"`. It lists the storage's
-capabilities and services:
+A **W3C Controlled Identifier document** extended with the LWS vocabulary, served as
+`application/lws+cid`. **Public** (no authentication — a client must be able to learn how to
+authenticate), `Cache-Control: public, max-age=60` (short, because the webhook verification key is
+published in it).
+
+Two URIs answer with it, from one responder:
+
+- **the storage URI** (`{root}`), which is what lws10-core requires — but that URI is also this
+  storage's root container, so `Accept` decides: `application/lws+cid` selects the description and
+  anything else, a wildcard included, gets the container listing;
+- **`{root}.description`**, a stable path that predates the requirement and is kept for existing
+  clients.
+
+Every GET/HEAD response carries `Link: <{root}>; rel="https://www.w3.org/ns/lws#storage"`, and so does
+the 401 challenge — that link is the whole of discovery, and nothing needs a hardcoded path. (The older
+`lws#storageDescription` relation is no longer a term of the vocabulary and is not emitted.)
+
+`application/lws+json` and `text/turtle` are also available by negotiation.
 
 ```json
 {
-  "@context": "https://www.w3.org/ns/lws/v1",
+  "@context": [
+    "https://www.w3.org/ns/cid/v1",
+    "https://www.w3.org/ns/lws/v1"
+  ],
   "id": "https://localhost:8888/W3Clws/",
   "type": "Storage",
   "capability": [
     { "type": "https://www.w3.org/ns/lws#PatchSupport",
-      "mediaType": { "application/linkset+json": ["application/merge-patch+json"] } }
+      "format": { "application/linkset+json": ["application/merge-patch+json"] } },
+    { "type": "https://www.w3.org/ns/lws#ContentNegotiation",
+      "source": "application/lws+json",
+      "target": ["application/ld+json", "application/json", "text/turtle"] }
   ],
   "verificationMethod": [ { "id": "{root}#<kid>", "type": "JsonWebKey", "controller": "{root}",
                             "publicKeyJwk": { … } } ],
   "authentication": [ "{root}#<kid>" ],
   "service": [
-    { "type": "StorageDescription",  "serviceEndpoint": "{root}.description" },
+    { "type": "StorageRoot",         "serviceEndpoint": "{root}" },
     { "type": "TypeIndexService",    "serviceEndpoint": "{root}.types/index" },
     { "type": "TypeSearchService",   "serviceEndpoint": "{root}.types/search" },
     { "type": "NotificationService", "serviceEndpoint": "{root}.notifications/subscriptions",
@@ -269,7 +309,7 @@ All error bodies are `application/problem+json` (RFC 9457) with `Cache-Control: 
 
 | Header | Effect |
 |---|---|
-| `Authorization: Bearer <jwt>` | Validated (signature, issuer, audience, expiry). Absent → the public agent. Malformed/invalid → `401`. |
+| `Authorization: Bearer <jwt>` | An RFC 9068 access token from this instance's authorization server (`typ: at+jwt`), validated as lws10-core requires: signature, issuer, an `aud` holding **exactly one** value naming this storage, and temporal validity. While `:LWSAcceptAuthenticationCredentials` is on, an authentication credential presented directly is also accepted. Absent → the public agent. Malformed/invalid → `401`. |
 | `Accept` | Content negotiation (containers, linkset, ACR, search, JSON docs). |
 | `If-Match` | Required on `PUT` and on linkset/ACR writes to a resource with an `ETag`: absent → `428`. Optional on `DELETE`, which succeeds without one. Mismatch → `412` either way; `*` means "must exist". |
 | `If-None-Match` | `304` on match; `*` supported; takes precedence over `If-Modified-Since`. |
@@ -289,14 +329,14 @@ Other `Prefer` tokens are not honored (which the spec permits).
 |---|---|
 | `ETag` | Strong tags everywhere. Data resource = content digest; container = version counter; each page derived; the Turtle variant carries a `-ttl` marker; linkset and ACR have independent tags. |
 | `Location` | On `201` creates and the `200` subscription create. |
-| `Link` | rels: `storageDescription`, `type` (→ Container/DataResource), `linkset` (→ `{uri}.meta`), `acl` (→ `{uri}.acr`), `up` (→ parent), `describes`, and pagination `first`/`prev`/`next`/`last`. |
+| `Link` | rels: `https://www.w3.org/ns/lws#storage` (→ the canonical storage URI, on every GET/HEAD and on the 401), `type` (→ Container/DataResource), `linkset` (→ `{uri}.meta`), `acl` (→ `{uri}.acr`), `up` (→ parent), `describes`, and pagination `first`/`prev`/`next`/`last`. |
 | `Vary` | `Authorization` on every authorized response; `Accept` added for negotiated resources (containers, linkset, ACR). Emitted exactly once per path, including on `304`. |
 | `Accept-Patch` | `application/merge-patch+json` on JSON resources and linksets. |
-| `Accept-Query` | `application/lws-query+json` on Type Search `OPTIONS` and its `415`s. |
+| `Accept-Query` | `application/lws-query+json` on Type Search `OPTIONS`, its `415`s, and the `405` a `GET`/`POST` of the bare endpoint gets. Query **formats** only — which link relations are indexed stays unobservable, so the filter interface cannot become a discovery oracle. |
 | `Content-Range` | On a single-range `206`; each part of a `multipart/byteranges` `206` carries its own. |
 | `Preference-Applied` | `set-linkset` when a combined content-and-metadata update was applied (see request headers). |
 | `Allow` | Per the OPTIONS table above. |
-| `WWW-Authenticate` | `Bearer as_uri="<issuer>", realm="<realm>"[, error="…"]` on `401` (`error` omitted when no credentials were presented). |
+| `WWW-Authenticate` | `Bearer as_uri="<issuer>", realm="<realm>"[, error="…"]` on `401`. Both parameters are REQUIRED: `as_uri` is the authorization server to get a token from — the same value as a valid token's `iss` — and `realm` is the storage, which is the token's `aud`. `error` is omitted when no credentials were presented (RFC 6750: there is no failure to describe). |
 | `Cache-Control` | `public, max-age=60` on the description; `private, no-cache` on authorized responses; `no-store` on errors. |
 | `Content-Range` / `Accept-Ranges` | `bytes …/…` on `206`, `bytes */size` on `416`; `Accept-Ranges: bytes` on data resources. |
 | `Last-Modified` | On data resources. |
@@ -305,7 +345,8 @@ Other `Prefer` tokens are not honored (which the spec permits).
 
 | Type | Use |
 |---|---|
-| `application/lws+json` | Canonical container / description / index / search / subscription / sharing JSON |
+| `application/lws+cid` | The storage description: a W3C Controlled Identifier document extended with the LWS vocabulary |
+| `application/lws+json` | Canonical container / index / search / subscription / sharing JSON |
 | `application/ld+json`, `application/json` | Negotiation aliases — byte-identical body, only the `Content-Type` label differs |
 | `text/turtle` | RDF alternate serialization of **any** LWS JSON document (containers, storage description, type index/search, subscriptions, sharing); ACR representation |
 | `application/linkset+json` | Linkset (RFC 9264) |
@@ -329,6 +370,10 @@ Other `Prefer` tokens are not honored (which the spec permits).
   Dublin Core / LDP terms and a client grant's ODRL terms map to those vocabularies; anything unmapped
   falls back to the `lws:` namespace (best-effort — the JSON stays canonical).
 - **`application/lws+json` family** — labeled `lws+json` > `ld+json` > `json`; the body is identical.
+- **The storage description** — labeled `application/lws+cid` by default (the type lws10-core requires
+  of a response to the storage URI), or `lws+json`/`ld+json`/`json` when one of those is asked for by
+  name, or `text/turtle`. An `Accept` admitting none of them → `406`. At the storage URI, only an
+  explicit `application/lws+cid` selects the description over the container listing.
 - **Linksets** — single representation `application/linkset+json`; else `406`.
 - **ACRs** — single representation `text/turtle`; else `406`.
 - **Data-resource content** — no negotiation; served as the stored media type (it is opaque bytes, not

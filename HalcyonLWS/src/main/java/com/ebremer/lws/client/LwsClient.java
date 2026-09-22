@@ -47,6 +47,9 @@ public final class LwsClient implements Serializable {
     private static final long serialVersionUID = 1L;
 
     private static final String LWS_JSON = "application/lws+json";
+
+    /** The storage description's media type: a CID document extended with the LWS vocabulary. */
+    private static final String LWS_CID = "application/lws+cid";
     private static final String LWS_QUERY_JSON = "application/lws-query+json";
 
     private final transient HttpClient http;
@@ -90,6 +93,23 @@ public final class LwsClient implements Serializable {
 
     public Result get(String uri) {
         return send(builder(uri).GET().header("Accept", LWS_JSON).build());
+    }
+
+    /**
+     * Fetch a storage's description the way lws10-core says to: dereference the storage URI asking
+     * for {@code application/lws+cid}.
+     *
+     * <p>That is the only portable way to reach it. A storage's description has no reserved path a
+     * client may construct — this storage happens to serve one at {@code .description}, but a
+     * conforming storage need not — and the storage URI itself is what a client is given, whether by
+     * configuration or by the {@code rel="…lws#storage"} link on any response. The JSON forms are
+     * offered as a fallback because the {@code +cid} media type is new and a storage running an
+     * older draft will not label the description with it.
+     */
+    public Result describeStorage(String storageUri) {
+        return send(builder(storageUri).GET()
+                .header("Accept", LWS_CID + ", " + LWS_JSON + ";q=0.9")
+                .build());
     }
 
     /**
