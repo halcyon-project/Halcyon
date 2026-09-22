@@ -188,7 +188,7 @@ public final class LwsSettings {
     /**
      * Whether a notification includes the {@code actor} — the agent that made the change.
      *
-     * <p>From {@code :LWSIncludeActor}, default {@code false}. lws10-notifications says the
+     * <p>From {@code :LWSIncludeActor}, default {@code false}. lws10-core says the
      * {@code actor} "SHOULD be omitted by default" (it discloses who touched a resource) but a
      * server "MAY make its inclusion configurable"; this is that switch. See
      * {@link com.ebremer.lws.notify.Notifications}.
@@ -200,7 +200,7 @@ public final class LwsSettings {
     /**
      * Whether a bulk operation delivers its activities as one batched envelope.
      *
-     * <p>From {@code :LWSBatchNotifications}, default {@code false}. lws10-notifications lets a
+     * <p>From {@code :LWSBatchNotifications}, default {@code false}. lws10-core lets a
      * server "combine multiple activities into a single notification envelope by providing an array
      * of activity objects" (a MAY). When off, a recursive delete notifies only about the container
      * itself, as before; when on, it notifies about the whole removed subtree in one envelope per

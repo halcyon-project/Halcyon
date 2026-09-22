@@ -1011,7 +1011,7 @@ public class LwsServlet extends HttpServlet {
     /**
      * List the requesting agent's own webhook subscriptions.
      *
-     * <p>lws10-notifications, Subscription Management: the {@code serviceEndpoint} "MUST be a URL
+     * <p>lws10-notifications-webhook, Subscription Management: the {@code serviceEndpoint} "MUST be a URL
      * that supports GET operations to list a subscriber's active webhook subscriptions", its
      * serialization "MUST conform to the requirements for LWS Containers", and the response
      * "SHOULD support LWS Paging". This used to answer 405.
@@ -1524,6 +1524,11 @@ public class LwsServlet extends HttpServlet {
 
         List<LinkHeader.Parsed> links = LinkHeader.parse(req);
         boolean makeContainer = LinkHeader.declaresType(links, LWS.Container.getURI());
+        // The "identity hint" lws10-core's create operation describes: "an optional suggestion for
+        // the new resource's identifier. The server may use this hint but is not required to." The
+        // spec names no header for it — w3c/lws-protocol#224 removed the Slug mentions it used to
+        // carry — so the header is this storage's choice, and Slug is the long-established one.
+        // The server still decides the final URI (see NamingPolicy and Slugs.sanitize).
         String slug = req.getHeader("Slug");
         String webId = rq.agent().webId();
 
@@ -2839,7 +2844,7 @@ public class LwsServlet extends HttpServlet {
     /**
      * The Type Index: the distinct types this agent may know exist, paginated.
      *
-     * <p>lws10-searchindex describes it as "a paginated {@code TypeIndex}" with page URIs in Link
+     * <p>lws10-index describes it as "a paginated {@code TypeIndex}" with page URIs in Link
      * headers; it used to return every type in one response with none. In practice a storage has a
      * handful of types, so a second page is rare — but the cursor machinery H1 built for containers
      * makes doing it properly nearly free, and the keying is the same idea one step more general:
@@ -2952,7 +2957,7 @@ public class LwsServlet extends HttpServlet {
      * without the body.
      *
      * <p><strong>{@code Vary: Authorization}</strong> declares the dependency rather than
-     * leaving a cache to infer it from the URI alone. lws10-searchindex requires exactly this
+     * leaving a cache to infer it from the URI alone. lws10-index requires exactly this
      * of the search services — a server "MUST vary any cached entry on the credential that
      * scopes the result" — and the same reasoning applies to everything else here.
      */

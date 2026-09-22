@@ -22,6 +22,7 @@ import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import org.apache.jena.datatypes.xsd.XSDDatatype;
@@ -35,21 +36,31 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * The DataSharingService (lws-access-requests): ODRL-style access requests and grants.
+ * The DataSharingService (lws10-core, Access Requests and Grants): ODRL-style access requests and
+ * grants.
  *
  * <p>An <strong>access request</strong> is a record: an agent asking a storage controller for
  * access. It grants nothing on its own. An <strong>access grant</strong> is the controller's answer,
- * and it is load-bearing — lws-access-requests: "When an access grant is created or revoked … it is
+ * and it is load-bearing — lws10-core: "When an access grant is created or revoked … it is
  * the responsibility of the server to adjust any underlying access policy to account for the
  * change." So creating a grant installs an ACP policy, and revoking one removes exactly that policy.
  *
- * <p><strong>Fail closed on any constraint this storage cannot enforce.</strong> A grant may carry
- * ODRL constraints — {@code purpose}, {@code dateTime}, {@code mediaType}, {@code type},
- * {@code client}. Only {@code client} maps onto something ACP evaluates ({@code acp:client}); the
- * others have no enforcement here. A grant is a promise that "all constraints MUST be satisfied", so
- * installing a policy that ignores a constraint it cannot honour would grant <em>more</em> than the
- * grant intends — the exact over-grant this whole module is built to avoid. Such a grant is refused
- * (422), never quietly under-enforced. A future engine could enforce time-boxing and the rest.
+ * <p><strong>Fail closed on any constraint this storage cannot enforce.</strong> lws10-core's
+ * access profile defines five {@code leftOperand} values — {@code client}, {@code format},
+ * {@code type}, {@code purpose} and {@code dateTime} (the media-type operand was spelled
+ * {@code mediaType} before w3c/lws-protocol#219). Two map onto something this storage evaluates:
+ * {@code client} onto an {@code acp:client} matcher, and {@code dateTime} onto the validity window
+ * the ACP engine honours. The rest have no enforcement here. A grant is a promise that "all
+ * constraints MUST be satisfied", so installing a policy that ignores a constraint it cannot honour
+ * would grant <em>more</em> than the grant intends — the exact over-grant this whole module is built
+ * to avoid. Such a grant is refused (422), never quietly under-enforced.
+ *
+ * <p><strong>The target matcher is checked, not assumed.</strong> A target object carries a
+ * {@code type} naming which Storage Resources its {@code value}s select — {@code lws:DataResource},
+ * {@code lws:Container} or {@code lws:StorageResource} — and this storage installs a policy only
+ * when the named resources actually are of that kind. A matcher it does not recognise is refused
+ * for the same reason an unenforceable constraint is: honouring the {@code value}s while ignoring
+ * the {@code type} would grant access to resources the grant did not describe.
  *
  * <p><strong>The grant's policy is its own ACR node, not the target's.</strong> The engine finds a
  * resource's policies by {@code acp:resource}, so a separate node
@@ -68,6 +79,42 @@ public final class AccessSharing {
 
     private static final Set<String> ACTIONS = Set.of("read", "modify", "create", "delete");
     private static final String PUBLIC_AGENT = "http://xmlns.com/foaf/0.1/Agent";
+
+    /** Which Storage Resources a grant's target matcher selects. */
+    private enum TargetMatcher {
+        DATA_RESOURCE(com.ebremer.lws.store.ResourceType.DATA_RESOURCE),
+        CONTAINER(com.ebremer.lws.store.ResourceType.CONTAINER),
+        /** {@code lws:StorageResource}, the common supertype: either kind will do. */
+        ANY(null);
+
+        private final com.ebremer.lws.store.ResourceType kind;
+
+        TargetMatcher(com.ebremer.lws.store.ResourceType kind) {
+            this.kind = kind;
+        }
+
+        boolean accepts(com.ebremer.lws.store.ResourceType actual) {
+            return kind == null || kind == actual;
+        }
+
+        String label() {
+            return this == CONTAINER ? "Container" : "DataResource";
+        }
+    }
+
+    /**
+     * The target matchers lws10-core's access profile defines, each accepted as the term the LWS
+     * context maps and as the full IRI the spec writes it with. A matcher outside this set is
+     * refused: a grant that named one and had its {@code value}s honoured anyway would govern
+     * resources it did not describe.
+     */
+    private static final Map<String, TargetMatcher> TARGET_MATCHERS = Map.of(
+            "DataResource", TargetMatcher.DATA_RESOURCE,
+            LWS.DataResource.getURI(), TargetMatcher.DATA_RESOURCE,
+            "Container", TargetMatcher.CONTAINER,
+            LWS.Container.getURI(), TargetMatcher.CONTAINER,
+            "StorageResource", TargetMatcher.ANY,
+            LWS.StorageResource.getURI(), TargetMatcher.ANY);
 
     /** The validity window a time-boxed grant records on its ACR node; the ACP engine enforces it. */
     private static final org.apache.jena.rdf.model.Property VALID_FROM =
@@ -152,12 +199,14 @@ public final class AccessSharing {
         // Authorize: Control over every target. Read transaction — the decision is re-made under
         // the write below, but a cheap early refusal is friendlier than doing the parse work twice.
         store.read(() -> {
+            ResourceRegistry reg = new ResourceRegistry(store, cfg);
             for (Policy p : policies) {
                 for (String target : p.targets()) {
                     if (!acp.allows(agent, target, AccessMode.CONTROL)) {
                         throw Problem.forbidden("only an agent with Control over " + target
                                 + " may grant access to it");
                     }
+                    requireMatches(reg, p, target);
                 }
             }
         });
@@ -193,7 +242,7 @@ public final class AccessSharing {
         LOG.info("access grant {} by {} installed {} policy node(s)", id, agent.webId(),
                 policies.size());
 
-        // SHOULD (lws-access-requests): tell each assignee they were granted access. Best-effort and
+        // SHOULD (lws10-core): tell each assignee they were granted access. Best-effort and
         // off-thread — the grant is already committed above, so a missing or unreachable inbox never
         // fails the grant. A public grant (foaf:Agent) has no assignee to notify.
         for (Policy p : policies) {
@@ -418,8 +467,10 @@ public final class AccessSharing {
     // --- Parsing and validation ---------------------------------------------
 
     /** A grant policy, reduced to what the ACP translation needs. */
+    /** @param matcher which Storage Resources this policy's targets are declared to be */
     private record Policy(Set<AccessMode> modes, boolean publicAgent, String assignee, String client,
-            List<String> targets, String notBefore, String notAfter, String inbox) {
+            List<String> targets, TargetMatcher matcher,
+            String notBefore, String notAfter, String inbox) {
     }
 
     private List<Policy> parsePolicies(JsonObject doc) {
@@ -467,6 +518,7 @@ public final class AccessSharing {
         // target (required for a grant: we will not install a policy without knowing what it governs)
         JsonObject target = ap.getJsonObject("target");
         List<String> targets = new ArrayList<>();
+        TargetMatcher matcherKind = TargetMatcher.ANY;
         if (target != null) {
             JsonArray value = target.getJsonArray("value");
             if (value != null) {
@@ -474,6 +526,19 @@ public final class AccessSharing {
                     targets.add(asString(tv));
                 }
             }
+            // The matcher: "a term or absolute URL string identifying the type of target matcher",
+            // REQUIRED on a target object. One this storage does not know is refused rather than
+            // dropped -- honouring the values while ignoring the type would govern resources the
+            // grant never described.
+            String matcher = target.getString("type", null);
+            if (matcher == null || matcher.isBlank()) {
+                throw Problem.badRequest("a \"target\" needs a \"type\" naming the target matcher");
+            }
+            if (!TARGET_MATCHERS.containsKey(matcher)) {
+                throw Problem.unprocessable("this storage does not support the target matcher \""
+                        + matcher + "\"; it supports DataResource, Container and StorageResource");
+            }
+            matcherKind = TARGET_MATCHERS.get(matcher);
         }
         if (targets.isEmpty()) {
             throw Problem.unprocessable("an access grant must name a concrete \"target.value\"; "
@@ -532,7 +597,35 @@ public final class AccessSharing {
                 }
             }
         }
-        return new Policy(modes, publicAgent, assignee, client, targets, notBefore, notAfter, inbox);
+        return new Policy(modes, publicAgent, assignee, client, targets, matcherKind,
+                notBefore, notAfter, inbox);
+    }
+
+    /**
+     * A target must be the kind of Storage Resource its matcher names.
+     *
+     * <p>Checked against the store, not the grant: the matcher is the requester's description of
+     * what it is asking about, and a {@code DataResource} matcher pointed at a container would
+     * otherwise install a policy on a container — and a container's policy is inherited by
+     * everything beneath it, so the grant would reach far past what it described. Refused for the
+     * same reason an unenforceable constraint is.
+     *
+     * <p>Ordered after the Control check on purpose: an agent with no Control over the target learns
+     * only that, never whether the target exists or what kind it is.
+     */
+    private void requireMatches(ResourceRegistry reg, Policy p, String target) {
+        if (p.matcher() == TargetMatcher.ANY) {
+            return;   // lws:StorageResource — either kind will do
+        }
+        var found = reg.find(target);
+        if (found.isEmpty()) {
+            // Consistent with how this storage answers a resource an agent holds nothing on.
+            throw Problem.notFound("no such resource: " + target);
+        }
+        if (!p.matcher().accepts(found.get().type())) {
+            throw Problem.unprocessable("target " + target + " is not a " + p.matcher().label()
+                    + ", which is what this grant's target matcher names");
+        }
     }
 
     private static java.time.Instant parseDateTime(String lexical) {
