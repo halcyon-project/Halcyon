@@ -92,6 +92,11 @@ public class URLControl {
             // are Spring MVC routes; if the Wicket filter claims them the
             // protocol answers with rendered HTML instead of JSON-RPC.
             "/mcp",
+            // The embedded LWS authorization server's token endpoint and jwks_uri (its RFC 8414
+            // metadata is under /.well-known/, below). Anonymous servlets mounted by
+            // LwsStorageConfiguration; if the Wicket filter claimed them, a token request would
+            // get the home page and every client would fail to authenticate with HTTP 200.
+            "/lws-as/",
             "/.well-known/"
         };
         // The LWS data servlets (annotation save/fetch, LDP resources) are

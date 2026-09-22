@@ -64,6 +64,9 @@ public final class LwsSettings {
     private final boolean includeActor;
     private final boolean batchNotifications;
     private final boolean setLinkset;
+    private final boolean authorizationServerEnabled;
+    private final long accessTokenLifetimeSeconds;
+    private final boolean acceptAuthenticationCredentials;
     private final String userDataStoragePath;
     private volatile com.ebremer.lws.auth.oidc.TrustPolicy issuerPolicy;
     private volatile com.ebremer.lws.auth.oidc.TrustPolicy webIdHostPolicy;
@@ -76,6 +79,10 @@ public final class LwsSettings {
         this.includeActor = readBoolean(m, "LWSIncludeActor", false);
         this.batchNotifications = readBoolean(m, "LWSBatchNotifications", false);
         this.setLinkset = readBoolean(m, "LWSSetLinkset", false);
+        this.authorizationServerEnabled = readBoolean(m, "LWSAuthorizationServer", true);
+        this.accessTokenLifetimeSeconds = readLong(m, "LWSAccessTokenLifetime", 300L);
+        this.acceptAuthenticationCredentials =
+                readBoolean(m, "LWSAcceptAuthenticationCredentials", true);
         this.userDataStoragePath = readString(m, "LWSUserDataStorage");
         this.issuerPolicy = com.ebremer.lws.auth.oidc.TrustPolicy.forIssuers(
                 readAll(m, "AllowedIssuer"), readAll(m, "DeniedIssuer"));
@@ -217,6 +224,48 @@ public final class LwsSettings {
     }
 
     /**
+     * Whether this instance runs the embedded LWS authorization server.
+     *
+     * <p>From {@code :LWSAuthorizationServer}, default {@code true}. lws10-core makes an OAuth 2.0
+     * authorization server the baseline mechanism for obtaining an access token, so a conforming
+     * deployment needs one; the switch exists for a deployment that puts a <em>separate</em>
+     * authorization server in front of these storages, where a second one answering on the same
+     * origin would only confuse discovery.
+     *
+     * <p>It has no effect when no storage is mounted: there would be nothing to issue tokens for.
+     */
+    public boolean authorizationServerEnabled() {
+        return authorizationServerEnabled;
+    }
+
+    /**
+     * How long an issued access token lives, in seconds.
+     *
+     * <p>From {@code :LWSAccessTokenLifetime}, default 300 — lws10-core's RECOMMENDED ceiling
+     * ("Authorization servers SHOULD issue tokens with short lifetimes … to limit exposure from
+     * token theft"). A token never outlives the credential it was exchanged for regardless of this
+     * value.
+     */
+    public long accessTokenLifetimeSeconds() {
+        return accessTokenLifetimeSeconds;
+    }
+
+    /**
+     * Whether a storage still accepts a bare authentication credential (an ID Token, a Keycloak
+     * access token) presented directly as a bearer token, alongside an exchanged access token.
+     *
+     * <p>From {@code :LWSAcceptAuthenticationCredentials}, default {@code true}. lws10-core permits
+     * it — "a server MAY support additional authorization mechanisms beyond this baseline" — and the
+     * default is on because turning it off invalidates every credential existing clients of this
+     * deployment hold. Turning it off is what makes an exchanged token's audience confinement
+     * actually bite: while a credential is accepted directly, a client can skip the exchange, and so
+     * can anyone who captures that credential.
+     */
+    public boolean acceptAuthenticationCredentials() {
+        return acceptAuthenticationCredentials;
+    }
+
+    /**
      * The storage that holds PER-USER application data (e.g. the annotation
      * color classes at {@code {storage}/users/{name}/…}): the one named by
      * {@code :LWSUserDataStorage "<urlPath>"}, else the first slug-named
@@ -253,6 +302,31 @@ public final class LwsSettings {
             }
         }
         return null;
+    }
+
+    private static long readLong(Model m, String localName, long dflt) {
+        ParameterizedSparqlString pss = new ParameterizedSparqlString(
+                "select ?v where { ?s :" + localName + " ?v }");
+        pss.setNsPrefix("", HAL.NS);
+        try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m)) {
+            ResultSet rs = qe.execSelect();
+            if (rs.hasNext()) {
+                var n = rs.next().get("v");
+                if (n != null && n.isLiteral()) {
+                    try {
+                        return n.asLiteral().getLong();
+                    } catch (RuntimeException e) {
+                        try {
+                            return Long.parseLong(n.asLiteral().getString().trim());
+                        } catch (NumberFormatException nfe) {
+                            LOG.warn(":{} is not a number; using {}", localName, dflt);
+                            return dflt;
+                        }
+                    }
+                }
+            }
+        }
+        return dflt;
     }
 
     private static boolean readBoolean(Model m, String localName, boolean dflt) {

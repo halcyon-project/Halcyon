@@ -209,18 +209,23 @@ public class LwsServlet extends HttpServlet {
         this.content = store.contentStore(cfg);
         this.mirror = content instanceof com.ebremer.lws.store.PathKeyedStore p ? p : null;
         this.naming = NamingPolicy.of(cfg);
+
+        // Load the persistent secrets now, at startup, so they are in hand before any request —
+        // a first-use lazy load could need a write transaction while a paginating request already
+        // holds a read one, which cannot be done. Idempotent across the storages. (M3.)
+        // The authorization server is among them (its signing key is persisted too) and must be up
+        // before the validator below, which names it as the challenge's as_uri and holds its
+        // verification key.
+        com.ebremer.lws.search.Cursor.init(store);
+        com.ebremer.lws.notify.HttpMessageSignatures.init(store);
+        com.ebremer.lws.oauth.LwsAuthorizationServer.init(store);
+
         this.auth = new BearerTokenValidator(cfg);
         this.notify = new Notifications(store, cfg);
         this.sharing = new com.ebremer.lws.sharing.AccessSharing(store, cfg, notify);
         store.initStorage(cfg);
         AcpBootstrap.seed(store, cfg);
         notify.backfillSeqs();
-
-        // Load the persistent secrets now, at startup, so they are in hand before any request —
-        // a first-use lazy load could need a write transaction while a paginating request already
-        // holds a read one, which cannot be done. Idempotent across the two storages. (M3.)
-        com.ebremer.lws.search.Cursor.init(store);
-        com.ebremer.lws.notify.HttpMessageSignatures.init(store);
 
         // Re-derive metadata for anything scanned by an older reader (grandfathering the
         // never-stamped without re-reading them). Cheap when there is nothing to do. (M7.)

@@ -1,6 +1,6 @@
 package com.ebremer.lws.notify;
 
-import jakarta.json.Json;
+import com.ebremer.lws.auth.EcJwk;
 import jakarta.json.JsonObject;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -91,35 +91,16 @@ public final class HttpMessageSignatures {
     }
 
     /**
-     * The key id, as the RFC 7638 JWK thumbprint of the public key.
-     *
-     * <p>Stable and meaningful — it is a hash of the key itself, so the same key always yields the
-     * same id and a client can confirm the id names the key it holds. The old id was
-     * {@code System.identityHashCode}, which was neither: it changed every run and identified
-     * nothing.
+     * The key id, as the RFC 7638 JWK thumbprint of the public key. The old id was
+     * {@code System.identityHashCode}, which changed every run and identified nothing.
      */
     private static String computeKeyId(KeyPair kp) {
-        ECPublicKey pk = (ECPublicKey) kp.getPublic();
-        String x = b64(unsigned(pk.getW().getAffineX().toByteArray()));
-        String y = b64(unsigned(pk.getW().getAffineY().toByteArray()));
-        // Canonical JWK per RFC 7638: required members only, lexicographic order, no whitespace.
-        String canonical = "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"" + x + "\",\"y\":\"" + y + "\"}";
-        return b64(sha256(canonical.getBytes(StandardCharsets.UTF_8)));
+        return EcJwk.thumbprint((ECPublicKey) kp.getPublic());
     }
 
     /** The public key as a JWK, for the storage description's {@code verificationMethod}. */
     public static JsonObject publicJwk() {
-        ECPublicKey pk = (ECPublicKey) keys().getPublic();
-        byte[] x = unsigned(pk.getW().getAffineX().toByteArray());
-        byte[] y = unsigned(pk.getW().getAffineY().toByteArray());
-        return Json.createObjectBuilder()
-                .add("kid", keyId())
-                .add("kty", "EC")
-                .add("crv", "P-256")
-                .add("alg", "ES256")
-                .add("x", b64(x))
-                .add("y", b64(y))
-                .build();
+        return EcJwk.publicJwk((ECPublicKey) keys().getPublic(), keyId(), "sig");
     }
 
     /** A signed request's headers, ready to send. */
@@ -195,24 +176,6 @@ public final class HttpMessageSignatures {
         }
     }
 
-    /** Drop the sign byte BigInteger prepends, and left-pad to the P-256 field size. */
-    private static byte[] unsigned(byte[] b) {
-        int len = 32;
-        if (b.length == len) {
-            return b;
-        }
-        byte[] out = new byte[len];
-        if (b.length > len) {
-            System.arraycopy(b, b.length - len, out, 0, len);
-        } else {
-            System.arraycopy(b, 0, out, len - b.length, b.length);
-        }
-        return out;
-    }
-
-    private static String b64(byte[] b) {
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(b);
-    }
 
     private static String b64pad(byte[] b) {
         return Base64.getEncoder().encodeToString(b);

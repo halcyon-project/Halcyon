@@ -16,14 +16,18 @@ import java.util.List;
  * to claim the credential wins. A presented credential that no verifier accepts is
  * {@code invalid_token} — the same 401 a bad token has always produced.
  *
- * <p>The chain holds the Keycloak bearer-JWT verifier Halcyon has always used and/or the
- * LWS-OIDC verifier (a WebID {@code sub} whose CID names the token's issuer as its OpenID
- * Provider), each present only when its subsystem is switched on — Keycloak by
- * {@code :AuthServer} in {@code settings.ttl}, LWS-OIDC by {@code lws-oidc.json}. Either can
- * run without the other, and adding a further credential kind touches neither the storages
- * nor the authorization layer. See {@code PLAN.md}.
+ * <p>The chain holds, first, the {@link AccessTokenValidator} for an RFC 9068 access token from
+ * this deployment's embedded authorization server — the baseline lws10-core defines — and then the
+ * verifiers that accept an <em>authentication credential</em> directly: the Keycloak bearer-JWT
+ * verifier Halcyon has always used and/or the LWS-OIDC verifier (a WebID {@code sub} whose CID
+ * names the token's issuer as its OpenID Provider). Each is present only when its subsystem is
+ * switched on — Keycloak by {@code :AuthServer} in {@code settings.ttl}, LWS-OIDC by
+ * {@code lws-oidc.json} — and the whole direct-credential group only while
+ * {@code :LWSAcceptAuthenticationCredentials} is on, which lws10-core allows as an "additional
+ * authorization mechanism" beyond the baseline. Adding a further credential kind touches neither
+ * the storages nor the authorization layer. See {@code PLAN.md}.
  *
- * <p>With both off the chain is empty: no credential is accepted and every request resolves
+ * <p>With all of them off the chain is empty: no credential is accepted and every request resolves
  * to {@link AgentContext#PUBLIC} or, if one is presented, {@code invalid_token}. That is the
  * fail-closed direction — an unconfigured server authenticates nobody rather than everybody.
  */
@@ -47,40 +51,68 @@ public final class CredentialChain {
     }
 
     /**
-     * The standard chain for {@code resource}: the Keycloak bearer-JWT verifier when that
-     * subsystem is switched on, plus the LWS-OIDC verifier when {@code lws-oidc.json} enables
-     * it. The Keycloak verifier's constructor performs OIDC discovery, so building it both
-     * makes it and captures the discovered issuer as the challenge's authorization server.
+     * The standard chain for {@code resource}.
+     *
+     * <p>In order: the {@link AccessTokenValidator} for an access token from this deployment's
+     * embedded authorization server — the baseline lws10-core defines, and therefore what a request
+     * is measured against first — then, only while {@code :LWSAcceptAuthenticationCredentials} is
+     * on, the suites that accept an authentication credential presented directly: the Keycloak
+     * bearer-JWT verifier when that subsystem is switched on, and the LWS-OIDC verifier when
+     * {@code lws-oidc.json} enables it.
+     *
+     * <p>The Keycloak verifier's constructor performs OIDC discovery, so building it both makes it
+     * and captures the discovered issuer, which is the fallback {@code as_uri} when no embedded
+     * authorization server is running.
      */
     public static CredentialChain forResource(String resource) {
-        return forResource(resource, LwsOidcSettings.load());
+        return forResource(resource, LwsOidcSettings.load(),
+                com.ebremer.lws.oauth.LwsAuthorizationServer.get());
     }
 
-    /** As {@link #forResource(String)} but with explicit LWS-OIDC settings (for testing/wiring). */
-    static CredentialChain forResource(String resource, LwsOidcSettings lws) {
+    /**
+     * As {@link #forResource(String)} but with explicit settings (for testing/wiring).
+     *
+     * @param server the embedded authorization server, or {@code null} when this instance runs none
+     */
+    static CredentialChain forResource(String resource, LwsOidcSettings lws,
+            com.ebremer.lws.oauth.LwsAuthorizationServer server) {
         List<CredentialVerifier> verifiers = new ArrayList<>();
         String as = null;
 
-        // Keycloak is switched off by commenting :AuthServer out of settings.ttl. Skipping the
-        // verifier is not just to stop it accepting tokens: its constructor performs OIDC
-        // discovery over the network, so merely CONSTRUCTING it against an authorization server
-        // that is not running stalls every storage's startup on a connection nobody will answer.
-        if (HalcyonSettings.getSettings().isKeycloakEnabled()) {
-            BearerTokenVerifier generic = new BearerTokenVerifier(resource);
-            verifiers.add(generic);
-            as = generic.authorizationServer();
-        }
-        if (lws.enabled()) {
-            verifiers.add(new LwsOidcVerifier(lws));
+        boolean acceptCredentials = true;
+        if (server != null) {
+            verifiers.add(server.validatorFor(resource));
+            // as_uri "will be the same as the iss claim of a valid access token", so once this
+            // instance issues tokens the challenge must name it and nothing else: a client that
+            // went to some other as_uri would come back with a token this storage cannot validate.
+            as = server.settings().issuer();
+            acceptCredentials = server.settings().acceptCredentialsDirectly();
         }
 
-        // as_uri is REQUIRED in the challenge, and with Keycloak gone there is no single
-        // authorization server to name: under WebID-OIDC the issuer is whichever OP the
-        // agent's own WebID nominates, which cannot be known before one is presented. The
-        // interactive login endpoint is the honest answer — it is the one URI on this host
-        // that will take an agent from "no credential" to "credential", by asking for the
-        // WebID and going to that WebID's OP. Falling back to the host itself when even
-        // LWS-OIDC is off keeps the challenge well-formed when nothing can satisfy it.
+        if (acceptCredentials) {
+            // Keycloak is switched off by commenting :AuthServer out of settings.ttl. Skipping the
+            // verifier is not just to stop it accepting tokens: its constructor performs OIDC
+            // discovery over the network, so merely CONSTRUCTING it against an authorization server
+            // that is not running stalls every storage's startup on a connection nobody will answer.
+            if (HalcyonSettings.getSettings().isKeycloakEnabled()) {
+                BearerTokenVerifier generic = new BearerTokenVerifier(resource);
+                verifiers.add(generic);
+                if (as == null) {
+                    as = generic.authorizationServer();
+                }
+            }
+            if (lws.enabled()) {
+                verifiers.add(new LwsOidcVerifier(lws));
+            }
+        }
+
+        // as_uri is REQUIRED in the challenge, and without an embedded authorization server there
+        // is no single one to name: under WebID-OIDC the issuer is whichever OP the agent's own
+        // WebID nominates, which cannot be known before one is presented. The interactive login
+        // endpoint is the honest answer — it is the one URI on this host that will take an agent
+        // from "no credential" to "credential", by asking for the WebID and going to that WebID's
+        // OP. Falling back to the host itself keeps the challenge well-formed when nothing can
+        // satisfy it.
         if (as == null) {
             String host = HalcyonSettings.getSettings().getProxyHostName();
             as = lws.enabled() ? host + "/webid-login" : host;
