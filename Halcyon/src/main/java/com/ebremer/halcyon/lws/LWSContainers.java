@@ -613,7 +613,7 @@ public class LWSContainers extends BasePage {
         return new Entry(
                 o.getString("id", ""),
                 container,
-                o.getString("mediaType", ""),
+                com.ebremer.lws.json.LwsJson.formatOf(o),
                 o.containsKey("size") ? o.getJsonNumber("size").longValue() : null,
                 o.getString("modified", ""),
                 Set.copyOf(types));

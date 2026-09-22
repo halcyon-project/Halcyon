@@ -40,7 +40,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Webhook subscriptions and delivery (lws10-notifications).
+ * Webhook subscriptions and delivery (lws10-notifications-webhook; the notification data model
+ * itself moved into lws10-core in w3c/lws-protocol#185).
  *
  * <p>Two authorization checks, and both are load-bearing:
  * <ul>
@@ -213,7 +214,7 @@ public final class Notifications {
         return cfg.subscriptionsUri() + "/" + id;
     }
 
-    // --- Listing (lws10-notifications, Subscription Management) --------------
+    // --- Listing (lws10-notifications-webhook, Subscription Management) ------
 
     /** A subscription, reduced to what ordering and paging need. */
     public record SubRef(String id, long seq) {
@@ -700,7 +701,7 @@ public final class Notifications {
         for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
             try {
                 long created = Instant.now().getEpochSecond();
-                var signed = HttpMessageSignatures.sign("POST", target,
+                var signed = HttpMessageSignatures.sign(cfg.storageRootUri(), "POST", target,
                         "application/lws+json", body, created);
 
                 HttpRequest req = HttpRequest.newBuilder(target)

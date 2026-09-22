@@ -4,7 +4,7 @@
     <artifactId>HalcyonLWS</artifactId>
     <packaging>jar</packaging>
     <name>Halcyon Linked Web Storage</name>
-    <description>An implementation of the W3C Linked Web Storage Protocol (lws10-core, lws10-notifications, lws10-searchindex)</description>
+    <description>An implementation of the W3C Linked Web Storage Protocol (lws10-core, lws10-index, lws10-notifications-webhook)</description>
 
     <parent>
         <groupId>com.ebremer.HalcyonProject</groupId>

@@ -328,9 +328,11 @@ public class StoragePage extends BasePage {
             say("<span class='bad'>You have already added that storage.</span>", t);
             return;
         }
-        // Validate by discovery: an LWS storage advertises a public storage description whose
-        // type is "Storage". This both catches typos and confirms the URI really is a storage.
-        LwsClient.Result probe = client().get(root + ".description");
+        // Validate by discovery: dereferencing a storage URI for application/lws+cid returns a
+        // storage description whose type is "Storage" (lws10-core). This both catches typos and
+        // confirms the URI really is a storage — and it works against ANY conforming storage, not
+        // only one that happens to serve a description at a path this client could guess.
+        LwsClient.Result probe = client().describeStorage(root);
         if (probe.status() == 0) {
             say("<span class='bad'>Could not reach <code>" + esc(root) + "</code> — check the URI "
                     + "and that the server is running.</span>", t);
@@ -339,9 +341,16 @@ public class StoragePage extends BasePage {
         boolean isStorage = probe.ok() && probe.body() != null
                 && "Storage".equals(probe.body().getString("type", ""));
         if (!isStorage) {
+            // Fall back to the reserved path, for a storage still on an older draft where the
+            // storage URI answers only with its root container listing.
+            probe = client().get(root + ".description");
+            isStorage = probe.ok() && probe.body() != null
+                    && "Storage".equals(probe.body().getString("type", ""));
+        }
+        if (!isStorage) {
             say("<span class='bad'>No LWS storage was found at <code>" + esc(root)
-                    + "</code> (its <code>.description</code> answered HTTP " + probe.status()
-                    + "). An LWS storage exposes a public storage description there.</span>", t);
+                    + "</code> (it answered HTTP " + probe.status() + "). An LWS storage answers a "
+                    + "request for its own URI with a public storage description.</span>", t);
             return;
         }
         added.add(root);
@@ -395,7 +404,7 @@ public class StoragePage extends BasePage {
             // what the file readers discovered — that is what makes the type search useful.
             types.removeIf(x -> "Container".equals(x) || "DataResource".equals(x));
             this.type = types.isEmpty() ? "" : String.join(", ", types);
-            this.mediaType = o.getString("mediaType", "");
+            this.mediaType = com.ebremer.lws.json.LwsJson.formatOf(o);
             this.size = o.containsKey("size") ? human(o.getJsonNumber("size").longValue()) : "";
             this.modified = o.getString("modified", "");
         }

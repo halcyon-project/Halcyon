@@ -44,6 +44,9 @@ namespace):
 | `:LWSIncludeActor` | Optional (default `false`). Include the acting agent's WebID as `actor` on a notification. The spec says omit it by default (it discloses who touched a resource) but MAY be configurable. See [notifications.md](notifications.md). |
 | `:LWSBatchNotifications` | Optional (default `false`). Deliver a bulk operation's activities as one batched envelope (`activity` becomes an array). A recursive `DELETE` then announces the whole removed subtree at once, each subscriber filtered to what it may read. |
 | `:LWSSetLinkset` | Optional (default `false`). Honor `Prefer: set-linkset`: a `PUT`/`PATCH` to a resource carrying `Link` headers updates the content **and** the linkset atomically. Off → the preference is ignored (spec-permitted). See [http-api.md](http-api.md). |
+| `:LWSAuthorizationServer` | Optional (default `true`). Run this instance's embedded LWS authorization server: RFC 8414 metadata at `/.well-known/lws-configuration`, an RFC 8693 token endpoint at `/lws-as/token`, and its `jwks_uri` at `/lws-as/jwks`. lws10-core makes an authorization server the baseline way to obtain an access token, so leave it on unless a **separate** authorization server fronts these storages. Inert when no storage is mounted. See [security.md](security.md). |
+| `:LWSAccessTokenLifetime` | Optional (default `300`). Seconds an issued access token lives — lws10-core's RECOMMENDED ceiling. A token never outlives the credential it was exchanged for, whatever this says. |
+| `:LWSAcceptAuthenticationCredentials` | Optional (default `true`). Also accept an authentication credential (an ID Token, a Keycloak access token) presented directly as the bearer token, alongside exchanged access tokens. lws10-core permits it as an additional mechanism. Set `false` to require the exchange — which is what makes an access token's audience confinement actually bite, at the cost of invalidating every credential existing clients hold. |
 
 ### Where to put the TDB2
 
@@ -222,6 +225,11 @@ Wicket would answer the home page (HTTP 200 HTML) instead of letting the request
 > Wicket's `ignorePaths` is a raw prefix match with **no segment boundary**, so `/W3Clws` already
 > ignores `/W3ClwsSlash` — but keep both listed for clarity, and never mount a Wicket page at a path
 > that starts with a storage prefix.
+
+The same configuration mounts the embedded authorization server's three endpoints when
+`:LWSAuthorizationServer` is on, and `/lws-as/` and `/.well-known/` are both in the Wicket ignores for
+the same reason: a token request answered with the home page would fail every client's login with
+HTTP 200.
 
 ## A trap to know: the `?query=` filter
 

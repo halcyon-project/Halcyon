@@ -2,6 +2,7 @@ package com.ebremer.lws.json;
 
 import com.ebremer.lws.capability.CapabilityDescriptor;
 import com.ebremer.lws.config.LwsStorageConfig;
+import com.ebremer.lws.http.MediaTypes;
 import com.ebremer.lws.vocab.LWS;
 import jakarta.json.Json;
 import jakarta.json.JsonArrayBuilder;
@@ -44,12 +45,16 @@ public final class LwsJson {
     }
 
     /**
-     * The storage description.
+     * The storage description: a W3C Controlled Identifier document extended with the LWS
+     * vocabulary, served as {@code application/lws+cid}.
      *
-     * <p>{@code service} is REQUIRED and MUST contain an entry of type
-     * {@code StorageDescription} whose {@code serviceEndpoint} is the description's
-     * own URL — that self-reference is how a client confirms it dereferenced the
-     * right document.
+     * <p>Three requirements shape it. Its {@code id} MUST be the canonical URI of the storage,
+     * which per [[CID-1.0]] is also this document's own URL — so dereferencing the storage
+     * identifier is what yields the description, and no separate self-reference is needed (the
+     * {@code StorageDescription} service entry that used to carry one is not a vocabulary term
+     * and is gone). Its {@code @context} MUST be an array beginning with the CID v1 context
+     * and then the LWS context. And its {@code service} array MUST contain a
+     * {@code StorageRoot} entry whose {@code serviceEndpoint} is the storage root container.
      *
      * @param descriptors the installed capabilities' contributions. Each may add a
      *     {@code service} entry, a {@code capability} entry, or both — advertised only when
@@ -61,9 +66,10 @@ public final class LwsJson {
     public static JsonObject storageDescription(LwsStorageConfig cfg,
             List<CapabilityDescriptor> descriptors) {
         JsonArrayBuilder services = Json.createArrayBuilder()
+                // REQUIRED, and first: the entry point to the resource hierarchy.
                 .add(Json.createObjectBuilder()
-                        .add("type", "StorageDescription")
-                        .add("serviceEndpoint", cfg.descriptionUri()))
+                        .add("type", "StorageRoot")
+                        .add("serviceEndpoint", cfg.storageRootUri()))
                 .add(Json.createObjectBuilder()
                         .add("type", "TypeIndexService")
                         .add("serviceEndpoint", cfg.typeIndexUri()))
@@ -81,13 +87,11 @@ public final class LwsJson {
                 .add(Json.createObjectBuilder()
                         .add("type", "AccessRequestService")
                         .add("serviceEndpoint", cfg.accessRequestsUri())
-                        .add("conformsTo", Json.createArrayBuilder()
-                                .add("https://www.w3.org/ns/lws#AccessProfile")))
+                        .add("conformsTo", Json.createArrayBuilder().add(LWS.ACCESS_PROFILE)))
                 .add(Json.createObjectBuilder()
                         .add("type", "AccessGrantService")
                         .add("serviceEndpoint", cfg.accessGrantsUri())
-                        .add("conformsTo", Json.createArrayBuilder()
-                                .add("https://www.w3.org/ns/lws#AccessProfile")));
+                        .add("conformsTo", Json.createArrayBuilder().add(LWS.ACCESS_PROFILE)));
         // Capability-contributed service entries (the IIIF ImageService, the store-wide
         // SparqlService, …), advertised only when the capability is installed.
         for (CapabilityDescriptor d : descriptors) {
@@ -102,7 +106,9 @@ public final class LwsJson {
         JsonArrayBuilder capabilities = Json.createArrayBuilder()
                 .add(Json.createObjectBuilder()
                         .add("type", "https://www.w3.org/ns/lws#PatchSupport")
-                        .add("mediaType", Json.createObjectBuilder()
+                        // Keyed by `format` — the media type of the resource being patched —
+                        // since w3c/lws-protocol#219 renamed the term from `mediaType`.
+                        .add("format", Json.createObjectBuilder()
                                 .add("application/linkset+json", Json.createArrayBuilder()
                                         .add("application/merge-patch+json"))
                                 // A JSON data resource accepts merge patch (RFC 7386) and
@@ -110,6 +116,23 @@ public final class LwsJson {
                                 .add("application/json", Json.createArrayBuilder()
                                         .add("application/merge-patch+json")
                                         .add("application/json-patch+json"))))
+                // The one transcoding this storage performs: every LWS document it serves is
+                // also available as Turtle. One entry per source type, as the spec's example
+                // shows — a client reads it as "ask for a target and you will get it", so
+                // listing a conversion this storage cannot do would be a broken promise.
+                .add(Json.createObjectBuilder()
+                        .add("type", "https://www.w3.org/ns/lws#ContentNegotiation")
+                        .add("source", MediaTypes.LWS_JSON)
+                        .add("target", Json.createArrayBuilder()
+                                .add(MediaTypes.LD_JSON)
+                                .add(MediaTypes.JSON)
+                                .add(MediaTypes.TURTLE)))
+                .add(Json.createObjectBuilder()
+                        .add("type", "https://www.w3.org/ns/lws#ContentNegotiation")
+                        .add("source", MediaTypes.LWS_CID)
+                        .add("target", Json.createArrayBuilder()
+                                .add(MediaTypes.LWS_JSON)
+                                .add(MediaTypes.TURTLE)))
                 // RFC 9530 Digest Fields: the algorithms this storage produces (Repr-Digest/
                 // Content-Digest) and verifies inbound. A client is told not to assume digest
                 // support unless it is advertised, so this is the contract, not decoration.
@@ -128,20 +151,28 @@ public final class LwsJson {
         // The key a subscriber uses to verify a webhook's HTTP Message Signature. It is
         // published here, rather than out of band, so a subscriber can find it by
         // dereferencing the storage identifier it was given and nothing is hardcoded.
-        String kid = com.ebremer.lws.notify.HttpMessageSignatures.keyId();
+        // The same URL the signature's `keyid` carries, so a receiver that strips the fragment
+        // arrives at this document and finds the method by either the whole id or the fragment.
+        String vmId = com.ebremer.lws.notify.HttpMessageSignatures
+                .verificationMethodId(cfg.storageRootUri());
         JsonArrayBuilder verification = Json.createArrayBuilder()
                 .add(Json.createObjectBuilder()
-                        .add("id", cfg.storageRootUri() + "#" + kid)
+                        .add("id", vmId)
                         .add("type", "JsonWebKey")
                         .add("controller", cfg.storageRootUri())
                         .add("publicKeyJwk",
                                 com.ebremer.lws.notify.HttpMessageSignatures.publicJwk()));
 
-        return doc(cfg.storageRootUri(), T_STORAGE)
+        // A controlled identifier document: the CID context first, the LWS context second.
+        return Json.createObjectBuilder()
+                .add("@context", Json.createArrayBuilder()
+                        .add(LWS.CID_CONTEXT)
+                        .add(LWS.CONTEXT))
+                .add("id", cfg.storageRootUri())
+                .add("type", T_STORAGE)
                 .add("capability", capabilities)
                 .add("verificationMethod", verification)
-                .add("authentication", Json.createArrayBuilder()
-                        .add(cfg.storageRootUri() + "#" + kid))
+                .add("authentication", Json.createArrayBuilder().add(vmId))
                 .add("service", services)
                 .build();
     }
@@ -174,11 +205,17 @@ public final class LwsJson {
         return b;
     }
 
-    /** One entry in a container's {@code items} array. */
+    /**
+     * One entry in a container's {@code items} array.
+     *
+     * @param format the resource's media type, serialized as the {@code format} member. The
+     *     term was {@code mediaType} until w3c/lws-protocol#219 moved the container terms off
+     *     Activity Streams; it is {@code dcterms:format} now.
+     */
     public record Item(
             String id,
             List<String> types,
-            String mediaType,
+            String format,
             Long size,
             String modified) {
     }
@@ -197,8 +234,10 @@ public final class LwsJson {
             types.forEach(arr::add);
             b.add("type", arr);
         }
-        if (it.mediaType() != null) {
-            b.add("mediaType", it.mediaType());
+        // MUST be present for a data resource; a container has no representation of its own
+        // to give a media type to.
+        if (it.format() != null) {
+            b.add("format", it.format());
         }
         if (it.size() != null) {
             b.add("size", it.size());
@@ -253,6 +292,20 @@ public final class LwsJson {
                 .add("totalItems", totalItems)
                 .add("items", arr)
                 .build();
+    }
+
+    /**
+     * The media type of a container member, read the way a client should read it.
+     *
+     * <p>{@code format} is the term (w3c/lws-protocol#219); {@code mediaType} was the term before
+     * it. A client reads both because it may be talking to a server that has not caught up, and
+     * seeing no media type at all would silently change how it renders or dispatches on the
+     * member. A server — this one included — writes only {@code format}.
+     *
+     * @return the media type, or {@code ""} when the member declares none (a container)
+     */
+    public static String formatOf(JsonObject member) {
+        return member.getString("format", member.getString("mediaType", ""));
     }
 
     public static String dataResourceType() {

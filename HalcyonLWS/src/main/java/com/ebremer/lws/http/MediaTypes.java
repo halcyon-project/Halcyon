@@ -5,11 +5,20 @@ package com.ebremer.lws.http;
  */
 public final class MediaTypes {
 
-    /**
-     * The LWS media type. Container representations and the storage description
-     * MUST use it.
-     */
+    /** The LWS media type. Container representations MUST support it. */
     public static final String LWS_JSON = "application/lws+json";
+
+    /**
+     * The storage-description media type: a document that is a specialization of a W3C
+     * Controlled Identifier document extended with the LWS vocabulary.
+     *
+     * <p>A request for the storage URI MUST be answered with this type unless content
+     * negotiation requires another (lws10-core §Discovery and Binding). It was
+     * {@code application/lws+json} until w3c/lws-protocol#183 made the description a CID
+     * document; the description is still offered as {@code application/lws+json} and Turtle
+     * through negotiation, which is the "other representations MAY be available" allowance.
+     */
+    public static final String LWS_CID = "application/lws+cid";
 
     /**
      * lws10-core requires content negotiation across these three for container
@@ -99,6 +108,55 @@ public final class MediaTypes {
         int slash = type.indexOf('/');
         String family = slash > 0 ? type.substring(0, slash) + "/*" : type;
         return a.contains(family) || a.contains(type.toLowerCase());
+    }
+
+    /**
+     * True if the request asks for the storage description rather than a container listing.
+     *
+     * <p>The storage URI and the storage root container are the same resource here, so a GET on
+     * it has two honest answers and {@code Accept} decides between them: naming
+     * {@code application/lws+cid} asks for the description, anything else (including no
+     * {@code Accept} at all) gets the container listing, which is what every existing client
+     * expects of a container. A wildcard does <em>not</em> select the description —
+     * {@code *}&#47;{@code *} is "anything", not "the CID document", and answering a browser's
+     * default Accept with a
+     * description nobody asked for would break navigation.
+     */
+    public static boolean prefersStorageDescription(String accept) {
+        return accept != null && accept.toLowerCase().contains(LWS_CID);
+    }
+
+    /**
+     * True if {@code accept} admits the storage description in one of the forms it is offered
+     * in: {@code application/lws+cid}, the JSON family, or Turtle.
+     */
+    public static boolean admitsStorageDescription(String accept) {
+        return admits(accept, LWS_CID) || admitsLwsJson(accept) || admits(accept, TURTLE);
+    }
+
+    /**
+     * Pick the {@code Content-Type} for the storage description. {@code application/lws+cid} is
+     * the default — the type lws10-core requires of a response to the storage URI — and the
+     * JSON forms are offered to a client that asks for one by name.
+     */
+    public static String negotiateDescription(String accept) {
+        if (accept == null || accept.isBlank()) {
+            return LWS_CID;
+        }
+        String a = accept.toLowerCase();
+        if (a.contains(LWS_CID)) {
+            return LWS_CID;
+        }
+        if (a.contains(LWS_JSON)) {
+            return LWS_JSON;
+        }
+        if (a.contains(LD_JSON)) {
+            return LD_JSON;
+        }
+        if (a.contains(JSON)) {
+            return JSON;
+        }
+        return LWS_CID;
     }
 
     /**

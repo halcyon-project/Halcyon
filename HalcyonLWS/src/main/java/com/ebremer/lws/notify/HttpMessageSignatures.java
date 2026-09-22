@@ -1,6 +1,6 @@
 package com.ebremer.lws.notify;
 
-import jakarta.json.Json;
+import com.ebremer.lws.auth.EcJwk;
 import jakarta.json.JsonObject;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -66,41 +66,41 @@ public final class HttpMessageSignatures {
         return k;
     }
 
+    /**
+     * The bare key id: the RFC 7638 thumbprint, which is what the published JWK carries as its
+     * {@code kid} and what the fragment of {@link #verificationMethodId} is.
+     */
     public static String keyId() {
         keys();
         return keyId;
     }
 
     /**
-     * The key id, as the RFC 7638 JWK thumbprint of the public key.
+     * The {@code keyid} a signature carries, and the {@code id} of the verification method the
+     * storage description publishes: {@code {storage}#{thumbprint}}.
      *
-     * <p>Stable and meaningful — it is a hash of the key itself, so the same key always yields the
-     * same id and a client can confirm the id names the key it holds. The old id was
-     * {@code System.identityHashCode}, which was neither: it changed every run and identified
-     * nothing.
+     * <p>lws10-notifications-webhook requires the {@code keyid} to be "a URL with a fragment
+     * component", because that is what makes a signature self-describing: a receiver strips the
+     * fragment to get the storage identifier, dereferences it for the storage description,
+     * confirms the description's {@code id} matches, and finds the verification method whose
+     * {@code id} is either the whole keyid or just its fragment. A bare thumbprint — which is
+     * what this used to emit — gives a receiver nowhere to start.
+     */
+    public static String verificationMethodId(String storageUri) {
+        return storageUri + "#" + keyId();
+    }
+
+    /**
+     * The key id, as the RFC 7638 JWK thumbprint of the public key. The old id was
+     * {@code System.identityHashCode}, which changed every run and identified nothing.
      */
     private static String computeKeyId(KeyPair kp) {
-        ECPublicKey pk = (ECPublicKey) kp.getPublic();
-        String x = b64(unsigned(pk.getW().getAffineX().toByteArray()));
-        String y = b64(unsigned(pk.getW().getAffineY().toByteArray()));
-        // Canonical JWK per RFC 7638: required members only, lexicographic order, no whitespace.
-        String canonical = "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"" + x + "\",\"y\":\"" + y + "\"}";
-        return b64(sha256(canonical.getBytes(StandardCharsets.UTF_8)));
+        return EcJwk.thumbprint((ECPublicKey) kp.getPublic());
     }
 
     /** The public key as a JWK, for the storage description's {@code verificationMethod}. */
     public static JsonObject publicJwk() {
-        ECPublicKey pk = (ECPublicKey) keys().getPublic();
-        byte[] x = unsigned(pk.getW().getAffineX().toByteArray());
-        byte[] y = unsigned(pk.getW().getAffineY().toByteArray());
-        return Json.createObjectBuilder()
-                .add("kid", keyId())
-                .add("kty", "EC")
-                .add("crv", "P-256")
-                .add("alg", "ES256")
-                .add("x", b64(x))
-                .add("y", b64(y))
-                .build();
+        return EcJwk.publicJwk((ECPublicKey) keys().getPublic(), keyId(), "sig");
     }
 
     /** A signed request's headers, ready to send. */
@@ -110,11 +110,14 @@ public final class HttpMessageSignatures {
     /**
      * Sign a delivery.
      *
+     * @param storageUri the canonical URI of the storage this delivery is about, which the
+     *                   {@code keyid} is built from so a receiver can resolve the key from the
+     *                   signature alone
      * @param created seconds since the epoch, covered by the signature so a subscriber
      *                can reject a replayed one outside its clock-skew window
      */
-    public static Signed sign(String method, URI target, String contentType, byte[] body,
-            long created) {
+    public static Signed sign(String storageUri, String method, URI target, String contentType,
+            byte[] body, long created) {
         String digest = "sha-256=:" + b64pad(sha256(body)) + ":";
 
         // The covered components, in the order they appear in the base. Order is part of
@@ -125,7 +128,7 @@ public final class HttpMessageSignatures {
                 "\"content-type\"", "\"content-digest\"");
         String params = "(" + String.join(" ", components) + ")"
                 + ";created=" + created
-                + ";keyid=\"" + keyId() + "\""
+                + ";keyid=\"" + verificationMethodId(storageUri) + "\""
                 + ";alg=\"ecdsa-p256-sha256\"";
 
         String scheme = target.getScheme();
@@ -173,24 +176,6 @@ public final class HttpMessageSignatures {
         }
     }
 
-    /** Drop the sign byte BigInteger prepends, and left-pad to the P-256 field size. */
-    private static byte[] unsigned(byte[] b) {
-        int len = 32;
-        if (b.length == len) {
-            return b;
-        }
-        byte[] out = new byte[len];
-        if (b.length > len) {
-            System.arraycopy(b, b.length - len, out, 0, len);
-        } else {
-            System.arraycopy(b, 0, out, len - b.length, b.length);
-        }
-        return out;
-    }
-
-    private static String b64(byte[] b) {
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(b);
-    }
 
     private static String b64pad(byte[] b) {
         return Base64.getEncoder().encodeToString(b);

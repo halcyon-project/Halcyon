@@ -5,13 +5,80 @@ Every request is authenticated (or treated as the public agent) and then authori
 independent: authentication establishes *who* the agent is (a WebID); authorization decides *what* modes
 that agent holds on a resource.
 
+## Authorization framework (lws10-core)
+
+lws10-core's baseline is an **OAuth 2.0 authorization server** that exchanges an *authentication
+credential* for an *access token* scoped to one storage. This instance runs one, embedded, when
+`:LWSAuthorizationServer` is on (the default). The whole flow is discoverable — a client needs no
+hardcoded URI:
+
+```
+GET  {storage}/private                    -> 401
+     Link: <{storage}/>; rel="https://www.w3.org/ns/lws#storage"
+     WWW-Authenticate: Bearer as_uri="https://halcyon.example",
+                              realm="https://halcyon.example/W3Clws"
+
+GET  https://halcyon.example/.well-known/lws-configuration     (RFC 8414; the path lws10-core fixes)
+     -> { "issuer": ..., "token_endpoint": .../lws-as/token, "jwks_uri": .../lws-as/jwks,
+          "grant_types_supported": ["urn:ietf:params:oauth:grant-type:token-exchange"],
+          "subject_token_types_supported": ["urn:ietf:params:oauth:token-type:id_token", ...],
+          "subject_identifier_types_supported": ["https"] }
+
+POST https://halcyon.example/lws-as/token                       (RFC 8693 token exchange)
+     grant_type=urn:ietf:params:oauth:grant-type:token-exchange
+     &resource=https://halcyon.example/W3Clws          <- the challenge's realm
+     &subject_token_type=urn:ietf:params:oauth:token-type:id_token
+     &subject_token=<the ID Token>
+     -> { "access_token": "<at+jwt>", "token_type": "Bearer", "expires_in": 300 }
+
+GET  {storage}/private   Authorization: Bearer <at+jwt>         -> 200
+```
+
+**What the exchange is for.** Presenting a credential straight to a storage authenticates the agent,
+but it hands the credential the storage's authority: one with no audience restriction, replayed at a
+second storage, is accepted there too, and it lives as long as its issuer chose. An exchanged token
+names exactly one storage in `aud` and lives 300 seconds (`:LWSAccessTokenLifetime`, the spec's
+RECOMMENDED ceiling), and never outlives the credential it came from — so a captured one is worth
+little, and worth nothing anywhere else.
+
+**Issuing** (`com.ebremer.lws.oauth`). `resource` is REQUIRED and must name a storage of this instance;
+an unknown one is `invalid_target`, which is what stops the endpoint minting tokens for somebody else's
+storage. Delegation (`actor_token`) is refused rather than ignored. The credential is validated in full
+by an authentication suite before anything is issued, and the token carries every claim lws10-core makes
+REQUIRED: `iss`, `sub` (a URI), `client_id` (a URI, from the credential's `azp`), `aud`, `exp`, `iat`,
+`jti`. It is signed `ES256` with a persisted P-256 key whose `kid` is its RFC 7638 thumbprint, published
+at the `jwks_uri` — public half only, so the storage holds a verification key and cannot mint tokens.
+
+**Validating** (`auth/AccessTokenValidator`), in lws10-core's own order: signature, issuer, an `aud`
+holding **exactly one** value naming the storage that contains the target resource, then temporal
+validity with a small clock skew. A token whose `aud` names another storage is `401` — the confinement
+property is what most of this is for. A token claiming an HMAC or `none` algorithm is refused outright
+rather than handed to a parser along with a public key.
+
+**Clients are public.** lws10-core identifies a client by the URI in its credential, not by a
+registration, so the token endpoint asks for no client authentication and the metadata advertises
+`none`. What confines a token is the credential presented and the `resource` it was scoped to.
+
+**Rotation** is deleting the signing key from the store and restarting. Tokens signed by the old key
+stop verifying, and since they live minutes, clients recover by exchanging again.
+
 ## Authentication
 
-A request carries an OAuth 2.0 bearer token: `Authorization: Bearer <jwt>`. Each storage validates it
-with `BearerTokenValidator`. An absent token is not an error — it makes the request the **public agent**
-(`urn:lws:public`); only operations that require a mode the public agent lacks then fail.
+A request carries a bearer token: `Authorization: Bearer <jwt>`. Each storage resolves the agent with
+`BearerTokenValidator`, which consults, in order:
 
-### What is validated
+1. **`AccessTokenValidator`** — an `at+jwt` access token from the authorization server above. This is
+   the baseline, so it is what a presented credential is measured against first.
+2. **the Keycloak bearer verifier** and **the LWS-OIDC verifier** — an *authentication credential*
+   presented directly, described below. Both are skipped entirely when
+   `:LWSAcceptAuthenticationCredentials` is `false`, which is how a deployment requires the exchange.
+
+A credential no verifier claims is `invalid_token`; one a verifier claims and refuses stops the chain
+there, so a tampered credential cannot be laundered past its own verifier by a later one. An absent
+token is not an error — it makes the request the **public agent** (`urn:lws:public`); only operations
+that require a mode the public agent lacks then fail.
+
+### What is validated (a directly-presented Keycloak credential)
 
 1. **Signature** against the realm's JWKS (kid-aware, so key rotation is tolerated).
 2. **Issuer** — discovered at startup via OIDC discovery
@@ -84,10 +151,12 @@ accordingly (see also `PLAN.md`):
   CA-validated TLS (unlike the same-box Keycloak JWKS fetch) and never follow redirects. Residual,
   undefended: DNS rebinding and redirect-to-internal.
 - **Audience.** An LWS ID Token's `aud` is the OIDC *client*, not this storage, so the
-  audience-covers-this-storage rule does **not** apply on this path — a bare bearer LWS credential is
-  replayable to any storage that trusts the WebID's OP. This matches the suite (presentation binding is
-  deferred to Resource Indicators / DPoP) but is weaker than the Keycloak-audience model; enable it
-  deliberately.
+  audience-covers-this-storage rule does **not** apply on this path — a bare bearer LWS credential
+  presented *directly* is replayable to any storage that trusts the WebID's OP. That is the weakness the
+  authorization framework above exists to remove: exchanged for an access token, the same identity
+  arrives with an `aud` naming one storage and a 300-second life. Set
+  `:LWSAcceptAuthenticationCredentials` to `false` to require that exchange; leaving it on is
+  backwards-compatible but keeps this replay window open, so enable the direct path deliberately.
 - **Algorithm confusion.** The signing key is pinned to the token's `alg`; a symmetric / `none` /
   unknown `alg` never matches an RSA/EC verification key.
 
@@ -241,7 +310,7 @@ The ODRL action maps to an ACP mode: `read → Read`, `create → Append`, `modi
    enforced: a `dateTime` grant canonicalizes to `schema:validFrom`/`schema:expires` on the grant's ACR
    node, and `AcpEngine.activeNow` skips that ACR outside the window — so a time-boxed grant is honored
    (past-expiry denies, future allows) instantly at evaluation, with no revocation sweep. A grant
-   carrying a constraint ACP still cannot enforce (`purpose`, `mediaType`, `type`) is **refused `422`** —
+   carrying a constraint ACP still cannot enforce (`purpose`, `format`, `type`) is **refused `422`** —
    never half-honored, so it cannot silently become an unlimited grant. `purpose` is fundamentally
    unenforceable (an HTTP request carries no purpose signal).
 2. **The grant's policy survives an ACR replace.** A grant installs its policy as a **separate** ACR
@@ -255,7 +324,7 @@ Only a `Control`-holder on the target may create a grant for it.
 On grant creation, each non-public assignee's `inbox` (an ODRL `inbox` on the policy) is sent a **signed
 AS2 `Announce`** telling it access was granted — the lws-access-requests SHOULD. Delivery is off-thread
 and best-effort (the same RFC 9421 signature a webhook carries), so a missing or unreachable inbox never
-fails the already-committed grant. A `purpose`/`mediaType`/`type` constraint is still refused (`422`)
+fails the already-committed grant. A `purpose`/`format`/`type` constraint is still refused (`422`)
 rather than partially applied — the safe stance for a constraint that cannot be enforced.
 
 ## Implementation notes for maintainers

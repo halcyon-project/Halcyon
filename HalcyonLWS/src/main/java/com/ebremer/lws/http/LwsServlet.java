@@ -209,18 +209,23 @@ public class LwsServlet extends HttpServlet {
         this.content = store.contentStore(cfg);
         this.mirror = content instanceof com.ebremer.lws.store.PathKeyedStore p ? p : null;
         this.naming = NamingPolicy.of(cfg);
+
+        // Load the persistent secrets now, at startup, so they are in hand before any request —
+        // a first-use lazy load could need a write transaction while a paginating request already
+        // holds a read one, which cannot be done. Idempotent across the storages. (M3.)
+        // The authorization server is among them (its signing key is persisted too) and must be up
+        // before the validator below, which names it as the challenge's as_uri and holds its
+        // verification key.
+        com.ebremer.lws.search.Cursor.init(store);
+        com.ebremer.lws.notify.HttpMessageSignatures.init(store);
+        com.ebremer.lws.oauth.LwsAuthorizationServer.init(store);
+
         this.auth = new BearerTokenValidator(cfg);
         this.notify = new Notifications(store, cfg);
         this.sharing = new com.ebremer.lws.sharing.AccessSharing(store, cfg, notify);
         store.initStorage(cfg);
         AcpBootstrap.seed(store, cfg);
         notify.backfillSeqs();
-
-        // Load the persistent secrets now, at startup, so they are in hand before any request —
-        // a first-use lazy load could need a write transaction while a paginating request already
-        // holds a read one, which cannot be done. Idempotent across the two storages. (M3.)
-        com.ebremer.lws.search.Cursor.init(store);
-        com.ebremer.lws.notify.HttpMessageSignatures.init(store);
 
         // Re-derive metadata for anything scanned by an older reader (grandfathering the
         // never-stamped without re-reading them). Cheap when there is nothing to do. (M7.)
@@ -362,10 +367,19 @@ public class LwsServlet extends HttpServlet {
             }
         }
         Target t = Target.resolve(cfg, req);
-        switch (req.getMethod().toUpperCase(Locale.ROOT)) {
+        String method = req.getMethod().toUpperCase(Locale.ROOT);
+        if (method.equals("GET") || method.equals("HEAD")) {
+            // "All responses to GET and HEAD requests targeting storage resources MUST include a
+            // Link header whose target is the canonical URI of the storage" — set once here, for
+            // every kind of target, so no individual responder can forget it. An error response
+            // resets the headers (see Problem.send) and carries its own; the 401 challenge adds
+            // this link itself, which is where the spec's SHOULD for 401 is met.
+            addStorageLink(resp);
+        }
+        switch (method) {
             case "GET" -> get(rq, t, req, resp, true);
             case "HEAD" -> get(rq, t, req, resp, false);
-            case "OPTIONS" -> options(rq, t, resp);
+            case "OPTIONS" -> options(rq, t, req, resp);
             case "POST" -> post(rq, t, req, resp);
             case "PUT" -> put(rq, t, req, resp);
             case "DELETE" -> delete(rq, t, req, resp);
@@ -392,6 +406,7 @@ public class LwsServlet extends HttpServlet {
             LwsResource r = known(rq, t.uri());
             demandOn(rq, r, AccessMode.READ);
             var links = new java.util.LinkedHashMap<String, List<String>>();
+            links.put(LWS.REL_STORAGE, List.of(cfg.storageRootUri()));
             links.put(LinkHeader.REL_TYPE, List.of(r.isContainer()
                     ? LWS.Container.getURI() : LWS.DataResource.getURI()));
             if (r.parent() != null) {
@@ -641,17 +656,21 @@ public class LwsServlet extends HttpServlet {
             // identical for every caller. Sharing it is the point of a discovery document, so
             // it is the only one marked public. The max-age stays short because the storage's
             // webhook verification key is published in it.
-            case DESCRIPTION -> {
-                resp.setHeader("Cache-Control", "public, max-age=60");
-                sendJson(req, resp,
-                        LwsJson.storageDescription(cfg, capabilities.descriptors(cfg)), body);
-            }
+            case DESCRIPTION -> sendDescription(req, resp, body);
             case TYPE_INDEX -> typeIndex(rq, req, resp, body);
-            // The GET form of Type Search: ?type=A,B&type=C. Superseded by QUERY in
-            // w3c/lws-protocol#179, which is not yet merged — the published draft still
-            // requires it, so it stays until that lands.
-            case TYPE_SEARCH -> typeSearch(rq, LwsQuery.fromQueryString(req.getParameterMap()),
-                    req, resp, body);
+            // A search is a QUERY, not a GET (w3c/lws-protocol#179). A GET is honoured only on
+            // a page link, which carries the filter it belongs to in the sealed `q` token; the
+            // bare endpoint answers 405 and names QUERY, so a client that followed a page link
+            // can page on while one that tried to search by URL is told how to.
+            case TYPE_SEARCH -> {
+                String token = req.getParameter(SEARCH_FILTER_PARAM);
+                if (token == null) {
+                    throw Problem.methodNotAllowed("a search is an HTTP QUERY with an "
+                            + MediaTypes.LWS_QUERY_JSON + " filter", ALLOW_SEARCH)
+                            .header("Accept-Query", MediaTypes.LWS_QUERY_JSON);
+                }
+                typeSearch(rq, LwsQuery.decode(token), req, resp, body);
+            }
             case ACR -> getAcr(rq, t, req, resp, body);
             case LINKSET -> getLinkset(rq, t, req, resp, body);
             // Only the subscriber may see their own subscription. It carries their inbox --
@@ -675,6 +694,18 @@ public class LwsServlet extends HttpServlet {
             case ACCESS_REQUEST -> getSharing(rq, t, req, resp, body, false);
             case ACCESS_GRANT -> getSharing(rq, t, req, resp, body, true);
             case STORAGE_ROOT, RESOURCE -> {
+                // The storage URI is this storage's root container, and lws10-core requires a
+                // request for the storage URI to answer with the storage description. Both
+                // answers are correct for the one resource, so Accept decides: only an explicit
+                // application/lws+cid selects the description, and it is served unauthenticated
+                // exactly as it is at its own URI -- it is a discovery document, identical for
+                // every caller, and a client that cannot read it cannot learn how to
+                // authenticate. Everything else reads the container.
+                if (t.kind() == Target.Kind.STORAGE_ROOT
+                        && MediaTypes.prefersStorageDescription(req.getHeader("Accept"))) {
+                    sendDescription(req, resp, body);
+                    return;
+                }
                 // A GET carrying ?query= against a queryable resource is a per-resource SPARQL
                 // request (a capability claims it); everything else is a normal read. HEAD never
                 // matches — the capability's marker is the GET method.
@@ -980,7 +1011,7 @@ public class LwsServlet extends HttpServlet {
     /**
      * List the requesting agent's own webhook subscriptions.
      *
-     * <p>lws10-notifications, Subscription Management: the {@code serviceEndpoint} "MUST be a URL
+     * <p>lws10-notifications-webhook, Subscription Management: the {@code serviceEndpoint} "MUST be a URL
      * that supports GET operations to list a subscriber's active webhook subscriptions", its
      * serialization "MUST conform to the requirements for LWS Containers", and the response
      * "SHOULD support LWS Paging". This used to answer 405.
@@ -1448,8 +1479,10 @@ public class LwsServlet extends HttpServlet {
     private void post(Req rq, Target t, HttpServletRequest req, HttpServletResponse resp)
             throws IOException {
         if (t.kind() == Target.Kind.TYPE_SEARCH) {
-            postTypeSearch(rq, req, resp);
-            return;
+            // The POST form of Type Search was removed from the spec by w3c/lws-protocol#179.
+            throw Problem.methodNotAllowed("a search is an HTTP QUERY with an "
+                    + MediaTypes.LWS_QUERY_JSON + " filter", ALLOW_SEARCH)
+                    .header("Accept-Query", MediaTypes.LWS_QUERY_JSON);
         }
         if (t.kind() == Target.Kind.SUBSCRIPTIONS) {
             subscribe(rq, req, resp);
@@ -1491,6 +1524,11 @@ public class LwsServlet extends HttpServlet {
 
         List<LinkHeader.Parsed> links = LinkHeader.parse(req);
         boolean makeContainer = LinkHeader.declaresType(links, LWS.Container.getURI());
+        // The "identity hint" lws10-core's create operation describes: "an optional suggestion for
+        // the new resource's identifier. The server may use this hint but is not required to." The
+        // spec names no header for it — w3c/lws-protocol#224 removed the Slug mentions it used to
+        // carry — so the header is this storage's choice, and Slug is the long-established one.
+        // The server still decides the final URI (see NamingPolicy and Slugs.sanitize).
         String slug = req.getHeader("Slug");
         String webId = rq.agent().webId();
 
@@ -2632,11 +2670,28 @@ public class LwsServlet extends HttpServlet {
      *          (a container takes POST, a data resource takes PUT). Null where the caller
      *          could not resolve it, which narrows the list to what holds for either.
      */
+    /**
+     * What the Type Search endpoint accepts. lws10-index's own OPTIONS example is exactly this:
+     * the {@code Allow} header is what tells a client the QUERY method is supported.
+     */
+    private static final String ALLOW_SEARCH = "OPTIONS, QUERY";
+
+    /** A page link additionally takes GET/HEAD — that is how a page is dereferenced. */
+    private static final String ALLOW_SEARCH_PAGE = "OPTIONS, HEAD, GET, QUERY";
+
+    /**
+     * The page-link parameter carrying a sealed filter. Deliberately not named {@code query}:
+     * Halcyon forwards any request bearing that parameter to the SPARQL surface.
+     */
+    private static final String SEARCH_FILTER_PARAM = "q";
+
     private static String allowFor(Target.Kind kind, LwsResource r) {
         return switch (kind) {
-            // QUERY is the form this service is built around; GET and POST remain
-            // because the published draft still requires them until #179 merges.
-            case TYPE_SEARCH -> "OPTIONS, HEAD, GET, POST, QUERY";
+            // QUERY is the only way to run a search: w3c/lws-protocol#179 replaced the GET
+            // and POST forms with it. GET is still how a *page* of a result set is fetched,
+            // but a page is a different URI — it carries the sealed filter — so the bare
+            // endpoint advertises only what it accepts. See allowForSearchPage.
+            case TYPE_SEARCH -> ALLOW_SEARCH;
             case LINKSET -> "OPTIONS, HEAD, GET, PATCH";
             case ACR -> "OPTIONS, HEAD, GET, PUT";
             case SUBSCRIPTIONS -> "OPTIONS, HEAD, GET, POST";
@@ -2665,10 +2720,14 @@ public class LwsServlet extends HttpServlet {
         };
     }
 
-    private void options(Req rq, Target t, HttpServletResponse resp) {
+    private void options(Req rq, Target t, HttpServletRequest req, HttpServletResponse resp) {
         switch (t.kind()) {
             case TYPE_SEARCH -> {
-                resp.setHeader("Allow", allowFor(t.kind(), null));
+                resp.setHeader("Allow", req.getParameter(SEARCH_FILTER_PARAM) == null
+                        ? ALLOW_SEARCH : ALLOW_SEARCH_PAGE);
+                // Query FORMATS only. It must never disclose which link relations this storage
+                // indexes: those stay unobservable so the filter interface cannot be turned into
+                // a discovery oracle for the server's configuration.
                 resp.setHeader("Accept-Query", MediaTypes.LWS_QUERY_JSON);
             }
             case LINKSET -> {
@@ -2737,17 +2796,6 @@ public class LwsServlet extends HttpServlet {
                 allowFor(t.kind(), r));
     }
 
-    /** The POST form of Type Search, whose body is {@code application/lws+json}. */
-    private void postTypeSearch(Req rq, HttpServletRequest req, HttpServletResponse resp)
-            throws IOException {
-        String ct = MediaTypes.bare(req.getContentType());
-        if (!MediaTypes.LWS_JSON.equals(ct) && !MediaTypes.LD_JSON.equals(ct)
-                && !MediaTypes.JSON.equals(ct)) {
-            throw Problem.unsupportedMediaType("the POST form takes " + MediaTypes.LWS_JSON)
-                    .header("Accept-Query", MediaTypes.LWS_QUERY_JSON);
-        }
-        typeSearch(rq, parseFilter(req), req, resp, true);
-    }
 
     private LwsQuery parseFilter(HttpServletRequest req) throws IOException {
         byte[] raw = readBounded(req.getInputStream(), MAX_ACR_BYTES);
@@ -2796,7 +2844,7 @@ public class LwsServlet extends HttpServlet {
     /**
      * The Type Index: the distinct types this agent may know exist, paginated.
      *
-     * <p>lws10-searchindex describes it as "a paginated {@code TypeIndex}" with page URIs in Link
+     * <p>lws10-index describes it as "a paginated {@code TypeIndex}" with page URIs in Link
      * headers; it used to return every type in one response with none. In practice a storage has a
      * handful of types, so a second page is rare — but the cursor machinery H1 built for containers
      * makes doing it properly nearly free, and the keying is the same idea one step more general:
@@ -2863,15 +2911,20 @@ public class LwsServlet extends HttpServlet {
         SearchService svc = new SearchService(store, cfg, rq.agent(), rq.acp());
         SearchService.Page page = svc.search(q, cursor);
 
-        // Page URIs are opaque and travel only in Link headers, never in the body. The
-        // parameter is `cursor`, not `query`: on a resource URL `?query=` is the marker for
-        // the per-resource SPARQL capability, so pagination keeps its parameter distinct.
+        // Page URIs are opaque and travel only in Link headers, never in the body. Each carries
+        // the sealed filter (`q`) as well as the position (`cursor`), because the service keeps
+        // no per-search state: a page link is self-contained, and a GET on one is the only GET
+        // this endpoint honours. Neither parameter may be named `query` — on a resource URL that
+        // is the marker for the per-resource SPARQL capability.
         String base = cfg.typeSearchUri();
-        resp.addHeader("Link", LinkHeader.link(base, LinkHeader.REL_FIRST));
+        String filter = SEARCH_FILTER_PARAM + "="
+                + java.net.URLEncoder.encode(q.encode(), StandardCharsets.UTF_8);
+        resp.addHeader("Link", LinkHeader.link(base + "?" + filter, LinkHeader.REL_FIRST));
         if (page.more()) {
             String next = Cursor.at(base, fp, page.lastScannedSeq()).encode();
             resp.addHeader("Link", LinkHeader.link(
-                    base + "?cursor=" + java.net.URLEncoder.encode(next, StandardCharsets.UTF_8),
+                    base + "?" + filter + "&cursor="
+                            + java.net.URLEncoder.encode(next, StandardCharsets.UTF_8),
                     LinkHeader.REL_NEXT));
         }
         agentSpecific(resp);
@@ -2904,7 +2957,7 @@ public class LwsServlet extends HttpServlet {
      * without the body.
      *
      * <p><strong>{@code Vary: Authorization}</strong> declares the dependency rather than
-     * leaving a cache to infer it from the URI alone. lws10-searchindex requires exactly this
+     * leaving a cache to infer it from the URI alone. lws10-index requires exactly this
      * of the search services — a server "MUST vary any cached entry on the credential that
      * scopes the result" — and the same reasoning applies to everything else here.
      */
@@ -2928,11 +2981,24 @@ public class LwsServlet extends HttpServlet {
         }
     }
 
+    /**
+     * The storage link: {@code Link: <{storage}>; rel="https://www.w3.org/ns/lws#storage"}.
+     *
+     * <p>The one discovery anchor lws10-core defines. Its target is the canonical URI of the
+     * storage — which in this module is also the storage root container, and which answers a
+     * request for {@code application/lws+cid} with the storage description. A client therefore
+     * needs no hardcoded path to reach the description: it follows this link and negotiates.
+     * (The older {@code lws#storageDescription} relation, which pointed at the description's own
+     * URI, is no longer a term of the vocabulary and is not emitted.)
+     */
+    private void addStorageLink(HttpServletResponse resp) {
+        resp.addHeader("Link", LinkHeader.link(cfg.storageRootUri(), LWS.REL_STORAGE));
+    }
+
     private void addCommonHeaders(HttpServletResponse resp, LwsResource r) {
         agentSpecific(resp);
         addPatchHeader(resp, r);
         resp.setHeader("Want-Content-Digest", DigestFields.WANT);
-        resp.addHeader("Link", LinkHeader.link(cfg.descriptionUri(), LWS.REL_STORAGE_DESCRIPTION));
         resp.addHeader("Link", LinkHeader.link(
                 r.isContainer() ? LWS.Container.getURI() : LWS.DataResource.getURI(),
                 LinkHeader.REL_TYPE));
@@ -2951,6 +3017,47 @@ public class LwsServlet extends HttpServlet {
         }
         if (r.modified() != null) {
             resp.setHeader("Last-Modified", Preconditions.httpDate(r.modified()));
+        }
+    }
+
+    /**
+     * The storage description, as {@code application/lws+cid}.
+     *
+     * <p>Served from two URIs — the storage URI itself, which is what lws10-core requires, and the
+     * reserved {@code .description} path, which predates that requirement and is kept so an
+     * existing client keeps working. One responder for both, so the two cannot answer differently.
+     *
+     * <p>It is the one response here that does not depend on the caller: the description is how a
+     * client discovers where to authenticate, so requiring authentication to read it would be
+     * circular, and sharing it is the point of a discovery document. Hence the only
+     * {@code Cache-Control: public} in this servlet. The {@code max-age} stays short because the
+     * webhook verification key is published in it, and a rotated key must not linger in caches.
+     */
+    private void sendDescription(HttpServletRequest req, HttpServletResponse resp, boolean body)
+            throws IOException {
+        String accept = req.getHeader("Accept");
+        boolean turtle = prefersTurtle(req);
+        if (!turtle && !MediaTypes.admitsStorageDescription(accept)) {
+            throw Problem.notAcceptable("the storage description is available as "
+                    + MediaTypes.LWS_CID + ", " + MediaTypes.LWS_JSON + " or " + MediaTypes.TURTLE);
+        }
+        JsonObject doc = LwsJson.storageDescription(cfg, capabilities.descriptors(cfg));
+        byte[] bytes;
+        if (turtle) {
+            bytes = LwsRdf.toTurtle(doc);
+            resp.setContentType(MediaTypes.TURTLE);
+        } else {
+            bytes = doc.toString().getBytes(StandardCharsets.UTF_8);
+            resp.setContentType(MediaTypes.negotiateDescription(accept));
+        }
+        resp.setStatus(HttpServletResponse.SC_OK);
+        resp.setHeader("Cache-Control", "public, max-age=60");
+        resp.setCharacterEncoding(StandardCharsets.UTF_8.name());
+        resp.setContentLength(bytes.length);
+        resp.addHeader("Vary", "Accept");
+        addBytesDigests(req, resp, bytes);
+        if (body) {
+            resp.getOutputStream().write(bytes);
         }
     }
 

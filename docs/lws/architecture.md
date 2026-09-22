@@ -36,7 +36,7 @@ choice decides whether TDB2 or the filesystem is the source of truth — see
 ### One named graph per resource
 
 Client-visible metadata for a resource lives in a **named graph whose URI is the resource URI**:
-`rdf:type` (`lws:DataResource`/`lws:Container` plus any types the file readers discover), `as:mediaType`,
+`rdf:type` (`lws:DataResource`/`lws:Container` plus any types the file readers discover), `dcterms:format`,
 `schema:size`, `as:updated`, and for containers `lws:items <child>`.
 
 Graph URI == resource URI is the load-bearing choice: `jena-permissions` receives the resource URI
@@ -143,7 +143,7 @@ Stored explicitly in `urn:lws:system`, never derived from a file mtime.
 
 - **Data resource** — a strong tag over the content digest, computed while streaming the upload.
 - **Container** — an opaque version counter bumped on every membership change. Because a listing carries
-  each member's `type`/`mediaType`/`size`/`modified`, a member's own `PUT` changes the *parent's*
+  each member's `type`/`format`/`size`/`modified`, a member's own `PUT` changes the *parent's*
   representation — so a member content change bumps the whole ancestor chain (`sys:parent+`, the same
   walk ACP does), not just add/remove.
 - **Linkset** — its own counter, independent of the resource's content ETag.

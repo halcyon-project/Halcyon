@@ -1,9 +1,9 @@
 package com.ebremer.lws.store;
 
 import com.ebremer.lws.config.LwsStorageConfig;
-import com.ebremer.lws.vocab.AS;
 import com.ebremer.lws.vocab.LWS;
 import com.ebremer.lws.vocab.LWSX;
+import com.ebremer.lws.vocab.Terms;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -87,10 +87,9 @@ public final class ResourceRegistry {
                 uri,
                 container ? ResourceType.CONTAINER : ResourceType.DATA_RESOURCE,
                 extra,
-                str(g, r, AS.mediaType),
-                lng(g, r, org.apache.jena.rdf.model.ResourceFactory
-                        .createProperty("https://schema.org/size"), 0L),
-                instant(g, r, AS.updated),
+                either(g, r, Terms.format, Terms.legacyMediaType),
+                lng(g, r, Terms.size, 0L),
+                instant(g, r, Terms.modified, Terms.legacyModified),
                 effectiveEtag(str(sys, r, LWSX.etag), container),
                 str(sys, r, LWSX.storageKey),
                 str(sys, r, LWSX.ext),
@@ -227,7 +226,8 @@ public final class ResourceRegistry {
 
         Model g = ds().getNamedModel(root);
         g.add(r, RDF.type, LWS.Container);
-        g.add(r, AS.updated, ResourceFactory.createTypedLiteral(now.toString(), XSDDatatype.XSDdateTime));
+        g.add(r, Terms.modified,
+                ResourceFactory.createTypedLiteral(now.toString(), XSDDatatype.XSDdateTime));
     }
 
     /**
@@ -410,8 +410,9 @@ public final class ResourceRegistry {
         sys.add(s, LWSX.etag, sys.createLiteral(containerEtag(v)));
 
         Model g = ds().getNamedModel(uri);
-        g.removeAll(s, AS.updated, null);
-        g.add(s, AS.updated,
+        g.removeAll(s, Terms.modified, null);
+        g.removeAll(s, Terms.legacyModified, null);
+        g.add(s, Terms.modified,
                 ResourceFactory.createTypedLiteral(Instant.now().toString(), XSDDatatype.XSDdateTime));
     }
 
@@ -421,19 +422,23 @@ public final class ResourceRegistry {
 
         g.removeAll(s, RDF.type, LWS.Container);
         g.removeAll(s, RDF.type, LWS.DataResource);
-        g.removeAll(s, AS.mediaType, null);
-        g.removeAll(s, sizeProp(), null);
-        g.removeAll(s, AS.updated, null);
+        // Both spellings are cleared, so a resource written by the pre-#219 code converts to
+        // the current terms the first time it is touched and never carries two media types.
+        g.removeAll(s, Terms.format, null);
+        g.removeAll(s, Terms.legacyMediaType, null);
+        g.removeAll(s, Terms.size, null);
+        g.removeAll(s, Terms.modified, null);
+        g.removeAll(s, Terms.legacyModified, null);
 
         g.add(s, RDF.type, r.isContainer() ? LWS.Container : LWS.DataResource);
         if (r.mediaType() != null) {
-            g.add(s, AS.mediaType, g.createLiteral(r.mediaType()));
+            g.add(s, Terms.format, g.createLiteral(r.mediaType()));
         }
         if (!r.isContainer()) {
-            g.add(s, sizeProp(), ResourceFactory.createTypedLiteral(String.valueOf(r.size()),
+            g.add(s, Terms.size, ResourceFactory.createTypedLiteral(String.valueOf(r.size()),
                     XSDDatatype.XSDlong));
         }
-        g.add(s, AS.updated,
+        g.add(s, Terms.modified,
                 ResourceFactory.createTypedLiteral(now.toString(), XSDDatatype.XSDdateTime));
     }
 
@@ -451,9 +456,6 @@ public final class ResourceRegistry {
 
     // --- Small helpers ------------------------------------------------------
 
-    private static org.apache.jena.rdf.model.Property sizeProp() {
-        return ResourceFactory.createProperty("https://schema.org/size");
-    }
 
     private static Literal typed(long v) {
         return ResourceFactory.createTypedLiteral(String.valueOf(v), XSDDatatype.XSDlong);
@@ -483,8 +485,23 @@ public final class ResourceRegistry {
         }
     }
 
-    private static Instant instant(Model m, Resource s, org.apache.jena.rdf.model.Property p) {
-        String v = str(m, s, p);
+    /**
+     * The first of {@code ps} this resource carries: the current LWS term, then the spelling
+     * the pre-#219 code wrote. A store written by the older build therefore still reports its
+     * resources' media types and modification times.
+     */
+    private static String either(Model m, Resource s, org.apache.jena.rdf.model.Property... ps) {
+        for (org.apache.jena.rdf.model.Property p : ps) {
+            String v = str(m, s, p);
+            if (v != null) {
+                return v;
+            }
+        }
+        return null;
+    }
+
+    private static Instant instant(Model m, Resource s, org.apache.jena.rdf.model.Property... ps) {
+        String v = either(m, s, ps);
         if (v == null) {
             return null;
         }

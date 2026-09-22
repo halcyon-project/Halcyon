@@ -93,8 +93,10 @@ with signature parameters `created` (Unix seconds), `keyid`, and `alg`. The body
 `Content-Digest: sha-256=:<base64>:` header, which is one of the covered components — so the signature
 authenticates the body, not just the request line.
 
-The verifying key is published in the **storage description** (`GET {root}.description`), so a receiver
-needs no out-of-band key exchange:
+The verifying key is published in the **storage description**, so a receiver needs no out-of-band key
+exchange — and it needs no configuration either, because the `keyid` is itself the route to the key:
+strip the fragment and the remainder is the storage identifier, which dereferences to the description
+(`GET {root}` with `Accept: application/lws+cid`, or `GET {root}.description`):
 
 ```json
 "verificationMethod": [
@@ -107,13 +109,18 @@ needs no out-of-band key exchange:
 "authentication": [ "https://localhost:8888/W3Clws/#<kid>" ]
 ```
 
-- `keyid` in `Signature-Input` matches the JWK's `kid`, which is the **RFC 7638 JWK thumbprint** of the
-  public key — a stable identifier that survives restarts (the keypair is persisted, not regenerated on
-  boot).
+- `keyid` in `Signature-Input` is `{storage}#{thumbprint}` — lws10-notifications-webhook requires it to
+  be "a URL with a fragment component", which is what makes a signature self-describing rather than
+  something a receiver must be told about in advance. It is the same string as the verification method's
+  `id`, and the fragment is the JWK's `kid`: the **RFC 7638 JWK thumbprint** of the public key, a stable
+  identifier that survives restarts (the keypair is persisted, not regenerated on boot). A receiver may
+  match the method by the whole URL or by the fragment alone.
 - The raw signature is a `r‖s` pair (P1363 format), not a DER sequence — decode accordingly.
 
-To verify: reconstruct the signature base from the received components in the order listed in
-`Signature-Input`, look up the `kid` in the storage description's `verificationMethod`, and verify the
+To verify, as lws10-notifications-webhook sets out: take `keyid` from `Signature-Input`; strip its
+fragment to get the storage identifier; dereference that and confirm the description's `id` matches it;
+find the entry in `verificationMethod` whose `id` is the whole `keyid` or just its fragment; reconstruct
+the signature base from the received components in the order `Signature-Input` lists; and verify the
 `r‖s` signature with the P-256 public key.
 
 ## Delivery, retry, and expiry

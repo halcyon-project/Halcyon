@@ -255,7 +255,11 @@ public final class MirrorReconciler {
                 }
             }
             String mediaType = null;
-            var mtypeStmt = g.getProperty(s, com.ebremer.lws.vocab.AS.mediaType);
+            var mtypeStmt = g.getProperty(s, com.ebremer.lws.vocab.Terms.format);
+            if (mtypeStmt == null) {
+                // A resource last written before w3c/lws-protocol#219 renamed the term.
+                mtypeStmt = g.getProperty(s, com.ebremer.lws.vocab.Terms.legacyMediaType);
+            }
             if (mtypeStmt != null && mtypeStmt.getObject().isLiteral()) {
                 mediaType = mtypeStmt.getString();
             }

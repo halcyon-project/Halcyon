@@ -54,7 +54,7 @@ public record LwsStorageConfig(
     public static final String TYPE_SEARCH = ".types/search";
     public static final String SUBSCRIPTIONS = ".notifications/subscriptions";
 
-    /** The DataSharingService endpoints (lws-access-requests): ODRL access requests and grants. */
+    /** The DataSharingService endpoints (lws10-core): ODRL access requests and grants. */
     public static final String ACCESS_REQUESTS = ".access/requests";
     public static final String ACCESS_GRANTS = ".access/grants";
 

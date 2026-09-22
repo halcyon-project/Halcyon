@@ -77,9 +77,12 @@ public final class BearerTokenValidator {
         }
         return Problem.unauthorized(detail)
                 .header("WWW-Authenticate", challenge.toString())
-                // Even on a 401, tell the client where the storage describes itself.
-                .header("Link", "<" + cfg.descriptionUri() + ">; rel=\""
-                        + com.ebremer.lws.vocab.LWS.REL_STORAGE_DESCRIPTION + "\"");
+                // "For discoverability, servers SHOULD include a Link header with
+                // rel="https://www.w3.org/ns/lws#storage" on 401 responses to guide clients
+                // without hardcoded URIs." Dereferencing that URI yields the storage
+                // description, which names the services and the authentication it accepts.
+                .header("Link", "<" + cfg.storageRootUri() + ">; rel=\""
+                        + com.ebremer.lws.vocab.LWS.REL_STORAGE + "\"");
     }
 
     /** Challenge for a request that offered no credentials. */
