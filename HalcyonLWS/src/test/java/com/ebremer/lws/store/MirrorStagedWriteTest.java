@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *
  * <p>Its key IS the resource's path, so writing the new bytes and keeping the old ones used to
  * be the same act: an upload landed on the live file before the transaction that authorizes it
- * ran, and a transaction that then refused the write — a missing {@code If-Match} answered 428,
+ * ran, and a transaction that then refused the write — a stale {@code If-Match} answered 412,
  * say — rolled back by deleting the file outright. The resource the client was refused
  * permission to replace was gone, and its registered metadata pointed at nothing.
  *
@@ -59,7 +59,7 @@ class MirrorStagedWriteTest {
         store.writeAt("note.txt", in(ORIGINAL));
 
         // Exactly the servlet's refused-PUT path: stage the upload, then abandon it because the
-        // transaction threw (428/412/403) instead of committing.
+        // transaction threw (412/403) instead of committing.
         try (PathKeyedStore.Staged staged = store.stageAt("note.txt", in(REPLACEMENT))) {
             // no publish
         }

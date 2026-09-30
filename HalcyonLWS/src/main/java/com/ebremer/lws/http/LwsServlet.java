@@ -468,10 +468,12 @@ public class LwsServlet extends HttpServlet {
     /**
      * Update a resource's metadata with a JSON Merge Patch.
      *
-     * <p>A conditional request is mandatory here, and unusually so: metadata is the one
-     * thing several actors touch concurrently — a scanner adding types while an owner
-     * adds a license — so an unconditional patch is a lost update waiting to happen.
-     * Hence 428 when {@code If-Match} is absent, not merely 412 when it is stale.
+     * <p>Metadata is the one thing several actors touch concurrently — a scanner adding types
+     * while an owner adds a license — and lws10-core asks clients to make these writes
+     * conditional (SHOULD), rejecting a stale {@code If-Match} with 412. It no longer lets a
+     * server demand one (#228 removed the 428), and an unconditional merge patch loses nothing
+     * here: it is read, merged and replaced in one write transaction, so it applies to the
+     * linkset as it stands, never to a copy the client read earlier.
      */
     private void patchLinkset(Req rq, Target t, HttpServletRequest req, HttpServletResponse resp)
             throws IOException {
@@ -508,7 +510,7 @@ public class LwsServlet extends HttpServlet {
         String etag = store.write(() -> {
             demandOn(rq, known(rq, t.uri()), AccessMode.WRITE);
             // Compared inside the write transaction, so this is a compare-and-swap.
-            Preconditions.requireIfMatch(req, LinksetStore.etag(store, t.uri()));
+            Preconditions.evaluate(req, LinksetStore.etag(store, t.uri()));
 
             var current = LinksetStore.read(store, t.uri());
             var updated = LinksetJson.mergePatch(current, patch, rejected);
@@ -1429,9 +1431,9 @@ public class LwsServlet extends HttpServlet {
     /**
      * Replace a resource's access control resource.
      *
-     * <p>Conditional, and this is the resource where that matters most. Every other mutable
-     * resource in the storage was already protected — 428 for an unconditional write, 412 for a
-     * stale tag — and the ACR, alone, was not. Two administrators editing a policy concurrently
+     * <p>Conditional, and mandatorily so: an unconditional write is 428 here, although the writes
+     * lws10-core defines may be unconditional. The ACR is this storage's, not the protocol's, and
+     * it is the resource where a lost update does the most harm. Two administrators editing a policy concurrently
      * would silently clobber one another, on the one resource in the system where a lost update
      * does the most damage: the loser's revocation simply evaporates, and nothing anywhere says
      * so. A grant that quietly comes back is worse than a failed request.
@@ -1452,7 +1454,8 @@ public class LwsServlet extends HttpServlet {
             // Read and compared inside the write transaction, which TDB2 serializes to a single
             // writer — so this is a genuine compare-and-swap and not a check the other editor can
             // invalidate between our reading it and our acting on it.
-            Preconditions.requireIfMatch(req, AcrStore.etag(store, t.uri()));
+            // Mandatory here, unlike the writes lws10-core defines: see requirePrecondition.
+            Preconditions.requirePrecondition(req, AcrStore.etag(store, t.uri()));
 
             AcrStore.replace(store, t.uri(), submitted);
 
@@ -1833,7 +1836,7 @@ public class LwsServlet extends HttpServlet {
         // Staged beside the file, not written over it. commitMirrorPut is where the client's
         // If-Match is compared, and it is compared inside the write transaction on purpose — so
         // the upload it guards has to still be undoable when it fails. Writing in place made the
-        // refusal meaningless: the 428 came back with the resource already overwritten, and the
+        // refusal meaningless: the 412 came back with the resource already overwritten, and the
         // rollback then deleted the file outright, leaving registered metadata pointing at
         // nothing. Nothing at `key` changes until the transaction has committed.
         try (PathKeyedStore.Staged staged = mirror.stageAt(key, req.getInputStream())) {
@@ -1869,7 +1872,7 @@ public class LwsServlet extends HttpServlet {
 
         if (cur != null) {
             demandOn(now, cur, AccessMode.WRITE);
-            Preconditions.requireIfMatch(req, cur.etag());
+            Preconditions.evaluate(req, cur.etag());
             LwsResource r = new LwsResource(uri, ResourceType.DATA_RESOURCE, cur.extraTypes(), mt,
                     w.size(), when, ResourceRegistry.dataEtag(w.sha256(), mt, w.size()), key, ext,
                     cur.parent(), cur.seq(), cur.createdBy(), cur.ownedBy(), w.sha256());
@@ -1884,6 +1887,10 @@ public class LwsServlet extends HttpServlet {
         String webId = rq.agent().webId();
         String parentUri = ensureContainerChain(now, reg, uri, webId);
         demandOn(now, known(now, parentUri), AccessMode.APPEND);
+        // After authorization, as RFC 9110 §13.2.1 orders it (a throw rolls back the chain above).
+        // Nothing is here yet, so an If-Match — which names a representation that would have to
+        // exist — is false, and If-None-Match: * is exactly the create this is.
+        Preconditions.evaluate(req, null);
         LwsResource r = new LwsResource(uri, ResourceType.DATA_RESOURCE, List.of(), mt, w.size(), when,
                 ResourceRegistry.dataEtag(w.sha256(), mt, w.size()), key, ext, parentUri,
                 reg.nextSeq(), webId, webId, w.sha256());
@@ -2088,7 +2095,7 @@ public class LwsServlet extends HttpServlet {
 
                 // Inside the write transaction, so this is a genuine compare-and-swap
                 // rather than a check something else can invalidate before we act.
-                Preconditions.requireIfMatch(req, cur.etag());
+                Preconditions.evaluate(req, cur.etag());
 
                 LwsResource r = new LwsResource(cur.uri(), ResourceType.DATA_RESOURCE,
                         cur.extraTypes(), mt, w.size(), Instant.now(),
@@ -2220,18 +2227,19 @@ public class LwsServlet extends HttpServlet {
                 demandOn(now, cur, AccessMode.WRITE);
 
                 // The client's compare-and-swap, evaluated under the single writer.
-                Preconditions.requireIfMatch(req, cur.etag());
+                Preconditions.evaluate(req, cur.etag());
 
                 // And the server's. A merge patch is computed against one specific document, so
                 // the document it was computed against must still be the one being replaced —
-                // and the client's If-Match does not always establish that. `If-Match: *` is
-                // satisfied by the resource merely existing, so without this a wildcard patch
+                // and the client's precondition does not always establish that. `If-Match: *` is
+                // satisfied by the resource merely existing, and an unconditional patch (which
+                // lws10-core allows) carries no precondition at all, so without this either one
                 // racing an update would overwrite that update with a document derived from the
                 // version it replaced: the exact lost update If-Match is there to prevent.
                 //
                 // A specific If-Match already implies this, because a data resource's entity tag
                 // is a digest of its content: an equal tag means equal bytes. So this only ever
-                // fires on the wildcard, and it is cheap.
+                // fires on the wildcard or on no precondition, and it is cheap.
                 if (!cur.etag().equals(base.etag())) {
                     throw Problem.preconditionFailed(
                             "the resource changed while the patch was being applied");
@@ -2445,20 +2453,12 @@ public class LwsServlet extends HttpServlet {
             List<LwsResource> tree = new ArrayList<>();
             collect(reg, r, tree, recursive, 0);
 
-            // checkIfMatch, NOT requireIfMatch: an unconditional DELETE is allowed to succeed.
-            //
-            // This used to demand the validator, which made every delete a 428 until the client
-            // had fetched the resource first. lws10-core mandates the 428 for unconditional PUT
-            // and for a linkset PUT/PATCH — nowhere else — and of DELETE says only that "on
-            // success, the server MUST respond with 204 No Content. Servers SHOULD support
-            // conditional requests." Requiring one inverted that MUST: the 204 the spec demands
-            // on success was unreachable, because success was.
-            //
-            // The compare-and-swap is undiminished for anyone who wants it. A client that sends
-            // a stale tag is still refused 412, still inside this write transaction, still under
-            // TDB2's single writer. What changes is only that not sending one is no longer an
-            // error — which is the client's call to make, as it always was for PUT's cousins.
-            Preconditions.checkIfMatch(req, r.etag());
+            // An unconditional DELETE is allowed to succeed, as every write lws10-core defines is.
+            // Of DELETE it says "on success, the server MUST respond with 204 No Content. Servers
+            // SHOULD support conditional requests" — an obligation to honour a validator that
+            // arrives, not to require one. A client that sends a stale tag is still refused 412,
+            // inside this write transaction, under TDB2's single writer.
+            Preconditions.evaluate(req, r.etag());
 
             // Authorize EVERY descendant before removing ANY of them.
             //

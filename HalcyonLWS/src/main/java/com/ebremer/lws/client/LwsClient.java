@@ -247,8 +247,9 @@ public final class LwsClient implements Serializable {
     }
 
     /**
-     * Delete a resource. The entity tag is required, not optional — the storage answers
-     * 428 to an unconditional delete, which is exactly the protection the UI wants.
+     * Delete a resource, conditionally when {@code etag} is given. The storage would accept an
+     * unconditional delete; the UI sends the tag anyway, because a 412 is what stops it
+     * destroying a resource that changed after the user looked at it.
      */
     public Result delete(String uri, String etag, boolean recursive) {
         HttpRequest.Builder b = builder(uri).DELETE().header("Accept", LWS_JSON);

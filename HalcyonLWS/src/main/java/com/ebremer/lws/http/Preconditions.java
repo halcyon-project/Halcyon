@@ -10,7 +10,7 @@ import java.util.Locale;
  * Conditional requests: {@code If-Match}, {@code If-None-Match},
  * {@code If-Modified-Since}.
  *
- * <p><strong>{@link #requireIfMatch} and {@link #checkIfMatch} must be called inside
+ * <p><strong>{@link #evaluate} and {@link #requirePrecondition} must be called inside
  * the write transaction.</strong> Checking the entity tag in a read transaction and then
  * applying the change in a write transaction is a time-of-check/time-of-use race:
  * two clients can both read the same tag, both find it current, and both write —
@@ -29,57 +29,78 @@ public final class Preconditions {
     }
 
     /**
-     * Enforce the precondition on a state-changing request.
+     * Evaluate the preconditions a state-changing request carries, and refuse it with 412 if
+     * one is false. A request that carries none proceeds.
      *
-     * <p>lws10-core: if a server supports entity tags for a resource it "MUST reject
-     * unconditional PUT requests that lack an If-Match header with a 428 Precondition
-     * Required response", and a mismatch is a 412. This storage tags every resource,
-     * so an unconditional overwrite is always a 428 — there is no way to clobber a
-     * resource without having first read it.
+     * <p>This is the rule for every write lws10-core defines. Its drafts once made the
+     * validator mandatory — "MUST reject unconditional PUT requests that lack an If-Match
+     * header with a 428", and the same for a linkset PUT/PATCH — and #228 (14 September 2026)
+     * took both out: clients "SHOULD use conditional requests as defined in [RFC9110]", and
+     * the server's obligation is only that a precondition which fails is rejected with 412.
+     * So a client that sends a stale tag is refused, and one that sends none gets its write;
+     * the compare-and-swap is undiminished for everyone who asks for it, because it was only
+     * ever the client's to ask for.
+     *
+     * <p>RFC 9110 §13.2.2, steps 1 and 3 — the two that apply to a method other than GET or
+     * HEAD. {@code If-Match} is evaluated when present, by strong comparison, {@code *} being
+     * true exactly when a current representation exists; only when it is absent is
+     * {@code If-None-Match} evaluated, by weak comparison, and on a state-changing request a
+     * false {@code If-None-Match} is a 412 (§13.1.2) — which is what makes
+     * {@code If-None-Match: *} "create it, but never overwrite".
+     *
+     * @param currentEtag the tag as read <em>inside the write transaction</em>, or {@code null}
+     *     when there is no current representation (a PUT that would create)
+     */
+    public static void evaluate(HttpServletRequest req, String currentEtag) {
+        String ifMatch = req.getHeader("If-Match");
+        if (present(ifMatch)) {
+            boolean holds = "*".equals(ifMatch.trim())
+                    ? currentEtag != null
+                    : matches(ifMatch, currentEtag, true);
+            if (!holds) {
+                throw failed(currentEtag == null
+                        ? "If-Match names a representation, and there is none"
+                        : "the resource has changed since it was read", currentEtag);
+            }
+            return;
+        }
+        String ifNoneMatch = req.getHeader("If-None-Match");
+        if (present(ifNoneMatch)) {
+            boolean matched = "*".equals(ifNoneMatch.trim())
+                    ? currentEtag != null
+                    : matches(ifNoneMatch, currentEtag, false);
+            if (matched) {
+                throw failed("If-None-Match: the resource exists in that state", currentEtag);
+            }
+        }
+    }
+
+    /**
+     * {@link #evaluate}, and a 428 when the request carries no precondition at all.
+     *
+     * <p>Only for writes this storage defines and lws10-core does not — replacing an
+     * access-control resource. A lost update there is not a lost edit but a silently changed
+     * authorization decision, so the validator stays mandatory: an agent cannot rewrite a
+     * policy without first having read the one it replaces.
      *
      * @param currentEtag the tag as read <em>inside the write transaction</em>
      */
-    public static void requireIfMatch(HttpServletRequest req, String currentEtag) {
-        String ifMatch = req.getHeader("If-Match");
-
-        if (ifMatch == null || ifMatch.isBlank()) {
+    public static void requirePrecondition(HttpServletRequest req, String currentEtag) {
+        if (!present(req.getHeader("If-Match")) && !present(req.getHeader("If-None-Match"))) {
             throw Problem.preconditionRequired(
                     "If-Match is required; GET the resource for its current ETag")
                     .header("ETag", currentEtag);
         }
-        checkIfMatch(req, currentEtag);
+        evaluate(req, currentEtag);
     }
 
-    /**
-     * Honour an {@code If-Match} the client chose to send, without demanding one.
-     *
-     * <p>This is the rule for every state-changing method the spec does <em>not</em> single
-     * out. lws10-core mandates the 428 in exactly two places — unconditional PUT on an
-     * ETagged resource, and a PUT or PATCH on a linkset — and says of DELETE only that "on
-     * success, the server MUST respond with 204 No Content. Servers <strong>SHOULD</strong>
-     * support conditional requests". SHOULD <em>support</em> is an obligation to honour a
-     * validator that arrives, not a licence to require one: reading it as a requirement
-     * turns the 204 that MUST follow a successful delete into a 428 that never can.
-     *
-     * <p>So a client that sends a stale tag is still refused with 412, and one that sends
-     * none still gets its delete. The optimistic-concurrency guarantee is unchanged for
-     * everyone who asked for it, because it was only ever the client's to ask for.
-     *
-     * @param currentEtag the tag as read <em>inside the write transaction</em>
-     */
-    public static void checkIfMatch(HttpServletRequest req, String currentEtag) {
-        String ifMatch = req.getHeader("If-Match");
-        if (ifMatch == null || ifMatch.isBlank()) {
-            return;
-        }
-        if ("*".equals(ifMatch.trim())) {
-            // Satisfied by the resource merely existing, which the caller established.
-            return;
-        }
-        if (!matches(ifMatch, currentEtag)) {
-            throw Problem.preconditionFailed("the resource has changed since it was read")
-                    .header("ETag", currentEtag);
-        }
+    private static Problem failed(String detail, String currentEtag) {
+        Problem p = Problem.preconditionFailed(detail);
+        return currentEtag == null ? p : p.header("ETag", currentEtag);
+    }
+
+    private static boolean present(String header) {
+        return header != null && !header.isBlank();
     }
 
     /**
@@ -91,7 +112,7 @@ public final class Preconditions {
     public static boolean isNotModified(HttpServletRequest req, String etag, Instant modified) {
         String inm = req.getHeader("If-None-Match");
         if (inm != null && !inm.isBlank()) {
-            return "*".equals(inm.trim()) || matches(inm, etag);
+            return "*".equals(inm.trim()) || matches(inm, etag, false);
         }
         String ims = req.getHeader("If-Modified-Since");
         if (ims != null && !ims.isBlank() && modified != null) {
@@ -107,16 +128,23 @@ public final class Preconditions {
         return false;
     }
 
-    /** Does a comma-separated list of entity tags contain this one? */
-    private static boolean matches(String header, String etag) {
+    /**
+     * Does a comma-separated list of entity tags contain this one?
+     *
+     * <p>RFC 9110 §8.8.3.2: {@code If-Match} compares strongly, so a weak tag in it never
+     * matches; {@code If-None-Match} compares weakly, so {@code W/"x"} matches {@code "x"}.
+     * This storage mints only strong tags, so the weak marker is all that differs.
+     */
+    private static boolean matches(String header, String etag, boolean strong) {
         if (etag == null) {
             return false;
         }
         for (String candidate : header.split(",")) {
             String c = candidate.trim();
-            // A weak validator compares equal to its strong counterpart here; we only
-            // ever mint strong tags, so just strip the marker.
             if (c.startsWith("W/")) {
+                if (strong) {
+                    continue;
+                }
                 c = c.substring(2);
             }
             if (c.equals(etag)) {

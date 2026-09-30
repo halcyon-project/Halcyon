@@ -1384,8 +1384,8 @@ public class LWSContainers extends BasePage {
 
     /**
      * The context menu's "Delete…": states plainly what will be destroyed, then
-     * issues the LWS {@code DELETE}. The entity tag is read first because the
-     * storage answers 428 to an unconditional delete, and a container goes with
+     * issues the LWS {@code DELETE}. The entity tag is read first and sent as
+     * {@code If-Match}, so a resource that changed meanwhile is a 412, and a container goes with
      * {@code Depth: infinity} — without it a non-empty container is a 409.
      * Whether the user <em>may</em> delete is the storage's ACP decision alone;
      * a refusal is rendered verbatim. The storage root gets no button at all —
@@ -1426,9 +1426,8 @@ public class LWSContainers extends BasePage {
 
         private void doDelete(AjaxRequestTarget target) {
             LwsClient c = client();
-            // The storage answers 428 to an unconditional delete, so the entity
-            // tag is read first — its protection against destroying what changed
-            // underneath this dialog.
+            // The entity tag is read first and sent as If-Match — the protection
+            // against destroying what changed underneath this dialog.
             LwsClient.Result r = c.delete(uri, c.etag(uri), container);
             if (r.ok()) {
                 modal.setVisible(false);

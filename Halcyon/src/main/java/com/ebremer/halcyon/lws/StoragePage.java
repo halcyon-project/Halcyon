@@ -535,9 +535,9 @@ public class StoragePage extends BasePage {
                     @Override
                     public void onClick(AjaxRequestTarget t) {
                         LwsClient c = client();
-                        // The storage answers 428 to an unconditional delete, so the entity
-                        // tag is fetched first. Not ceremony: it is what stops this page
-                        // destroying a resource that changed under it.
+                        // The entity tag is fetched first and sent as If-Match. Not ceremony:
+                        // it is what stops this page destroying a resource that changed
+                        // under it.
                         LwsClient.Result res =
                                 c.delete(row.getId(), c.etag(row.getId()), row.isContainer());
                         if (res.ok()) {
