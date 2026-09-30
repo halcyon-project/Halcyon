@@ -103,6 +103,15 @@
             <version>5.11.4</version>
             <scope>test</scope>
         </dependency>
+
+        <!-- The LWS test-suite harness (com.ebremer.lws.conformance) serves a real LwsServlet
+             over a real socket, as the Halcyon app does; ee11 because that is the servlet
+             environment the app runs these servlets in. Version managed by the reactor root. -->
+        <dependency>
+            <groupId>org.eclipse.jetty.ee11</groupId>
+            <artifactId>jetty-ee11-servlet</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -121,6 +130,34 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.5.2</version>
+                <executions>
+                    <execution>
+                        <id>default-test</id>
+                        <configuration>
+                            <excludes>
+                                <exclude>**/conformance/**</exclude>
+                            </excludes>
+                        </configuration>
+                    </execution>
+                    <!-- The LWS test-suite harness primes the process-wide settings, store and
+                         authorization-server singletons exactly as the app does at boot, from a
+                         settings.ttl it writes into its working directory. So it gets a JVM and a
+                         directory of its own: nothing it primes can leak into another test, and
+                         the settings.ttl it writes can never be a real one. -->
+                    <execution>
+                        <id>lws-conformance</id>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <includes>
+                                <include>**/conformance/**/*Test.java</include>
+                            </includes>
+                            <workingDirectory>${project.build.directory}/lws-conformance</workingDirectory>
+                            <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
