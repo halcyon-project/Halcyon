@@ -123,7 +123,7 @@ registry entry, and never a container pointing at a resource that does not exist
 
 **The mirror storage inverts steps 3 and 4, and has to.** Its key IS the resource's path, so there is no
 new key to write under: step 3 would land the new bytes *on the live file*, and the transaction in step 4
-is where the client's `If-Match` is compared. A refused write — 428, 412, a lost re-authorization — would
+is where the client's `If-Match` is compared. A refused write — a 412, a lost re-authorization — would
 then have already destroyed the resource it was refused permission to replace. So the mirror **stages**
 (steps 1–2, into a `.tmp-{uuid}` beside the target), commits the transaction, and only then moves the
 staged file into place (`PathKeyedStore.Staged`). The crash window that buys is the harmless direction:

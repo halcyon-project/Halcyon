@@ -30,6 +30,11 @@ subset — e.g. read-only, one profile, or client-of) · ○ vocabulary / refere
 > _Revised 2026-09-22: the LWS, authentication and CID rows were brought in line with the LWS editor's
 > drafts of 21 September 2026 (`w3c/lws-protocol` @ `3ddc642`), which added the authorization framework
 > this module now implements. See [`docs/lws/conformance.md`](docs/lws/conformance.md)._
+>
+> _Revised 2026-09-30: re-checked against the drafts as of 28 September 2026 (`w3c/lws-protocol` @
+> `9b03b32`) — no normative change since `3ddc642` — and against the core test suite the README now
+> links (`lws-contrib/lws-test-suite` @ `b8cb134`), which HalcyonLWS now runs. Conditional writes follow
+> #228: optional, `412` when a sent precondition fails._
 
 ---
 
@@ -40,8 +45,9 @@ lws10-notifications-webhook"*); the `Halcyon` web app is an LWS *client* (the St
 `com.ebremer.halcyon.lws.*`).
 
 The LWS drafts are unofficial proposals and they move. The revision the code follows —
-[`w3c/lws-protocol`](https://github.com/w3c/lws-protocol) @ `3ddc642`, **21 September 2026** — together
-with every deliberate divergence from it, is recorded in
+[`w3c/lws-protocol`](https://github.com/w3c/lws-protocol) @ `9b03b32`, **28 September 2026** — together
+with every deliberate divergence from it, and how the
+[LWS 1.0 test suite](https://github.com/lws-contrib/lws-test-suite) fares against it, is recorded in
 [`docs/lws/conformance.md`](docs/lws/conformance.md).
 
 | Specification | Coverage | Module | Notes |
@@ -66,7 +72,7 @@ with every deliberate divergence from it, is recorded in
 | RFC 9113 — HTTP/2 | ● | Halcyon | Enabled (`server.http2.enabled: true` in `defaultapplication.yml`; `jetty-http2-server`; HPACK). |
 | RFC 7301 — TLS ALPN | ● | Halcyon | `h2` negotiation (`jetty-alpn-java-server`, `jetty-alpn-conscrypt-server`). |
 | RFC 9114 / RFC 9000 — HTTP/3 & QUIC | ○ | Halcyon | `jetty-http3-server` is on the classpath, but the `HTTP3ServerConnector` in `JettyConfiguration` is **commented out** — not served. |
-| RFC 7232 — Conditional Requests | ● | HalcyonLWS | Strong `ETag`, `If-Match`/`If-None-Match`/`If-Modified-Since`, compare-and-swap writes (`412`/`428`). `http/Preconditions`. |
+| RFC 7232 — Conditional Requests | ● | HalcyonLWS | Strong `ETag`, `If-Match`/`If-None-Match`/`If-Modified-Since`; writes evaluated per RFC 9110 §13.2.2 — compare-and-swap (`412`), unconditional allowed (`428` only on an ACR write). `http/Preconditions`. |
 | RFC 7233 — Range Requests | ● | HalcyonLWS | Single and multiple byte ranges (`206`, `multipart/byteranges`, `416`). |
 | RFC 5789 — PATCH | ● | HalcyonLWS | `PATCH` on data resources and linksets; `Accept-Patch`. |
 | RFC 7386 — JSON Merge Patch | ● | HalcyonLWS | The required patch format (`application/merge-patch+json`). `LwsServlet`, `json/LinksetJson`. |

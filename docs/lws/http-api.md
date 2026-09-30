@@ -112,9 +112,11 @@ Creates a child **in the container posted to**. Creation is `POST`-only; `PUT` n
 
 Full replacement of an existing **data resource's** content (or an ACR — see below). Requires `Write`.
 
-- **The conditional is mandatory when the resource has an `ETag`:** no `If-Match` → **`428`**, stale
-  `If-Match` → **`412`**. The comparison happens inside the write transaction, making it a true
-  compare-and-swap.
+- **Conditional if the client makes it so:** a stale `If-Match` → **`412`**, and so is
+  `If-None-Match: *` on a resource that exists ("create, but never overwrite"). With no precondition
+  the write proceeds — lws10-core asks clients to send one (SHOULD) and, since #228, no longer lets a
+  server demand it. The comparison happens inside the write transaction, making it a true
+  compare-and-swap. See [Request headers](#request-headers).
 - Success: **`204 No Content`** + new `ETag`.
 - `405` on a container (membership is server-managed, not settable by `PUT`). `404` on a URI that does
   not exist — `PUT` does not create.
@@ -125,20 +127,20 @@ Full replacement of an existing **data resource's** content (or an ACR — see b
 
 - **On a JSON data resource:** merges into the current JSON. Non-JSON resource → `415` (with `Allow`).
   Body not `application/merge-patch+json` → `415` (with `Accept-Patch`). Resource larger than 8 MiB →
-  `409`. Requires `Write` and the mandatory conditional (`428`/`412`). Malformed patch JSON → `400`;
+  `409`. Requires `Write`; a failed precondition → `412`. With none, the patch still applies only to
+  the document it was computed against (a concurrent change → `412`). Malformed patch JSON → `400`;
   syntactically valid but unprocessable (too deeply nested / too large) → `400` with a distinct message;
   stored bytes that are not valid JSON → `409`. Success `204` + `ETag`.
 - **On a linkset (`{resource}.meta`):** same media-type rule. Setting a server-managed relation (e.g.
-  `type`) → `403`. `If-Match` is mandatory (`428`/`412`). Success `204` + `ETag`.
+  `type`) → `403`. A failed precondition → `412`; an unconditional patch is merged into the linkset
+  as it stands, inside the write transaction. Success `204` + `ETag`.
 
 ### DELETE
 
 Requires `Write` on the resource **and** `Append` on its parent (the delete mutates the parent's
-`items`). The conditional is **optional here** — unlike PUT and the linkset writes, an unconditional
-DELETE succeeds. Send `If-Match` and it is enforced (stale → `412`, still compared inside the write
-transaction); send none and the delete proceeds. lws10-core mandates the `428` for unconditional PUT
-and for a linkset `PUT`/`PATCH`, and asks of DELETE only that servers *SHOULD support* conditional
-requests — an obligation to honour a validator that arrives, not to require one.
+`items`). The conditional is optional, as on every write lws10-core defines: send `If-Match` and it
+is enforced (stale → `412`, still compared inside the write transaction); send none and the delete
+proceeds.
 
 A **`409` is reported ahead of any conditional** — a request that will be refused whatever entity tag
 it carries says so on the first round trip rather than sending the client away to fetch a conditional
@@ -300,7 +302,7 @@ Two conveniences on top of the bearer contract, both deliberately narrow:
 | `412 Precondition Failed` | `If-Match`/`If-None-Match` mismatch (compare-and-swap failed) |
 | `415 Unsupported Media Type` | wrong `Content-Type` for PATCH or QUERY (+ `Accept-Patch`/`Accept-Query`) |
 | `422 Unprocessable` | Type Search filter too complex; access grant carries a constraint ACP cannot enforce |
-| `428 Precondition Required` | a write that requires `If-Match` sent none (`PUT`, linkset/ACR writes — never `DELETE`) |
+| `428 Precondition Required` | an ACR write with no precondition — the one write that requires one (every write lws10-core defines may be unconditional) |
 | `501 Not Implemented` | an HTTP method the server does not dispatch |
 
 All error bodies are `application/problem+json` (RFC 9457) with `Cache-Control: no-store`.
@@ -311,8 +313,8 @@ All error bodies are `application/problem+json` (RFC 9457) with `Cache-Control: 
 |---|---|
 | `Authorization: Bearer <jwt>` | An RFC 9068 access token from this instance's authorization server (`typ: at+jwt`), validated as lws10-core requires: signature, issuer, an `aud` holding **exactly one** value naming this storage, and temporal validity. While `:LWSAcceptAuthenticationCredentials` is on, an authentication credential presented directly is also accepted. Absent → the public agent. Malformed/invalid → `401`. |
 | `Accept` | Content negotiation (containers, linkset, ACR, search, JSON docs). |
-| `If-Match` | Required on `PUT` and on linkset/ACR writes to a resource with an `ETag`: absent → `428`. Optional on `DELETE`, which succeeds without one. Mismatch → `412` either way; `*` means "must exist". |
-| `If-None-Match` | `304` on match; `*` supported; takes precedence over `If-Modified-Since`. |
+| `If-Match` | On a write: mismatch → `412`, by strong comparison; `*` means "must exist" (so on a `PUT` that would create → `412`). Optional everywhere but an ACR write, where a write with no precondition → `428`. |
+| `If-None-Match` | On a read: `304` on match (weak comparison); `*` supported; takes precedence over `If-Modified-Since`. On a write, evaluated only when `If-Match` is absent: a match → `412`, so `If-None-Match: *` is "create, but never overwrite". |
 | `If-Modified-Since` | `304` by RFC 1123 date (data resources only; containers/linkset/ACR do not honor it). |
 | `Slug` | Naming hint on `POST` (honored only by `/W3ClwsSlash`); also an extension fallback for metadata. |
 | `Link: …; rel="type"` | On `POST`, a value of the Container URI requests a sub-container. |

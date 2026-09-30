@@ -173,8 +173,8 @@ cannot travel with the container must not pretend it can. The flip side of
 the relative form is an assumption the writer honors: annotation-layer
 JSONs belong in the **stack's own container**, so Zephyr births new shape
 files beside the stack (`stackContainer`, injected by `Zephyr`), and
-re-saving an edited layer carries `If-Match` because the storage refuses an
-unconditional overwrite (428).
+re-saving an edited layer carries `If-Match`, so an overwrite of a layer
+someone else changed meanwhile is refused (412) rather than silently lost.
 
 ## Where the pieces live
 

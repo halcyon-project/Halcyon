@@ -58,7 +58,7 @@ a file into the folder and it appears as a resource within a second or two. See
 - Full CRUD on data resources and containers (`GET`/`HEAD`/`OPTIONS`/`POST`/`PUT`/`PATCH`/`DELETE`/`QUERY`)
 - Content negotiation: every LWS JSON document serves `application/lws+json` (canonical) and `text/turtle`
 - Conditional requests: strong `ETag`s, `If-Match`/`If-None-Match`/`If-Modified-Since`, compare-and-swap
-  writes (`428`/`412`)
+  writes (`412`), unconditional ones allowed as lws10-core allows them
 - Byte ranges on data resources (`206`/`416`)
 - JSON Merge Patch on JSON resources and on linksets
 - Keyset pagination with opaque, HMAC-sealed cursors (`Link` headers only)
