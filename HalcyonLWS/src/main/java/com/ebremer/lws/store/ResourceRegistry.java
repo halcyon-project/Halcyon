@@ -101,30 +101,28 @@ public final class ResourceRegistry {
     }
 
     /**
-     * A container's entity tag, with the ACP epoch folded in.
+     * The entity tag a resource is read with: the stored one, unchanged.
      *
-     * <p>Computed on read, never stored. Storing the composite would mean every ACR write had to
-     * rewrite every container's tag — and a second bump would compound onto the first
-     * (`"c5.7"` becoming `"c5.7.8"`). The stored value stays a plain version counter, and the
-     * epoch is applied here, at the one place every consumer of an entity tag goes through:
-     * the {@code ETag} response header, and the {@code If-Match} comparison in DELETE alike.
-     *
-     * <p>Data resources are untouched. Their tag is a digest of their content, and an agent that
-     * loses access to one is refused at {@code known()} before any validator is even considered.
-     * It is only the <em>container</em> whose body depends on who is asking.
+     * <p>A container's listing is filtered per agent, so the tag a client sees for a container is
+     * qualified for that agent by the servlet (see {@code LwsServlet.agentEtag}), not here. This
+     * registry used to fold the module-wide ACP epoch into every container's tag instead, which
+     * made any access-control change anywhere -- an access grant on an unrelated resource --
+     * invalidate every container's validator, and so turned a conditional DELETE racing a grant
+     * into a 412.
      */
     private String effectiveEtag(String stored, boolean container) {
-        if (!container || stored == null) {
-            return stored;
+        return stored;
+    }
+
+    /** {@code etag} with {@code qualifier} appended inside the quotes: {@code "c5"} to {@code "c5.q"}. */
+    public static String qualify(String etag, String qualifier) {
+        if (etag == null) {
+            return null;
         }
-        long epoch = store.acpEpoch();
-        if (epoch == 0) {
-            return stored;
-        }
-        String core = stored.length() > 1 && stored.startsWith("\"") && stored.endsWith("\"")
-                ? stored.substring(1, stored.length() - 1)
-                : stored;
-        return "\"" + core + "." + epoch + "\"";
+        String core = etag.length() > 1 && etag.startsWith("\"") && etag.endsWith("\"")
+                ? etag.substring(1, etag.length() - 1)
+                : etag;
+        return "\"" + core + "." + qualifier + "\"";
     }
 
     /** How many members a container has. */

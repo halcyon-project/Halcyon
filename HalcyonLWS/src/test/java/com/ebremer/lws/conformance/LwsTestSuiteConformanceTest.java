@@ -1,6 +1,7 @@
 package com.ebremer.lws.conformance;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -624,6 +625,49 @@ class LwsTestSuiteConformanceTest {
                         .getBytes(StandardCharsets.UTF_8));
 
         assertEquals(422, r.status(), r.text());
+    }
+
+    /**
+     * Not a suite entry: Touchstone's {@code delete-empty-container}, which failed whenever another
+     * test wrote an access policy between its GET and its conditional DELETE. A policy change
+     * somewhere else does not change this container's listing, so it must not change its tag.
+     */
+    @Test
+    void aPolicyChangeElsewhereLeavesAContainersTagAlone() throws Exception {
+        givenContainer("/alice/tagged/", false);
+        String etag = send("GET", "/alice/tagged/", owner(), Map.of("Accept", LWS_JSON), null)
+                .header("ETag").orElseThrow();
+
+        givenContainer("/alice/elsewhere/", true);   // writes an ACR on another resource
+
+        Res r = send("DELETE", "/alice/tagged/", owner(), Map.of("If-Match", etag), null);
+        assertEquals(204, r.status(), r.text());
+    }
+
+    /**
+     * The other half: a listing is filtered per agent, so an agent whose view of a container
+     * changes -- here the public, when a member becomes readable -- gets a new tag, while the
+     * owner, whose view did not change, keeps the one it had.
+     */
+    @Test
+    void aFilteredListingsTagFollowsTheAgentsView() throws Exception {
+        givenAbsent("/alice/view/");
+        givenContainer("/alice/view/", true);
+        givenDataResource("/alice/view/open.txt", "open", true);
+        givenDataResource("/alice/view/closed.txt", "closed", false);
+        String publicBefore = send("GET", "/alice/view/", null, Map.of("Accept", LWS_JSON), null)
+                .header("ETag").orElseThrow();
+        String ownerBefore = send("GET", "/alice/view/", owner(), Map.of("Accept", LWS_JSON), null)
+                .header("ETag").orElseThrow();
+
+        givenAccess("/alice/view/closed.txt", true);
+
+        Res pub = send("GET", "/alice/view/", null, Map.of("Accept", LWS_JSON), null);
+        assertEquals(2, pub.json().getInt("totalItems"), pub.text());
+        assertNotEquals(publicBefore, pub.header("ETag").orElseThrow(),
+                "the public's listing changed, so its tag must");
+        assertEquals(ownerBefore, send("GET", "/alice/view/", owner(), Map.of("Accept", LWS_JSON),
+                null).header("ETag").orElseThrow(), "the owner's listing did not");
     }
 
     // --- Authorization ------------------------------------------------------

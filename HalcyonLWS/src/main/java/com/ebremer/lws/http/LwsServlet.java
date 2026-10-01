@@ -730,7 +730,7 @@ public class LwsServlet extends HttpServlet {
     }
 
     /** A container-listing snapshot: the page, its links, and the (possibly inexact) total. */
-    private record View(LwsResource r, long total, List<LwsJson.Item> items, long afterSeq,
+    private record View(LwsResource r, String etag, long total, List<LwsJson.Item> items, long afterSeq,
             Long prevAfter, Long nextAfter, Long lastAfter) {
     }
 
@@ -746,7 +746,7 @@ public class LwsServlet extends HttpServlet {
             LwsResource r = known(rq, t.uri());
             demandOn(rq, r, AccessMode.READ);
             if (!r.isContainer()) {
-                return new View(r, 0, List.of(), -1, null, null, null);
+                return new View(r, r.etag(), 0, List.of(), -1, null, null, null);
             }
 
             // Decoded after the authorization check, so that an unrecognised cursor cannot be
@@ -778,7 +778,7 @@ public class LwsServlet extends HttpServlet {
         // entity tag across every page of a container is not a cosmetic flaw: a client holding
         // page 1's tag would be answered 304 when it asked for page 2, and would then serve
         // itself page 1 out of its own cache, forever.
-        String base = pageEtag(r.etag(), v.afterSeq());
+        String base = pageEtag(v.etag(), v.afterSeq());
         addPageLinks(resp, r.uri(), CONTAINER_CURSOR, v.prevAfter(), v.nextAfter(), v.lastAfter());
 
         // A container's canonical representation is application/lws+json. Turtle is offered as an
@@ -928,6 +928,60 @@ public class LwsServlet extends HttpServlet {
      * before the window is chosen, so no page is short because of them and no cursor stalls on a run
      * of them.
      */
+    /**
+     * The entity tag of a container's listing as this agent sees it.
+     *
+     * <p>A listing shows only the members the agent may read, so two agents can be handed
+     * different bodies for the same container, and a policy change can change one agent's body
+     * without touching the container. The tag is the container's version when the agent sees every
+     * member -- an owner, say, whose view no grant can narrow -- and otherwise the version
+     * qualified by a digest of the members it does see. So it changes exactly when this agent's
+     * listing changes, and an access grant on some other resource leaves it alone; a module-wide
+     * policy epoch here made every such grant a 412 for every client holding a container's tag.
+     *
+     * <p>A container too large to list exactly ({@link #LIST_EXACT_CAP}) is not walked for this:
+     * its tag is qualified by the ACP epoch instead, as every container's used to be, which can
+     * only over-invalidate. Assumes an ambient transaction.
+     */
+    private String agentEtag(Req rq, ResourceRegistry reg, LwsResource r) {
+        List<ResourceRegistry.ChildRef> members = reg.childRefs(r.uri());
+        if (members.size() > LIST_EXACT_CAP) {
+            return epochEtag(r.etag());
+        }
+        List<ResourceRegistry.ChildRef> visible = new ArrayList<>();
+        for (ResourceRegistry.ChildRef ref : members) {
+            if (may(rq, ref.uri(), AccessMode.READ)) {
+                visible.add(ref);
+            }
+        }
+        return agentEtag(r.etag(), members, visible);
+    }
+
+    /** {@link #agentEtag(Req, ResourceRegistry, LwsResource)}, once the visible members are known. */
+    private static String agentEtag(String etag, List<ResourceRegistry.ChildRef> members,
+            List<ResourceRegistry.ChildRef> visible) {
+        if (visible.size() == members.size()) {
+            return etag;
+        }
+        try {
+            java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
+            for (ResourceRegistry.ChildRef ref : visible) {
+                md.update(ref.uri().getBytes(StandardCharsets.UTF_8));
+                md.update((byte) '\n');
+            }
+            return ResourceRegistry.qualify(etag,
+                    "v" + java.util.HexFormat.of().formatHex(md.digest(), 0, 8));
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 is always available", e);
+        }
+    }
+
+    /** {@code etag} qualified by the current ACP epoch; unchanged while no policy was ever written. */
+    private String epochEtag(String etag) {
+        long epoch = store.acpEpoch();
+        return epoch == 0 ? etag : ResourceRegistry.qualify(etag, String.valueOf(epoch));
+    }
+
     private View exactListing(Req rq, ResourceRegistry reg, LwsResource r,
             List<ResourceRegistry.ChildRef> members, Cursor cursor) {
         List<ResourceRegistry.ChildRef> visible = new ArrayList<>();
@@ -958,7 +1012,8 @@ public class LwsServlet extends HttpServlet {
             int lastStart = ((visible.size() - 1) / PAGE_SIZE) * PAGE_SIZE;
             last = lastStart == 0 ? -1L : visible.get(lastStart - 1).seq();
         }
-        return new View(r, visible.size(), items, cursor.afterSeq(), prev, next, last);
+        return new View(r, agentEtag(r.etag(), members, visible), visible.size(), items,
+                cursor.afterSeq(), prev, next, last);
     }
 
     /**
@@ -1017,7 +1072,7 @@ public class LwsServlet extends HttpServlet {
             }
         }
 
-        return new View(r, members.size(), items, cur, prev, next, null);
+        return new View(r, epochEtag(r.etag()), members.size(), items, cur, prev, next, null);
     }
 
     /**
@@ -2469,7 +2524,7 @@ public class LwsServlet extends HttpServlet {
             // SHOULD support conditional requests" — an obligation to honour a validator that
             // arrives, not to require one. A client that sends a stale tag is still refused 412,
             // inside this write transaction, under TDB2's single writer.
-            Preconditions.evaluate(req, r.etag());
+            Preconditions.evaluate(req, r.isContainer() ? agentEtag(rq, reg, r) : r.etag());
 
             // Authorize EVERY descendant before removing ANY of them.
             //

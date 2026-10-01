@@ -335,7 +335,7 @@ Other `Prefer` tokens are not honored (which the spec permits).
 
 | Header | Notes |
 |---|---|
-| `ETag` | Strong tags everywhere. Data resource = content digest; container = version counter; each page derived; the Turtle variant carries a `-ttl` marker; linkset and ACR have independent tags. |
+| `ETag` | Strong tags everywhere. Data resource = content digest; container = version counter, qualified by a digest of the members the caller may see when that is not all of them (a container too large to list exactly is qualified by the ACP epoch instead), so a policy change elsewhere leaves it alone; each page derived; the Turtle variant carries a `-ttl` marker; linkset and ACR have independent tags. |
 | `Location` | On `201` creates and the `200` subscription create. |
 | `Link` | rels: `https://www.w3.org/ns/lws#storage` (→ the canonical storage URI, on every GET/HEAD and on the 401), `type` (→ Container/DataResource), `linkset` (→ `{uri}.meta`), `acl` (→ `{uri}.acr`), `up` (→ parent), `describes`, and pagination `first`/`prev`/`next`/`last`. |
 | `Vary` | `Authorization` on every authorized response; `Accept` added for negotiated resources (containers, linkset, ACR). Emitted exactly once per path, including on `304`. |
