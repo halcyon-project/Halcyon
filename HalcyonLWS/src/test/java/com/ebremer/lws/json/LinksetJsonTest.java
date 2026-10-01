@@ -1,6 +1,7 @@
 package com.ebremer.lws.json;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.ebremer.lws.vocab.LWS;
@@ -62,6 +63,54 @@ class LinksetJsonTest {
         Map<String, List<String>> dropped = LinksetJson.mergePatch(current,
                 read("{\"license\": null}"), new ArrayList<>());
         assertTrue(!dropped.containsKey("license"));
+    }
+
+    /** The RFC 9264 document a GET returns reads as the same relations as the relation map. */
+    @Test
+    void aLinksetDocumentPatchIsReadAsItsRelations() {
+        Map<String, List<String>> server = Map.of("up", List.of(STORAGE + "notes/"));
+        List<String> rejected = new ArrayList<>();
+
+        JsonObject relations = LinksetJson.relations(read("{\"linkset\": [{\"anchor\": \"" + R
+                + "\", \"license\": [{\"href\": \"https://example.org/cc0\"}]}]}"), R, server,
+                rejected);
+
+        assertEquals(List.of(), rejected);
+        assertEquals(read("{\"license\": [{\"href\": \"https://example.org/cc0\"}]}"), relations);
+    }
+
+    /** Sending back what was read is not an attempt to set a server-managed relation; changing it is. */
+    @Test
+    void aServerManagedRelationInADocumentPatchMayOnlyBeEchoed() {
+        Map<String, List<String>> server = Map.of("up", List.of(STORAGE + "notes/"));
+
+        List<String> echoed = new ArrayList<>();
+        JsonObject relations = LinksetJson.relations(read("{\"linkset\": [{\"anchor\": \"" + R
+                + "\", \"up\": [{\"href\": \"" + STORAGE + "notes/\"}],"
+                + " \"license\": [{\"href\": \"https://example.org/cc0\"}]}]}"), R, server, echoed);
+        assertEquals(List.of(), echoed);
+        assertEquals(java.util.Set.of("license"), relations.keySet());
+
+        List<String> changed = new ArrayList<>();
+        LinksetJson.relations(read("{\"linkset\": [{\"anchor\": \"" + R
+                + "\", \"up\": [{\"href\": \"" + STORAGE + "\"}]}]}"), R, server, changed);
+        assertEquals(List.of("up"), changed);
+    }
+
+    @Test
+    void aDocumentPatchDescribingAnotherResourceIsRefused() {
+        assertThrows(IllegalArgumentException.class, () -> LinksetJson.relations(
+                read("{\"linkset\": [{\"anchor\": \"" + STORAGE + "other\", \"license\": null}]}"),
+                R, Map.of(), new ArrayList<>()));
+    }
+
+    /** A relation map that tries to set the server-managed linkset relation is still refused as one. */
+    @Test
+    void aRelationMapSettingTheLinksetRelationIsRejected() {
+        List<String> rejected = new ArrayList<>();
+        LinksetJson.relations(read("{\"linkset\": [{\"href\": \"https://evil/\"}]}"), R,
+                Map.of(), rejected);
+        assertEquals(List.of("linkset"), rejected);
     }
 
     @Test

@@ -35,7 +35,7 @@ can never collide with one.
 | any data resource | `GET HEAD OPTIONS PUT PATCH DELETE` | Read, replace, merge-patch, delete (`PATCH` only on JSON) |
 | `{resource}.meta` | `GET HEAD OPTIONS PATCH` | RFC 9264 linkset (`application/linkset+json`) |
 | `{resource}.acr` | `GET HEAD OPTIONS PUT` | ACP access-control resource (`text/turtle`); requires `Control` |
-| `{root}` with `Accept: application/lws+cid` | `GET HEAD` | Storage description; **public, no auth** |
+| `{root}` with no `Accept`, a wildcard, or `application/lws+cid` | `GET HEAD` | Storage description; **public, no auth**. Naming a container format (`application/lws+json`, `ld+json`, `json`, `text/turtle`) reads the root container instead |
 | `/.description` | `GET HEAD OPTIONS` | The same description at a stable path; **public, no auth** |
 | `/.types/index` | `GET HEAD OPTIONS` | Paginated Type Index (ACP-filtered) |
 | `/.types/search` | `OPTIONS QUERY` | Type Search over a CNF filter. A **page link** of a result set additionally takes `GET HEAD` — it is a different URI, carrying the sealed filter |
@@ -131,9 +131,14 @@ Full replacement of an existing **data resource's** content (or an ACR — see b
   the document it was computed against (a concurrent change → `412`). Malformed patch JSON → `400`;
   syntactically valid but unprocessable (too deeply nested / too large) → `400` with a distinct message;
   stored bytes that are not valid JSON → `409`. Success `204` + `ETag`.
-- **On a linkset (`{resource}.meta`):** same media-type rule. Setting a server-managed relation (e.g.
-  `type`) → `403`. A failed precondition → `412`; an unconditional patch is merged into the linkset
-  as it stands, inside the write transaction. Success `204` + `ETag`.
+- **On a linkset (`{resource}.meta`):** same media-type rule. The precondition is evaluated first, so a
+  stale `If-Match` → `412` whatever the body. The patch may be the relation map
+  (`{"license": [{"href": "…"}]}`) or the RFC 9264 document a GET returns
+  (`{"linkset": [{"anchor": "{resource}", "license": [...]}]}`); either way it merges one relation at a
+  time and `null` removes one. A document entry for another anchor → `422`. Setting a server-managed
+  relation (e.g. `type`) → `403`, except that the document form may echo one unchanged. An
+  unconditional patch is merged into the linkset as it stands, inside the write transaction. Success
+  `204` + `ETag`.
 
 ### DELETE
 
@@ -172,8 +177,9 @@ keeps no per-search state. A page link this server did not seal, or one it no lo
 
 ### `{resource}.meta` — linkset (RFC 9264)
 
-`GET` returns `application/linkset+json` describing the resource's links; `PATCH` (merge-patch) edits
-the client-managed relations. Server-managed relations cannot be set (`403`). `Accept-Patch` and `Allow`
+`GET` returns `application/linkset+json` describing the resource's links; `PATCH` (merge-patch, as a
+relation map or as the linkset document itself) edits the client-managed relations. Server-managed
+relations cannot be set (`403`); sending one back unchanged in the document form is allowed. `Accept-Patch` and `Allow`
 are advertised. Single representation — an `Accept` that does not admit `application/linkset+json` →
 `406`.
 

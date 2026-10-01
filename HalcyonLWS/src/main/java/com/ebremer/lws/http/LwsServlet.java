@@ -405,14 +405,7 @@ public class LwsServlet extends HttpServlet {
         View v = store.read(() -> {
             LwsResource r = known(rq, t.uri());
             demandOn(rq, r, AccessMode.READ);
-            var links = new java.util.LinkedHashMap<String, List<String>>();
-            links.put(LWS.REL_STORAGE, List.of(cfg.storageRootUri()));
-            links.put(LinkHeader.REL_TYPE, List.of(r.isContainer()
-                    ? LWS.Container.getURI() : LWS.DataResource.getURI()));
-            if (r.parent() != null) {
-                links.put(LinkHeader.REL_UP, List.of(r.parent()));
-            }
-            links.put(LinkHeader.REL_ACL, List.of(r.uri() + LwsStorageConfig.ACR_SUFFIX));
+            var links = serverLinks(r);
             links.putAll(LinksetStore.read(store, t.uri()));
             return new View(r, links, LinksetStore.etag(store, t.uri()));
         });
@@ -444,6 +437,19 @@ public class LwsServlet extends HttpServlet {
         if (body) {
             resp.getOutputStream().write(bytes);
         }
+    }
+
+    /** The server-managed relations of a resource's linkset, derived from the resource itself. */
+    private java.util.LinkedHashMap<String, List<String>> serverLinks(LwsResource r) {
+        var links = new java.util.LinkedHashMap<String, List<String>>();
+        links.put(LWS.REL_STORAGE, List.of(cfg.storageRootUri()));
+        links.put(LinkHeader.REL_TYPE, List.of(r.isContainer()
+                ? LWS.Container.getURI() : LWS.DataResource.getURI()));
+        if (r.parent() != null) {
+            links.put(LinkHeader.REL_UP, List.of(r.parent()));
+        }
+        links.put(LinkHeader.REL_ACL, List.of(r.uri() + LwsStorageConfig.ACR_SUFFIX));
+        return links;
     }
 
     /**
@@ -492,28 +498,31 @@ public class LwsServlet extends HttpServlet {
             throw Problem.badRequest("could not parse the merge patch as JSON");
         }
 
-        // Rejected BEFORE the write opens. Server-managed metadata "MUST NOT be
-        // overridden by client-provided links", and a request that is going to be
-        // refused must leave nothing behind: validating inside the transaction and
-        // throwing after it commits would still bump the linkset's entity tag, so a
-        // client retrying the corrected request would be met with a 412 caused by its
-        // own rejected attempt.
-        List<String> serverManaged = patch.keySet().stream()
-                .filter(LinksetJson.SERVER_MANAGED::contains)
-                .toList();
-        if (!serverManaged.isEmpty()) {
-            throw Problem.forbidden("these relations are server-managed and cannot be set: "
-                    + String.join(", ", serverManaged));
-        }
-
-        List<String> rejected = new ArrayList<>();
+        // Everything is decided inside the write, in RFC 9110's order: the precondition first
+        // (a stale If-Match is a 412 whatever the body says), then the body. A refusal throws
+        // before anything is replaced, and a throw aborts the transaction, so a rejected patch
+        // leaves the linkset -- and its entity tag -- exactly as they were.
         String etag = store.write(() -> {
-            demandOn(rq, known(rq, t.uri()), AccessMode.WRITE);
+            LwsResource r = known(rq, t.uri());
+            demandOn(rq, r, AccessMode.WRITE);
             // Compared inside the write transaction, so this is a compare-and-swap.
             Preconditions.evaluate(req, LinksetStore.etag(store, t.uri()));
 
+            // Server-managed metadata "MUST NOT be overridden by client-provided links".
+            List<String> serverManaged = new ArrayList<>();
+            JsonObject relations;
+            try {
+                relations = LinksetJson.relations(patch, t.uri(), serverLinks(r), serverManaged);
+            } catch (IllegalArgumentException e) {
+                throw Problem.unprocessable(e.getMessage());
+            }
+            if (!serverManaged.isEmpty()) {
+                throw Problem.forbidden("these relations are server-managed and cannot be set: "
+                        + String.join(", ", serverManaged));
+            }
+
             var current = LinksetStore.read(store, t.uri());
-            var updated = LinksetJson.mergePatch(current, patch, rejected);
+            var updated = LinksetJson.mergePatch(current, relations, new ArrayList<>());
             return LinksetStore.replace(store, t.uri(), updated);
         });
 

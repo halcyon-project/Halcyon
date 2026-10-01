@@ -567,6 +567,65 @@ class LwsTestSuiteConformanceTest {
         }
     }
 
+    /**
+     * Not a suite entry: Touchstone's {@code linkset-patch-merge}. A merge patch is defined over
+     * the target's representation, so the RFC 9264 document a GET returns is a patch the linkset
+     * understands: here the whole document read back, plus a license.
+     */
+    @Test
+    void aLinksetPatchInTheDocumentFormItWasReadInSucceeds() throws Exception {
+        givenDataResource("/alice/doc.txt", "text", false);
+        Res read = send("GET", "/alice/doc.txt.meta", owner(), Map.of("Accept", LINKSET_JSON), null);
+        JsonObject entry = read.json().getJsonArray("linkset").getJsonObject(0);
+        String patch = "{\"linkset\":[" + jakarta.json.Json.createObjectBuilder(entry)
+                .add("license", jakarta.json.Json.createArrayBuilder().add(jakarta.json.Json
+                        .createObjectBuilder().add("href", "https://creativecommons.org/licenses/by/4.0/")))
+                .build() + "]}";
+
+        Res r = send("PATCH", "/alice/doc.txt.meta", owner(), Map.of(
+                "Content-Type", "application/merge-patch+json",
+                "If-Match", read.header("ETag").orElseThrow()), patch.getBytes(StandardCharsets.UTF_8));
+
+        assertEquals(204, r.status(), r.text());
+        JsonObject after = send("GET", "/alice/doc.txt.meta", owner(), Map.of("Accept", LINKSET_JSON),
+                null).json().getJsonArray("linkset").getJsonObject(0);
+        assertEquals("https://creativecommons.org/licenses/by/4.0/",
+                after.getJsonArray("license").getJsonObject(0).getString("href"));
+        assertEquals(entry.get("up"), after.get("up"), "server-managed links are untouched");
+    }
+
+    /**
+     * Not a suite entry: Touchstone's {@code linkset-conditional-412}. The precondition is
+     * evaluated before the patch body (RFC 9110 13.2.2), so a stale validator is a 412 even when
+     * the body would be refused.
+     */
+    @Test
+    void aStaleLinksetPatchIsAPreconditionFailureBeforeAnythingElse() throws Exception {
+        givenDataResource("/alice/stale.txt", "text", false);
+
+        Res r = send("PATCH", "/alice/stale.txt.meta", owner(), Map.of(
+                "Content-Type", "application/merge-patch+json",
+                "If-Match", "\"touchstone-stale-etag\""),
+                "{\"type\":[{\"href\":\"https://example.org/not-a-type\"}]}"
+                        .getBytes(StandardCharsets.UTF_8));
+
+        assertEquals(412, r.status(), r.text());
+    }
+
+    /** A document-form patch speaks for this resource only. */
+    @Test
+    void aLinksetPatchForAnotherAnchorIsUnprocessable() throws Exception {
+        givenDataResource("/alice/anchor.txt", "text", false);
+
+        Res r = send("PATCH", "/alice/anchor.txt.meta", owner(),
+                Map.of("Content-Type", "application/merge-patch+json"),
+                ("{\"linkset\":[{\"anchor\":\"" + SITE + "/alice/other.txt\","
+                        + "\"license\":[{\"href\":\"https://example.org/x\"}]}]}")
+                        .getBytes(StandardCharsets.UTF_8));
+
+        assertEquals(422, r.status(), r.text());
+    }
+
     // --- Authorization ------------------------------------------------------
 
     /**
