@@ -697,12 +697,13 @@ public class LwsServlet extends HttpServlet {
             case ACCESS_GRANT -> getSharing(rq, t, req, resp, body, true);
             case STORAGE_ROOT, RESOURCE -> {
                 // The storage URI is this storage's root container, and lws10-core requires a
-                // request for the storage URI to answer with the storage description. Both
-                // answers are correct for the one resource, so Accept decides: only an explicit
-                // application/lws+cid selects the description, and it is served unauthenticated
-                // exactly as it is at its own URI -- it is a discovery document, identical for
-                // every caller, and a client that cannot read it cannot learn how to
-                // authenticate. Everything else reads the container.
+                // request for the storage URI to answer with the storage description "unless
+                // content negotiation requires a different format". So the description is the
+                // default, and only an Accept naming a container format (lws+json, ld+json, json,
+                // turtle) without the CID type reads the container. The description is served
+                // unauthenticated exactly as it is at its own URI -- it is a discovery document,
+                // identical for every caller, and a client that cannot read it cannot learn how
+                // to authenticate.
                 if (t.kind() == Target.Kind.STORAGE_ROOT
                         && MediaTypes.prefersStorageDescription(req.getHeader("Accept"))) {
                     sendDescription(req, resp, body);

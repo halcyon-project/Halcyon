@@ -114,16 +114,25 @@ public final class MediaTypes {
      * True if the request asks for the storage description rather than a container listing.
      *
      * <p>The storage URI and the storage root container are the same resource here, so a GET on
-     * it has two honest answers and {@code Accept} decides between them: naming
-     * {@code application/lws+cid} asks for the description, anything else (including no
-     * {@code Accept} at all) gets the container listing, which is what every existing client
-     * expects of a container. A wildcard does <em>not</em> select the description —
-     * {@code *}&#47;{@code *} is "anything", not "the CID document", and answering a browser's
-     * default Accept with a
-     * description nobody asked for would break navigation.
+     * it has two honest answers. lws10-core settles which one is the default: "Requests for the
+     * storage URI MUST return a document that conforms to the storage description resource data
+     * model with a media type of {@code application/lws+cid}, unless content negotiation requires
+     * a different format." So the description is the answer to no {@code Accept}, to a wildcard,
+     * to a browser's default and to {@code application/lws+cid} itself; the container listing is
+     * the answer only when the client names one of the container's own formats
+     * ({@code application/lws+json}, {@code application/ld+json}, {@code application/json} or
+     * {@code text/turtle}) and not the CID type. Every container client names its format, which is
+     * how Halcyon's own {@code LwsClient} has always read the root.
      */
     public static boolean prefersStorageDescription(String accept) {
-        return accept != null && accept.toLowerCase().contains(LWS_CID);
+        if (accept == null || accept.isBlank()) {
+            return true;
+        }
+        String a = accept.toLowerCase();
+        if (a.contains(LWS_CID)) {
+            return true;
+        }
+        return !(a.contains(LWS_JSON) || a.contains(LD_JSON) || a.contains(JSON) || a.contains(TURTLE));
     }
 
     /**

@@ -225,6 +225,28 @@ class LwsTestSuiteConformanceTest {
     }
 
     /**
+     * Not a suite entry: Touchstone's {@code discovery-storage-description-default-media-type}.
+     * "Requests for the storage URI MUST return ... a media type of {@code application/lws+cid},
+     * unless content negotiation requires a different format": with no {@code Accept}, or only a
+     * wildcard, the storage URI answers with the description, to anyone. Naming a container format
+     * is what reads the root container instead.
+     */
+    @Test
+    void theStorageUriAnswersWithTheDescriptionUnlessAContainerFormatIsNamed() throws Exception {
+        for (Map<String, String> h : List.of(Map.<String, String>of(), Map.of("Accept", "*/*"))) {
+            Res r = send("GET", "/alice/", null, h, null);
+            assertEquals(200, r.status(), h + ": " + r.text());
+            assertEquals(LWS_CID, r.mediaType(), h.toString());
+            assertEquals(STORAGE, r.json().getString("id"));
+        }
+
+        Res listing = send("GET", "/alice/", owner(), Map.of("Accept", LWS_JSON), null);
+        assertEquals(200, listing.status());
+        assertEquals(LWS_JSON, listing.mediaType());
+        assertTrue(hasType(listing.json(), "Container"), "type Container: " + listing.json());
+    }
+
+    /**
      * {@code discovery-get-links-storageDescription}. Stale relation, as in
      * {@link #discoveryUnauthorizedResponseHeaders}: {@code lws#storage}, to the storage URI.
      */

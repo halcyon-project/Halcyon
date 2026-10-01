@@ -110,21 +110,23 @@ class MediaTypesTest {
     }
 
     /**
-     * The storage URI is also the storage root container, so a GET on it has two honest answers
-     * and Accept decides. Only naming application/lws+cid asks for the description: a wildcard
-     * means "anything", and answering a browser's default Accept with a CID document instead of
-     * the container listing would break navigation for every existing client.
+     * The storage URI is also the storage root container, so a GET on it has two honest answers.
+     * lws10-core makes the description the default ("unless content negotiation requires a
+     * different format"): only a client naming one of the container's formats gets the listing.
      */
     @Test
-    void onlyAnExplicitCidTypeSelectsTheStorageDescription() {
+    void theStorageDescriptionUnlessAContainerFormatIsAskedForByName() {
+        assertTrue(MediaTypes.prefersStorageDescription(null));
+        assertTrue(MediaTypes.prefersStorageDescription(""));
+        assertTrue(MediaTypes.prefersStorageDescription("*/*"));
+        assertTrue(MediaTypes.prefersStorageDescription("text/html,application/xhtml+xml,*/*;q=0.8"));
         assertTrue(MediaTypes.prefersStorageDescription("application/lws+cid"));
         assertTrue(MediaTypes.prefersStorageDescription(
                 "application/lws+cid, application/lws+json;q=0.5"));
-        assertFalse(MediaTypes.prefersStorageDescription(null));
-        assertFalse(MediaTypes.prefersStorageDescription("*/*"));
         assertFalse(MediaTypes.prefersStorageDescription("application/lws+json"));
-        assertFalse(MediaTypes.prefersStorageDescription(
-                "text/html,application/xhtml+xml,*/*;q=0.8"));
+        assertFalse(MediaTypes.prefersStorageDescription("application/ld+json"));
+        assertFalse(MediaTypes.prefersStorageDescription("application/json"));
+        assertFalse(MediaTypes.prefersStorageDescription("text/turtle"));
     }
 
     @Test
