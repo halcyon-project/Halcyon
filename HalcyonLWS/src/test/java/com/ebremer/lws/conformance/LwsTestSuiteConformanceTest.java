@@ -551,6 +551,22 @@ class LwsTestSuiteConformanceTest {
         assertTrue(r.status() == 200 || r.status() == 204, r.status() + " " + r.text());
     }
 
+    /**
+     * Not a suite entry: Touchstone's {@code access-grant-endpoint-is-container}. The access grant
+     * and access request endpoints are LWS containers, so their listings carry
+     * {@code Link: <lws#Container>; rel="type"} like any other container.
+     */
+    @Test
+    void theAccessEndpointsAreTypedAsContainers() throws Exception {
+        for (String path : List.of("/alice/.access/grants", "/alice/.access/requests",
+                "/alice/.notifications/subscriptions")) {
+            Res r = send("GET", path, owner(), Map.of("Accept", LWS_JSON), null);
+            assertEquals(200, r.status(), path + ": " + r.text());
+            assertTrue(r.links("type").stream().anyMatch(l -> (LWS + "Container").equals(l.target())),
+                    path + " Link: " + r.headers().allValues("Link"));
+        }
+    }
+
     // --- Authorization ------------------------------------------------------
 
     /**

@@ -1081,6 +1081,7 @@ public class LwsServlet extends HttpServlet {
         String etag = prefersTurtle(req) ? tagVariant(bodyEtag(doc), "ttl") : bodyEtag(doc);
 
         agentSpecific(resp);
+        addContainerTypeLink(resp);
         resp.setHeader("ETag", etag);
         resp.setHeader("Allow", "OPTIONS, HEAD, GET, POST");
         addPageLinks(resp, t.uri(), SUBSCRIPTIONS_CURSOR,
@@ -2593,6 +2594,7 @@ public class LwsServlet extends HttpServlet {
         });
         JsonObject doc = LwsJson.container(t.uri(), items.size(), items);
         agentSpecific(resp);
+        addContainerTypeLink(resp);
         resp.setHeader("Allow", "OPTIONS, HEAD, GET, POST");
         sendJson(req, resp, doc, body);
     }
@@ -2994,6 +2996,16 @@ public class LwsServlet extends HttpServlet {
      */
     private void addStorageLink(HttpServletResponse resp) {
         resp.addHeader("Link", LinkHeader.link(cfg.storageRootUri(), LWS.REL_STORAGE));
+    }
+
+    /**
+     * The {@code rel="type"} link of a service endpoint whose listing is an LWS container: the
+     * access request and access grant endpoints ("an LWS container", lws10-core) and the
+     * subscription list. A client tells a container by this link, as on any stored container,
+     * not by sniffing the body's {@code type}.
+     */
+    private static void addContainerTypeLink(HttpServletResponse resp) {
+        resp.addHeader("Link", LinkHeader.link(LWS.Container.getURI(), LinkHeader.REL_TYPE));
     }
 
     private void addCommonHeaders(HttpServletResponse resp, LwsResource r) {
