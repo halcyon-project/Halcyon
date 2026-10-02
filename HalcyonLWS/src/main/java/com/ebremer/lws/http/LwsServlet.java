@@ -1641,6 +1641,7 @@ public class LwsServlet extends HttpServlet {
             // to minutes, and a POST must not wait for it.
             LwsMetadataScanner.enrichAsync(store, cfg, content, created);
         }
+        declareTypes(req, created, true);
 
         notify.emit("Create", created.uri(), created.isContainer(), parent.uri(),
                 rq.agent().webId());
@@ -1684,6 +1685,24 @@ public class LwsServlet extends HttpServlet {
      * computed before the upload even started. A re-check against a cache of the thing being
      * re-checked is not a re-check.
      */
+    /**
+     * Records the types the request declares with {@code Link rel="type"} (lws10-index section 5:
+     * servers SHOULD derive resource types from the Link headers a client sends on creation or
+     * modification). A create takes whatever it declares; a PUT replaces the declared types only
+     * when it carries a {@code rel="type"} link, so an update that says nothing about types keeps
+     * them. A separate write after the one that stored the resource: index membership may be
+     * eventually consistent, and a hint the store cannot keep should not fail the write.
+     */
+    private void declareTypes(HttpServletRequest req, LwsResource r, boolean created) {
+        List<LinkHeader.Parsed> links = LinkHeader.parse(req);
+        boolean saysType = links.stream().anyMatch(l -> LinkHeader.REL_TYPE.equalsIgnoreCase(l.rel()));
+        List<String> types = LinkHeader.declaredTypes(links);
+        if (created ? types.isEmpty() : !saysType) {
+            return;
+        }
+        store.write(() -> registry().replaceDeclaredTypes(r.uri(), types));
+    }
+
     private LwsResource commitCreation(Req rq, LwsResource parent, String slug, String webId,
             boolean makeContainer, Content content) {
         ResourceRegistry reg = registry();
@@ -1912,6 +1931,7 @@ public class LwsServlet extends HttpServlet {
                     commitMirrorPut(rq, uri, key, req, mt, fext, w, setLinks));
             staged.publish();
 
+            declareTypes(req, out.r(), out.created());
             LwsMetadataScanner.enrichAsync(store, cfg, content, out.r());
             notify.emit(out.created() ? "Create" : "Update", out.r().uri(), false, out.r().parent(),
                     rq.agent().webId());
@@ -2182,6 +2202,7 @@ public class LwsServlet extends HttpServlet {
         if (res.oldKey() != null && !res.oldKey().equals(w.key())) {
             content.delete(res.oldKey(), ext);
         }
+        declareTypes(req, res.r(), false);
         LwsMetadataScanner.enrichAsync(store, cfg, content, res.r());
         notify.emit("Update", res.r().uri(), false, res.r().parent(), rq.agent().webId());
 

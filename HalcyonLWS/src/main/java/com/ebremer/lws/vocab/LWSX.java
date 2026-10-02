@@ -167,6 +167,13 @@ public final class LWSX {
     public static final Property scanVersion = prop("scanVersion");
 
     /**
+     * A type the client declared with {@code Link: <T>; rel="type"} on create or PUT. System graph
+     * only: it records which of a resource's {@code rdf:type}s came from Link headers, so a later
+     * PUT that declares types replaces those and leaves the ones the scanner found in content.
+     */
+    public static final Property declaredType = prop("declaredType");
+
+    /**
      * The on-disk last-modified time (epoch millis) of a mirror-storage file at its last adoption.
      *
      * <p>Only the disk-authoritative mirror storage ({@code /W3ClwsSlash}) sets it. The periodic

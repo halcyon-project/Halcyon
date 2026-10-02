@@ -316,6 +316,30 @@ public final class ResourceRegistry {
         touchAncestors(r.uri());
     }
 
+    /**
+     * Replace the types the client declared by {@code Link rel="type"} (lws10-index section 5: a
+     * server SHOULD derive types from them). The previous declared types are removed from the
+     * resource's graph and the new ones added as {@code rdf:type}, where the Type Index and Type
+     * Search read types. A type the content also states comes back when the scanner, which every
+     * write starts, re-reads it. Assumes a write txn.
+     */
+    public void replaceDeclaredTypes(String uri, java.util.Collection<String> types) {
+        Model sys = store.system();
+        Model g = ds().getNamedModel(uri);
+        Resource s = res(uri);
+        for (org.apache.jena.rdf.model.RDFNode old : sys.listObjectsOfProperty(s, LWSX.declaredType).toList()) {
+            if (old.isURIResource() && !old.equals(LWS.Container) && !old.equals(LWS.DataResource)) {
+                g.remove(s, RDF.type, old);
+            }
+        }
+        sys.removeAll(s, LWSX.declaredType, null);
+        for (String t : types) {
+            g.add(s, RDF.type, res(t));
+            sys.add(s, LWSX.declaredType, res(t));
+        }
+        touchAncestors(uri);
+    }
+
     /** Add types discovered by the file readers, leaving the structural type alone. */
     public void addDiscoveredTypes(String uri, Model discovered) {
         Model g = ds().getNamedModel(uri);

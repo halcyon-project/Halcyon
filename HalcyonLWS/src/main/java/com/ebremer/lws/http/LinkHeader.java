@@ -97,6 +97,36 @@ public final class LinkHeader {
         return out;
     }
 
+    private static final String LWS_NS = "https://www.w3.org/ns/lws#";
+    private static final String LDP_NS = "http://www.w3.org/ns/ldp#";
+
+    /**
+     * The types a client declares with {@code rel="type"}: absolute IRIs outside the LWS and LDP
+     * namespaces, whose classes the server alone assigns (a Container link chooses what is
+     * created, it does not add a type). In order, without duplicates.
+     */
+    public static List<String> declaredTypes(List<Parsed> links) {
+        java.util.LinkedHashSet<String> out = new java.util.LinkedHashSet<>();
+        for (Parsed l : links) {
+            if (!REL_TYPE.equalsIgnoreCase(l.rel())) {
+                continue;
+            }
+            String t = l.target();
+            if (t.startsWith(LWS_NS) || t.startsWith(LDP_NS)) {
+                continue;
+            }
+            try {
+                java.net.URI u = new java.net.URI(t);
+                if (u.isAbsolute()) {
+                    out.add(t);
+                }
+            } catch (java.net.URISyntaxException e) {
+                // a malformed hint is skipped, like any malformed Link value
+            }
+        }
+        return new ArrayList<>(out);
+    }
+
     /** True if any inbound {@code Link} declares {@code rel="type"} with the given target. */
     public static boolean declaresType(List<Parsed> links, String typeUri) {
         return links.stream()

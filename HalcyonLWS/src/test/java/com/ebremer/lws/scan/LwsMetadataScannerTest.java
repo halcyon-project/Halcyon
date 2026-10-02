@@ -52,4 +52,25 @@ class LwsMetadataScannerTest {
                     "the document's own rdf:type must land on the resource URI");
         }
     }
+
+    @Test
+    void anExtensionlessTurtleBlobIsReadInTheSyntaxItsRecordedExtensionNames(@TempDir Path dir)
+            throws Exception {
+        // A resource POSTed as text/turtle without a Slug: its URI is minted with no extension,
+        // and the mirror store files it under that URI. The reader used to guess the syntax from
+        // those names, found none, and Jena refused the document ("Failed to determine the RDF
+        // syntax"), so a type it states never reached the Type Index (Touchstone, 2026-10-02).
+        String uri = "https://host/W3Clws/notes/4a524da4-25c5-4af1-81aa-5d2a5f58d5c0";
+        Path blob = dir.resolve("4a524da4-25c5-4af1-81aa-5d2a5f58d5c0");
+        Files.writeString(blob, "<> a <https://host/types#Alpha>, <https://host/types#Beta> .");
+
+        try (FileReader fr = LwsMetadataScanner.open(LwsMetadataScanner.readerFor("ttl"), "ttl", blob,
+                URI.create(uri))) {
+            Model m = fr.getMeta(URI.create(uri));
+            for (String type : List.of("https://host/types#Alpha", "https://host/types#Beta")) {
+                assertTrue(m.contains(m.createResource(uri), RDF.type, m.createResource(type)),
+                        "the document's rdf:type " + type + " must land on the resource URI");
+            }
+        }
+    }
 }
