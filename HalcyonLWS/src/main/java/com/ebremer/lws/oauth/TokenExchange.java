@@ -110,18 +110,28 @@ public final class TokenExchange {
     }
 
     /**
-     * The subject token types this server will exchange, for its metadata.
+     * The subject token types this server advertises in its metadata.
+     *
+     * <p>Only {@code ...:id_token}: the OpenID suite is the one authentication suite this module
+     * implements, and lws10-authn-openid names that type. {@code ...:jwt} is the SSI-CID suite's
+     * token type, and advertising it claimed a suite this module does not have (Touchstone
+     * authn-cid-valid-credential ran against it and failed). It is still accepted; see
+     * {@link #acceptedSubjectTokenTypes()}.
      *
      * <p>Empty when no authentication suite is configured, in which case the token endpoint can
      * issue nothing and says so rather than advertising a capability it does not have.
      */
     public List<String> subjectTokenTypes() {
-        if (suites.isEmpty()) {
-            return List.of();
-        }
-        // Both name a signed JWT credential, and both are routed to the same suites: ...:id_token
-        // is what lws10-authn-openid requires of an ID Token, and ...:jwt is the generic form.
-        return List.of(TYPE_ID_TOKEN, TYPE_JWT);
+        return suites.isEmpty() ? List.of() : List.of(TYPE_ID_TOKEN);
+    }
+
+    /**
+     * The subject token types the token endpoint accepts: the advertised one, and the generic
+     * {@code ...:jwt} that clients written against the earlier metadata send for the same ID Token.
+     * Both are routed to the same suites, so accepting the second claims nothing extra.
+     */
+    List<String> acceptedSubjectTokenTypes() {
+        return suites.isEmpty() ? List.of() : List.of(TYPE_ID_TOKEN, TYPE_JWT);
     }
 
     /**
@@ -169,7 +179,7 @@ public final class TokenExchange {
         if (subjectToken == null || subjectToken.isBlank()) {
             throw new OAuthError(400, "invalid_request", "subject_token is required");
         }
-        if (subjectTokenType == null || !subjectTokenTypes().contains(normalize(subjectTokenType))) {
+        if (subjectTokenType == null || !acceptedSubjectTokenTypes().contains(normalize(subjectTokenType))) {
             throw new OAuthError(400, "invalid_request",
                     "unsupported subject_token_type " + subjectTokenType);
         }

@@ -127,8 +127,8 @@ class AuthorizationServerServletTest {
                 "a client is identified by the URI in its credential, not by a registration here");
         assertTrue(strings(d, "claims_supported").containsAll(
                 List.of("iss", "sub", "client_id", "aud", "exp", "iat", "jti")));
-        assertEquals(List.of(TokenExchange.TYPE_ID_TOKEN, TokenExchange.TYPE_JWT),
-                strings(d, "subject_token_types_supported"));
+        assertEquals(List.of(TokenExchange.TYPE_ID_TOKEN), strings(d, "subject_token_types_supported"),
+                "...:jwt is the SSI-CID suite's token type; advertising it would claim that suite");
         assertEquals(List.of("https"), strings(d, "subject_identifier_types_supported"),
                 "the subject identifiers the OpenID suite can verify are WebIDs over HTTPS; "
                         + "advertising did:web or did:key would claim a suite this module lacks");

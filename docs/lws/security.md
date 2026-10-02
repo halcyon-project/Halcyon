@@ -21,7 +21,7 @@ GET  {storage}/private                    -> 401
 GET  https://halcyon.example/.well-known/lws-configuration     (RFC 8414; the path lws10-core fixes)
      -> { "issuer": ..., "token_endpoint": .../lws-as/token, "jwks_uri": .../lws-as/jwks,
           "grant_types_supported": ["urn:ietf:params:oauth:grant-type:token-exchange"],
-          "subject_token_types_supported": ["urn:ietf:params:oauth:token-type:id_token", ...],
+          "subject_token_types_supported": ["urn:ietf:params:oauth:token-type:id_token"],
           "subject_identifier_types_supported": ["https"] }
 
 POST https://halcyon.example/lws-as/token                       (RFC 8693 token exchange)

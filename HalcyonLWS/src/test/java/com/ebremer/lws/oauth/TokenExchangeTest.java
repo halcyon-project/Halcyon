@@ -269,6 +269,19 @@ class TokenExchangeTest {
     }
 
     @Test
+    void theGenericJwtTypeIsStillAcceptedThoughNoLongerAdvertised() {
+        // The metadata names only ...:id_token now (...:jwt is the SSI-CID suite's type, which this
+        // module does not implement), but a client written against the earlier metadata that sends
+        // the same ID Token as ...:jwt still gets its access token.
+        var ex = exchange(accepts(ALICE, CLIENT));
+        Map<String, String> p = request(STORAGE, credential(NOW.plusSeconds(3600)));
+        p.put("subject_token_type", TokenExchange.TYPE_JWT);
+
+        assertNotNull(ex.exchange(p, null).accessToken());
+        assertEquals(List.of(TokenExchange.TYPE_ID_TOKEN), ex.subjectTokenTypes());
+    }
+
+    @Test
     void aCredentialNoSuiteAcceptsBuysNothing() {
         String cred = credential(NOW.plusSeconds(3600));
 
