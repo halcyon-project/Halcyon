@@ -321,7 +321,8 @@ The ODRL action maps to an ACP mode: `read → Read`, `create → Append`, `modi
 
 Only a `Control`-holder on the target may create a grant for it.
 
-On grant creation, each non-public assignee's `inbox` (an ODRL `inbox` on the policy) is sent a **signed
+On grant creation, each non-public assignee is sent, at the grant's `inbox` (lws10-core 11.2.3, a URI on
+the grant itself; an `inbox` on the policy, read before, is still honoured when the grant has none), a **signed
 AS2 `Announce`** telling it access was granted — the lws-access-requests SHOULD. Delivery is off-thread
 and best-effort (the same RFC 9421 signature a webhook carries), so a missing or unreachable inbox never
 fails the already-committed grant. A `purpose`/`format`/`type` constraint is still refused (`422`)

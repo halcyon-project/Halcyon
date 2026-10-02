@@ -164,9 +164,7 @@ public final class AccessSharing {
         }
         requireType(doc, "AccessRequest");
         requireContext(doc);
-        if (doc.getJsonArray("access") == null || doc.getJsonArray("access").isEmpty()) {
-            throw Problem.badRequest("an access request requires a non-empty \"access\" array");
-        }
+        requireDataModel(doc, "an access request");
         String id = UUID.randomUUID().toString();
         store.write(() -> {
             Model g = graph();
@@ -194,6 +192,7 @@ public final class AccessSharing {
         }
         requireType(doc, "AccessGrant");
         requireContext(doc);
+        requireDataModel(doc, "an access grant");
         List<Policy> policies = parsePolicies(doc);   // validates + fails closed on constraints
 
         // Authorize: Control over every target. Read transaction — the decision is re-made under
@@ -483,12 +482,12 @@ public final class AccessSharing {
             if (v.getValueType() != JsonValue.ValueType.OBJECT) {
                 throw Problem.badRequest("each \"access\" entry must be an object");
             }
-            out.add(parsePolicy(v.asJsonObject()));
+            out.add(parsePolicy(v.asJsonObject(), inboxOf(doc)));
         }
         return out;
     }
 
-    private Policy parsePolicy(JsonObject ap) {
+    private Policy parsePolicy(JsonObject ap, String documentInbox) {
         // action -> modes
         JsonArray actions = ap.getJsonArray("action");
         if (actions == null || actions.isEmpty()) {
@@ -515,8 +514,9 @@ public final class AccessSharing {
         }
         boolean publicAgent = PUBLIC_AGENT.equals(assignee);
 
-        // target (required for a grant: we will not install a policy without knowing what it governs)
-        JsonObject target = ap.getJsonObject("target");
+        // target (required for a grant: we will not install a policy without knowing what it governs).
+        // requireDataModel has already refused a target that is not an object.
+        JsonObject target = ap.containsKey("target") ? ap.getJsonObject("target") : null;
         List<String> targets = new ArrayList<>();
         TargetMatcher matcherKind = TargetMatcher.ANY;
         if (target != null) {
@@ -551,9 +551,14 @@ public final class AccessSharing {
         }
 
         // An optional inbox to notify the assignee at when the grant is created (a spec SHOULD).
-        String inbox = ap.getString("inbox", null);
-        if (inbox != null && inbox.isBlank()) {
-            inbox = null;
+        // lws10-core puts inbox on the grant itself (11.2.3); a per-policy inbox, which this
+        // storage once read instead, is still honoured when the grant has none.
+        String inbox = documentInbox;
+        if (inbox == null && ap.get("inbox") != null) {
+            inbox = ap.getString("inbox", null);
+            if (inbox != null && !isAbsoluteUri(inbox)) {
+                throw Problem.badRequest("an \"inbox\" must be a URI");
+            }
         }
 
         // constraints -- FAIL CLOSED on anything this storage cannot enforce. Enforceable here:
@@ -638,6 +643,91 @@ public final class AccessSharing {
                 throw Problem.badRequest("could not parse the dateTime \"" + lexical + "\"");
             }
         }
+    }
+
+    /**
+     * The access data model, checked before anything is stored (lws10-core 11.2 and 11.3): the
+     * storage property is REQUIRED and names this storage; an inbox, if present, MUST be a URI;
+     * access is REQUIRED, a collection of one or more objects; and each access policy has a type
+     * including AccessPolicy, an action and an assignee, which are REQUIRED, and a target that,
+     * if present, MUST be an object. A document that breaks one is refused: storing it would
+     * serve an access request or grant that does not conform. (A non-object target used to reach
+     * getJsonObject and fail with a ClassCastException -- a 500.)
+     */
+    private void requireDataModel(JsonObject doc, String what) {
+        JsonValue storage = doc.get("storage");
+        if (storage == null || storage.getValueType() != JsonValue.ValueType.STRING) {
+            throw Problem.badRequest(what + " requires a \"storage\" naming the storage");
+        }
+        String named = ((jakarta.json.JsonString) storage).getString();
+        if (!named.equals(cfg.storageRootUri()) && !named.equals(cfg.baseUri())) {
+            throw Problem.unprocessable(what + " names storage " + named + ", not this storage ("
+                    + cfg.storageRootUri() + ")");
+        }
+        inboxOf(doc);   // validates
+        JsonValue access = doc.get("access");
+        if (access == null || access.getValueType() != JsonValue.ValueType.ARRAY
+                || access.asJsonArray().isEmpty()) {
+            throw Problem.badRequest(what + " requires a non-empty \"access\" array");
+        }
+        for (JsonValue v : access.asJsonArray()) {
+            if (v.getValueType() != JsonValue.ValueType.OBJECT) {
+                throw Problem.badRequest("each \"access\" entry must be an object");
+            }
+            JsonObject ap = v.asJsonObject();
+            if (!hasType(ap.get("type"), "AccessPolicy")) {
+                throw Problem.badRequest("an access policy's \"type\" must include \"AccessPolicy\"");
+            }
+            if (ap.get("action") == null) {
+                throw Problem.badRequest("an access policy requires an \"action\"");
+            }
+            if (ap.get("assignee") == null) {
+                throw Problem.badRequest("an access policy requires an \"assignee\"");
+            }
+            if (ap.get("target") != null && ap.get("target").getValueType() != JsonValue.ValueType.OBJECT) {
+                throw Problem.badRequest("an access policy's \"target\" must be an object");
+            }
+        }
+    }
+
+    /** The document's inbox, or null when it has none; one that is not a URI is refused. */
+    private static String inboxOf(JsonObject doc) {
+        JsonValue inbox = doc.get("inbox");
+        if (inbox == null || inbox.getValueType() == JsonValue.ValueType.NULL) {
+            return null;
+        }
+        String uri = inbox.getValueType() == JsonValue.ValueType.STRING
+                ? ((jakarta.json.JsonString) inbox).getString() : null;
+        if (uri == null || !isAbsoluteUri(uri)) {
+            throw Problem.badRequest("an \"inbox\" must be a URI");
+        }
+        return uri;
+    }
+
+    private static boolean isAbsoluteUri(String s) {
+        try {
+            java.net.URI u = new java.net.URI(s);
+            return u.isAbsolute() && u.getRawSchemeSpecificPart() != null
+                    && !u.getRawSchemeSpecificPart().isEmpty();
+        } catch (java.net.URISyntaxException e) {
+            return false;
+        }
+    }
+
+    /** True if a type value -- a string or an array of them -- includes {@code wanted}, as a term or LWS IRI. */
+    private static boolean hasType(JsonValue type, String wanted) {
+        if (type == null) {
+            return false;
+        }
+        List<JsonValue> values = type.getValueType() == JsonValue.ValueType.ARRAY
+                ? type.asJsonArray() : List.of(type);
+        for (JsonValue t : values) {
+            String v = asStringOrNull(t);
+            if (wanted.equals(v) || (LWS.NS + wanted).equals(v)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static void requireType(JsonObject doc, String type) {

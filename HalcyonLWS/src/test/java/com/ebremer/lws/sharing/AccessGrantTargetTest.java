@@ -1,6 +1,7 @@
 package com.ebremer.lws.sharing;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -137,6 +138,55 @@ class AccessGrantTargetTest {
         }
         AgentContext alice = new AgentContext(ALICE, "https://app.example/c", null, List.of());
         return sharing.createGrant(alice, new AcpEngine(store), parsed);
+    }
+
+    /** Create a grant from a raw document, as alice. */
+    private String createRaw(String doc) {
+        JsonObject parsed;
+        try (var r = Json.createReader(new StringReader(doc))) {
+            parsed = r.readObject();
+        }
+        AgentContext alice = new AgentContext(ALICE, "https://app.example/c", null, List.of());
+        return sharing.createGrant(alice, new AcpEngine(store), parsed);
+    }
+
+    /**
+     * The access data model (Touchstone access-grant-incomplete-refused): a grant missing a
+     * REQUIRED property, or carrying a malformed one, is refused with a 4xx before anything is
+     * installed -- in particular a target that is not an object, which used to fail with a 500.
+     * The complete grant they are each derived from still installs.
+     */
+    @Test
+    void aGrantOutsideTheAccessDataModelIsRefused() {
+        String policy = "\"type\": [\"AccessPolicy\"], \"action\": [\"read\"], \"assignee\": \"" + BOB
+                + "\", \"target\": {\"type\": \"DataResource\", \"value\": [\"" + DATA + "\"]}";
+        String ctx = "\"@context\": [\"" + LWS.CONTEXT + "\"]";
+        String type = "\"type\": [\"AccessGrant\"]";
+        String storage = "\"storage\": \"" + ROOT + "\"";
+        java.util.Map<String, String> defects = new java.util.LinkedHashMap<>();
+        defects.put("no storage", "{" + ctx + "," + type + ",\"access\": [{" + policy + "}]}");
+        defects.put("another storage", "{" + ctx + "," + type + ",\"storage\": \"https://other.test/\","
+                + "\"access\": [{" + policy + "}]}");
+        defects.put("policy without type", "{" + ctx + "," + type + "," + storage + ",\"access\": [{"
+                + policy.replace("\"type\": [\"AccessPolicy\"], ", "") + "}]}");
+        defects.put("policy type without AccessPolicy", "{" + ctx + "," + type + "," + storage
+                + ",\"access\": [{" + policy.replace("\"AccessPolicy\"", "\"urn:x:other\"") + "}]}");
+        defects.put("target not an object", "{" + ctx + "," + type + "," + storage + ",\"access\": [{"
+                + "\"type\": [\"AccessPolicy\"], \"action\": [\"read\"], \"assignee\": \"" + BOB
+                + "\", \"target\": \"" + DATA + "\"}]}");
+        defects.put("inbox not a URI", "{" + ctx + "," + type + "," + storage + ",\"inbox\": \"not a uri\","
+                + "\"access\": [{" + policy + "}]}");
+        defects.put("empty access", "{" + ctx + "," + type + "," + storage + ",\"access\": []}");
+        defects.forEach((name, doc) -> {
+            Problem p = assertThrows(Problem.class, () -> createRaw(doc), name);
+            assertTrue(p.status() >= 400 && p.status() < 500, name + ": " + p.status());
+        });
+        assertFalse(bobMay(DATA), "none of them granted anything");
+
+        // No inbox here: this class runs without a notifier (see open()).
+        assertTrue(installed(createRaw("{" + ctx + "," + type + "," + storage
+                + ",\"access\": [{" + policy + "}]}")));
+        assertTrue(bobMay(DATA), "the complete grant does");
     }
 
     private Problem refused(String matcher, String target) {
