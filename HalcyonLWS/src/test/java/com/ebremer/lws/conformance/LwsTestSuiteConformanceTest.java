@@ -379,6 +379,50 @@ class LwsTestSuiteConformanceTest {
         assertTrue(r.links("type").stream().anyMatch(l -> (LWS + "DataResource").equals(l.target())));
     }
 
+    /** Touchstone {@code conditional-get-if-unmodified-since-412}, and the same date on a write. */
+    @Test
+    void ifUnmodifiedSinceIsAPreconditionOnReadsAndWrites() throws Exception {
+        givenContainer("/alice/notes/", true);
+        Res created = send("POST", "/alice/notes/", owner(), Map.of("Content-Type", "text/plain"),
+                SHOPPING_LIST.getBytes(StandardCharsets.UTF_8));
+        assertEquals(201, created.status(), created.text());
+        String uri = created.location().substring(SITE.length());
+        String lastModified = send("GET", uri, owner(), Map.of(), null).header("Last-Modified").orElseThrow();
+        String epoch = "Thu, 01 Jan 1970 00:00:00 GMT";
+
+        assertEquals(200, send("GET", uri, owner(), Map.of("If-Unmodified-Since", lastModified), null).status());
+        assertEquals(412, send("GET", uri, owner(), Map.of("If-Unmodified-Since", epoch), null).status());
+        assertEquals(412, send("GET", "/alice/notes/", owner(), Map.of("If-Unmodified-Since", epoch), null)
+                .status());
+        assertEquals(412, send("DELETE", uri, owner(), Map.of("If-Unmodified-Since", epoch), null).status());
+        assertEquals(200, send("GET", uri, owner(), Map.of(), null).status(), "the refused DELETE removed nothing");
+        assertEquals(204, send("DELETE", uri, owner(), Map.of("If-Unmodified-Since", lastModified), null)
+                .status());
+    }
+
+    /**
+     * lws10-core 9.2: a POST's Link headers provide the new resource's initial user-managed
+     * metadata, which the Type Search then reads like a PATCHed link (Touchstone
+     * type-search-relation-from-link-header). Server-managed relations are skipped, not honoured.
+     */
+    @Test
+    void aPostsLinkHeadersBecomeItsLinkset() throws Exception {
+        givenContainer("/alice/notes/", true);
+        Res created = send("POST", "/alice/notes/", owner(), Map.of("Content-Type", "text/plain",
+                "Link", "<https://shapes.example/S>; rel=\"describedby\", "
+                        + "<https://elsewhere.example/acl>; rel=\"acl\", "
+                        + "<https://elsewhere.example/>; rel=\"up\""),
+                SHOPPING_LIST.getBytes(StandardCharsets.UTF_8));
+        assertEquals(201, created.status(), created.text());
+        String meta = created.link("linkset").orElseThrow().target().substring(SITE.length());
+        JsonObject ctx = send("GET", meta, owner(), Map.of("Accept", LINKSET_JSON), null).json()
+                .getJsonArray("linkset").getJsonObject(0);
+        assertEquals("https://shapes.example/S",
+                ctx.getJsonArray("describedby").getJsonObject(0).getString("href"));
+        assertFalse(ctx.toString().contains("elsewhere.example"),
+                "acl and up are server-managed: " + ctx);
+    }
+
     /** {@code createDataResource-unauthorized}. */
     @Test
     void createDataResourceUnauthorized() throws Exception {

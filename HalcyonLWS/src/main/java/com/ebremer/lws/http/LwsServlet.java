@@ -766,6 +766,7 @@ public class LwsServlet extends HttpServlet {
         addCommonHeaders(resp, r);
 
         if (!r.isContainer()) {
+            Preconditions.evaluateRead(req, r.etag(), r.modified());
             if (Preconditions.isNotModified(req, r.etag(), r.modified())) {
                 resp.setStatus(HttpServletResponse.SC_NOT_MODIFIED);
                 return;
@@ -793,7 +794,9 @@ public class LwsServlet extends HttpServlet {
         // Validated on the entity tag alone. Last-Modified belongs to the container and is the
         // same on every page, so honouring If-Modified-Since here would answer 304 to a client
         // asking for a page it has never seen. A 304 MUST still echo Vary (RFC 7232); the JSON 200
-        // gets Vary from sendJson, so each path emits it exactly once.
+        // gets Vary from sendJson, so each path emits it exactly once. If-Unmodified-Since, by
+        // contrast, asks about the container's state, not a page, so it is evaluated on that.
+        Preconditions.evaluateRead(req, etag, r.modified());
         if (Preconditions.isNotModified(req, etag, null)) {
             resp.addHeader("Vary", "Accept");
             resp.setStatus(HttpServletResponse.SC_NOT_MODIFIED);
@@ -1642,6 +1645,7 @@ public class LwsServlet extends HttpServlet {
             LwsMetadataScanner.enrichAsync(store, cfg, content, created);
         }
         declareTypes(req, created, true);
+        declareInitialLinks(req, created);
 
         notify.emit("Create", created.uri(), created.isContainer(), parent.uri(),
                 rq.agent().webId());
@@ -1701,6 +1705,47 @@ public class LwsServlet extends HttpServlet {
             return;
         }
         store.write(() -> registry().replaceDeclaredTypes(r.uri(), types));
+    }
+
+    /**
+     * Records the other relations a POST's {@code Link} headers carry as the new resource's linkset:
+     * "Clients MAY provide initial user-managed metadata for the new resource by including one or
+     * more Link headers in the POST request" (lws10-core 9.2). They used to be dropped, so a
+     * {@code describedby} sent on create was never searchable while the same link PATCHed into the
+     * linkset was, although lws10-index requires every relation source to be "treated identically"
+     * (Touchstone type-search-relation-from-link-header).
+     *
+     * <p>Written through {@link LinksetStore#replace}, the store a linkset PATCH writes and the Type
+     * Search reads, so the two sources cannot differ. Server-managed relations ({@code type},
+     * {@code up}, {@code linkset}, {@code acl}, the paging links, the storage link) are skipped, not
+     * refused: "Server-managed metadata ... MUST NOT be overridden by client-provided links", and a
+     * create must not fail for a hint it ignores. {@code type} is {@link #declareTypes}'s. Only
+     * absolute targets are kept, as there. A PUT or PATCH does not come here: it changes content
+     * only, and metadata only with {@code Prefer: set-linkset} (lws10-core 9.3). A separate write,
+     * like declareTypes', so a hint the store cannot keep does not fail the create.
+     */
+    private void declareInitialLinks(HttpServletRequest req, LwsResource r) {
+        Map<String, List<String>> links = new LinkedHashMap<>();
+        for (LinkHeader.Parsed p : LinkHeader.parse(req)) {
+            String rel = p.rel();
+            if (LinksetJson.SERVER_MANAGED.contains(rel.toLowerCase(java.util.Locale.ROOT))
+                    || !isAbsoluteUri(p.target())) {
+                continue;
+            }
+            links.computeIfAbsent(rel, k -> new ArrayList<>()).add(p.target());
+        }
+        if (!links.isEmpty()) {
+            store.write(() -> LinksetStore.replace(store, r.uri(), links));
+        }
+    }
+
+    private static boolean isAbsoluteUri(String s) {
+        try {
+            java.net.URI u = new java.net.URI(s);
+            return u.isAbsolute() && u.getRawSchemeSpecificPart() != null;
+        } catch (java.net.URISyntaxException e) {
+            return false;
+        }
     }
 
     private LwsResource commitCreation(Req rq, LwsResource parent, String slug, String webId,
@@ -1958,7 +2003,7 @@ public class LwsServlet extends HttpServlet {
 
         if (cur != null) {
             demandOn(now, cur, AccessMode.WRITE);
-            Preconditions.evaluate(req, cur.etag());
+            Preconditions.evaluate(req, cur.etag(), cur.modified());
             LwsResource r = new LwsResource(uri, ResourceType.DATA_RESOURCE, cur.extraTypes(), mt,
                     w.size(), when, ResourceRegistry.dataEtag(w.sha256(), mt, w.size()), key, ext,
                     cur.parent(), cur.seq(), cur.createdBy(), cur.ownedBy(), w.sha256());
@@ -2181,7 +2226,7 @@ public class LwsServlet extends HttpServlet {
 
                 // Inside the write transaction, so this is a genuine compare-and-swap
                 // rather than a check something else can invalidate before we act.
-                Preconditions.evaluate(req, cur.etag());
+                Preconditions.evaluate(req, cur.etag(), cur.modified());
 
                 LwsResource r = new LwsResource(cur.uri(), ResourceType.DATA_RESOURCE,
                         cur.extraTypes(), mt, w.size(), Instant.now(),
@@ -2314,7 +2359,7 @@ public class LwsServlet extends HttpServlet {
                 demandOn(now, cur, AccessMode.WRITE);
 
                 // The client's compare-and-swap, evaluated under the single writer.
-                Preconditions.evaluate(req, cur.etag());
+                Preconditions.evaluate(req, cur.etag(), cur.modified());
 
                 // And the server's. A merge patch is computed against one specific document, so
                 // the document it was computed against must still be the one being replaced —
@@ -2545,7 +2590,7 @@ public class LwsServlet extends HttpServlet {
             // SHOULD support conditional requests" — an obligation to honour a validator that
             // arrives, not to require one. A client that sends a stale tag is still refused 412,
             // inside this write transaction, under TDB2's single writer.
-            Preconditions.evaluate(req, r.isContainer() ? agentEtag(rq, reg, r) : r.etag());
+            Preconditions.evaluate(req, r.isContainer() ? agentEtag(rq, reg, r) : r.etag(), r.modified());
 
             // Authorize EVERY descendant before removing ANY of them.
             //

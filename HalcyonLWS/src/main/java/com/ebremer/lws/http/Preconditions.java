@@ -7,8 +7,8 @@ import java.time.format.DateTimeParseException;
 import java.util.Locale;
 
 /**
- * Conditional requests: {@code If-Match}, {@code If-None-Match},
- * {@code If-Modified-Since}.
+ * Conditional requests: {@code If-Match}, {@code If-Unmodified-Since}, {@code If-None-Match},
+ * {@code If-Modified-Since}, evaluated in RFC 9110 &sect;13.2.2's order.
  *
  * <p><strong>{@link #evaluate} and {@link #requirePrecondition} must be called inside
  * the write transaction.</strong> Checking the entity tag in a read transaction and then
@@ -52,6 +52,21 @@ public final class Preconditions {
      *     when there is no current representation (a PUT that would create)
      */
     public static void evaluate(HttpServletRequest req, String currentEtag) {
+        evaluate(req, currentEtag, null);
+    }
+
+    /**
+     * {@link #evaluate(HttpServletRequest, String)} with step 2 as well: when there is no
+     * {@code If-Match}, an {@code If-Unmodified-Since} date earlier than the resource's last
+     * modification is a 412 (RFC 9110 &sect;13.1.4). Evaluated here, inside the write transaction,
+     * so the date check is part of the compare-and-swap like the tag check. "Servers SHOULD support
+     * conditional requests ... including ... date-based validators" (lws10-core); the date used to be
+     * ignored (Touchstone conditional-get-if-unmodified-since-412).
+     *
+     * @param modified the resource's last modification as read inside the write transaction, or
+     *     {@code null} when there is none (a PUT that would create), which leaves the date unused
+     */
+    public static void evaluate(HttpServletRequest req, String currentEtag, Instant modified) {
         String ifMatch = req.getHeader("If-Match");
         if (present(ifMatch)) {
             boolean holds = "*".equals(ifMatch.trim())
@@ -63,6 +78,10 @@ public final class Preconditions {
                         : "the resource has changed since it was read", currentEtag);
             }
             return;
+        }
+        if (modifiedSince(req, modified)) {
+            throw failed("the resource has been modified since the If-Unmodified-Since date",
+                    currentEtag);
         }
         String ifNoneMatch = req.getHeader("If-None-Match");
         if (present(ifNoneMatch)) {
@@ -101,6 +120,45 @@ public final class Preconditions {
 
     private static boolean present(String header) {
         return header != null && !header.isBlank();
+    }
+
+    /**
+     * RFC 9110 &sect;13.2.2 steps 1 and 2 for a GET or HEAD: a false {@code If-Match}, or with none a
+     * false {@code If-Unmodified-Since}, refuses the read with 412. Call before
+     * {@link #isNotModified}, which is steps 3 and 4. A read changes nothing, so unlike
+     * {@link #evaluate} this needs no write transaction.
+     */
+    public static void evaluateRead(HttpServletRequest req, String etag, Instant modified) {
+        String ifMatch = req.getHeader("If-Match");
+        if (present(ifMatch)) {
+            boolean holds = "*".equals(ifMatch.trim()) ? etag != null : matches(ifMatch, etag, true);
+            if (!holds) {
+                throw failed("the resource is not in the state If-Match names", etag);
+            }
+            return;
+        }
+        if (modifiedSince(req, modified)) {
+            throw failed("the resource has been modified since the If-Unmodified-Since date", etag);
+        }
+    }
+
+    /**
+     * True when an {@code If-Unmodified-Since} date is earlier than {@code modified}, compared at the
+     * one-second resolution of an HTTP date. RFC 9110 &sect;13.1.4: ignored when the date does not
+     * parse or the resource has no modification time (the caller has already ignored it alongside
+     * an {@code If-Match}).
+     */
+    private static boolean modifiedSince(HttpServletRequest req, Instant modified) {
+        String ius = req.getHeader("If-Unmodified-Since");
+        if (!present(ius) || modified == null) {
+            return false;
+        }
+        try {
+            Instant since = Instant.from(HTTP_DATE.parse(ius.trim()));
+            return modified.truncatedTo(java.time.temporal.ChronoUnit.SECONDS).isAfter(since);
+        } catch (DateTimeParseException e) {
+            return false;
+        }
     }
 
     /**

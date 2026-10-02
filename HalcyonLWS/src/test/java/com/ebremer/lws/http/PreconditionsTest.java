@@ -100,6 +100,39 @@ class PreconditionsTest {
                 request(Map.of("If-Match", TAG)), TAG));
     }
 
+    private static final java.time.Instant MODIFIED = java.time.Instant.parse("2026-10-02T12:00:00.500Z");
+    private static final String AT_MODIFIED = "Fri, 02 Oct 2026 12:00:00 GMT";
+    private static final String EPOCH = "Thu, 01 Jan 1970 00:00:00 GMT";
+
+    @Test
+    void ifUnmodifiedSinceRefusesAWriteToALaterVersion() {
+        // RFC 9110 13.1.4; compared at the one-second resolution of an HTTP date.
+        assertDoesNotThrow(() -> Preconditions.evaluate(
+                request(Map.of("If-Unmodified-Since", AT_MODIFIED)), TAG, MODIFIED));
+        assertEquals(412, assertThrows(Problem.class, () -> Preconditions.evaluate(
+                request(Map.of("If-Unmodified-Since", EPOCH)), TAG, MODIFIED)).status());
+        // Ignored alongside If-Match (step 1 decides), when unparseable, and with no modification time.
+        assertDoesNotThrow(() -> Preconditions.evaluate(
+                request(Map.of("If-Unmodified-Since", EPOCH, "If-Match", TAG)), TAG, MODIFIED));
+        assertDoesNotThrow(() -> Preconditions.evaluate(
+                request(Map.of("If-Unmodified-Since", "yesterday")), TAG, MODIFIED));
+        assertDoesNotThrow(() -> Preconditions.evaluate(
+                request(Map.of("If-Unmodified-Since", EPOCH)), null, null));
+    }
+
+    @Test
+    void aReadEvaluatesIfMatchAndIfUnmodifiedSinceFirst() {
+        assertDoesNotThrow(() -> Preconditions.evaluateRead(request(Map.of()), TAG, MODIFIED));
+        assertDoesNotThrow(() -> Preconditions.evaluateRead(
+                request(Map.of("If-Unmodified-Since", AT_MODIFIED)), TAG, MODIFIED));
+        assertEquals(412, assertThrows(Problem.class, () -> Preconditions.evaluateRead(
+                request(Map.of("If-Unmodified-Since", EPOCH)), TAG, MODIFIED)).status());
+        assertEquals(412, assertThrows(Problem.class, () -> Preconditions.evaluateRead(
+                request(Map.of("If-Match", "\"v0\"")), TAG, MODIFIED)).status());
+        assertDoesNotThrow(() -> Preconditions.evaluateRead(
+                request(Map.of("If-Match", TAG, "If-Unmodified-Since", EPOCH)), TAG, MODIFIED));
+    }
+
     @Test
     void aReadRevalidatesWeakly() {
         assertTrue(Preconditions.isNotModified(request(Map.of("If-None-Match", "W/" + TAG)), TAG,
