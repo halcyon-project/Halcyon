@@ -214,6 +214,17 @@ public final class LWSX {
      */
     public static final Property grantedPolicy = prop("grantedPolicy");
 
+    /**
+     * An access-grant constraint the ACP engine checks on every request (format, type, purpose,
+     * or a client constraint beyond the one {@code acp:client} matcher). On a grant's ACR node; the
+     * policy applies only while every one of them holds.
+     */
+    public static final Property constraint = prop("constraint");
+    /** A constraint's leftOperand: {@code client}, {@code format}, {@code type} or {@code purpose}. */
+    public static final Property leftOperand = prop("leftOperand");
+    /** One value a constraint accepts; several are its isAnyOf. */
+    public static final Property allowedValue = prop("allowedValue");
+
     /** Marks a storage root, so the bootstrap ACP policy is seeded exactly once. */
     public static final Resource StorageRoot = cls("StorageRoot");
 

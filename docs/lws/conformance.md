@@ -121,11 +121,13 @@ Each of these is a choice, with the reason it was made. None is an oversight.
    subsequent pages". A page link this server did not seal is answered `404`, and the client
    re-sends its `QUERY`.
 
-6. **An access grant carrying a constraint this storage cannot enforce is refused (422), not
-   installed.** Of lws10-core's five `leftOperand` values, `client` maps onto an `acp:client`
-   matcher and `dateTime` onto the ACP validity window; `purpose`, `format` and `type` have no
-   enforcement here. A grant promises "all constraints MUST be satisfied", so a policy that ignored
-   one would grant more than the grant intends.
+6. **A `purpose` constraint is accepted and never satisfied.** All five of lws10-core's
+   `leftOperand` values are supported, as the access profile requires: a single `client eq` is an
+   `acp:client` matcher, `dateTime` the ACP validity window, and `format`, `type` and further
+   `client` constraints are checked per request against the resource as it is then. The draft does
+   not say how a request states its purpose, so no request can show it meets one; a grant
+   constrained by `purpose` is created but grants nothing. An operand or operator outside the
+   profile is refused (422).
 
 7. **An access grant must name a concrete `target.value`, and its `target.type` must match what
    those resources are.** The spec makes `target` optional; a grant with no target would be a

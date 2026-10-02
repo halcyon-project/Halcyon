@@ -3,6 +3,8 @@ package com.ebremer.lws.acp;
 import com.ebremer.lws.auth.AgentContext;
 import com.ebremer.lws.store.LwsStore;
 import com.ebremer.lws.vocab.ACP;
+import com.ebremer.lws.vocab.LWS;
+import com.ebremer.lws.vocab.Terms;
 import com.ebremer.lws.vocab.LWSX;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -16,6 +18,7 @@ import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.rdf.model.Statement;
+import org.apache.jena.vocabulary.RDF;
 
 /**
  * Decides what an agent may do to a resource.
@@ -95,7 +98,7 @@ public final class AcpEngine {
         Model sys = store.system();
         Resource target = ResourceFactory.createResource(resourceUri);
 
-        List<Resource> policies = effectivePolicies(acp, sys, target);
+        List<Resource> policies = effectivePolicies(acp, sys, target, ctx);
         if (policies.isEmpty()) {
             return Set.of();
         }
@@ -117,11 +120,11 @@ public final class AcpEngine {
     }
 
     /** Own {@code acp:accessControl}, plus every ancestor's {@code acp:memberAccessControl}. */
-    private List<Resource> effectivePolicies(Model acp, Model sys, Resource target) {
+    private List<Resource> effectivePolicies(Model acp, Model sys, Resource target, AgentContext ctx) {
         List<Resource> out = new ArrayList<>();
 
         for (Resource acr : acrsFor(acp, target)) {
-            addApplied(acp, acr, ACP.accessControl, out);
+            addApplied(acp, acr, ACP.accessControl, out, target, ctx);
         }
         Resource cur = target;
         for (int depth = 0; depth < MAX_DEPTH; depth++) {
@@ -131,7 +134,7 @@ public final class AcpEngine {
             }
             cur = st.getObject().asResource();
             for (Resource acr : acrsFor(acp, cur)) {
-                addApplied(acp, acr, ACP.memberAccessControl, out);
+                addApplied(acp, acr, ACP.memberAccessControl, out, target, ctx);
             }
         }
         return out;
@@ -145,10 +148,13 @@ public final class AcpEngine {
         return out;
     }
 
-    private static void addApplied(Model acp, Resource acr, org.apache.jena.rdf.model.Property link,
-            List<Resource> out) {
+    private void addApplied(Model acp, Resource acr, org.apache.jena.rdf.model.Property link,
+            List<Resource> out, Resource target, AgentContext ctx) {
         if (!activeNow(acp, acr)) {
             return;   // a time-boxed grant outside its window contributes no policies (fail-closed)
+        }
+        if (!constraintsHold(acp, acr, target, ctx)) {
+            return;   // an access-grant constraint is not met for this resource or request
         }
         for (var ac : acp.listObjectsOfProperty(acr, link).toList()) {
             if (!ac.isResource()) {
@@ -189,6 +195,71 @@ public final class AcpEngine {
             }
         }
         return true;
+    }
+
+    /**
+     * Whether every access-grant constraint recorded on an ACR node holds for {@code target} and
+     * this request (lws10-core 11.3.5: "all of them MUST be satisfied"). Evaluated against the
+     * resource as it is now, so a grant constrained to a media type stops applying the moment a PUT
+     * changes it. An ACR with no constraint nodes (every ordinary ACR) holds trivially.
+     *
+     * <ul>
+     *   <li>{@code format}: the resource's media type, by essence, is one of the values; a
+     *       container's is {@code application/lws+json};</li>
+     *   <li>{@code type}: the LWS type its {@code rel="type"} link names is one of the values;</li>
+     *   <li>{@code client}: the requesting client is one of the values;</li>
+     *   <li>{@code purpose}, or anything else: never. The draft does not say how a request states
+     *       its purpose, so none can show it meets one, and granting anyway would over-grant.</li>
+     * </ul>
+     */
+    private boolean constraintsHold(Model acp, Resource acr, Resource target, AgentContext ctx) {
+        for (RDFNode cn : acp.listObjectsOfProperty(acr, LWSX.constraint).toList()) {
+            if (!cn.isResource()) {
+                return false;
+            }
+            Statement left = acp.getProperty(cn.asResource(), LWSX.leftOperand);
+            Set<String> values = new HashSet<>();
+            acp.listObjectsOfProperty(cn.asResource(), LWSX.allowedValue)
+                    .forEach(v -> values.add(v.isLiteral() ? v.asLiteral().getString() : v.toString()));
+            String actual = left == null ? null : switch (left.getString()) {
+                case "format" -> resourceFormat(target);
+                case "type" -> resourceType(target);
+                case "client" -> ctx.clientId();
+                default -> null;
+            };
+            if (actual == null || !values.contains(actual)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** A resource's media type by essence; a container is served as application/lws+json. */
+    private String resourceFormat(Resource target) {
+        Model g = store.raw().getNamedModel(target.getURI());
+        if (g.contains(target, RDF.type, LWS.Container)) {
+            return "application/lws+json";
+        }
+        Statement f = g.getProperty(target, Terms.format);
+        if (f == null) {
+            f = g.getProperty(target, Terms.legacyMediaType);
+        }
+        return f == null ? null : mediaTypeEssence(f.getString());
+    }
+
+    /** The LWS type a resource's {@code rel="type"} link names. */
+    private String resourceType(Resource target) {
+        Model g = store.raw().getNamedModel(target.getURI());
+        if (g.contains(target, RDF.type, LWS.Container)) {
+            return LWS.Container.getURI();
+        }
+        return g.contains(target, RDF.type, LWS.DataResource) ? LWS.DataResource.getURI() : null;
+    }
+
+    /** A media type's essence: type/subtype in lower case, parameters dropped (RFC 9110 8.3.1). */
+    public static String mediaTypeEssence(String mediaType) {
+        int semi = mediaType.indexOf(';');
+        return (semi < 0 ? mediaType : mediaType.substring(0, semi)).trim().toLowerCase(java.util.Locale.ROOT);
     }
 
     private static java.time.Instant parseInstant(String lexical) {

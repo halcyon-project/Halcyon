@@ -306,13 +306,16 @@ The ODRL action maps to an ACP mode: `read → Read`, `create → Append`, `modi
 
 ### Two safety rules
 
-1. **Enforce what can be enforced; fail closed on the rest.** `client`-equality and **`dateTime`** are
-   enforced: a `dateTime` grant canonicalizes to `schema:validFrom`/`schema:expires` on the grant's ACR
-   node, and `AcpEngine.activeNow` skips that ACR outside the window — so a time-boxed grant is honored
-   (past-expiry denies, future allows) instantly at evaluation, with no revocation sweep. A grant
-   carrying a constraint ACP still cannot enforce (`purpose`, `format`, `type`) is **refused `422`** —
-   never half-honored, so it cannot silently become an unlimited grant. `purpose` is fundamentally
-   unenforceable (an HTTP request carries no purpose signal).
+1. **Enforce every constraint; fail closed where none can be met.** A **`dateTime`** grant
+   canonicalizes to `schema:validFrom`/`schema:expires` on the grant's ACR node (the tightest bound
+   wins when there are several), and `AcpEngine.activeNow` skips that ACR outside the window. A single
+   `client eq` is an `acp:client` matcher. **`format`**, **`type`** and any further `client`
+   constraint are `lwsx:constraint` nodes on the same ACR node, and `AcpEngine.constraintsHold` skips
+   the ACR unless every one holds for the resource as it is now (its media type by essence, the LWS
+   type its `rel="type"` link names, the requesting client). So a PUT that changes a media type takes
+   a resource out of a `format`-constrained grant at once. **`purpose`** is accepted and never
+   satisfied: an HTTP request carries no purpose signal, so granting on one would over-grant. An
+   operand or operator outside the access profile is **refused `422`**, never half-honored.
 2. **The grant's policy survives an ACR replace.** A grant installs its policy as a **separate** ACR
    node (`urn:lws:grantacr:{id}-{n}` with `acp:resource <target>`, which the engine finds by
    `acp:resource`), *not* by editing the target's `{target}.acr`. So a later `PUT {target}.acr` — whose
@@ -325,8 +328,7 @@ On grant creation, each non-public assignee is sent, at the grant's `inbox` (lws
 the grant itself; an `inbox` on the policy, read before, is still honoured when the grant has none), a **signed
 AS2 `Announce`** telling it access was granted — the lws-access-requests SHOULD. Delivery is off-thread
 and best-effort (the same RFC 9421 signature a webhook carries), so a missing or unreachable inbox never
-fails the already-committed grant. A `purpose`/`format`/`type` constraint is still refused (`422`)
-rather than partially applied — the safe stance for a constraint that cannot be enforced.
+fails the already-committed grant.
 
 ## Implementation notes for maintainers
 

@@ -307,7 +307,7 @@ Two conveniences on top of the bearer contract, both deliberately narrow:
 | `409 Conflict` | non-empty container DELETE without `Depth: infinity`; patch target too large / not JSON; tree too deep |
 | `412 Precondition Failed` | `If-Match`/`If-None-Match` mismatch (compare-and-swap failed) |
 | `415 Unsupported Media Type` | wrong `Content-Type` for PATCH or QUERY (+ `Accept-Patch`/`Accept-Query`) |
-| `422 Unprocessable` | Type Search filter too complex; access grant carries a constraint ACP cannot enforce |
+| `422 Unprocessable` | Type Search filter too complex; access grant carries a leftOperand or operator outside the access profile |
 | `428 Precondition Required` | an ACR write with no precondition — the one write that requires one (every write lws10-core defines may be unconditional) |
 | `501 Not Implemented` | an HTTP method the server does not dispatch |
 
