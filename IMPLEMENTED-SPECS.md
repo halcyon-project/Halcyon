@@ -57,6 +57,7 @@ with every deliberate divergence from it, and how the
 | [LWS 1.0 Notifications (webhook)](https://w3c.github.io/lws-protocol/lws10-notifications-webhook/) | ● | HalcyonLWS | Webhook subscriptions with signed delivery (RFC 9421), `keyid` a resolvable `{storage}#{thumbprint}` URL; the notification data model itself is lws10-core. `notify/Notifications`, `notify/HttpMessageSignatures`. |
 | [LWS 1.0 Search and Type Index](https://w3c.github.io/lws-protocol/lws10-index/) | ● | HalcyonLWS | Type Index (`GET`) + Type Search over the HTTP `QUERY` method only, authorization-filtered by construction; page links carry a sealed filter. |
 | [LWS 1.0 Authentication Suite: OpenID Connect](https://w3c.github.io/lws-protocol/lws10-authn-openid/) | ● | HalcyonLWS | An ID Token as an authentication credential: `sub` dereferenced to a controlled identifier document that names `iss` as its `lws:OpenIdProvider`, `azp` as the client identifier. Exchangeable at the token endpoint, and (optionally) presentable directly. `auth/oidc/*`. |
+| [LWS 1.0 Authentication Suite: Self-signed Identity using Controlled Identifiers](https://w3c.github.io/lws-protocol/lws10-authn-ssi-cid/) | ● | HalcyonLWS | A JWT the subject signs itself (`sub` = `iss` = `client_id`), subject token type `...:jwt`: the subject dereferenced to its controlled identifier document (HTTPS fetched and SSRF-checked, `did:web` from its HTTPS URL, `did:key` derived locally), the `kid` selecting an `authentication` method (`JsonWebKey` or `Multikey`, not revoked or expired), `aud` naming the authorization server (or the storage, when presented directly). `auth/cid/*`. |
 | LWS 1.0 Core — Access Requests & Grants | ◐ | HalcyonLWS | ODRL access requests and grants that install/remove real ACP policies, with the target matcher checked and every access-profile constraint enforced (`purpose` fails closed). `sharing/AccessSharing`. |
 | LWS `application/lws+json` and `application/lws+cid` representations | ● | HalcyonLWS | Native (no runtime `@context` fetch — the normative context URI is not yet published, which lws10-core also advises against relying on). `json/LwsJson`, `json/LwsRdf`, `vocab/Terms`. |
 | LWS ContentStore SPI (S3 backend) | ◐ | HalcyonLWS-S3 | An out-of-tree `ContentStoreProvider` implementation; in-house SPI, not a public standard. `S3ContentStoreProvider`. |
@@ -259,10 +260,9 @@ branch `next`):
   validated. `CredentialVerifier.tryAuthenticate` takes the request for exactly this, and the short token
   lifetime and single-storage audience are what stand in for sender constraining meanwhile. (There is no
   DPoP-passthrough proxy in this checkout.)
-- **LWS self-signed CID and SAML authentication suites** (`lws10-authn-ssi-cid`, `lws10-authn-saml`) — not
-  implemented. lws10-core requires the authorization framework, not every suite; each would slot in as
-  another `CredentialVerifier` and another subject-token type. See
-  [`docs/lws/conformance.md`](docs/lws/conformance.md).
+- **LWS SAML authentication suite** (`lws10-authn-saml`) — not implemented. lws10-core requires the
+  authorization framework, not every suite; it would slot in as another `CredentialVerifier` and another
+  subject-token type. See [`docs/lws/conformance.md`](docs/lws/conformance.md).
 - **ACME / Let's Encrypt (RFC 8555)** — certificates are static JKS keystores.
 - **HTTP/3 & QUIC (RFC 9114 / 9000)** — the `jetty-http3-server` dependency is present but the connector in
   `JettyConfiguration` is commented out; HTTP/3 is not served.

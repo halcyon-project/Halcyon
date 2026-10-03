@@ -96,6 +96,9 @@ public final class LwsOidcVerifier implements CredentialVerifier {
             return null; // not an LWS-OIDC credential; let another verifier try
         }
         String iss = token.iss();
+        if (sub.equals(iss)) {
+            return null; // self-issued: the CID suite's (SelfIssuedCidVerifier), not an OpenID credential
+        }
         if (!isUrl(iss)) {
             throw new InvalidBearerTokenException("invalid_token", "LWS credential has no dereferenceable issuer");
         }

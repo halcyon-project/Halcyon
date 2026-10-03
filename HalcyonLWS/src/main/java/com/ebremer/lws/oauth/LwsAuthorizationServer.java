@@ -66,7 +66,7 @@ public final class LwsAuthorizationServer {
             return null;
         }
         AccessTokenKeys keys = new AccessTokenKeys(store);
-        TokenExchange exchange = new TokenExchange(settings, keys, subjectTokenSuites(),
+        TokenExchange exchange = new TokenExchange(settings, keys, subjectTokenSuites(settings),
                 Clock.systemUTC());
         instance = new LwsAuthorizationServer(settings, keys, exchange);
         LOG.info("LWS authorization server at {} (token {}, jwks {}, kid {}, {}s tokens) for {}",
@@ -97,16 +97,21 @@ public final class LwsAuthorizationServer {
     /**
      * The authentication suites a subject token may be validated by.
      *
-     * <p>Only the OpenID suite. The Keycloak bearer verifier is deliberately not here: it validates
+     * <p>The CID suite (self-signed credentials for an HTTPS, did:key or did:web subject), whose
+     * credentials must name this authorization server in {@code aud}, and the OpenID suite when
+     * {@code lws-oidc.json} enables it. The Keycloak bearer verifier is deliberately not here: it validates
      * an <em>access</em> token minted by Keycloak for this resource server, which is not an
      * authentication credential about an agent — exchanging one would be laundering a token issued
      * for one audience into a token for another. A Keycloak-authenticated client exchanges its ID
      * Token through the OpenID suite, or presents its Keycloak token directly while
      * {@code :LWSAcceptAuthenticationCredentials} is on.
      */
-    private static List<CredentialVerifier> subjectTokenSuites() {
+    private static List<CredentialVerifier> subjectTokenSuites(AuthorizationServerSettings settings) {
         List<CredentialVerifier> suites = new ArrayList<>();
         LwsOidcSettings lws = LwsOidcSettings.load();
+        suites.add(new com.ebremer.lws.auth.cid.SelfIssuedCidVerifier(
+                () -> java.util.Set.of(settings.issuer()), lws::allowedInternalHosts,
+                () -> com.ebremer.lws.config.LwsSettings.get().webIdHostPolicy()));
         if (lws.enabled()) {
             suites.add(new LwsOidcVerifier(lws));
         }

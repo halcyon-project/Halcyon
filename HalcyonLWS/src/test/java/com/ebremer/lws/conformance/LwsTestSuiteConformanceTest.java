@@ -735,8 +735,11 @@ class LwsTestSuiteConformanceTest {
                 .contains("urn:ietf:params:oauth:grant-type:token-exchange"));
         // RFC 8414 §2: REQUIRED.
         assertTrue(m.containsKey("response_types_supported"));
-        assertEquals(List.of("https"), strings(m.getJsonArray("subject_identifier_types_supported")));
-        assertEquals(JsonValue.ValueType.ARRAY, m.get("subject_token_types_supported").getValueType());
+        // The CID suite is always configured: its token type, and the DID methods it resolves.
+        assertEquals(List.of("https", "did:key", "did:web"),
+                strings(m.getJsonArray("subject_identifier_types_supported")));
+        assertTrue(strings(m.getJsonArray("subject_token_types_supported"))
+                .contains("urn:ietf:params:oauth:token-type:jwt"));
     }
 
     /**

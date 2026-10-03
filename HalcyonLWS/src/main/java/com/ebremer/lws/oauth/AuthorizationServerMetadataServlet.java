@@ -24,11 +24,10 @@ import java.util.List;
  * <ul>
  *   <li>{@code subject_token_types_supported} — the {@code subject_token_type} values the token
  *       endpoint accepts, so a client with an ID Token knows it can use it here;</li>
- *   <li>{@code subject_identifier_types_supported} — {@code https}, because the subject identifiers
- *       the OpenID suite can verify are WebIDs, dereferenced over HTTPS to a controlled identifier
- *       document. Advertising {@code did:web} or {@code did:key} would claim the SSI-CID suite,
- *       which this module does not implement; the default if the member were omitted is exactly
- *       {@code ["https"]}, and it is stated rather than left implicit.</li>
+ *   <li>{@code subject_identifier_types_supported} — {@code https}, for the WebIDs both suites
+ *       dereference to a controlled identifier document, and with the CID suite
+ *       ({@code SelfIssuedCidVerifier}) also {@code did:key} and {@code did:web}, the DID methods
+ *       its verifier resolves. Stated rather than left to the {@code ["https"]} default.</li>
  * </ul>
  *
  * <p>Anonymous and cacheable: it names no agent, and a client needs it <em>before</em> it can
@@ -58,10 +57,23 @@ public final class AuthorizationServerMetadataServlet extends HttpServlet {
                         .add("iss").add("sub").add("client_id").add("aud")
                         .add("exp").add("iat").add("jti"))
                 .add("subject_token_types_supported", tokenTypes)
-                .add("subject_identifier_types_supported", Json.createArrayBuilder().add("https"))
+                .add("subject_identifier_types_supported", identifierTypes(subjectTokenTypes))
                 .add("id_token_signing_alg_values_supported",
                         Json.createArrayBuilder().add("ES256").add("RS256"))
                 .build().toString().getBytes(StandardCharsets.UTF_8);
+    }
+
+    /**
+     * {@code https} for the OpenID suite's WebIDs; with the CID suite (advertised by its token type,
+     * {@code ...:jwt}) also the DID methods its verifier resolves, {@code did:key} and
+     * {@code did:web}.
+     */
+    private static JsonArrayBuilder identifierTypes(List<String> subjectTokenTypes) {
+        JsonArrayBuilder types = Json.createArrayBuilder().add("https");
+        if (subjectTokenTypes.contains(TokenExchange.TYPE_JWT)) {
+            types.add("did:key").add("did:web");
+        }
+        return types;
     }
 
     @Override

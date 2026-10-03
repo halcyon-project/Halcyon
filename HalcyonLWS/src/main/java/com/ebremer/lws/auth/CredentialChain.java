@@ -104,6 +104,11 @@ public final class CredentialChain {
             if (lws.enabled()) {
                 verifiers.add(new LwsOidcVerifier(lws));
             }
+            // A self-signed CID credential presented directly must name this storage in aud: it is
+            // self-minted, so without that a credential made for another storage would work here.
+            verifiers.add(new com.ebremer.lws.auth.cid.SelfIssuedCidVerifier(
+                    () -> java.util.Set.of(resource), lws::allowedInternalHosts,
+                    () -> com.ebremer.lws.config.LwsSettings.get().webIdHostPolicy()));
         }
 
         // as_uri is REQUIRED in the challenge, and without an embedded authorization server there

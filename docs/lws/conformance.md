@@ -20,7 +20,7 @@ applied here, and the core test suite the README now links (#213).
 | [lws10-notifications-webhook](https://w3c.github.io/lws-protocol/lws10-notifications-webhook/) | Webhook subscriptions, RFC 9421 signed delivery | ● |
 | [lws10-authn-openid](https://w3c.github.io/lws-protocol/lws10-authn-openid/) | ID Token as an authentication credential, WebID → CID → OpenID Provider | ● |
 | [lws10-vocab](https://w3c.github.io/lws-protocol/lws10-vocab/) | The LWS vocabulary and the terms the JSON-LD context maps | ● |
-| [lws10-authn-ssi-cid](https://w3c.github.io/lws-protocol/lws10-authn-ssi-cid/) | Self-signed controlled-identifier credentials (`did:key`, `did:web`) | ○ not implemented |
+| [lws10-authn-ssi-cid](https://w3c.github.io/lws-protocol/lws10-authn-ssi-cid/) | Self-signed controlled-identifier credentials (HTTPS, `did:key`, `did:web` subjects) | ● `auth/cid/SelfIssuedCidVerifier` |
 | [lws10-authn-saml](https://w3c.github.io/lws-protocol/lws10-authn-saml/) | SAML 2.0 assertions as credentials | ○ not implemented |
 | [lws10-authn-ssi-did-key](https://w3c.github.io/lws-protocol/lws10-authn-ssi-did-key/) | — | ○ **discontinued upstream** (w3c/lws-protocol#229); folded into ssi-cid |
 
@@ -43,8 +43,8 @@ Everything in this table was a real difference on the wire, not a rewording.
 | [#224](https://github.com/w3c/lws-protocol/pull/224) | `Slug` mentions removed from the create operation | `Slug` documented as this storage's choice of identity-hint header |
 | [#227](https://github.com/w3c/lws-protocol/pull/227) | `subject_identifier_types_supported` in AS metadata | Published as `["https"]` — the identifiers the OpenID suite can verify |
 | [#228](https://github.com/w3c/lws-protocol/pull/228) | `ETag` REQUIRED on GET/HEAD; **both `428` mandates removed** — conditional writes are a client SHOULD, and a precondition that is sent and fails is `412` | Strong ETags were already everywhere. The `428` removal was missed when this baseline was first recorded, and was still enforced until the re-check against the 28 September drafts; now every write lws10-core defines may be unconditional, and preconditions are evaluated per RFC 9110 §13.2.2, `If-None-Match` included (`http/Preconditions.evaluate`) |
-| [#229](https://github.com/w3c/lws-protocol/pull/229) | The `did:key` suite discontinued | Nothing to remove: it was never implemented |
-| [#233](https://github.com/w3c/lws-protocol/pull/233) | SSI-CID supports DID URIs | Not applicable (suite not implemented) |
+| [#229](https://github.com/w3c/lws-protocol/pull/229) | The `did:key` suite discontinued | Nothing to remove: it was never implemented; did:key subjects are verified under ssi-cid |
+| [#233](https://github.com/w3c/lws-protocol/pull/233) | SSI-CID supports DID URIs | `did:key` and `did:web` subjects resolved by `auth/cid/Dids` |
 | [#234](https://github.com/w3c/lws-protocol/pull/234) | `lws:StorageResource` as the common supertype and a target matcher | `vocab/LWS`; enforced in `sharing/AccessSharing` |
 | [#244](https://github.com/w3c/lws-protocol/pull/244) | CID context in the webhook storage-description snippet | The description carries both contexts |
 | [#249](https://github.com/w3c/lws-protocol/pull/249) | `lws10-searchindex` renamed `lws10-index` | Citations corrected |
@@ -165,10 +165,6 @@ Each of these is a choice, with the reason it was made. None is an oversight.
 
 ## Open items
 
-- **lws10-authn-ssi-cid** — self-signed controlled-identifier credentials (`did:key`, `did:web`
-  subjects, CID §3.3 verification-method retrieval, Multikey, `revoked`/`expires`). Not implemented.
-  It would slot in as another `CredentialVerifier` and another subject-token suite; nothing in the
-  authorization framework would change.
 - **lws10-authn-saml** — SAML 2.0 assertions. Not implemented, and there is no SAML relying party
   anywhere in this repo (`pac4j-saml` is not a dependency).
 - **RFC 9449 DPoP** — not implemented. The authorization server issues bearer tokens only, and the

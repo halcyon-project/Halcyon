@@ -112,17 +112,23 @@ public final class TokenExchange {
     /**
      * The subject token types this server advertises in its metadata.
      *
-     * <p>Only {@code ...:id_token}: the OpenID suite is the one authentication suite this module
-     * implements, and lws10-authn-openid names that type. {@code ...:jwt} is the SSI-CID suite's
-     * token type, and advertising it claimed a suite this module does not have (Touchstone
-     * authn-cid-valid-credential ran against it and failed). It is still accepted; see
+     * <p>{@code ...:id_token}, the OpenID suite's type, and {@code ...:jwt}, the CID suite's, when
+     * that suite is configured. {@code ...:jwt} used to be advertised with no CID suite behind it,
+     * which claimed a suite this module did not have (Touchstone authn-cid-valid-credential ran
+     * against it and failed); it is accepted for an ID Token either way, see
      * {@link #acceptedSubjectTokenTypes()}.
      *
      * <p>Empty when no authentication suite is configured, in which case the token endpoint can
      * issue nothing and says so rather than advertising a capability it does not have.
      */
     public List<String> subjectTokenTypes() {
-        return suites.isEmpty() ? List.of() : List.of(TYPE_ID_TOKEN);
+        if (suites.isEmpty()) {
+            return List.of();
+        }
+        // ...:jwt is the CID suite's token type ("A self-issued JSON Web Token used as an
+        // authentication credential MUST use" it), so it is advertised exactly when that suite is.
+        boolean cid = suites.stream().anyMatch(s -> s instanceof com.ebremer.lws.auth.cid.SelfIssuedCidVerifier);
+        return cid ? List.of(TYPE_ID_TOKEN, TYPE_JWT) : List.of(TYPE_ID_TOKEN);
     }
 
     /**
