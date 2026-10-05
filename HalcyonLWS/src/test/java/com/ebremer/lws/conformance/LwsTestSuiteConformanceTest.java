@@ -572,12 +572,14 @@ class LwsTestSuiteConformanceTest {
                 .anyMatch(t -> (LWS + "Container").equals(t.asJsonObject().getString("href"))));
 
         // "Servers MUST advertise support for GET and PATCH ... via the Allow header" and
-        // merge patch "via the Accept-Patch header".
+        // JSON Patch "via the Accept-Patch header" (w3c/lws-protocol#255), on GET as on OPTIONS.
+        assertTrue(r.header("Accept-Patch").orElse("").contains("application/json-patch+json"),
+                "Accept-Patch on GET: " + r.header("Accept-Patch"));
         Res options = send("OPTIONS", "/alice/notes/.meta", null, Map.of(), null);
         String allow = options.header("Allow").orElse("");
         assertTrue(allow.contains("GET") && allow.contains("PATCH"), "Allow: " + allow);
         assertTrue(options.header("Accept-Patch").orElse("")
-                .contains("application/merge-patch+json"), "Accept-Patch");
+                .contains("application/json-patch+json"), "Accept-Patch");
     }
 
     /**
@@ -589,9 +591,8 @@ class LwsTestSuiteConformanceTest {
         givenContainer("/alice/notes/", true);
 
         Res r = send("PATCH", "/alice/notes/.meta", owner(),
-                Map.of("Content-Type", "application/merge-patch+json"),
-                "{\"license\":[{\"href\":\"https://creativecommons.org/licenses/by/4.0/\"}]}"
-                        .getBytes(StandardCharsets.UTF_8));
+                Map.of("Content-Type", JSON_PATCH),
+                LICENSE_PATCH.getBytes(StandardCharsets.UTF_8));
 
         assertTrue(r.status() == 200 || r.status() == 204, r.status() + " " + r.text());
     }
@@ -613,9 +614,10 @@ class LwsTestSuiteConformanceTest {
     }
 
     /**
-     * Not a suite entry: Touchstone's {@code linkset-patch-merge}. A merge patch is defined over
-     * the target's representation, so the RFC 9264 document a GET returns is a patch the linkset
-     * understands: here the whole document read back, plus a license.
+     * Not a suite entry: what Touchstone's {@code linkset-patch-merge} sent before the 5 October
+     * draft made JSON Patch the required format. JSON Merge Patch is still accepted, and a merge
+     * patch is defined over the target's representation, so the RFC 9264 document a GET returns
+     * is a patch the linkset understands: here the whole document read back, plus a license.
      */
     @Test
     void aLinksetPatchInTheDocumentFormItWasReadInSucceeds() throws Exception {
@@ -655,6 +657,128 @@ class LwsTestSuiteConformanceTest {
                         .getBytes(StandardCharsets.UTF_8));
 
         assertEquals(412, r.status(), r.text());
+
+        Res json = send("PATCH", "/alice/stale.txt.meta", owner(), Map.of(
+                "Content-Type", JSON_PATCH,
+                "If-Match", "\"touchstone-stale-etag\""),
+                LICENSE_PATCH.getBytes(StandardCharsets.UTF_8));
+
+        assertEquals(412, json.status(), json.text());
+    }
+
+    /** A JSON Patch that adds the license link Touchstone's linkset tests add. */
+    private static final String LICENSE_PATCH = "[{\"op\":\"add\",\"path\":\"/linkset/0/license\","
+            + "\"value\":[{\"href\":\"https://creativecommons.org/licenses/by/4.0/\"}]}]";
+    private static final String JSON_PATCH = "application/json-patch+json";
+
+    /**
+     * Not a suite entry: Touchstone's {@code linkset-patch-json-patch}. JSON Patch is the format a
+     * linkset MUST take (w3c/lws-protocol#255); its pointers address the document a GET returns,
+     * whose first link context object is the resource's own. Adding a license leaves every other
+     * link alone, and removing it again takes it away.
+     */
+    @Test
+    void aJsonPatchAddsAndRemovesALinksetLink() throws Exception {
+        givenDataResource("/alice/licensed.txt", "text", false);
+        Res read = send("GET", "/alice/licensed.txt.meta", owner(), Map.of("Accept", LINKSET_JSON), null);
+        JsonObject before = read.json().getJsonArray("linkset").getJsonObject(0);
+
+        Res r = send("PATCH", "/alice/licensed.txt.meta", owner(), Map.of(
+                "Content-Type", JSON_PATCH, "If-Match", read.header("ETag").orElseThrow()),
+                LICENSE_PATCH.getBytes(StandardCharsets.UTF_8));
+
+        assertEquals(204, r.status(), r.text());
+        JsonObject after = send("GET", "/alice/licensed.txt.meta", owner(), Map.of("Accept", LINKSET_JSON),
+                null).json().getJsonArray("linkset").getJsonObject(0);
+        assertEquals("https://creativecommons.org/licenses/by/4.0/",
+                after.getJsonArray("license").getJsonObject(0).getString("href"));
+        assertEquals(before.get("up"), after.get("up"), "server-managed links are untouched");
+        assertEquals(before.get("type"), after.get("type"), "server-managed links are untouched");
+
+        Res removed = send("PATCH", "/alice/licensed.txt.meta", owner(), Map.of("Content-Type", JSON_PATCH),
+                "[{\"op\":\"remove\",\"path\":\"/linkset/0/license\"}]".getBytes(StandardCharsets.UTF_8));
+
+        assertEquals(204, removed.status(), removed.text());
+        assertFalse(send("GET", "/alice/licensed.txt.meta", owner(), Map.of("Accept", LINKSET_JSON), null)
+                .json().getJsonArray("linkset").getJsonObject(0).containsKey("license"));
+    }
+
+    /**
+     * Not a suite entry: Touchstone's {@code linkset-up-not-redirected}. A JSON Patch may not
+     * change a server-managed relation: setting {@code up} is refused, and the resource's
+     * {@code rel="up"} still names its container.
+     */
+    @Test
+    void aJsonPatchCannotRedirectUp() throws Exception {
+        givenDataResource("/alice/stays.txt", "text", false);
+
+        Res r = send("PATCH", "/alice/stays.txt.meta", owner(), Map.of("Content-Type", JSON_PATCH),
+                ("[{\"op\":\"add\",\"path\":\"/linkset/0/up\","
+                        + "\"value\":[{\"href\":\"https://linkset.invalid/forged-parent/\"}]}]")
+                        .getBytes(StandardCharsets.UTF_8));
+
+        assertEquals(403, r.status(), r.text());
+        Res head = send("HEAD", "/alice/stays.txt", owner(), Map.of(), null);
+        assertEquals(List.of(STORAGE), head.links("up").stream().map(l -> l.target()).toList());
+    }
+
+    /**
+     * Not a suite entry: Touchstone's {@code linkset-patch-stays-linkset}. A patch whose result is
+     * not a linkset document is refused, and the linkset stays one.
+     */
+    @Test
+    void aJsonPatchThatWouldBreakTheLinksetIsUnprocessable() throws Exception {
+        givenDataResource("/alice/whole.txt", "text", false);
+
+        Res r = send("PATCH", "/alice/whole.txt.meta", owner(), Map.of("Content-Type", JSON_PATCH),
+                "[{\"op\":\"replace\",\"path\":\"/linkset\",\"value\":\"not a linkset\"}]"
+                        .getBytes(StandardCharsets.UTF_8));
+
+        assertEquals(422, r.status(), r.text());
+        assertTrue(send("GET", "/alice/whole.txt.meta", owner(), Map.of("Accept", LINKSET_JSON), null)
+                .json().get("linkset") instanceof jakarta.json.JsonArray);
+    }
+
+    /**
+     * A JSON Patch applies whole or not at all (RFC 6902 section 5): a failed {@code test} after an
+     * {@code add} is a 409, and the linkset and its entity tag are as they were.
+     */
+    @Test
+    void aJsonPatchWhoseTestFailsChangesNothing() throws Exception {
+        givenDataResource("/alice/atomic.txt", "text", false);
+        String etag = send("GET", "/alice/atomic.txt.meta", owner(), Map.of("Accept", LINKSET_JSON), null)
+                .header("ETag").orElseThrow();
+
+        Res r = send("PATCH", "/alice/atomic.txt.meta", owner(), Map.of("Content-Type", JSON_PATCH),
+                ("[{\"op\":\"add\",\"path\":\"/linkset/0/license\",\"value\":[{\"href\":\"https://example.org/l\"}]},"
+                        + "{\"op\":\"test\",\"path\":\"/linkset/0/anchor\",\"value\":\"https://example.org/other\"}]")
+                        .getBytes(StandardCharsets.UTF_8));
+
+        assertEquals(409, r.status(), r.text());
+        Res after = send("GET", "/alice/atomic.txt.meta", owner(), Map.of("Accept", LINKSET_JSON), null);
+        assertEquals(etag, after.header("ETag").orElseThrow());
+        assertFalse(after.json().getJsonArray("linkset").getJsonObject(0).containsKey("license"));
+    }
+
+    /** A JSON Patch document that is not one is a 400, and a format the linkset does not take a 415. */
+    @Test
+    void aMalformedOrUnknownLinksetPatchIsRefused() throws Exception {
+        givenDataResource("/alice/malformed.txt", "text", false);
+
+        Res noOp = send("PATCH", "/alice/malformed.txt.meta", owner(), Map.of("Content-Type", JSON_PATCH),
+                "[{\"path\":\"/linkset/0/license\"}]".getBytes(StandardCharsets.UTF_8));
+        assertEquals(400, noOp.status(), noOp.text());
+
+        Res noValue = send("PATCH", "/alice/malformed.txt.meta", owner(), Map.of("Content-Type", JSON_PATCH),
+                "[{\"op\":\"add\",\"path\":\"/linkset/0/license\"}]".getBytes(StandardCharsets.UTF_8));
+        assertEquals(400, noValue.status(), noValue.text());
+
+        Res sparql = send("PATCH", "/alice/malformed.txt.meta", owner(),
+                Map.of("Content-Type", "application/sparql-update"),
+                "INSERT DATA {}".getBytes(StandardCharsets.UTF_8));
+        assertEquals(415, sparql.status(), sparql.text());
+        assertTrue(sparql.header("Accept-Patch").orElse("").startsWith(JSON_PATCH),
+                "Accept-Patch: " + sparql.header("Accept-Patch"));
     }
 
     /** A document-form patch speaks for this resource only. */

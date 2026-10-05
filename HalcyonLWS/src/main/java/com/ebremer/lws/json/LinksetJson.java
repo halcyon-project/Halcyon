@@ -69,14 +69,14 @@ public final class LinksetJson {
      *       relation type as {@link #mergePatch} reads it; or</li>
      *   <li>the <strong>linkset document</strong>, {@code {"linkset": [{"anchor": "…",
      *       "license": [{"href": "…"}]}]}}: the RFC 9264 form a GET returns. A merge patch is
-     *       defined over the target's own representation (RFC 7386), so a client that edits what
+     *       defined over the target's own representation (RFC 7396), so a client that edits what
      *       it read must be understood.</li>
      * </ul>
      *
      * <p>In the document form the {@code linkset} array is read as what it is, a list of context
      * objects keyed by {@code anchor}, and each entry is merged into this resource's links one
      * relation at a time, exactly as the relation map is: a relation the entry leaves out is left
-     * alone, and {@code null} removes one. (A literal RFC 7386 array replacement would make every
+     * alone, and {@code null} removes one. (A literal RFC 7396 array replacement would make every
      * such patch delete the links it did not repeat, server-managed ones included, which no
      * client means.) Every entry must describe this resource.
      *
@@ -127,6 +127,88 @@ public final class LinksetJson {
     }
 
     /**
+     * The user-managed links of a whole linkset document: what a JSON Patch (RFC 6902) leaves
+     * once it has been applied to the document a GET returns.
+     *
+     * <p>JSON Patch is the format lws10-core requires on a linkset (w3c/lws-protocol#255). It edits
+     * the representation by pointer, so its result is the new linkset entire. That result must
+     * still be an RFC 9264 linkset document describing this resource and nothing else: an object
+     * whose sole member is {@code linkset}, an array of link context objects anchored here, each
+     * relation an array of link target objects with an {@code href}. A relation spread over
+     * several context objects is one relation. Target attributes other than {@code href} are not
+     * kept, as for a merge patch.
+     *
+     * <p>The server-managed relations must come out exactly as they went in, in any order: a
+     * patch that adds, removes or changes one has its relation named in {@code rejected}. Every
+     * other relation in the result is the resource's user-managed links from now on, so one the
+     * patch removed is gone.
+     *
+     * @param document    the linkset after the patch
+     * @param anchor      the resource the linkset describes
+     * @param serverLinks the server-managed links currently derived for it
+     * @param rejected    receives the server-managed relations the patch changed
+     * @return the new user-managed links, relation type to targets, in document order
+     * @throws IllegalArgumentException if the result is not a linkset document for this resource
+     */
+    public static Map<String, List<String>> userLinks(jakarta.json.JsonValue document, String anchor,
+            Map<String, List<String>> serverLinks, List<String> rejected) {
+        if (document.getValueType() != jakarta.json.JsonValue.ValueType.OBJECT
+                || document.asJsonObject().size() != 1
+                || !document.asJsonObject().containsKey("linkset")
+                || document.asJsonObject().get("linkset").getValueType()
+                        != jakarta.json.JsonValue.ValueType.ARRAY) {
+            throw new IllegalArgumentException("a linkset document is an object whose sole member is "
+                    + "linkset, an array of link context objects (RFC 9264 section 4.2.1)");
+        }
+        Map<String, java.util.LinkedHashSet<String>> all = new LinkedHashMap<>();
+        for (jakarta.json.JsonValue v : document.asJsonObject().getJsonArray("linkset")) {
+            if (v.getValueType() != jakarta.json.JsonValue.ValueType.OBJECT) {
+                throw new IllegalArgumentException("each member of linkset is a link context object");
+            }
+            JsonObject entry = v.asJsonObject();
+            if (!entry.containsKey("anchor")
+                    || entry.get("anchor").getValueType() != jakarta.json.JsonValue.ValueType.STRING
+                    || !anchor.equals(entry.getString("anchor"))) {
+                throw new IllegalArgumentException("this linkset describes " + anchor + " only, and "
+                        + "every link context object names it as its anchor");
+            }
+            for (String rel : entry.keySet()) {
+                if ("anchor".equals(rel)) {
+                    continue;
+                }
+                var targets = entry.get(rel);
+                if (targets.getValueType() != jakarta.json.JsonValue.ValueType.ARRAY) {
+                    throw new IllegalArgumentException("relation " + rel + " is an array of link "
+                            + "target objects (RFC 9264 section 4.2.2)");
+                }
+                var hrefs = all.computeIfAbsent(rel, k -> new java.util.LinkedHashSet<>());
+                for (var t : targets.asJsonArray()) {
+                    if (t.getValueType() != jakarta.json.JsonValue.ValueType.OBJECT
+                            || hrefOf(t) == null) {
+                        throw new IllegalArgumentException("each target of relation " + rel
+                                + " is an object with an href (RFC 9264 section 4.2.3)");
+                    }
+                    hrefs.add(hrefOf(t));
+                }
+            }
+        }
+        for (String rel : SERVER_MANAGED) {
+            List<String> current = serverLinks.getOrDefault(rel, List.of());
+            var now = all.getOrDefault(rel, new java.util.LinkedHashSet<>());
+            if (!new java.util.HashSet<>(current).equals(now)) {
+                rejected.add(rel);
+            }
+        }
+        Map<String, List<String>> out = new LinkedHashMap<>();
+        all.forEach((rel, hrefs) -> {
+            if (!SERVER_MANAGED.contains(rel) && !hrefs.isEmpty()) {
+                out.put(rel, List.copyOf(hrefs));
+            }
+        });
+        return out;
+    }
+
+    /**
      * True if {@code patch} is a linkset document rather than a relation map: a {@code linkset}
      * member holding an array of objects that each name an {@code anchor}. A relation map trying
      * to set the server-managed {@code linkset} relation would hold link targets instead, and is
@@ -167,7 +249,7 @@ public final class LinksetJson {
     }
 
     /**
-     * Apply an RFC 7386 JSON Merge Patch to a set of links.
+     * Apply an RFC 7396 JSON Merge Patch to a set of links.
      *
      * <p>Merge Patch semantics, which is what makes it a good fit here: a key present in
      * the patch replaces that relation wholesale, and a key whose value is

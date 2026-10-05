@@ -109,13 +109,15 @@ public final class LwsJson {
                         // Keyed by `format` — the media type of the resource being patched —
                         // since w3c/lws-protocol#219 renamed the term from `mediaType`.
                         .add("format", Json.createObjectBuilder()
+                                // JSON Patch (RFC 6902) first, as the format lws10-core
+                                // requires (w3c/lws-protocol#255); JSON Merge Patch (RFC 7396)
+                                // is also accepted, on linksets and JSON data resources alike.
                                 .add("application/linkset+json", Json.createArrayBuilder()
+                                        .add("application/json-patch+json")
                                         .add("application/merge-patch+json"))
-                                // A JSON data resource accepts merge patch (RFC 7386) and
-                                // JSON Patch (RFC 6902).
                                 .add("application/json", Json.createArrayBuilder()
-                                        .add("application/merge-patch+json")
-                                        .add("application/json-patch+json"))))
+                                        .add("application/json-patch+json")
+                                        .add("application/merge-patch+json"))))
                 // The one transcoding this storage performs: every LWS document it serves is
                 // also available as Turtle. One entry per source type, as the spec's example
                 // shows — a client reads it as "ask for a target and you will get it", so

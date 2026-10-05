@@ -60,7 +60,7 @@ a file into the folder and it appears as a resource within a second or two. See
 - Conditional requests: strong `ETag`s, `If-Match`/`If-None-Match`/`If-Modified-Since`, compare-and-swap
   writes (`412`), unconditional ones allowed as lws10-core allows them
 - Byte ranges on data resources (`206`/`416`)
-- JSON Merge Patch on JSON resources and on linksets
+- JSON Patch, the patch format lws10-core requires, and JSON Merge Patch, on JSON resources and on linksets
 - Keyset pagination with opaque, HMAC-sealed cursors (`Link` headers only)
 - RFC 9264 linksets (`{resource}.meta`), ACP access-control resources (`{resource}.acr`)
 - Metadata enrichment from Halcyon's file readers (image dimensions, media type, …)
