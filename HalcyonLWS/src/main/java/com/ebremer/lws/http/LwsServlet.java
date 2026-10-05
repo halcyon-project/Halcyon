@@ -33,6 +33,7 @@ import com.ebremer.lws.store.naming.Slugs;
 import com.ebremer.lws.vocab.LWS;
 import com.ebremer.lws.vocab.LWSX;
 import jakarta.json.Json;
+import jakarta.json.JsonArray;
 import jakarta.json.JsonException;
 import jakarta.json.JsonObject;
 import jakarta.json.JsonReader;
@@ -109,15 +110,15 @@ public class LwsServlet extends HttpServlet {
     /** Cap on an inbound ACR document; policies are small and this is a parser guard. */
     private static final int MAX_ACR_BYTES = 1 << 20;
 
-    /** Cap on an inbound merge patch. A patch names only what changes, so it is small. */
+    /** Cap on an inbound patch. A patch names only what changes, so it is small. */
     private static final int MAX_PATCH_BYTES = 1 << 20;
 
     /**
-     * The largest resource a merge patch will be applied to.
+     * The largest resource a patch will be applied to.
      *
-     * <p>Not a limit better engineering could lift. RFC 7386 is defined over whole documents —
-     * the patch is walked against the target's object tree — so both have to be parsed into
-     * memory, and there is no such thing as a streaming merge patch. Parsing, applying and
+     * <p>Not a limit better engineering could lift. Both patch formats are defined over whole
+     * documents — the patch is walked against, or points into, the target's tree — so both have
+     * to be parsed into memory, and there is no such thing as a streaming patch. Parsing, applying and
      * re-serializing an N-byte document costs several times N in transient heap, and it costs
      * it <em>per concurrent request</em>, so this is deliberately far below what any single
      * request could survive.
@@ -420,7 +421,7 @@ public class LwsServlet extends HttpServlet {
         resp.addHeader("Vary", "Accept");
         resp.setHeader("ETag", v.etag());
         resp.setHeader("Allow", "OPTIONS, HEAD, GET, PATCH");
-        resp.setHeader("Accept-Patch", MediaTypes.MERGE_PATCH_JSON);
+        resp.setHeader("Accept-Patch", MediaTypes.ACCEPT_PATCH_JSON);
         resp.addHeader("Link", LinkHeader.link(t.uri(), "describes"));
 
         if (Preconditions.isNotModified(req, v.etag(), null)) {
@@ -457,8 +458,9 @@ public class LwsServlet extends HttpServlet {
      *
      * <p>{@code PATCH {resource}.meta} edits the resource's <em>metadata</em> — the links in
      * its linkset. {@code PATCH {resource}} edits its <em>content</em>, the bytes themselves.
-     * Both are driven by JSON Merge Patch, which is the format lws10-core requires a server to
-     * support at minimum, but they touch different stores and fail in different ways.
+     * Both take JSON Patch, the format lws10-core requires a server to support at minimum
+     * (w3c/lws-protocol#255), and JSON Merge Patch, which it required before; but they touch
+     * different stores and fail in different ways.
      */
     private void patch(Req rq, Target t, HttpServletRequest req, HttpServletResponse resp)
             throws IOException {
@@ -472,30 +474,37 @@ public class LwsServlet extends HttpServlet {
     }
 
     /**
-     * Update a resource's metadata with a JSON Merge Patch.
+     * Update a resource's metadata with a JSON Patch or a JSON Merge Patch.
+     *
+     * <p>A JSON Patch (RFC 6902), the format lws10-core requires (w3c/lws-protocol#255), applies to
+     * the linkset document a GET returns, so its operations point where the client read: {@code
+     * /linkset/0/license} is the resource's own link context object. What it leaves must still be
+     * a linkset document for this resource with its server-managed links unchanged, and its other
+     * relations become the resource's user-managed links ({@link LinksetJson#userLinks}). A merge
+     * patch, still accepted, overlays relations one at a time ({@link LinksetJson#relations}).
      *
      * <p>Metadata is the one thing several actors touch concurrently — a scanner adding types
      * while an owner adds a license — and lws10-core asks clients to make these writes
      * conditional (SHOULD), rejecting a stale {@code If-Match} with 412. It no longer lets a
-     * server demand one (#228 removed the 428), and an unconditional merge patch loses nothing
-     * here: it is read, merged and replaced in one write transaction, so it applies to the
+     * server demand one (#228 removed the 428), and an unconditional patch loses nothing
+     * here: it is read, applied and replaced in one write transaction, so it applies to the
      * linkset as it stands, never to a copy the client read earlier.
      */
     private void patchLinkset(Req rq, Target t, HttpServletRequest req, HttpServletResponse resp)
             throws IOException {
         String ct = MediaTypes.bare(req.getContentType());
-        if (!MediaTypes.MERGE_PATCH_JSON.equals(ct)) {
-            throw Problem.unsupportedMediaType("the linkset accepts " + MediaTypes.MERGE_PATCH_JSON)
-                    .header("Accept-Patch", MediaTypes.MERGE_PATCH_JSON);
+        boolean jsonPatch = MediaTypes.JSON_PATCH.equals(ct);
+        if (!jsonPatch && !MediaTypes.MERGE_PATCH_JSON.equals(ct)) {
+            throw Problem.unsupportedMediaType("the linkset accepts " + MediaTypes.ACCEPT_PATCH_JSON)
+                    .header("Accept-Patch", MediaTypes.ACCEPT_PATCH_JSON);
         }
 
         byte[] raw = readBounded(req.getInputStream(), MAX_PATCH_BYTES);
         DigestFields.verify(req.getHeader("Content-Digest"), raw);
-        JsonObject patch;
-        try (var r = jakarta.json.Json.createReader(new java.io.ByteArrayInputStream(raw))) {
-            patch = r.readObject();
-        } catch (RuntimeException e) {
-            throw Problem.badRequest("could not parse the merge patch as JSON");
+        JsonValue patch = parsePatch(raw);
+        JsonArray operations = jsonPatch ? jsonPatchOperations(patch) : null;
+        if (!jsonPatch && patch.getValueType() != JsonValue.ValueType.OBJECT) {
+            throw Problem.badRequest("a merge patch of a linkset is a JSON object");
         }
 
         // Everything is decided inside the write, in RFC 9110's order: the precondition first
@@ -509,20 +518,38 @@ public class LwsServlet extends HttpServlet {
             Preconditions.evaluate(req, LinksetStore.etag(store, t.uri()));
 
             // Server-managed metadata "MUST NOT be overridden by client-provided links".
+            var server = serverLinks(r);
+            var current = LinksetStore.read(store, t.uri());
             List<String> serverManaged = new ArrayList<>();
-            JsonObject relations;
-            try {
-                relations = LinksetJson.relations(patch, t.uri(), serverLinks(r), serverManaged);
-            } catch (IllegalArgumentException e) {
-                throw Problem.unprocessable(e.getMessage());
+            Map<String, List<String>> updated;
+            if (jsonPatch) {
+                var links = new LinkedHashMap<>(server);
+                links.putAll(current);
+                JsonValue result;
+                try {
+                    result = Json.createPatch(operations).apply(LinksetJson.build(t.uri(), links));
+                } catch (JsonException e) {
+                    throw Problem.conflict("the JSON Patch could not be applied to the linkset: "
+                            + e.getMessage());
+                }
+                try {
+                    updated = LinksetJson.userLinks(result, t.uri(), server, serverManaged);
+                } catch (IllegalArgumentException e) {
+                    throw Problem.unprocessable(e.getMessage());
+                }
+            } else {
+                JsonObject relations;
+                try {
+                    relations = LinksetJson.relations(patch.asJsonObject(), t.uri(), server, serverManaged);
+                } catch (IllegalArgumentException e) {
+                    throw Problem.unprocessable(e.getMessage());
+                }
+                updated = LinksetJson.mergePatch(current, relations, new ArrayList<>());
             }
             if (!serverManaged.isEmpty()) {
                 throw Problem.forbidden("these relations are server-managed and cannot be set: "
                         + String.join(", ", serverManaged));
             }
-
-            var current = LinksetStore.read(store, t.uri());
-            var updated = LinksetJson.mergePatch(current, relations, new ArrayList<>());
             return LinksetStore.replace(store, t.uri(), updated);
         });
 
@@ -2148,7 +2175,7 @@ public class LwsServlet extends HttpServlet {
      * Write set-linkset's links to the resource's linkset, inside the caller's content-write
      * transaction so the two changes commit together (the spec requires the combined update be
      * atomic). PUT replaces the linkset wholesale; PATCH partially updates it — a {@code Link} header
-     * can add or replace a relation, though not remove one (that needs the linkset's own merge patch).
+     * can add or replace a relation, though not remove one (that needs a PATCH of the linkset itself).
      */
     private void applySetLinkset(String uri, Map<String, List<String>> links, boolean patch) {
         if (patch) {
@@ -2260,15 +2287,17 @@ public class LwsServlet extends HttpServlet {
     }
 
     /**
-     * Apply a JSON Merge Patch (RFC 7386) to a data resource's <em>content</em>.
+     * Apply a JSON Patch (RFC 6902) or a JSON Merge Patch (RFC 7396) to a data resource's
+     * <em>content</em>.
      *
-     * <p>lws10-core requires it: a server "MUST minimally support JSON Merge Patch" for partial
-     * updates. The point is to change one field of a document without re-uploading the whole
-     * thing — and, for two clients editing different fields, to let both succeed.
+     * <p>lws10-core requires the first: a server "MUST minimally support JSON Patch" for partial
+     * updates (w3c/lws-protocol#255; before it, the same sentence named JSON Merge Patch, which is
+     * still accepted). The point is to change one field of a document without re-uploading the
+     * whole thing — and, for two clients editing different fields, to let both succeed.
      *
-     * <p>It applies only to a JSON representation. A merge patch works by recursing into the
-     * target's object tree, and a TIFF has no object tree to recurse into; a resource whose
-     * content is not JSON therefore gets 415. That is the right code and not 405: the method is
+     * <p>It applies only to a JSON representation. Both formats work on the target's JSON tree,
+     * and a TIFF has no tree to point or recurse into; a resource whose content is not JSON
+     * therefore gets 415. That is the right code and not 405: the method is
      * understood and supported, it is the patch <em>format</em> that cannot apply to
      * <em>that</em> resource, which is precisely the case RFC 5789 §2.2 names 415 for.
      *
@@ -2361,7 +2390,7 @@ public class LwsServlet extends HttpServlet {
                 // The client's compare-and-swap, evaluated under the single writer.
                 Preconditions.evaluate(req, cur.etag(), cur.modified());
 
-                // And the server's. A merge patch is computed against one specific document, so
+                // And the server's. A patch is computed against one specific document, so
                 // the document it was computed against must still be the one being replaced —
                 // and the client's precondition does not always establish that. `If-Match: *` is
                 // satisfied by the resource merely existing, and an unconditional patch (which
@@ -2433,8 +2462,8 @@ public class LwsServlet extends HttpServlet {
      * three as "this is not JSON". That is a lie for two of them, and an expensive one: it sends
      * the client hunting for a defect in a document that has none.
      *
-     * <p>Note {@code readValue()} rather than {@code readObject()}: RFC 7386 permits a patch
-     * that is not an object, in which case it replaces the target document wholesale.
+     * <p>Note {@code readValue()} rather than {@code readObject()}: a JSON Patch is an array, and
+     * RFC 7396 permits a merge patch that is not an object, which replaces the target wholesale.
      */
     private static JsonValue parsePatch(byte[] raw) {
         try (JsonReader r = Json.createReader(new java.io.ByteArrayInputStream(raw))) {
@@ -2454,11 +2483,11 @@ public class LwsServlet extends HttpServlet {
             return rd.readValue();
         } catch (JsonParsingException e) {
             throw Problem.conflict("this resource is labelled " + r.mediaType() + " but its "
-                    + "content is not valid JSON, so a merge patch cannot be applied to it: "
+                    + "content is not valid JSON, so a patch cannot be applied to it: "
                     + e.getMessage());
         } catch (RuntimeException e) {
             throw Problem.conflict("this resource's content is JSON that the parser will not "
-                    + "process, so a merge patch cannot be applied to it: " + e.getMessage());
+                    + "process, so a patch cannot be applied to it: " + e.getMessage());
         }
     }
 
@@ -2467,8 +2496,8 @@ public class LwsServlet extends HttpServlet {
      *
      * <p>The result comes back out of the parser, so a patch necessarily reformats the document
      * it touches — whitespace and indentation the client uploaded are not preserved. That is
-     * inherent to merge patch rather than a shortcut here: RFC 7386 is defined over parsed JSON
-     * values, and JSON has no canonical byte form to restore.
+     * inherent to patching rather than a shortcut here: RFC 6902 and RFC 7396 are defined over
+     * parsed JSON values, and JSON has no canonical byte form to restore.
      */
     private static byte[] serialize(JsonValue doc) {
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
@@ -2479,7 +2508,7 @@ public class LwsServlet extends HttpServlet {
     }
 
     /**
-     * Apply a JSON Merge Patch (RFC 7386) or a JSON Patch (RFC 6902) to a parsed JSON document.
+     * Apply a JSON Patch (RFC 6902) or a JSON Merge Patch (RFC 7396) to a parsed JSON document.
      *
      * <p>The two formats fail differently. A merge patch is a recursive overlay that never fails on
      * content. A JSON Patch is an array of operations, and an operation can fail — a {@code test}
@@ -2492,18 +2521,56 @@ public class LwsServlet extends HttpServlet {
         if (!jsonPatch) {
             return Json.createMergePatch(patch).apply(current);
         }
-        if (patch.getValueType() != JsonValue.ValueType.ARRAY) {
-            throw Problem.badRequest("a JSON Patch (RFC 6902) must be an array of operations");
-        }
+        JsonArray operations = jsonPatchOperations(patch);
         if (!(current instanceof JsonStructure target)) {
             throw Problem.conflict("a JSON Patch addresses into an object or array, but this "
                     + "resource's content is a JSON scalar");
         }
         try {
-            return Json.createPatch(patch.asJsonArray()).apply(target);
+            return Json.createPatch(operations).apply(target);
         } catch (JsonException e) {
             throw Problem.conflict("the JSON Patch could not be applied: " + e.getMessage());
         }
+    }
+
+    /** The operations RFC 6902 section 4 defines, and the member each needs besides op and path. */
+    private static final Map<String, String> JSON_PATCH_OPERATIONS = Map.of(
+            "add", "value", "remove", "", "replace", "value", "move", "from", "copy", "from",
+            "test", "value");
+
+    /**
+     * A JSON Patch document's operations, checked for shape before anything is applied.
+     *
+     * <p>A malformed patch document is a {@code 400} (RFC 5789 section 2.2), and an operation the
+     * resource's current state cannot take is a {@code 409}. The JSON-P implementation reports
+     * both as the same exception, and only when it reaches the operation, so the shape is checked
+     * here, where it is still the client's mistake: an array of objects, each with a known
+     * {@code op}, a string {@code path}, and the {@code value} or {@code from} the operation needs.
+     */
+    static JsonArray jsonPatchOperations(JsonValue patch) {
+        if (patch.getValueType() != JsonValue.ValueType.ARRAY) {
+            throw Problem.badRequest("a JSON Patch (RFC 6902) must be an array of operations");
+        }
+        for (JsonValue v : patch.asJsonArray()) {
+            if (v.getValueType() != JsonValue.ValueType.OBJECT) {
+                throw Problem.badRequest("each JSON Patch operation is an object");
+            }
+            JsonObject op = v.asJsonObject();
+            String name = op.get("op") instanceof jakarta.json.JsonString s ? s.getString() : null;
+            if (name == null || !JSON_PATCH_OPERATIONS.containsKey(name)) {
+                throw Problem.badRequest("a JSON Patch operation's op is one of "
+                        + String.join(", ", new java.util.TreeSet<>(JSON_PATCH_OPERATIONS.keySet())));
+            }
+            if (!(op.get("path") instanceof jakarta.json.JsonString)) {
+                throw Problem.badRequest("a JSON Patch " + name + " operation needs a string path");
+            }
+            String needs = JSON_PATCH_OPERATIONS.get(name);
+            if (needs.equals("value") && !op.containsKey("value")
+                    || needs.equals("from") && !(op.get("from") instanceof jakarta.json.JsonString)) {
+                throw Problem.badRequest("a JSON Patch " + name + " operation needs " + needs);
+            }
+        }
+        return patch.asJsonArray();
     }
 
     // --- Delete -------------------------------------------------------------
@@ -2846,7 +2913,7 @@ public class LwsServlet extends HttpServlet {
                     yield "OPTIONS, HEAD, GET, PUT, PATCH, DELETE";
                 }
                 // PATCH is left off deliberately. The server supports the method, but the
-                // only patch format it supports cannot apply to these bytes, so listing it
+                // patch formats it supports cannot apply to these bytes, so listing it
                 // would be a promise it would then break with a 415.
                 yield "OPTIONS, HEAD, GET, PUT, DELETE";
             }
@@ -2865,7 +2932,7 @@ public class LwsServlet extends HttpServlet {
             }
             case LINKSET -> {
                 resp.setHeader("Allow", allowFor(t.kind(), null));
-                resp.setHeader("Accept-Patch", MediaTypes.MERGE_PATCH_JSON);
+                resp.setHeader("Accept-Patch", MediaTypes.ACCEPT_PATCH_JSON);
             }
 
             // A resource -- including the storage root. This is gated like every other verb

@@ -40,14 +40,23 @@ public final class MediaTypes {
     /** A resource's linkset (RFC 9264). */
     public static final String LINKSET_JSON = "application/linkset+json";
 
-    /** The minimum patch format a server MUST support, for resources and linksets alike. */
-    public static final String MERGE_PATCH_JSON = "application/merge-patch+json";
-
-    /** JSON Patch (RFC 6902) — accepted on JSON data resources, in addition to merge patch. */
+    /**
+     * JSON Patch (RFC 6902): the patch format a server MUST support and advertise, for resources
+     * and linksets alike, since w3c/lws-protocol#255 (the 5 October 2026 draft).
+     */
     public static final String JSON_PATCH = "application/json-patch+json";
 
-    /** {@code Accept-Patch} for a JSON data resource: both patch formats it accepts. */
-    public static final String ACCEPT_PATCH_JSON = MERGE_PATCH_JSON + ", " + JSON_PATCH;
+    /**
+     * JSON Merge Patch (RFC 7396, which obsoletes RFC 7386): the required format before #255, and
+     * still accepted, as an alternative format a server MAY support once it advertises it.
+     */
+    public static final String MERGE_PATCH_JSON = "application/merge-patch+json";
+
+    /**
+     * {@code Accept-Patch} for a JSON data resource and for a linkset: both formats it accepts,
+     * the required one first.
+     */
+    public static final String ACCEPT_PATCH_JSON = JSON_PATCH + ", " + MERGE_PATCH_JSON;
 
     /**
      * The baseline Type Search filter format, carried in the body of an HTTP
@@ -195,10 +204,10 @@ public final class MediaTypes {
      * anything carrying the {@code +json} structured syntax suffix of RFC 6839:
      * {@code application/ld+json}, {@code application/lws+json}, {@code application/geo+json}.
      *
-     * <p>This is what decides whether a resource's content can be merge-patched at all. A
-     * JSON Merge Patch is defined by recursing into the target document's object tree, so
-     * there has to <em>be</em> an object tree: there is nothing in a TIFF for a patch to
-     * merge into.
+     * <p>This is what decides whether a resource's content can be patched at all. Both patch
+     * formats are defined over the target document's JSON tree, JSON Patch by pointing into it
+     * and JSON Merge Patch by recursing into it, so there has to <em>be</em> a tree: there is
+     * nothing in a TIFF for a patch to address.
      */
     public static boolean isJson(String mediaType) {
         String m = bare(mediaType);

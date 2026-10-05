@@ -134,13 +134,13 @@ class StorageDescriptionTest {
         assertFalse(patch.containsKey("mediaType"),
                 "the term was renamed by w3c/lws-protocol#219; the old key must be gone");
         JsonObject formats = patch.getJsonObject("format");
-        assertEquals(List.of("application/merge-patch+json"),
-                formats.getJsonArray("application/linkset+json").stream()
-                        .map(v -> ((JsonString) v).getString()).toList());
-        assertTrue(formats.getJsonArray("application/json").stream()
-                        .map(v -> ((JsonString) v).getString())
-                        .toList().contains("application/json-patch+json"),
-                "a JSON data resource also takes RFC 6902 JSON Patch");
+        // JSON Patch, the format lws10-core requires since w3c/lws-protocol#255, first; merge
+        // patch, still accepted, after it, as in the draft's own example.
+        for (String format : List.of("application/linkset+json", "application/json")) {
+            assertEquals(List.of("application/json-patch+json", "application/merge-patch+json"),
+                    formats.getJsonArray(format).stream()
+                            .map(v -> ((JsonString) v).getString()).toList(), format);
+        }
     }
 
     @Test

@@ -113,6 +113,50 @@ class LinksetJsonTest {
         assertEquals(List.of("linkset"), rejected);
     }
 
+    /** The links of a whole linkset document, as a JSON Patch leaves it (w3c/lws-protocol#255). */
+    @Test
+    void aPatchedDocumentYieldsItsUserLinksAcrossContextObjects() {
+        Map<String, List<String>> server = Map.of("up", List.of(STORAGE + "notes/"));
+        List<String> rejected = new ArrayList<>();
+
+        Map<String, List<String>> links = LinksetJson.userLinks(read("{\"linkset\": ["
+                + "{\"anchor\": \"" + R + "\", \"up\": [{\"href\": \"" + STORAGE + "notes/\"}],"
+                + " \"license\": [{\"href\": \"https://example.org/cc-by\", \"title\": \"kept as href\"}]},"
+                + "{\"anchor\": \"" + R + "\", \"describedby\": [{\"href\": \"https://example.org/shape\"}],"
+                + " \"license\": [{\"href\": \"https://example.org/cc-by\"}], \"author\": []}]}"), R, server, rejected);
+
+        assertEquals(List.of(), rejected);
+        assertEquals(Map.of("license", List.of("https://example.org/cc-by"),
+                "describedby", List.of("https://example.org/shape")), links);
+    }
+
+    @Test
+    void aPatchedDocumentThatChangesOrDropsAServerManagedRelationIsRejected() {
+        Map<String, List<String>> server = Map.of("up", List.of(STORAGE + "notes/"),
+                "type", List.of(LWS.DataResource.getURI()));
+        List<String> rejected = new ArrayList<>();
+
+        LinksetJson.userLinks(read("{\"linkset\": [{\"anchor\": \"" + R + "\","
+                + " \"up\": [{\"href\": \"https://linkset.invalid/forged/\"}]}]}"), R, server, rejected);
+
+        assertEquals(List.of("up", "type"), rejected);
+    }
+
+    @Test
+    void aPatchedResultThatIsNotALinksetDocumentForThisResourceIsRefused() {
+        for (String doc : List.of(
+                "{\"linkset\": \"not a linkset\"}",
+                "{\"linkset\": [], \"extra\": 1}",
+                "[]",
+                "{\"linkset\": [{\"license\": [{\"href\": \"https://example.org/l\"}]}]}",
+                "{\"linkset\": [{\"anchor\": \"" + STORAGE + "other\"}]}",
+                "{\"linkset\": [{\"anchor\": \"" + R + "\", \"license\": {\"href\": \"https://example.org/l\"}}]}",
+                "{\"linkset\": [{\"anchor\": \"" + R + "\", \"license\": [\"https://example.org/l\"]}]}")) {
+            assertThrows(IllegalArgumentException.class, () -> LinksetJson.userLinks(
+                    Json.createReader(new StringReader(doc)).readValue(), R, Map.of(), new ArrayList<>()), doc);
+        }
+    }
+
     @Test
     void aLinksetIsAnchoredOnTheResourceItDescribes() {
         Map<String, List<String>> links = new LinkedHashMap<>();
