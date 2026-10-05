@@ -35,6 +35,10 @@ subset — e.g. read-only, one profile, or client-of) · ○ vocabulary / refere
 > `9b03b32`) — no normative change since `3ddc642` — and against the core test suite the README now
 > links (`lws-contrib/lws-test-suite` @ `b8cb134`), which HalcyonLWS now runs. Conditional writes follow
 > #228: optional, `412` when a sent precondition fails._
+>
+> _Revised 2026-10-05: brought to the drafts of 5 October 2026 (`w3c/lws-protocol` @ `ef02548`, published
+> as `WD-lws10-core-20261005`), whose one change, #255, makes JSON Patch the required patch format in
+> place of JSON Merge Patch. Linksets now take it; both formats are accepted._
 
 ---
 
@@ -45,7 +49,7 @@ lws10-notifications-webhook"*); the `Halcyon` web app is an LWS *client* (the St
 `com.ebremer.halcyon.lws.*`).
 
 The LWS drafts are unofficial proposals and they move. The revision the code follows —
-[`w3c/lws-protocol`](https://github.com/w3c/lws-protocol) @ `9b03b32`, **28 September 2026** — together
+[`w3c/lws-protocol`](https://github.com/w3c/lws-protocol) @ `ef02548`, **5 October 2026** — together
 with every deliberate divergence from it, and how the
 [LWS 1.0 test suite](https://github.com/lws-contrib/lws-test-suite) fares against it, is recorded in
 [`docs/lws/conformance.md`](docs/lws/conformance.md).
@@ -76,8 +80,8 @@ with every deliberate divergence from it, and how the
 | RFC 7232 — Conditional Requests | ● | HalcyonLWS | Strong `ETag`, `If-Match`/`If-None-Match`/`If-Modified-Since`; writes evaluated per RFC 9110 §13.2.2 — compare-and-swap (`412`), unconditional allowed (`428` only on an ACR write). `http/Preconditions`. |
 | RFC 7233 — Range Requests | ● | HalcyonLWS | Single and multiple byte ranges (`206`, `multipart/byteranges`, `416`). |
 | RFC 5789 — PATCH | ● | HalcyonLWS | `PATCH` on data resources and linksets; `Accept-Patch`. |
-| RFC 7386 — JSON Merge Patch | ● | HalcyonLWS | The required patch format (`application/merge-patch+json`). `LwsServlet`, `json/LinksetJson`. |
-| RFC 6902 — JSON Patch | ● | HalcyonLWS | `application/json-patch+json` on JSON data resources (add/remove/replace/move/copy/test), applied via `Json.createPatch`; a failed op rejects the whole patch (409). `LwsServlet.applyPatch`, `JsonPatchTest`. |
+| RFC 6902 — JSON Patch | ● | HalcyonLWS | The required patch format since w3c/lws-protocol#255 (`application/json-patch+json`), on JSON data resources and linksets (add/remove/replace/move/copy/test), applied via `Json.createPatch`; a failed op rejects the whole patch (409), a malformed one is a 400. `LwsServlet.applyPatch`, `LwsServlet.patchLinkset`, `json/LinksetJson.userLinks`, `JsonPatchTest`. |
+| RFC 7396 — JSON Merge Patch | ● | HalcyonLWS | `application/merge-patch+json`, the required format before #255 (which cited RFC 7386, obsoleted by RFC 7396), still accepted on JSON data resources and linksets. `LwsServlet`, `json/LinksetJson`. |
 | RFC 7240 — Prefer | ◐ | HalcyonLWS | `Prefer: set-linkset` on writes. |
 | RFC 8288 — Web Linking | ● | HalcyonLWS | `Link` headers (`up`, `linkset`, `acl`, `type`, pagination, storage description); parsed & emitted. `http/LinkHeader`, `client/LwsClient`. |
 | RFC 9264 — Linkset (`application/linkset+json`) | ● | HalcyonLWS | A resource's metadata as a linkset document at `{resource}.meta`. `json/LinksetJson`, `http/Target`. |

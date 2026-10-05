@@ -32,7 +32,7 @@ can never collide with one.
 | Path | Methods | Purpose |
 |---|---|---|
 | `{root}` and any container | `GET HEAD OPTIONS POST DELETE` | Container: listing, create-child, delete |
-| any data resource | `GET HEAD OPTIONS PUT PATCH DELETE` | Read, replace, merge-patch, delete (`PATCH` only on JSON) |
+| any data resource | `GET HEAD OPTIONS PUT PATCH DELETE` | Read, replace, patch, delete (`PATCH` only on JSON) |
 | `{resource}.meta` | `GET HEAD OPTIONS PATCH` | RFC 9264 linkset (`application/linkset+json`) |
 | `{resource}.acr` | `GET HEAD OPTIONS PUT` | ACP access-control resource (`text/turtle`); requires `Control` |
 | `{root}` with no `Accept`, a wildcard, or `application/lws+cid` | `GET HEAD` | Storage description; **public, no auth**. Naming a container format (`application/lws+json`, `ld+json`, `json`, `text/turtle`) reads the root container instead |
@@ -121,24 +121,34 @@ Full replacement of an existing **data resource's** content (or an ACR — see b
 - `405` on a container (membership is server-managed, not settable by `PUT`). `404` on a URI that does
   not exist — `PUT` does not create.
 
-### PATCH — merge
+### PATCH
 
-`application/merge-patch+json` (RFC 7386) is the required patch format.
+`application/json-patch+json` (JSON Patch, RFC 6902) is the required patch format (lws10-core, since
+w3c/lws-protocol#255). `application/merge-patch+json` (JSON Merge Patch, RFC 7396) is accepted too.
+Both are advertised in `Accept-Patch`, JSON Patch first.
 
-- **On a JSON data resource:** merges into the current JSON. Non-JSON resource → `415` (with `Allow`).
-  Body not `application/merge-patch+json` → `415` (with `Accept-Patch`). Resource larger than 8 MiB →
-  `409`. Requires `Write`; a failed precondition → `412`. With none, the patch still applies only to
+- **On a JSON data resource:** a JSON Patch applies its operations to the current JSON, all or none:
+  an operation that does not fit (a failed `test`, a missing path, an index out of range, a JSON
+  scalar to point into) → `409` with nothing applied, and a malformed operation (no `op`, an unknown
+  one, no `path`, a missing `value` or `from`) → `400`. A merge patch merges into it. Non-JSON
+  resource → `415` (with `Allow`). Any other body type → `415` (with `Accept-Patch`). Resource larger
+  than 8 MiB → `409`. Requires `Write`; a failed precondition → `412`. With none, the patch still applies only to
   the document it was computed against (a concurrent change → `412`). Malformed patch JSON → `400`;
   syntactically valid but unprocessable (too deeply nested / too large) → `400` with a distinct message;
   stored bytes that are not valid JSON → `409`. Success `204` + `ETag`.
 - **On a linkset (`{resource}.meta`):** same media-type rule. The precondition is evaluated first, so a
-  stale `If-Match` → `412` whatever the body. The patch may be the relation map
-  (`{"license": [{"href": "…"}]}`) or the RFC 9264 document a GET returns
+  stale `If-Match` → `412` whatever the body. A **JSON Patch** applies to the document a GET returns,
+  whose one link context object, `/linkset/0`, is the resource's own: `[{"op": "add", "path":
+  "/linkset/0/license", "value": [{"href": "…"}]}]` adds a license, and `remove` takes it away. What
+  it leaves must be a linkset document for this resource (otherwise `422`), its server-managed
+  relations unchanged (otherwise `403`); every other relation in it becomes the resource's
+  user-managed links. A failed operation → `409`, a malformed one → `400`. A **merge patch** may be the
+  relation map (`{"license": [{"href": "…"}]}`) or the RFC 9264 document a GET returns
   (`{"linkset": [{"anchor": "{resource}", "license": [...]}]}`); either way it merges one relation at a
   time and `null` removes one. A document entry for another anchor → `422`. Setting a server-managed
-  relation (e.g. `type`) → `403`, except that the document form may echo one unchanged. An
-  unconditional patch is merged into the linkset as it stands, inside the write transaction. Success
-  `204` + `ETag`.
+  relation (e.g. `type`) → `403`, except that the document form may echo one unchanged. Link target
+  attributes other than `href` are not kept. An unconditional patch applies to the linkset as it
+  stands, inside the write transaction. Success `204` + `ETag`.
 
 ### DELETE
 
@@ -177,8 +187,9 @@ keeps no per-search state. A page link this server did not seal, or one it no lo
 
 ### `{resource}.meta` — linkset (RFC 9264)
 
-`GET` returns `application/linkset+json` describing the resource's links; `PATCH` (merge-patch, as a
-relation map or as the linkset document itself) edits the client-managed relations. Server-managed
+`GET` returns `application/linkset+json` describing the resource's links; `PATCH` (JSON Patch over
+that document, or a merge patch as a relation map or as the document itself) edits the
+client-managed relations. Server-managed
 relations cannot be set (`403`); sending one back unchanged in the document form is allowed. `Accept-Patch` and `Allow`
 are advertised. Single representation — an `Accept` that does not admit `application/linkset+json` →
 `406`.
@@ -222,7 +233,8 @@ the 401 challenge — that link is the whole of discovery, and nothing needs a h
   "type": "Storage",
   "capability": [
     { "type": "https://www.w3.org/ns/lws#PatchSupport",
-      "format": { "application/linkset+json": ["application/merge-patch+json"] } },
+      "format": { "application/linkset+json": ["application/json-patch+json", "application/merge-patch+json"],
+                  "application/json": ["application/json-patch+json", "application/merge-patch+json"] } },
     { "type": "https://www.w3.org/ns/lws#ContentNegotiation",
       "source": "application/lws+json",
       "target": ["application/ld+json", "application/json", "text/turtle"] }
@@ -339,7 +351,7 @@ Other `Prefer` tokens are not honored (which the spec permits).
 | `Location` | On `201` creates and the `200` subscription create. |
 | `Link` | rels: `https://www.w3.org/ns/lws#storage` (→ the canonical storage URI, on every GET/HEAD and on the 401), `type` (→ Container/DataResource), `linkset` (→ `{uri}.meta`), `acl` (→ `{uri}.acr`), `up` (→ parent), `describes`, and pagination `first`/`prev`/`next`/`last`. |
 | `Vary` | `Authorization` on every authorized response; `Accept` added for negotiated resources (containers, linkset, ACR). Emitted exactly once per path, including on `304`. |
-| `Accept-Patch` | `application/merge-patch+json` on JSON resources and linksets. |
+| `Accept-Patch` | `application/json-patch+json, application/merge-patch+json` on JSON resources and linksets. |
 | `Accept-Query` | `application/lws-query+json` on Type Search `OPTIONS`, its `415`s, and the `405` a `GET`/`POST` of the bare endpoint gets. Query **formats** only — which link relations are indexed stays unobservable, so the filter interface cannot become a discovery oracle. |
 | `Content-Range` | On a single-range `206`; each part of a `multipart/byteranges` `206` carries its own. |
 | `Preference-Applied` | `set-linkset` when a combined content-and-metadata update was applied (see request headers). |
@@ -358,7 +370,8 @@ Other `Prefer` tokens are not honored (which the spec permits).
 | `application/ld+json`, `application/json` | Negotiation aliases — byte-identical body, only the `Content-Type` label differs |
 | `text/turtle` | RDF alternate serialization of **any** LWS JSON document (containers, storage description, type index/search, subscriptions, sharing); ACR representation |
 | `application/linkset+json` | Linkset (RFC 9264) |
-| `application/merge-patch+json` | PATCH format for content and linksets |
+| `application/json-patch+json` | PATCH format for content and linksets: the one lws10-core requires |
+| `application/merge-patch+json` | PATCH format for content and linksets, also accepted |
 | `application/lws-query+json` | Type Search filter body (QUERY) |
 | `application/problem+json` | All error bodies (RFC 9457) |
 | `application/octet-stream` | Default for stored bytes with no declared media type |
@@ -433,12 +446,20 @@ curl -sk -X PUT "$LOC" -H "Authorization: Bearer $TOK" \
   --data '{"hello":"again"}' -w '%{http_code}\n'      # 204, or 412 if it changed under you
 ```
 
-**Merge-patch a JSON resource:**
+**Patch a JSON resource:**
 
 ```bash
 curl -sk -X PATCH "$LOC" -H "Authorization: Bearer $TOK" \
-  -H "Content-Type: application/merge-patch+json" -H "If-Match: $ETAG" \
-  --data '{"tag":"added","hello":null}'               # sets tag, removes hello -> 204
+  -H "Content-Type: application/json-patch+json" -H "If-Match: $ETAG" \
+  --data '[{"op":"add","path":"/tag","value":"added"},{"op":"remove","path":"/hello"}]'   # -> 204
+```
+
+**Add a license to its linkset:**
+
+```bash
+curl -sk -X PATCH "$LOC.meta" -H "Authorization: Bearer $TOK" \
+  -H "Content-Type: application/json-patch+json" \
+  --data '[{"op":"add","path":"/linkset/0/license","value":[{"href":"https://creativecommons.org/licenses/by/4.0/"}]}]'
 ```
 
 **Type Search (QUERY):**
