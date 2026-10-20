@@ -144,6 +144,7 @@
                         <configuration>
                             <excludes>
                                 <exclude>**/conformance/**</exclude>
+                                <exclude>**/servlet/**</exclude>
                             </excludes>
                         </configuration>
                     </execution>
@@ -162,6 +163,24 @@
                                 <include>**/conformance/**/*Test.java</include>
                             </includes>
                             <workingDirectory>${project.build.directory}/lws-conformance</workingDirectory>
+                            <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
+                        </configuration>
+                    </execution>
+                    <!-- The servlet tests drive real LwsServlets over a real socket, primed as the app
+                         primes them from a settings.ttl they write: several storages of each kind
+                         (and with moving on, off, or for data resources only), which the
+                         conformance harness's one storage cannot be. A JVM and a directory of their
+                         own, for the same reasons. -->
+                    <execution>
+                        <id>lws-servlet</id>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <includes>
+                                <include>**/servlet/**/*Test.java</include>
+                            </includes>
+                            <workingDirectory>${project.build.directory}/lws-servlet</workingDirectory>
                             <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
                         </configuration>
                     </execution>

@@ -204,6 +204,9 @@ public final class LwsJson {
     /** Render a capability's {@code capability[]} entry. */
     private static JsonObjectBuilder capabilityEntry(CapabilityDescriptor.CapabilityEntry ce) {
         JsonObjectBuilder b = Json.createObjectBuilder().add("type", ce.type());
+        if (ce.properties() != null) {
+            ce.properties().forEach(b::add);
+        }
         if (ce.serviceEndpoint() != null) {
             b.add("serviceEndpoint", ce.serviceEndpoint());
         }

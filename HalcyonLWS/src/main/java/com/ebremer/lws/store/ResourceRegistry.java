@@ -293,6 +293,38 @@ public final class ResourceRegistry {
         }
     }
 
+    /**
+     * Move a resource to another container, keeping its identifier: the move a storage whose
+     * identifiers do not encode containment makes (lws10-core, Moving Resources: "the identity of the
+     * resource and its content are untouched by the change").
+     *
+     * <p>Only containment changes, and all of it here, in the caller's write transaction, which is
+     * what makes it atomic: the resource leaves the former container's {@code items} and joins the
+     * destination's, its {@link LWSX#parent} — from which the {@code up} link is derived — names the
+     * destination, and both containers and every container above either get a new version, so
+     * "the ETag of both containers MUST be updated". The resource takes a fresh {@link LWSX#seq},
+     * as a create would give it, so it lands past every existing page of the destination's listing
+     * instead of being slotted into a page a client has already read. Its content, links, types,
+     * creator, owner and access control resource are keyed by its URI and stay where they are; so
+     * does a container's membership, which moves with it.
+     */
+    public void reparent(String uri, String newParent) {
+        Model sys = store.system();
+        Resource s = res(uri);
+        String former = uriOf(sys, s, LWSX.parent);
+        if (former != null) {
+            ds().getNamedModel(former).remove(res(former), LWS.items, s);
+            bumpVersion(former);
+            touchAncestors(former);
+        }
+        sys.removeAll(s, LWSX.parent, null);
+        sys.add(s, LWSX.parent, res(newParent));
+        sys.removeAll(s, LWSX.seq, null);
+        sys.add(s, LWSX.seq, typed(nextSeq()));
+        ds().getNamedModel(newParent).add(res(newParent), LWS.items, s);
+        touchAncestors(uri);
+    }
+
     /** Replace a data resource's content pointer. PUT always writes a fresh blob. */
     public void replaceContent(LwsResource r) {
         Model sys = store.system();

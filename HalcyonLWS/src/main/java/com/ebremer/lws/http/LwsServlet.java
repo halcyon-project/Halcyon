@@ -181,6 +181,8 @@ public class LwsServlet extends HttpServlet {
     private transient BearerTokenValidator auth;
     private transient Notifications notify;
     private transient com.ebremer.lws.sharing.AccessSharing sharing;
+    /** Moves resources between containers when a linkset PATCH changes their {@code up} link. */
+    private transient MoveHandler moves;
 
     /**
      * Capabilities installed on this storage — the per-resource SPARQL endpoint, the IIIF Image
@@ -224,6 +226,7 @@ public class LwsServlet extends HttpServlet {
         this.auth = new BearerTokenValidator(cfg);
         this.notify = new Notifications(store, cfg);
         this.sharing = new com.ebremer.lws.sharing.AccessSharing(store, cfg, notify);
+        this.moves = new MoveHandler(store, cfg, content, notify, LwsSettings.get().moveAppliesTo(cfg));
         store.initStorage(cfg);
         AcpBootstrap.seed(store, cfg);
         notify.backfillSeqs();
@@ -493,6 +496,12 @@ public class LwsServlet extends HttpServlet {
      * relations become the resource's user-managed links ({@link LinksetJson#userLinks}). A merge
      * patch, still accepted, overlays relations one at a time ({@link LinksetJson#relations}).
      *
+     * <p>A patch that changes {@code up} asks to move the resource to another container
+     * (w3c/lws-protocol#237). Where this storage moves resources it is applied by {@link MoveHandler}
+     * in this same transaction, atomically with the patch's other link changes, and answered
+     * {@code 204} where the resource keeps its URI and {@code 200} with the linkset at its new place
+     * where it does not; elsewhere {@code up} stays server-managed, and changing it a {@code 403}.
+     *
      * <p>Metadata is the one thing several actors touch concurrently — a scanner adding types
      * while an owner adds a license — and lws10-core asks clients to make these writes
      * conditional (SHOULD), rejecting a stale {@code If-Match} with 412. It no longer lets a
@@ -521,7 +530,9 @@ public class LwsServlet extends HttpServlet {
         // (a stale If-Match is a 412 whatever the body says), then the body. A refusal throws
         // before anything is replaced, and a throw aborts the transaction, so a rejected patch
         // leaves the linkset -- and its entity tag -- exactly as they were.
-        String etag = store.write(() -> {
+        record Outcome(String etag, MoveHandler.Moved moved, JsonObject linkset) {
+        }
+        Outcome out = store.write(() -> {
             LwsResource r = known(rq, t.uri());
             demandOn(rq, r, AccessMode.WRITE);
             // Compared inside the write transaction, so this is a compare-and-swap.
@@ -532,10 +543,10 @@ public class LwsServlet extends HttpServlet {
             var current = LinksetStore.read(store, t.uri());
             List<String> serverManaged = new ArrayList<>();
             Map<String, List<String>> updated;
+            JsonValue result = null;
             if (jsonPatch) {
                 var links = new LinkedHashMap<>(server);
                 links.putAll(current);
-                JsonValue result;
                 try {
                     result = Json.createPatch(operations).apply(LinksetJson.build(t.uri(), links));
                 } catch (JsonException e) {
@@ -556,15 +567,63 @@ public class LwsServlet extends HttpServlet {
                 }
                 updated = LinksetJson.mergePatch(current, relations, new ArrayList<>());
             }
+            // A changed up link is a move where this storage moves resources (lws10-core, Moving
+            // Resources), and stays a server-managed relation everywhere else.
+            List<String> up = null;
+            if (serverManaged.contains(LinkHeader.REL_UP) && moves.enabled()) {
+                serverManaged.remove(LinkHeader.REL_UP);
+                up = jsonPatch ? LinksetJson.targets(result, LinkHeader.REL_UP)
+                        : LinksetJson.mergeTargets(patch.asJsonObject(), LinkHeader.REL_UP)
+                                .orElse(server.getOrDefault(LinkHeader.REL_UP, List.of()));
+            }
             if (!serverManaged.isEmpty()) {
                 throw Problem.forbidden("these relations are server-managed and cannot be set: "
                         + String.join(", ", serverManaged));
             }
-            return LinksetStore.replace(store, t.uri(), updated);
+            MoveHandler.Moved moved = up == null ? null
+                    : moves.move(r, up, t.linksetUri(), authority(rq), rq.agent().webId());
+            String anchor = moved == null ? t.uri() : moved.uri();
+            String etag = LinksetStore.replace(store, anchor, updated);
+            JsonObject linkset = null;
+            if (moved != null && moved.renamed()) {
+                LwsResource now = registry().find(anchor)
+                        .orElseThrow(() -> Problem.internal("the resource vanished on move"));
+                var links = serverLinks(now);
+                links.putAll(LinksetStore.read(store, anchor));
+                linkset = LinksetJson.build(anchor, links);
+            }
+            return new Outcome(etag, moved, linkset);
         });
 
-        resp.setStatus(HttpServletResponse.SC_NO_CONTENT);
-        resp.setHeader("ETag", etag);
+        if (out.moved() != null) {
+            // Posted after the commit, so a notification describes a move that happened; planned
+            // inside the transaction, on the state before and after it.
+            notify.deliver(out.moved().plan());
+            resp.addHeader("Link", LinkHeader.link(out.moved().parent(), LinkHeader.REL_UP));
+        }
+        resp.setHeader("ETag", out.etag());
+        if (out.linkset() == null) {
+            resp.setStatus(HttpServletResponse.SC_NO_CONTENT);
+            return;
+        }
+        // "A server that does not preserve the identifier of a moved resource MUST respond with 200
+        // OK and a representation of the updated linkset resource whose anchor is the new identifier
+        // of the resource, and MUST include a Content-Location header field carrying the new
+        // identifier of the linkset resource itself."
+        byte[] bytes = out.linkset().toString().getBytes(StandardCharsets.UTF_8);
+        agentSpecific(resp);
+        resp.setStatus(HttpServletResponse.SC_OK);
+        resp.setHeader("Content-Location", out.moved().uri() + LwsStorageConfig.LINKSET_SUFFIX);
+        resp.setContentType(MediaTypes.LINKSET_JSON);
+        resp.setCharacterEncoding(StandardCharsets.UTF_8.name());
+        resp.setContentLength(bytes.length);
+        resp.getOutputStream().write(bytes);
+    }
+
+    /** The agent of a request, as {@link MoveHandler} asks about it: the modes it holds, and the refusal. */
+    private MoveHandler.Authority authority(Req rq) {
+        return new MoveHandler.Authority(uri -> rq.acp().modes(rq.agent(), uri),
+                (mode, what) -> refusal(rq, mode, what));
     }
 
     // --- Authorization ------------------------------------------------------
@@ -687,11 +746,16 @@ public class LwsServlet extends HttpServlet {
         if (granted) {
             return;
         }
+        throw refusal(rq, mode, what);
+    }
+
+    /** The refusal of {@code mode}: a challenge for an anonymous agent, 403 for one we know. */
+    private Problem refusal(Req rq, AccessMode mode, String what) {
         String verb = mode.name().toLowerCase(Locale.ROOT);
         if (!rq.agent().isAuthenticated()) {
-            throw auth.unauthenticated("authentication is required to " + verb + " " + what);
+            return auth.unauthenticated("authentication is required to " + verb + " " + what);
         }
-        throw Problem.forbidden("the agent may not " + verb + " " + what);
+        return Problem.forbidden("the agent may not " + verb + " " + what);
     }
 
     // --- Read ---------------------------------------------------------------
@@ -3247,7 +3311,7 @@ public class LwsServlet extends HttpServlet {
             throw Problem.notAcceptable("the storage description is available as "
                     + MediaTypes.LWS_CID + ", " + MediaTypes.LWS_JSON + " or " + MediaTypes.TURTLE);
         }
-        JsonObject doc = LwsJson.storageDescription(cfg, capabilities.descriptors(cfg));
+        JsonObject doc = LwsJson.storageDescription(cfg, descriptors());
         byte[] bytes;
         if (turtle) {
             bytes = LwsRdf.toTurtle(doc);
@@ -3265,6 +3329,17 @@ public class LwsServlet extends HttpServlet {
         if (body) {
             resp.getOutputStream().write(bytes);
         }
+    }
+
+    /** The installed capabilities' descriptors, and the storage's own {@code MoveResource} if it moves. */
+    private List<com.ebremer.lws.capability.CapabilityDescriptor> descriptors() {
+        List<com.ebremer.lws.capability.CapabilityDescriptor> out =
+                new ArrayList<>(capabilities.descriptors(cfg));
+        var move = moves.descriptor();
+        if (move != null) {
+            out.add(move);
+        }
+        return out;
     }
 
     /**

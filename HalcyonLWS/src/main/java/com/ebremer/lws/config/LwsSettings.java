@@ -69,6 +69,9 @@ public final class LwsSettings {
     private final boolean acceptAuthenticationCredentials;
     private final boolean legacyChallenge;
     private final String userDataStoragePath;
+    private final java.util.Set<com.ebremer.lws.store.ResourceType> moveAppliesTo;
+    private final java.util.Map<String, java.util.Set<com.ebremer.lws.store.ResourceType>>
+            moveAppliesToByStorage;
     private volatile com.ebremer.lws.auth.oidc.TrustPolicy issuerPolicy;
     private volatile com.ebremer.lws.auth.oidc.TrustPolicy webIdHostPolicy;
 
@@ -86,6 +89,8 @@ public final class LwsSettings {
                 readBoolean(m, "LWSAcceptAuthenticationCredentials", true);
         this.legacyChallenge = readBoolean(m, "LWSLegacyChallenge", true);
         this.userDataStoragePath = readString(m, "LWSUserDataStorage");
+        this.moveAppliesTo = readMoveAppliesTo(m);
+        this.moveAppliesToByStorage = readMoveAppliesToByStorage(m);
         this.issuerPolicy = com.ebremer.lws.auth.oidc.TrustPolicy.forIssuers(
                 readAll(m, "AllowedIssuer"), readAll(m, "DeniedIssuer"));
         this.webIdHostPolicy = com.ebremer.lws.auth.oidc.TrustPolicy.forHosts(
@@ -223,6 +228,25 @@ public final class LwsSettings {
      */
     public boolean setLinkset() {
         return setLinkset;
+    }
+
+    /**
+     * Which kinds of resource a client may move between containers in {@code cfg}'s storage, by
+     * changing the {@code up} link in their linkset (lws10-core, Moving Resources,
+     * w3c/lws-protocol#237). Empty means moving is off: the storage describes no
+     * {@code MoveResource} capability and refuses a changed {@code up} as server-managed.
+     *
+     * <p>From {@code :LWSMoveAppliesTo}, whose values are {@code "DataResource"} and
+     * {@code "Container"} (as separate literals, or in one literal separated by commas or spaces),
+     * defaulting to both. An empty value (or {@code "none"}) turns moving off. Set on the settings
+     * node it applies to every storage; set on a {@code :hasLWSStorage} node it applies to that
+     * storage alone and wins over the other. The draft asks a server to describe the capability
+     * "only where their deployment requires it" and to restrict {@code appliesTo} "to the resource
+     * types they need to support", which is what the per-storage form is for: a mirror storage, where
+     * a move renames files on disk, can be left out while a flat one moves freely.
+     */
+    public java.util.Set<com.ebremer.lws.store.ResourceType> moveAppliesTo(LwsStorageConfig cfg) {
+        return moveAppliesToByStorage.getOrDefault(cfg.urlPath(), moveAppliesTo);
     }
 
     /**
@@ -384,6 +408,96 @@ public final class LwsSettings {
             }
         }
         return out;
+    }
+
+    /** Both kinds: what {@code :LWSMoveAppliesTo} means when it is not set at all. */
+    private static final java.util.Set<com.ebremer.lws.store.ResourceType> MOVE_BOTH =
+            java.util.Collections.unmodifiableSet(java.util.EnumSet.allOf(
+                    com.ebremer.lws.store.ResourceType.class));
+
+    /** {@code :LWSMoveAppliesTo} on the settings node, i.e. on any subject that is not a storage. */
+    private static java.util.Set<com.ebremer.lws.store.ResourceType> readMoveAppliesTo(Model m) {
+        ParameterizedSparqlString pss = new ParameterizedSparqlString("""
+            select ?v where {
+                ?s :LWSMoveAppliesTo ?v
+                filter not exists { ?x :hasLWSStorage ?s }
+            }
+            """);
+        pss.setNsPrefix("", HAL.NS);
+        List<String> values = new ArrayList<>();
+        try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m)) {
+            ResultSet rs = qe.execSelect();
+            while (rs.hasNext()) {
+                values.add(lexical(rs.next().get("v")));
+            }
+        }
+        return values.isEmpty() ? MOVE_BOTH : parseMoveAppliesTo(values, "the settings node");
+    }
+
+    /** {@code :LWSMoveAppliesTo} on each {@code :hasLWSStorage} node, keyed by its url path. */
+    private static java.util.Map<String, java.util.Set<com.ebremer.lws.store.ResourceType>>
+            readMoveAppliesToByStorage(Model m) {
+        ParameterizedSparqlString pss = new ParameterizedSparqlString("""
+            select ?urlPath ?v where {
+                ?s :hasLWSStorage ?st .
+                ?st :urlPath ?urlPath ; :LWSMoveAppliesTo ?v
+            }
+            """);
+        pss.setNsPrefix("", HAL.NS);
+        java.util.Map<String, List<String>> values = new java.util.LinkedHashMap<>();
+        try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m)) {
+            ResultSet rs = qe.execSelect();
+            while (rs.hasNext()) {
+                QuerySolution sol = rs.next();
+                String path = sol.getLiteral("urlPath").getString();
+                // Normalised as LwsStorageConfig normalises it, so the lookup by cfg.urlPath() finds it.
+                while (path.length() > 1 && path.endsWith("/")) {
+                    path = path.substring(0, path.length() - 1);
+                }
+                values.computeIfAbsent(path, k -> new ArrayList<>()).add(lexical(sol.get("v")));
+            }
+        }
+        java.util.Map<String, java.util.Set<com.ebremer.lws.store.ResourceType>> out =
+                new java.util.HashMap<>();
+        values.forEach((path, v) -> out.put(path, parseMoveAppliesTo(v, "storage " + path)));
+        return java.util.Map.copyOf(out);
+    }
+
+    private static String lexical(org.apache.jena.rdf.model.RDFNode n) {
+        if (n == null) {
+            return "";
+        }
+        return n.isLiteral() ? n.asLiteral().getString() : n.isURIResource() ? n.asResource().getURI() : "";
+    }
+
+    /**
+     * The resource kinds named by {@code :LWSMoveAppliesTo}'s values: {@code DataResource} and
+     * {@code Container}, as the terms or as their IRIs, any number to a literal. Anything else is
+     * logged and ignored, so a typo narrows what moves rather than widening it; values that name
+     * nothing at all (an empty literal, {@code "none"}) turn moving off.
+     */
+    static java.util.Set<com.ebremer.lws.store.ResourceType> parseMoveAppliesTo(List<String> values,
+            String where) {
+        java.util.EnumSet<com.ebremer.lws.store.ResourceType> out =
+                java.util.EnumSet.noneOf(com.ebremer.lws.store.ResourceType.class);
+        for (String value : values) {
+            for (String token : value.split("[,\\s]+")) {
+                String t = token.trim();
+                if (t.startsWith(com.ebremer.lws.vocab.LWS.NS)) {
+                    t = t.substring(com.ebremer.lws.vocab.LWS.NS.length());
+                }
+                switch (t) {
+                    case "", "none" -> {
+                        // names nothing
+                    }
+                    case "DataResource" -> out.add(com.ebremer.lws.store.ResourceType.DATA_RESOURCE);
+                    case "Container" -> out.add(com.ebremer.lws.store.ResourceType.CONTAINER);
+                    default -> LOG.warn(":LWSMoveAppliesTo on {} names '{}', which is neither "
+                            + "DataResource nor Container; ignored", where, t);
+                }
+            }
+        }
+        return java.util.Collections.unmodifiableSet(out);
     }
 
     private static String readOwner(Model m) {

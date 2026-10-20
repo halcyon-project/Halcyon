@@ -171,6 +171,34 @@ class LinksetJsonTest {
                 .getString("href"));
     }
 
+    /**
+     * A move asks for its destination through the up link of the patched linkset (lws10-core,
+     * Moving Resources): what a JSON Patch leaves there, across every link context object.
+     */
+    @Test
+    void theUpLinkAPatchedDocumentHoldsIsReadAsTheMoveDestination() {
+        JsonObject doc = read("{\"linkset\": [{\"anchor\": \"" + R + "\", \"up\": [{\"href\": \""
+                + STORAGE + "archive/\"}]}, {\"anchor\": \"" + R + "\", \"up\": [{\"href\": \""
+                + STORAGE + "archive/\"}, {\"href\": \"" + STORAGE + "other/\"}]}]}");
+        assertEquals(List.of(STORAGE + "archive/", STORAGE + "other/"), LinksetJson.targets(doc, "up"));
+        assertEquals(List.of(), LinksetJson.targets(read("{\"linkset\": [{\"anchor\": \"" + R + "\"}]}"),
+                "up"), "a patch that removed up leaves none");
+    }
+
+    /** ...and what a merge patch sets it to, in either shape, or nothing when it leaves it alone. */
+    @Test
+    void theUpLinkAMergePatchSetsIsReadInEitherShape() {
+        assertEquals(java.util.Optional.of(List.of(STORAGE + "archive/")), LinksetJson.mergeTargets(
+                read("{\"up\": [{\"href\": \"" + STORAGE + "archive/\"}]}"), "up"));
+        assertEquals(java.util.Optional.of(List.of(STORAGE + "archive/")), LinksetJson.mergeTargets(
+                read("{\"linkset\": [{\"anchor\": \"" + R + "\", \"up\": [{\"href\": \""
+                        + STORAGE + "archive/\"}]}]}"), "up"));
+        assertEquals(java.util.Optional.of(List.of()), LinksetJson.mergeTargets(read("{\"up\": null}"), "up"),
+                "null asks for no up link at all");
+        assertEquals(java.util.Optional.empty(), LinksetJson.mergeTargets(
+                read("{\"license\": [{\"href\": \"https://example.org/l\"}]}"), "up"));
+    }
+
     private static JsonObject read(String json) {
         try (var r = Json.createReader(new StringReader(json))) {
             return r.readObject();

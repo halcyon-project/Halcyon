@@ -209,6 +209,74 @@ public final class LinksetJson {
     }
 
     /**
+     * The targets a whole linkset document gives one relation, across every link context object,
+     * in document order and without repeats; empty when the document has none. Read from the
+     * result of a JSON Patch once {@link #userLinks} has accepted it as a linkset document, which
+     * is how a move asks for its destination: the patch replaces the target of {@code up}
+     * (lws10-core, Moving Resources).
+     */
+    public static List<String> targets(jakarta.json.JsonValue document, String rel) {
+        java.util.LinkedHashSet<String> out = new java.util.LinkedHashSet<>();
+        for (jakarta.json.JsonValue v : document.asJsonObject().getJsonArray("linkset")) {
+            var targets = v.asJsonObject().get(rel);
+            if (targets != null && targets.getValueType() == jakarta.json.JsonValue.ValueType.ARRAY) {
+                for (var t : targets.asJsonArray()) {
+                    String href = hrefOf(t);
+                    if (href != null) {
+                        out.add(href);
+                    }
+                }
+            }
+        }
+        return List.copyOf(out);
+    }
+
+    /**
+     * The targets a merge patch sets one relation to, or empty if it leaves the relation alone.
+     *
+     * <p>Read in either of the shapes {@link #relations} accepts. In the relation map the relation's
+     * own member decides; in the linkset document form every context object that names the relation
+     * contributes. {@code null} sets no targets at all, which for {@code up} is a request to leave
+     * the resource in no container.
+     */
+    public static java.util.Optional<List<String>> mergeTargets(JsonObject patch, String rel) {
+        List<jakarta.json.JsonValue> values = new java.util.ArrayList<>();
+        if (isDocument(patch)) {
+            for (jakarta.json.JsonValue v : patch.getJsonArray("linkset")) {
+                if (v.asJsonObject().containsKey(rel)) {
+                    values.add(v.asJsonObject().get(rel));
+                }
+            }
+        } else if (patch.containsKey(rel)) {
+            values.add(patch.get(rel));
+        }
+        if (values.isEmpty()) {
+            return java.util.Optional.empty();
+        }
+        java.util.LinkedHashSet<String> out = new java.util.LinkedHashSet<>();
+        for (jakarta.json.JsonValue value : values) {
+            switch (value.getValueType()) {
+                case ARRAY -> value.asJsonArray().forEach(v -> {
+                    String href = hrefOf(v);
+                    if (href != null) {
+                        out.add(href);
+                    }
+                });
+                case OBJECT, STRING -> {
+                    String href = hrefOf(value);
+                    if (href != null) {
+                        out.add(href);
+                    }
+                }
+                default -> {
+                    // null removes the relation; anything else names no target
+                }
+            }
+        }
+        return java.util.Optional.of(List.copyOf(out));
+    }
+
+    /**
      * True if {@code patch} is a linkset document rather than a relation map: a {@code linkset}
      * member holding an array of objects that each name an {@code anchor}. A relation map trying
      * to set the server-managed {@code linkset} relation would hold link targets instead, and is
