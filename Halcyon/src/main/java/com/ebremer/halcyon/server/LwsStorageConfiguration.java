@@ -9,6 +9,7 @@ import com.ebremer.lws.oauth.AuthorizationServerMetadataServlet;
 import com.ebremer.lws.oauth.AuthorizationServerSettings;
 import com.ebremer.lws.oauth.JwksServlet;
 import com.ebremer.lws.oauth.LwsAuthorizationServer;
+import com.ebremer.lws.oauth.ProtectedResourceMetadataServlet;
 import com.ebremer.lws.oauth.TokenEndpointServlet;
 import jakarta.servlet.DispatcherType;
 import jakarta.servlet.FilterRegistration;
@@ -83,9 +84,9 @@ public class LwsStorageConfiguration {
                     LOG.error("LWS storage {} not mounted: {}", cfg.urlPath(), e.getMessage());
                     continue;
                 }
+                LwsServlet storage = new LwsServlet(cfg, capabilities);
                 ServletRegistration.Dynamic reg =
-                        servletContext.addServlet("LWS " + cfg.urlPath(),
-                                new LwsServlet(cfg, capabilities));
+                        servletContext.addServlet("LWS " + cfg.urlPath(), storage);
                 if (reg == null) {
                     // Name already taken — a duplicate :hasLWSStorage urlPath.
                     LOG.error("LWS storage {} not mounted: a servlet with that name already exists",
@@ -98,6 +99,7 @@ public class LwsStorageConfiguration {
                 mappings.add(cfg.servletMapping());
                 LOG.info("mounted W3C LWS storage at {} -> {} ({} naming)",
                         cfg.servletMapping(), content, cfg.naming());
+                mountProtectedResourceMetadata(servletContext, cfg, storage);
             }
             if (!mappings.isEmpty()) {
                 // The embedded LWS authorization server. Built here, once the storages above are
@@ -127,9 +129,9 @@ public class LwsStorageConfiguration {
      * at {@code /.well-known/lws-configuration}, the RFC 8693 token endpoint, and the
      * {@code jwks_uri} that publishes the access-token verification key.
      *
-     * <p>All three are anonymous, and deliberately so: a client discovers them from a 401 challenge
-     * and needs them <em>before</em> it has a credential, so requiring one would be circular. None
-     * of them reads or writes storage data.
+     * <p>All three are anonymous, and deliberately so: a client discovers them from a 401 challenge,
+     * through the storage's protected resource metadata, and needs them <em>before</em> it has a
+     * credential, so requiring one would be circular. None of them reads or writes storage data.
      *
      * <p>Nothing is mounted when this instance runs no authorization server
      * ({@code :LWSAuthorizationServer false}), rather than mounting endpoints that would answer
@@ -151,6 +153,41 @@ public class LwsStorageConfiguration {
         LOG.info("mounted the LWS authorization server: {} {} {}",
                 AuthorizationServerSettings.METADATA_PATH, AuthorizationServerSettings.TOKEN_PATH,
                 AuthorizationServerSettings.JWKS_PATH);
+    }
+
+    /**
+     * Mount a storage's RFC 9728 protected resource metadata, which every 401 from the storage names
+     * in its challenge's {@code resource_metadata} (lws10-core since the drafts of 19 October 2026).
+     *
+     * <p>Per storage, on {@code /.well-known/oauth-protected-resource} followed by the storage's own
+     * path ({@link ProtectedResourceMetadataServlet#servletMapping}), which also matches that path
+     * exactly. Never on the whole {@code /.well-known/oauth-protected-resource/*}: HalcyonMCP serves
+     * the MCP endpoint's metadata at {@code /.well-known/oauth-protected-resource/mcp} through Spring
+     * MVC, behind the dispatcher servlet, and a servlet mapped on the whole tree would answer for it.
+     * Wicket keeps away from all of {@code /.well-known/} ({@link URLControl#getWicketIgnores()}).
+     *
+     * <p>Anonymous, like the authorization server's endpoints, and mounted whether or not this
+     * instance runs one: the metadata names whichever authorization server the storage's tokens come
+     * from, which the storage servlet decides when it initialises — hence the supplier.
+     */
+    private void mountProtectedResourceMetadata(jakarta.servlet.ServletContext servletContext,
+            LwsStorageConfig cfg, LwsServlet storage) {
+        String name = "LWS protected resource metadata " + cfg.urlPath();
+        ServletRegistration.Dynamic reg = servletContext.addServlet(name,
+                new ProtectedResourceMetadataServlet(cfg, storage::authorizationServer));
+        if (reg == null) {
+            LOG.error("{} not mounted: a servlet with that name already exists", name);
+            return;
+        }
+        String mapping = ProtectedResourceMetadataServlet.servletMapping(cfg);
+        java.util.Set<String> taken = reg.addMapping(mapping);
+        if (!taken.isEmpty()) {
+            LOG.error("{} not mounted: {} is already mapped", name, taken);
+            return;
+        }
+        reg.setLoadOnStartup(3);
+        reg.setAsyncSupported(true);
+        LOG.info("mounted the protected resource metadata of {} at {}", cfg.urlPath(), mapping);
     }
 
     private static void add(jakarta.servlet.ServletContext ctx, String name, String path,
