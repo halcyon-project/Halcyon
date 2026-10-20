@@ -379,6 +379,25 @@ public final class Notifications {
         graph().removeAll(sub(id), null, null);
     }
 
+    /**
+     * Follow renamed resources with the subscriptions whose topics name them. A topic is the
+     * resource a subscriber asked to hear about, and a move that renames it (on a storage whose URIs
+     * are paths) is still that resource: without this its subscribers would stop hearing about it at
+     * the moment it moved, the Move included. Assumes the move's write transaction.
+     *
+     * @param renamed every renamed resource, previous URI to new
+     */
+    public void renameTopics(java.util.Map<String, String> renamed) {
+        Model g = graph();
+        for (var e : renamed.entrySet()) {
+            Resource from = ResourceFactory.createResource(e.getKey());
+            for (Resource s : g.listSubjectsWithProperty(LWS.topic, from).toList()) {
+                g.remove(s, LWS.topic, from);
+                g.add(s, LWS.topic, ResourceFactory.createResource(e.getValue()));
+            }
+        }
+    }
+
     // --- Delivery -----------------------------------------------------------
 
     /**

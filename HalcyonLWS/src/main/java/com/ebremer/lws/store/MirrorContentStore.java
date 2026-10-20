@@ -176,6 +176,53 @@ public final class MirrorContentStore implements PathKeyedStore {
         }
     }
 
+    /** A rename of this tree is a filesystem rename, within one disk. */
+    @Override
+    public boolean supportsMove() {
+        return true;
+    }
+
+    /**
+     * A rename stays within one disk and leaves the mount layout as it is: the resource may not be a
+     * mount point, hold one, or land where one is declared, and its old and new keys must belong to
+     * the same root. Anything else would be a copy across disks, which cannot be atomic.
+     */
+    @Override
+    public String moveRefusal(String fromKey, String toKey) {
+        if (mounts.isMountPoint(fromKey)) {
+            return "it is where another disk is mounted";
+        }
+        if (mounts.mountWithin(fromKey, false)) {
+            return "another disk is mounted inside it";
+        }
+        if (mounts.mountWithin(toKey, true)) {
+            return "another disk is mounted where it would go";
+        }
+        if (!mounts.ownerPrefix(fromKey).equals(mounts.ownerPrefix(toKey))) {
+            return "the destination is on another disk";
+        }
+        return null;
+    }
+
+    /**
+     * Rename atomically ({@code ATOMIC_MOVE}, a single {@code rename(2)} or {@code MoveFileEx}), so
+     * the file or the whole directory is at one path or the other and never half copied. Without
+     * {@code REPLACE_EXISTING}, and checked first besides, because {@code rename(2)} would silently
+     * replace a file already at the destination. A destination on another file system — a directory
+     * that is an operating-system mount the mount table does not know — fails with
+     * {@link AtomicMoveNotSupportedException} rather than falling back to a copy.
+     */
+    @Override
+    public void move(String fromKey, String toKey) throws IOException {
+        Path from = pathFor(fromKey, null);
+        Path to = pathFor(toKey, null);
+        if (Files.exists(to, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
+            throw new java.nio.file.FileAlreadyExistsException(to.toString());
+        }
+        Files.createDirectories(to.getParent());
+        Files.move(from, to, StandardCopyOption.ATOMIC_MOVE);
+    }
+
     private static void move(Path tmp, Path target) throws IOException {
         try {
             Files.move(tmp, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);

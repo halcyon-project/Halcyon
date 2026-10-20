@@ -968,8 +968,10 @@ class LwsTestSuiteConformanceTest {
     }
 
     /**
-     * Not a suite entry: Touchstone's {@code linkset-up-not-redirected}. A JSON Patch may not
-     * change a server-managed relation: setting {@code up} is refused, and the resource's
+     * Not a suite entry: Touchstone's {@code linkset-up-not-redirected}. A JSON Patch may not make
+     * {@code up} name anything but a container of this storage: since this storage moves resources
+     * (w3c/lws-protocol#237) a changed {@code up} is a move, and one to a container that does not
+     * exist, elsewhere, is refused with 409 rather than as a server-managed relation; the resource's
      * {@code rel="up"} still names its container.
      */
     @Test
@@ -981,7 +983,7 @@ class LwsTestSuiteConformanceTest {
                         + "\"value\":[{\"href\":\"https://linkset.invalid/forged-parent/\"}]}]")
                         .getBytes(StandardCharsets.UTF_8));
 
-        assertEquals(403, r.status(), r.text());
+        assertEquals(409, r.status(), r.text());
         Res head = send("HEAD", "/alice/stays.txt", owner(), Map.of(), null);
         assertEquals(List.of(STORAGE), head.links("up").stream().map(l -> l.target()).toList());
     }

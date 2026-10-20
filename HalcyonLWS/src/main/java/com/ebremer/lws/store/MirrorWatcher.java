@@ -52,8 +52,18 @@ public final class MirrorWatcher {
     private volatile boolean running;
     private volatile ScheduledFuture<?> pending;
 
+    /** The WebID adopted resources are created and owned by, or null. */
+    private final String owner;
+
     public MirrorWatcher(LwsStore store, LwsStorageConfig cfg, MirrorContentStore mirror,
             ContentStore content) {
+        this(store, cfg, mirror, content, com.ebremer.lws.config.LwsSettings.get().owner());
+    }
+
+    /** @param owner the WebID adopted resources are created and owned by, or null */
+    public MirrorWatcher(LwsStore store, LwsStorageConfig cfg, MirrorContentStore mirror,
+            ContentStore content, String owner) {
+        this.owner = owner;
         this.store = store;
         this.cfg = cfg;
         this.mirror = mirror;
@@ -158,7 +168,7 @@ public final class MirrorWatcher {
 
     private void reconcile() {
         try {
-            new MirrorReconciler(store, cfg, mirror, content).reconcile();
+            new MirrorReconciler(store, cfg, mirror, content, owner).reconcile();
         } catch (RuntimeException e) {
             LOG.warn("watch-triggered reconcile of {} failed", cfg.baseUri(), e);
         }

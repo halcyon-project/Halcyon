@@ -532,7 +532,7 @@ public class LwsServlet extends HttpServlet {
         // leaves the linkset -- and its entity tag -- exactly as they were.
         record Outcome(String etag, MoveHandler.Moved moved, JsonObject linkset) {
         }
-        Outcome out = store.write(() -> {
+        Outcome out = moves.write(() -> {
             LwsResource r = known(rq, t.uri());
             demandOn(rq, r, AccessMode.WRITE);
             // Compared inside the write transaction, so this is a compare-and-swap.

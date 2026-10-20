@@ -191,6 +191,8 @@ class MoveServletTest {
                 strings(capability("/dataonly", "MoveResource").orElseThrow().getJsonArray("appliesTo")));
         assertTrue(capability("/fixed", "MoveResource").isEmpty(),
                 "a storage that does not move resources MUST NOT describe the capability");
+        assertEquals(JsonValue.FALSE, capability("/tree", "MoveResource").orElseThrow()
+                .get("preservesIdentifier"), "the mirror's URIs are paths on disk");
     }
 
     // --- Moving on a storage that keeps identifiers --------------------------
@@ -401,6 +403,108 @@ class MoveServletTest {
         assertEquals(moved, move.getJsonObject("object").getString("id"));
     }
 
+    // --- Moving on the disk mirror, where identifiers change -----------------
+
+    @Test
+    void aMovedResourceTakesANewUriAndTheLinksetSaysWhich() throws Exception {
+        String source = container("/tree", root("/tree"));
+        String destination = container("/tree", root("/tree"));
+        String moved = data("/tree", source, "a resource on the move");
+        String name = moved.substring(source.length());
+        String linkset = linksetOf(moved);
+        assertEquals(204, patch(linkset, JSON_PATCH, LICENSE_PATCH, etagOf(linkset, "/tree"),
+                owner("/tree")).status());
+
+        Res r = moveTo(linkset, destination, etagOf(linkset, "/tree"), "/tree");
+
+        // "A server that does not preserve the identifier of a moved resource MUST respond with 200
+        // OK and a representation of the updated linkset resource whose anchor is the new
+        // identifier of the resource, and MUST include a Content-Location header field carrying the
+        // new identifier of the linkset resource itself."
+        assertEquals(200, r.status(), r.text());
+        assertEquals(LINKSET_JSON, r.mediaType());
+        String now = destination + name;
+        assertEquals(now + ".meta", URI.create(linkset).resolve(r.header("Content-Location")
+                .orElseThrow()).toString());
+        JsonObject ctx = r.json().getJsonArray("linkset").getJsonObject(0);
+        assertEquals(now, ctx.getString("anchor"));
+        assertEquals(destination, ctx.getJsonArray("up").getJsonObject(0).getString("href"));
+        assertEquals("https://creativecommons.org/licenses/by/4.0/",
+                ctx.getJsonArray("license").getJsonObject(0).getString("href"));
+        assertEquals(r.header("ETag").orElseThrow(), etagOf(now + ".meta", "/tree"));
+
+        assertEquals(List.of(now), items(destination));
+        assertEquals(List.of(), items(source));
+        Res after = send("GET", now, owner("/tree"), Map.of(), null);
+        assertEquals(200, after.status());
+        assertEquals("a resource on the move", after.text());
+        assertEquals(destination, after.link("up").orElseThrow());
+        assertTrue(Files.isRegularFile(onDisk(now)), "renamed on disk");
+        assertFalse(Files.exists(onDisk(moved)));
+    }
+
+    @Test
+    void aMovedContainerTakesItsSubtreeAlongAndTheWatcherLeavesItThere() throws Exception {
+        String source = container("/tree", root("/tree"));
+        String destination = container("/tree", root("/tree"));
+        String moved = container("/tree", source);
+        String inner = data("/tree", moved, "carried along");
+        String innerName = inner.substring(moved.length());
+        givenAcr(inner, BOB, "acl:Read");
+
+        Res r = moveTo(linksetOf(moved), destination, etagOf(linksetOf(moved), "/tree"), "/tree");
+        assertEquals(200, r.status(), r.text());
+        String arrived = r.json().getJsonArray("linkset").getJsonObject(0).getString("anchor");
+        assertEquals(List.of(arrived), items(destination));
+        assertEquals(List.of(arrived + innerName), items(arrived));
+        assertEquals(List.of(), items(source));
+
+        // The rename on disk is an event the watcher sees. Once a file dropped in afterwards is
+        // adopted, a reconcile has run since the move; the moved subtree must have survived it as
+        // the move left it, its member's access control included.
+        Files.writeString(onDisk(destination).resolve("probe"), "probe");
+        Instant until = Instant.now().plusSeconds(30);
+        while (send("HEAD", destination + "probe", owner("/tree"), Map.of(), null).status() != 200) {
+            assertTrue(Instant.now().isBefore(until), "the watcher never reconciled");
+            Thread.sleep(250);
+        }
+        assertEquals(List.of(arrived + innerName), items(arrived));
+        assertEquals(200, send("GET", arrived + innerName, token("/tree", BOB), Map.of(), null)
+                .status(), "bob's ACR moved with the member it governs");
+        assertEquals(404, send("GET", inner, owner("/tree"), Map.of(), null).status(),
+                "nothing was adopted again at the old place");
+        assertTrue(items(source).isEmpty());
+    }
+
+    @Test
+    void aTakenNameIsDisambiguatedOnTheMirror() throws Exception {
+        String source = container("/tree", root("/tree"));
+        String destination = container("/tree", root("/tree"));
+        Res first = send("POST", source, owner("/tree"), Map.of("Slug", "same.txt",
+                "Content-Type", "text/plain"), "moving".getBytes(StandardCharsets.UTF_8));
+        Res taken = send("POST", destination, owner("/tree"), Map.of("Slug", "same.txt",
+                "Content-Type", "text/plain"), "staying".getBytes(StandardCharsets.UTF_8));
+        assertEquals(201, first.status());
+        assertEquals(201, taken.status());
+
+        Res r = moveTo(linksetOf(first.location()), destination,
+                etagOf(linksetOf(first.location()), "/tree"), "/tree");
+        assertEquals(200, r.status(), r.text());
+        assertEquals(destination + "same-1.txt",
+                r.json().getJsonArray("linkset").getJsonObject(0).getString("anchor"));
+        assertEquals("staying", send("GET", destination + "same.txt", owner("/tree"), Map.of(), null)
+                .text());
+    }
+
+    @Test
+    void aMirrorContainerCannotMoveIntoWhatItHolds() throws Exception {
+        String outer = container("/tree", root("/tree"));
+        String inner = container("/tree", outer);
+        Res r = moveTo(linksetOf(outer), inner, etagOf(linksetOf(outer), "/tree"), "/tree");
+        assertEquals(409, r.status(), r.text());
+        assertTrue(Files.isDirectory(onDisk(inner)));
+    }
+
     // --- Helpers: the Touchstone-shaped requests ----------------------------
 
     private static Res moveTo(String linkset, String destination, String etag, String storage)
@@ -476,6 +580,18 @@ class MoveServletTest {
     }
 
     // --- Helpers: fixtures --------------------------------------------------
+
+    private static final String LICENSE_PATCH = """
+            [ { "op": "add", "path": "/linkset/0/license",
+                "value": [ { "href": "https://creativecommons.org/licenses/by/4.0/" } ] } ]
+            """;
+
+    /** Where the mirror storage keeps a resource on disk: its path under the storage. */
+    private static Path onDisk(String uri) {
+        String rel = uri.substring(root("/tree").length());
+        return content.resolve("tree").resolve(rel.endsWith("/") ? rel.substring(0, rel.length() - 1)
+                : rel);
+    }
 
     private static String root(String storage) {
         return SITE + storage + "/";

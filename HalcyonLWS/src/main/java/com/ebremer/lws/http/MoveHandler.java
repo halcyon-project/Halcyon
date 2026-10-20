@@ -1,6 +1,7 @@
 package com.ebremer.lws.http;
 
 import com.ebremer.lws.acp.AccessMode;
+import com.ebremer.lws.acp.AcrStore;
 import com.ebremer.lws.capability.CapabilityDescriptor;
 import com.ebremer.lws.config.LwsStorageConfig;
 import com.ebremer.lws.notify.Notifications;
@@ -12,13 +13,25 @@ import com.ebremer.lws.store.ResourceRegistry;
 import com.ebremer.lws.store.ResourceType;
 import jakarta.json.Json;
 import jakarta.json.JsonArrayBuilder;
+import java.io.IOException;
 import java.net.URI;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.FileSystemException;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.Supplier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Moving a resource to another container by changing the {@code up} link in its linkset
@@ -40,7 +53,9 @@ import java.util.function.Function;
  * ("Servers SHOULD therefore preserve the identifier of a moved resource"), described as
  * {@code "preservesIdentifier": true}. A path-keyed store (the disk mirror) cannot: there the URI
  * <em>is</em> the path on disk, and the disk is authoritative, so it says
- * {@code "preservesIdentifier": false}.
+ * {@code "preservesIdentifier": false}, and a move renames: the resource, and a container's whole
+ * subtree, take the destination's URI followed by their own name, and the file or directory is
+ * renamed on disk in the same transaction (see {@link #write}).
  *
  * <p>Every refusal leaves the resource where it was, because each one is thrown before anything is
  * written and a throw aborts the transaction. The refusals and their codes:
@@ -49,7 +64,10 @@ import java.util.function.Function;
  *       than one, any {@code up} on the storage root, a destination in another storage, one that is
  *       not an existing container (or one the agent may not know exists — the same answer, so the
  *       refusal discloses nothing), a container moved into itself or its own descendant, and a kind
- *       of resource the {@code MoveResource} capability does not list in {@code appliesTo};</li>
+ *       of resource the {@code MoveResource} capability does not list in {@code appliesTo}; and on
+ *       the mirror, a rename its disks cannot make — onto another disk or file system, carrying or
+ *       landing on a mount point, past the path length a PUT is held to, or refused by the file
+ *       system (a file in use, on Windows);</li>
  *   <li>{@code 403} (or {@code 401} for an anonymous agent) when the agent may not delete the
  *       resource — which here, as for {@code DELETE}, is {@code Write} on it, {@code Append} on the
  *       container it is in and, for a container, {@code Write} on everything beneath it — or may not
@@ -60,12 +78,25 @@ import java.util.function.Function;
  */
 public final class MoveHandler {
 
+    private static final Logger LOG = LoggerFactory.getLogger(MoveHandler.class);
+
     /** As deep as a recursive delete descends; see {@code LwsServlet.MAX_TREE_DEPTH}. */
     private static final int MAX_TREE_DEPTH = 256;
+
+    /** The longest on-disk path a mirror resource may have, as {@code LwsServlet} validates a PUT. */
+    private static final int MAX_PATH = 240;
+
+    /** How many {@code name-N} a renamed resource tries in a destination that holds its name. */
+    private static final int MAX_ATTEMPTS = 64;
+
+    /** The renames on disk the current {@link #write} has made, to be undone if it does not commit. */
+    private static final ThreadLocal<Deque<Runnable>> UNDO = new ThreadLocal<>();
 
     private final LwsStore store;
     private final LwsStorageConfig cfg;
     private final ContentStore content;
+    /** Non-null iff this storage's keys are URI paths, so that a move renames. */
+    private final PathKeyedStore paths;
     private final Notifications notify;
     private final Set<ResourceType> appliesTo;
 
@@ -78,21 +109,66 @@ public final class MoveHandler {
         this.store = store;
         this.cfg = cfg;
         this.content = content;
+        this.paths = content instanceof PathKeyedStore p ? p : null;
         this.notify = notify;
         this.appliesTo = Set.copyOf(appliesTo);
     }
 
     /**
-     * Whether a client may move resources in this storage. Off when nothing is configured to move,
-     * and on a path-keyed storage, whose moves rename files: not yet supported.
+     * Whether a client may move resources in this storage: something is configured to move, and a
+     * path-keyed store can rename what it holds.
      */
     public boolean enabled() {
-        return !appliesTo.isEmpty() && !(content instanceof PathKeyedStore);
+        return !appliesTo.isEmpty() && (paths == null || paths.supportsMove());
     }
 
     /** Whether a moved resource keeps its URI: only where the URI is not the content's key. */
     public boolean preservesIdentifier() {
-        return !(content instanceof PathKeyedStore);
+        return paths == null;
+    }
+
+    /**
+     * Run a linkset write that may move a resource: {@link LwsStore#write}, with the renames on disk
+     * that {@link #move} makes in it undone if it does not commit.
+     *
+     * <p>The rename happens inside the transaction, not after it, and that is what keeps the disk
+     * mirror's reconciler from undoing or duplicating a move. The reconciler compares the disk with
+     * the index and acts on each difference in a write transaction of its own, after checking that
+     * difference again; TDB2 admits one writer, so it can act only before the rename or after the
+     * commit, never between, and either way the disk and the index agree on where the resource is —
+     * it finds nothing gone and nothing new. A rename after the commit would leave a window in which
+     * the index named a path that did not exist yet, and a reconcile then would de-register the
+     * resource and adopt it afresh, losing its types, links, access control and owner. If the
+     * transaction aborts, the rename is reversed before it ends, and TDB2 is untouched; if its commit
+     * fails, the rename is reversed as soon as it has.
+     */
+    public <T> T write(Supplier<T> body) {
+        Deque<Runnable> undo = new ArrayDeque<>();
+        Deque<Runnable> outer = UNDO.get();
+        UNDO.set(undo);
+        try {
+            return store.write(() -> {
+                try {
+                    return body.get();
+                } catch (RuntimeException | Error e) {
+                    // Reversed while this transaction still holds the writer, so no reconcile
+                    // can see the disk renamed and the index not.
+                    undo(undo);
+                    throw e;
+                }
+            });
+        } catch (RuntimeException | Error e) {
+            // The commit itself failed: reversed just after the transaction, the one moment a
+            // reconcile could see the two disagree. A failing commit is a failing store anyway.
+            undo(undo);
+            throw e;
+        } finally {
+            if (outer == null) {
+                UNDO.remove();
+            } else {
+                UNDO.set(outer);
+            }
+        }
     }
 
     /**
@@ -219,14 +295,21 @@ public final class MoveHandler {
         List<LwsResource> tree = new ArrayList<>();
         collect(reg, r, tree, 0);
         authorize(r, tree, dest, authz);
+        Relocation renaming = paths == null ? null : relocation(reg, r, tree, dest);
 
         // Planned on the state before the move as well as after it: a subscriber who could read the
         // resource where it was, and cannot where it is now, is told it is gone, as for a delete.
         List<Notifications.Planned> before = notify.plan(List.of(new Notifications.Change(
                 "Delete", r.uri(), r.isContainer(), r.parent())), actor);
 
-        reg.reparent(r.uri(), dest);
         String now = r.uri();
+        if (renaming != null) {
+            reg.rename(renaming.renamed(), renaming.keys());
+            AcrStore.rename(store, renaming.renamed());
+            notify.renameTopics(renaming.renamed());
+            now = renaming.uri();
+        }
+        reg.reparent(now, dest);
 
         // Access is often inherited down the containment hierarchy, so who may read what has just
         // changed for the whole subtree without any policy being written. A listing too large to
@@ -235,7 +318,143 @@ public final class MoveHandler {
 
         List<Notifications.Planned> after = notify.plan(List.of(new Notifications.Change(
                 "Move", now, r.isContainer(), dest, r.parent())), actor);
+
+        // Last, so that nothing in this method can fail after it; the commit still can, and write()
+        // reverses the rename then.
+        if (renaming != null) {
+            renameOnDisk(renaming);
+        }
         return new Moved(now, dest, !now.equals(r.uri()), merge(after, before));
+    }
+
+    /**
+     * A rename a move makes: the moved resource's new URI, its old and new keys, and the new URI and
+     * key of it and of everything beneath it.
+     */
+    private record Relocation(String uri, String fromKey, String toKey, Map<String, String> renamed,
+            Map<String, String> keys) {
+    }
+
+    /**
+     * Where a move takes a resource on a storage whose URIs are paths, refusing (409) one the disk
+     * cannot hold: the destination's URI followed by the resource's own name, or, where the
+     * destination already holds that name, the name a taken {@code Slug} would get in a create
+     * ({@code notes.txt} becomes {@code notes-1.txt}), so a move never replaces anything. A container's
+     * members keep their names beneath it. Decided before anything changes, as every refusal is.
+     */
+    private Relocation relocation(ResourceRegistry reg, LwsResource r, List<LwsResource> tree,
+            String dest) {
+        String uri = freeUri(reg, dest.endsWith("/") ? dest : dest + "/", nameOf(r.uri()),
+                r.isContainer());
+        String fromKey = keyOf(r.uri());
+        String toKey = keyOf(uri);
+        String refusal = paths.moveRefusal(fromKey, toKey);
+        if (refusal != null) {
+            throw Problem.conflict(r.uri() + " cannot be moved to " + dest + ": " + refusal);
+        }
+        Map<String, String> renamed = new LinkedHashMap<>();
+        Map<String, String> keys = new HashMap<>();
+        for (LwsResource node : tree) {
+            if (!node.uri().startsWith(r.uri())) {
+                // A member whose URI is not under its container's has no path to carry along.
+                throw Problem.conflict(r.uri() + " holds a resource whose URI is not beneath its own, "
+                        + "so it cannot be renamed");
+            }
+            String to = uri + node.uri().substring(r.uri().length());
+            renamed.put(node.uri(), to);
+            keys.put(node.uri(), keyOf(to));
+            if (paths.pathFor(keyOf(to), null).toString().length() > MAX_PATH) {
+                throw Problem.conflict("moving " + r.uri() + " to " + dest
+                        + " would make a filesystem path too long");
+            }
+        }
+        return new Relocation(uri, fromKey, toKey, renamed, keys);
+    }
+
+    /** The first of {@code name}, {@code name-1}, … that neither a resource nor a file holds in {@code dest}. */
+    private String freeUri(ResourceRegistry reg, String dest, String name, boolean container) {
+        String slash = container ? "/" : "";
+        String candidate = dest + name + slash;
+        if (!taken(reg, candidate)) {
+            return candidate;
+        }
+        // Before the extension, as SlugNaming disambiguates: "list.txt" becomes "list-1.txt".
+        String stem = name;
+        String ext = "";
+        int dot = name.lastIndexOf('.');
+        if (dot > 0) {
+            stem = name.substring(0, dot);
+            ext = name.substring(dot);
+        }
+        for (int i = 1; i <= MAX_ATTEMPTS; i++) {
+            candidate = dest + stem + "-" + i + ext + slash;
+            if (!taken(reg, candidate)) {
+                return candidate;
+            }
+        }
+        throw Problem.conflict(dest + " already holds " + name + " and too many names like it");
+    }
+
+    /**
+     * Whether a URI is in use: by a resource, or by a file on disk that holds the path — one not yet
+     * adopted, or one whose name differs only in case on a file system that ignores case.
+     */
+    private boolean taken(ResourceRegistry reg, String uri) {
+        return reg.exists(uri) || paths.exists(keyOf(uri), null);
+    }
+
+    /** The last segment of a URI, without a container's trailing slash. */
+    private static String nameOf(String uri) {
+        String u = uri.endsWith("/") ? uri.substring(0, uri.length() - 1) : uri;
+        return u.substring(u.lastIndexOf('/') + 1);
+    }
+
+    /** A resource's key in a path-keyed store: its path under the storage, as LwsServlet keys it. */
+    private String keyOf(String uri) {
+        String base = cfg.baseUri() + "/";
+        String rel = uri.startsWith(base) ? uri.substring(base.length()) : uri;
+        return rel.endsWith("/") ? rel.substring(0, rel.length() - 1) : rel;
+    }
+
+    private static void undo(Deque<Runnable> undo) {
+        while (!undo.isEmpty()) {
+            undo.pop().run();
+        }
+    }
+
+    /** Rename on disk, inside {@link #write}, which reverses it if the transaction does not commit. */
+    private void renameOnDisk(Relocation renaming) {
+        Deque<Runnable> undo = UNDO.get();
+        if (undo == null) {
+            throw new IllegalStateException("a move that renames must run inside MoveHandler.write");
+        }
+        try {
+            paths.move(renaming.fromKey(), renaming.toKey());
+        } catch (FileAlreadyExistsException e) {
+            throw Problem.conflict("something already occupies " + renaming.uri() + " on disk");
+        } catch (AtomicMoveNotSupportedException e) {
+            throw Problem.conflict("the destination is on another file system, and a move there "
+                    + "would be a copy, which cannot be atomic");
+        } catch (FileSystemException e) {
+            // Refused by the file system: on Windows, typically a file someone still has open.
+            LOG.warn("could not rename {} to {}: {}", renaming.fromKey(), renaming.toKey(),
+                    e.toString());
+            throw Problem.conflict("the file system refused to rename it; it may be in use");
+        } catch (IOException e) {
+            LOG.error("could not rename {} to {}", renaming.fromKey(), renaming.toKey(), e);
+            throw Problem.internal("the resource could not be renamed on disk");
+        }
+        undo.push(() -> {
+            try {
+                paths.move(renaming.toKey(), renaming.fromKey());
+            } catch (IOException | RuntimeException e) {
+                // The index still says where it was, and the disk says where it went: the
+                // reconciler will see a file removed and another added. Loud, because that loses
+                // the metadata it would otherwise have kept.
+                LOG.error("a move of {} did not commit, and its rename on disk could not be undone",
+                        renaming.fromKey(), e);
+            }
+        });
     }
 
     /**

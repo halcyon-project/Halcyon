@@ -325,6 +325,99 @@ public final class ResourceRegistry {
         touchAncestors(uri);
     }
 
+    /**
+     * Give resources new URIs: the first half of a move on a storage whose URI is the content's key
+     * (the disk mirror), where a moved resource, and everything beneath a moved container, cannot keep
+     * its identifier. {@link #reparent} then moves the renamed resource into its destination.
+     *
+     * <p>Everything this registry keys by a resource's URI is re-keyed: its facts in
+     * {@code urn:lws:system} (the {@link LWSX#parent} of a member of a renamed container follows its
+     * container, and the {@link LWSX#storageKey} becomes {@code keys}' entry), its named graph — whose
+     * name is the URI, the identity jena-permissions authorizes on — with the URI, any fragment of it
+     * and any other renamed URI it names (a container's {@code items}, a stored document's own
+     * metadata) rewritten, its linkset, re-anchored with its links as written, and the {@code items}
+     * entry of a container that is not itself renamed. Links a client wrote that point at a renamed
+     * URI are left as written, like any other reference a client made: a previous URI answers
+     * {@code 301}.
+     *
+     * @param renamed every renamed resource, previous URI to new
+     * @param keys    each renamed resource's new storage key, by previous URI
+     */
+    public void rename(java.util.Map<String, String> renamed, java.util.Map<String, String> keys) {
+        Model sys = store.system();
+        for (var e : renamed.entrySet()) {
+            String from = e.getKey();
+            String to = e.getValue();
+            Resource f = res(from);
+            Resource t = res(to);
+
+            List<Statement> facts = sys.listStatements(f, null, (org.apache.jena.rdf.model.RDFNode) null).toList();
+            sys.remove(facts);
+            for (Statement st : facts) {
+                org.apache.jena.rdf.model.RDFNode o = st.getPredicate().equals(LWSX.storageKey)
+                        && keys.containsKey(from)
+                        ? sys.createLiteral(keys.get(from))
+                        : renameNode(st.getObject(), renamed);
+                sys.add(t, st.getPredicate(), o);
+            }
+
+            moveGraph(from, to, renamed, true);
+            moveGraph(from + LwsStorageConfig.LINKSET_SUFFIX, to + LwsStorageConfig.LINKSET_SUFFIX,
+                    java.util.Map.of(from, to), false);
+
+            String parent = uriOf(sys, t, LWSX.parent);
+            if (parent != null && !renamed.containsValue(parent)) {
+                Model pg = ds().getNamedModel(parent);
+                if (pg.contains(res(parent), LWS.items, f)) {
+                    pg.remove(res(parent), LWS.items, f);
+                    pg.add(res(parent), LWS.items, t);
+                }
+            }
+        }
+    }
+
+    /**
+     * Move named graph {@code from} to {@code to}: every IRI in it renamed ({@code everywhere}), or only
+     * the subjects (a linkset, whose objects are a client's link targets).
+     */
+    private void moveGraph(String from, String to, java.util.Map<String, String> renamed,
+            boolean everywhere) {
+        if (!ds().containsNamedModel(from)) {
+            return;
+        }
+        Model src = ds().getNamedModel(from);
+        Model dst = ds().getNamedModel(to);
+        for (Statement st : src.listStatements().toList()) {
+            Resource s = st.getSubject().isURIResource()
+                    ? res(renameIri(st.getSubject().getURI(), renamed)) : st.getSubject();
+            org.apache.jena.rdf.model.RDFNode o = everywhere ? renameNode(st.getObject(), renamed)
+                    : st.getObject();
+            dst.add(s, st.getPredicate(), o);
+        }
+        ds().removeNamedModel(from);
+    }
+
+    private static org.apache.jena.rdf.model.RDFNode renameNode(org.apache.jena.rdf.model.RDFNode n,
+            java.util.Map<String, String> renamed) {
+        return n.isURIResource() ? res(renameIri(n.asResource().getURI(), renamed)) : n;
+    }
+
+    /** {@code iri} under its new name: a renamed URI, or a fragment of one, else itself. */
+    public static String renameIri(String iri, java.util.Map<String, String> renamed) {
+        String to = renamed.get(iri);
+        if (to != null) {
+            return to;
+        }
+        int hash = iri.indexOf('#');
+        if (hash > 0) {
+            String base = renamed.get(iri.substring(0, hash));
+            if (base != null) {
+                return base + iri.substring(hash);
+            }
+        }
+        return iri;
+    }
+
     /** Replace a data resource's content pointer. PUT always writes a fresh blob. */
     public void replaceContent(LwsResource r) {
         Model sys = store.system();
