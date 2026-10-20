@@ -8,6 +8,7 @@ import com.ebremer.lws.notify.Notifications;
 import com.ebremer.lws.store.ContentStore;
 import com.ebremer.lws.store.LwsResource;
 import com.ebremer.lws.store.LwsStore;
+import com.ebremer.lws.store.MoveRecords;
 import com.ebremer.lws.store.PathKeyedStore;
 import com.ebremer.lws.store.ResourceRegistry;
 import com.ebremer.lws.store.ResourceType;
@@ -29,6 +30,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -94,11 +96,16 @@ public final class MoveHandler {
 
     private final LwsStore store;
     private final LwsStorageConfig cfg;
-    private final ContentStore content;
     /** Non-null iff this storage's keys are URI paths, so that a move renames. */
     private final PathKeyedStore paths;
     private final Notifications notify;
     private final Set<ResourceType> appliesTo;
+
+    /**
+     * Whether a previous URI of this storage has ever been recorded: until one has, a request for a
+     * URI where nothing lives is not worth a look at the records, and costs no transaction.
+     */
+    private volatile boolean recorded;
 
     /**
      * @param appliesTo the kinds of resource that may move, from {@code :LWSMoveAppliesTo}; empty
@@ -108,10 +115,11 @@ public final class MoveHandler {
             Notifications notify, Set<ResourceType> appliesTo) {
         this.store = store;
         this.cfg = cfg;
-        this.content = content;
         this.paths = content instanceof PathKeyedStore p ? p : null;
         this.notify = notify;
         this.appliesTo = Set.copyOf(appliesTo);
+        this.recorded = paths != null
+                && store.read(() -> MoveRecords.any(store.system(), cfg.storageRootUri()));
     }
 
     /**
@@ -307,6 +315,7 @@ public final class MoveHandler {
             reg.rename(renaming.renamed(), renaming.keys());
             AcrStore.rename(store, renaming.renamed());
             notify.renameTopics(renaming.renamed());
+            MoveRecords.record(store.system(), renaming.renamed());
             now = renaming.uri();
         }
         reg.reparent(now, dest);
@@ -323,8 +332,53 @@ public final class MoveHandler {
         // reverses the rename then.
         if (renaming != null) {
             renameOnDisk(renaming);
+            // Set before the commit: a request answered by an aborted move's records finds none.
+            recorded = true;
         }
         return new Moved(now, dest, !now.equals(r.uri()), merge(after, before));
+    }
+
+    /**
+     * Where a request for a renamed resource's previous URI should be sent: the URI the resource,
+     * its linkset or its access control resource has now, or {@code null} to answer as for any URI
+     * where nothing lives.
+     *
+     * <p>"Such a server SHOULD respond to subsequent requests on the previous identifiers of the
+     * resource and of its auxiliary resources with 301 Moved Permanently, including a Location
+     * header field pointing at the new identifier." Only to an agent that may read the resource where
+     * it is now, though: a redirect discloses the new identifier, and on this storage, where the
+     * identifier is the path, the container it moved into — which the draft's privacy considerations
+     * name ("Servers SHOULD apply the same access control to such responses as to the moved resource
+     * itself, and MAY respond with 404 Not Found instead"). Anyone else gets the answer a URI where
+     * nothing lives gets, so the refusal is no oracle either. Something living at the URI again
+     * always wins over its record.
+     *
+     * @param mayRead whether the agent may read a resource, judged in the transaction this opens
+     */
+    public String redirect(Target t, Predicate<String> mayRead) {
+        if (!recorded) {
+            return null;
+        }
+        String suffix = switch (t.kind()) {
+            case RESOURCE -> "";
+            case LINKSET -> LwsStorageConfig.LINKSET_SUFFIX;
+            case ACR -> LwsStorageConfig.ACR_SUFFIX;
+            default -> null;
+        };
+        if (suffix == null) {
+            return null;
+        }
+        return store.read(() -> {
+            ResourceRegistry reg = new ResourceRegistry(store, cfg);
+            if (reg.exists(t.uri())) {
+                return null;
+            }
+            String now = MoveRecords.lookup(store.system(), t.uri());
+            if (now == null || !reg.exists(now) || !mayRead.test(now)) {
+                return null;
+            }
+            return now + suffix;
+        });
     }
 
     /**

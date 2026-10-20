@@ -254,6 +254,8 @@ public final class ResourceRegistry {
         Resource s = res(r.uri());
         Instant now = r.modified() == null ? Instant.now() : r.modified();
 
+        // A resource that lives here takes precedence over the record of one that moved away.
+        MoveRecords.forgetFrom(sys, r.uri());
         sys.add(s, LWSX.storage, res(cfg.storageRootUri()));
         sys.add(s, LWSX.seq, typed(r.seq()));
         sys.add(s, LWSX.version, typed(0L));
@@ -345,6 +347,7 @@ public final class ResourceRegistry {
      */
     public void rename(java.util.Map<String, String> renamed, java.util.Map<String, String> keys) {
         Model sys = store.system();
+        java.util.Set<String> renamedTo = new java.util.HashSet<>(renamed.values());
         for (var e : renamed.entrySet()) {
             String from = e.getKey();
             String to = e.getValue();
@@ -366,7 +369,7 @@ public final class ResourceRegistry {
                     java.util.Map.of(from, to), false);
 
             String parent = uriOf(sys, t, LWSX.parent);
-            if (parent != null && !renamed.containsValue(parent)) {
+            if (parent != null && !renamedTo.contains(parent)) {
                 Model pg = ds().getNamedModel(parent);
                 if (pg.contains(res(parent), LWS.items, f)) {
                     pg.remove(res(parent), LWS.items, f);
@@ -510,6 +513,8 @@ public final class ResourceRegistry {
             ds().getNamedModel(parent).remove(res(parent), LWS.items, s);
         }
         sys.removeAll(s, null, null);
+        // Its previous URIs, if it was moved, lead nowhere now.
+        MoveRecords.forgetTo(sys, uri);
         ds().removeNamedModel(uri);
         // The linkset's lifetime is bound to the resource it describes.
         ds().removeNamedModel(uri + LwsStorageConfig.LINKSET_SUFFIX);

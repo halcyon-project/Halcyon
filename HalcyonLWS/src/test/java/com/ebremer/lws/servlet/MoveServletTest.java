@@ -441,6 +441,28 @@ class MoveServletTest {
         assertEquals(destination, after.link("up").orElseThrow());
         assertTrue(Files.isRegularFile(onDisk(now)), "renamed on disk");
         assertFalse(Files.exists(onDisk(moved)));
+
+        // "Such a server SHOULD respond to subsequent requests on the previous identifiers of the
+        // resource and of its auxiliary resources with 301 Moved Permanently" -- to an agent that may
+        // read it where it is now.
+        for (String suffix : List.of("", ".meta", ".acr")) {
+            for (String method : List.of("GET", "HEAD")) {
+                Res old = send(method, moved + suffix, owner("/tree"), Map.of(), null);
+                assertEquals(301, old.status(), method + " " + suffix);
+                assertEquals(now + suffix, URI.create(moved).resolve(old.header("Location")
+                        .orElseThrow()).toString());
+            }
+        }
+        assertEquals(404, send("GET", moved, token("/tree", BOB), Map.of(), null).status(),
+                "bob may not read it where it is now, so he is not told where that is");
+        assertEquals(401, send("GET", moved, null, Map.of(), null).status());
+
+        // Something created at the previous URI takes it back.
+        Res again = send("POST", source, owner("/tree"), Map.of("Slug", name,
+                "Content-Type", "text/plain"), "a newcomer".getBytes(StandardCharsets.UTF_8));
+        assertEquals(201, again.status(), again.text());
+        assertEquals(moved, again.location());
+        assertEquals("a newcomer", send("GET", moved, owner("/tree"), Map.of(), null).text());
     }
 
     @Test
@@ -471,8 +493,10 @@ class MoveServletTest {
         assertEquals(List.of(arrived + innerName), items(arrived));
         assertEquals(200, send("GET", arrived + innerName, token("/tree", BOB), Map.of(), null)
                 .status(), "bob's ACR moved with the member it governs");
-        assertEquals(404, send("GET", inner, owner("/tree"), Map.of(), null).status(),
-                "nothing was adopted again at the old place");
+        Res old = send("GET", inner, owner("/tree"), Map.of(), null);
+        assertEquals(301, old.status(), "nothing was adopted again at the old place");
+        assertEquals(arrived + innerName, old.header("Location").orElseThrow(),
+                "a descendant's previous URI leads to where it is now");
         assertTrue(items(source).isEmpty());
     }
 

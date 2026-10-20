@@ -314,6 +314,51 @@ class MirrorMoveTest {
         });
     }
 
+    // --- Previous URIs -------------------------------------------------------
+
+    @Test
+    void everyRenamedResourceRecordsWhereItWent() {
+        move(SUB, DST);
+        store.read(() -> {
+            Model sys = store.system();
+            assertEquals(DST + "sub/", MoveRecords.lookup(sys, SUB));
+            assertEquals(DST + "sub/inner.txt", MoveRecords.lookup(sys, INNER));
+            assertEquals(DST + "sub/deep/", MoveRecords.lookup(sys, DEEP));
+            assertFalse(registry().exists(SUB), "a record does not make its URI a resource");
+        });
+    }
+
+    @Test
+    void recordsLeadToWhereTheResourceIsNowNotThroughEveryHop() throws Exception {
+        move(FILE, DST);
+        container(ROOT + "archive/");
+        move(DST + "a.txt", ROOT + "archive/");
+        store.read(() -> {
+            assertEquals(ROOT + "archive/a.txt", MoveRecords.lookup(store.system(), FILE));
+            assertEquals(ROOT + "archive/a.txt", MoveRecords.lookup(store.system(), DST + "a.txt"));
+        });
+
+        // Moved back where it started: the URI is its own again, and has no record.
+        move(ROOT + "archive/a.txt", SRC);
+        store.read(() -> {
+            assertEquals(null, MoveRecords.lookup(store.system(), FILE));
+            assertEquals(FILE, MoveRecords.lookup(store.system(), ROOT + "archive/a.txt"));
+            assertEquals(FILE, MoveRecords.lookup(store.system(), DST + "a.txt"));
+        });
+    }
+
+    @Test
+    void aLiveResourceWinsOverARecord() throws Exception {
+        move(FILE, DST);
+        file(FILE, "a newcomer at the old place");
+        store.read(() -> assertEquals(null, MoveRecords.lookup(store.system(), FILE)));
+
+        move(INNER, DST);
+        store.write(() -> registry().remove(DST + "inner.txt"));
+        store.read(() -> assertEquals(null, MoveRecords.lookup(store.system(), INNER),
+                "the records leading to a deleted resource go with it"));
+    }
+
     // --- What follows the resource ---------------------------------------------
 
     @Test

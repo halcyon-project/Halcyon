@@ -389,6 +389,9 @@ public class LwsServlet extends HttpServlet {
             // resets the headers (see Problem.send) and carries its own; the 401 challenge adds
             // this link itself, which is where the spec's SHOULD for 401 is met.
             addStorageLink(resp);
+            if (redirectMoved(rq, t, resp)) {
+                return;
+            }
         }
         switch (method) {
             case "GET" -> get(rq, t, req, resp, true);
@@ -618,6 +621,24 @@ public class LwsServlet extends HttpServlet {
         resp.setCharacterEncoding(StandardCharsets.UTF_8.name());
         resp.setContentLength(bytes.length);
         resp.getOutputStream().write(bytes);
+    }
+
+    /**
+     * Answer a request for a renamed resource's previous URI, or its linkset's or ACR's, with
+     * {@code 301} and the URI it has now, when the agent may read it there (see
+     * {@link MoveHandler#redirect}); otherwise leave the request to be answered as for any URI where
+     * nothing lives. Agent-specific, as every authorized response here is.
+     */
+    private boolean redirectMoved(Req rq, Target t, HttpServletResponse resp) {
+        String to = moves.redirect(t, uri -> may(rq, uri, AccessMode.READ));
+        if (to == null) {
+            return false;
+        }
+        agentSpecific(resp);
+        resp.setStatus(HttpServletResponse.SC_MOVED_PERMANENTLY);
+        resp.setHeader("Location", to);
+        resp.setContentLength(0);
+        return true;
     }
 
     /** The agent of a request, as {@link MoveHandler} asks about it: the modes it holds, and the refusal. */

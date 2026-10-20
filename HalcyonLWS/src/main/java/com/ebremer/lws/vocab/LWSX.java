@@ -185,6 +185,14 @@ public final class LWSX {
      */
     public static final Property sourceMtime = prop("sourceMtime");
 
+    /**
+     * Where a renamed resource is now: {@code <previous URI> lwsx:movedTo <current URI>}, so a
+     * request for the previous URI can answer {@code 301 Moved Permanently} (lws10-core, Moving
+     * Resources). Only a move on the mirror storage, whose URIs are paths, renames. Kept here, never
+     * served, and keyed by a URI at which nothing lives; see {@code MoveRecords}.
+     */
+    public static final Property movedTo = prop("movedTo");
+
     // --- Notification subscriptions ----------------------------------------
 
     /**
