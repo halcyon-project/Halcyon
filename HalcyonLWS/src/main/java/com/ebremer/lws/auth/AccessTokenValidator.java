@@ -18,7 +18,7 @@ import org.slf4j.LoggerFactory;
  * lws10-core §Token Validation by a Storage Server requires.
  *
  * <p>This is the baseline credential a storage accepts: an {@code at+jwt} whose {@code aud} names
- * exactly one storage, obtained by exchanging an authentication credential at the token endpoint.
+ * the storage, obtained by exchanging an authentication credential at the token endpoint.
  * It goes first in the {@link CredentialChain}, ahead of the suites that accept a credential
  * directly, so the baseline is what a request is measured against whenever one is presented.
  *
@@ -32,9 +32,16 @@ import org.slf4j.LoggerFactory;
  *       key's thumbprint, so a rotated key simply stops verifying tokens minted by the old one, and
  *       those expire within minutes.</li>
  *   <li><b>Issuer</b> equals the expected authorization server.</li>
- *   <li><b>Audience</b> contains <em>exactly one</em> value, and that value is the storage
- *       logically containing the target resource. "Exactly one" is the spec's word and it matters:
- *       a token good for several storages is a token that one storage's compromise spreads.</li>
+ *   <li><b>Audience</b> includes the URI of the storage that contains the target resource —
+ *       spelled as the {@code 401}'s {@code Link} names it, with its trailing slash, or as the
+ *       storage's base URI without it, which is what clients of the earlier drafts asked for (the
+ *       challenge's {@code realm}). The drafts before 19 October 2026 required {@code aud} to hold
+ *       <em>exactly one</em> value; the current one requires only that it "includes" the storage
+ *       (w3c/lws-protocol#256), so a token whose {@code aud} names this storage among others is
+ *       accepted. Minting such a token is the authorization server's choice, and lws10-core's
+ *       Audience Binding consideration warns against it — any other audience could replay it here —
+ *       which is why the embedded one never does; a token that does not name this storage at all is
+ *       refused, as before.</li>
  *   <li><b>Temporal</b> — {@code exp} in the future, {@code nbf} not in the future, {@code iat} not
  *       in the future, each with a small clock skew.</li>
  * </ul>
@@ -62,15 +69,18 @@ public final class AccessTokenValidator implements CredentialVerifier {
     private final AuthorizationServerSettings as;
     private final AccessTokenKeys keys;
     private final String realm;
+    private final Set<String> audiences;
 
     /**
-     * @param realm the storage this validator guards — the one value an access token's {@code aud}
-     *              may hold, and the same value the {@code WWW-Authenticate} challenge advertises
+     * @param realm the base URI of the storage this validator guards; an access token's {@code aud}
+     *              must include it or the storage URI it is the base of
+     *              ({@link AuthorizationServerSettings#storageUris})
      */
     public AccessTokenValidator(AuthorizationServerSettings as, AccessTokenKeys keys, String realm) {
         this.as = as;
         this.keys = keys;
         this.realm = realm;
+        this.audiences = AuthorizationServerSettings.storageUris(realm);
     }
 
     @Override
@@ -106,11 +116,7 @@ public final class AccessTokenValidator implements CredentialVerifier {
         }
 
         Set<String> audience = claims.getAudience();
-        if (audience == null || audience.size() != 1) {
-            throw new InvalidBearerTokenException("invalid_token",
-                    "an access token's aud must contain exactly one value");
-        }
-        if (!realm.equals(audience.iterator().next())) {
+        if (audience == null || audience.stream().noneMatch(audiences::contains)) {
             // The token is valid but was minted for a different storage. invalid_token, not
             // insufficient_scope: the credential does not apply here at all.
             throw new InvalidBearerTokenException("invalid_token",

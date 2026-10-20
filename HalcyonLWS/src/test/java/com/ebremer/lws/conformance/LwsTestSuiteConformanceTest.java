@@ -15,6 +15,7 @@ import com.ebremer.lws.oauth.AuthorizationServerMetadataServlet;
 import com.ebremer.lws.oauth.AuthorizationServerSettings;
 import com.ebremer.lws.oauth.JwksServlet;
 import com.ebremer.lws.oauth.LwsAuthorizationServer;
+import com.ebremer.lws.oauth.ProtectedResourceMetadataServlet;
 import com.ebremer.lws.oauth.TokenEndpointServlet;
 import com.ebremer.lws.store.LwsStore;
 import jakarta.json.Json;
@@ -25,6 +26,7 @@ import jakarta.json.JsonString;
 import jakarta.json.JsonValue;
 import java.io.IOException;
 import java.io.StringReader;
+import java.math.BigInteger;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
@@ -35,6 +37,10 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.interfaces.ECPublicKey;
+import java.security.spec.ECGenParameterSpec;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -143,9 +149,13 @@ class LwsTestSuiteConformanceTest {
 
         server = new Server(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
         ServletContextHandler ctx = new ServletContextHandler("/");
-        ServletHolder storage = new ServletHolder(new LwsServlet(cfg));
+        LwsServlet lws = new LwsServlet(cfg);
+        ServletHolder storage = new ServletHolder(lws);
         storage.setInitOrder(3);
         ctx.addServlet(storage, cfg.servletMapping());
+        // As LwsStorageConfiguration mounts it: per storage, under the storage's own path.
+        ctx.addServlet(new ServletHolder(new ProtectedResourceMetadataServlet(cfg,
+                lws::authorizationServer)), ProtectedResourceMetadataServlet.servletMapping(cfg));
         ctx.addServlet(new ServletHolder(new AuthorizationServerMetadataServlet(as.settings(),
                 as.exchange().subjectTokenTypes())), AuthorizationServerSettings.METADATA_PATH);
         ctx.addServlet(new ServletHolder(new TokenEndpointServlet(as.exchange())),
@@ -921,27 +931,205 @@ class LwsTestSuiteConformanceTest {
         assertConformingChallenge(r, "/alice/private/", "invalid_token");
     }
 
+    // --- Protected resource metadata (w3c/lws-protocol#256) ----------------
+
+    /**
+     * Touchstone {@code protected-resource-metadata} and {@code -data-resource}: the challenge of a
+     * container, a data resource and the storage root — spelled with and without its slash — names
+     * metadata that describes exactly the URL requested and names the authorization server.
+     * ({@link #assertConformingChallenge} fetches the metadata and checks it.)
+     */
+    @Test
+    void everyChallengeNamesTheMetadataOfTheUrlRequested() throws Exception {
+        givenContainer("/alice/prm/", false);
+        givenDataResource("/alice/prm/secret.txt", "s", false);
+
+        for (String path : List.of("/alice/prm/", "/alice/prm/secret.txt", "/alice/", "/alice",
+                "/alice/prm/?page=2")) {
+            Res r = send("GET", path, null, Map.of("Accept", LWS_JSON), null);
+
+            assertEquals(401, r.status(), path);
+            assertConformingChallenge(r, path, null);
+        }
+    }
+
+    /**
+     * The metadata is served to whoever asks, whatever {@code Authorization} they send: a client
+     * reads it right after its token was refused, and may well resend the refused one.
+     */
+    @Test
+    void theMetadataIsAnonymousAndIgnoresCredentials() throws Exception {
+        String metadata = ProtectedResourceMetadataServlet.PATH + "/alice/private/";
+        for (String bearer : java.util.Arrays.asList(null, "not.a.token", owner())) {
+            Res r = send("GET", metadata, bearer, Map.of("Accept", "application/json"), null);
+
+            assertEquals(200, r.status(), String.valueOf(bearer));
+            assertEquals(SITE + "/alice/private/", r.json().getString("resource"));
+        }
+        Res head = send("HEAD", metadata, "not.a.token", Map.of(), null);
+        assertEquals(200, head.status());
+        assertEquals(0, head.body().length);
+        assertEquals(405, send("POST", metadata, null, Map.of(), new byte[0]).status());
+    }
+
+    /**
+     * lws10-core §Token Validation, since #256: "Verify the {@code aud} claim includes the URI of
+     * the storage" — a token whose {@code aud} names this storage among other values is accepted;
+     * the drafts before required exactly one value.
+     */
+    @Test
+    void aTokenWhoseAudienceIncludesTheStorageIsAccepted() throws Exception {
+        givenContainer("/alice/private/", false);
+        Map<String, Object> claims = claims(ALICE);
+        claims.put("aud", List.of("https://elsewhere.example/storage/", STORAGE));
+        Instant now = Instant.now();
+        String token = as.keys().sign(claims, Date.from(now), Date.from(now.plusSeconds(300)));
+
+        Res r = send("GET", "/alice/private/", token, Map.of("Accept", LWS_JSON), null);
+
+        assertEquals(200, r.status(), r.text());
+    }
+
+    /**
+     * Discovery end to end, as Touchstone's harness and a conforming client do it: an anonymous
+     * request is refused; the {@code Link} of the 401 names the storage, which is the token request's
+     * {@code resource}; the challenge's {@code resource_metadata} names the authorization server,
+     * whose RFC 8414 metadata names the token endpoint; a self-issued did:key credential (the CID
+     * suite, which needs nothing reachable) is exchanged there; the token's {@code aud} includes the
+     * storage as the client named it; and the storage accepts it — the agent owns nothing, so it may
+     * be refused, but never as unauthenticated.
+     */
+    @Test
+    void aClientDiscoversTheAuthorizationServerFromA401AndGetsATokenTheStorageAccepts()
+            throws Exception {
+        givenContainer("/alice/private/", false);
+
+        Res refused = send("GET", "/alice/private/", null, Map.of("Accept", LWS_JSON), null);
+        assertEquals(401, refused.status());
+        String resource = refused.link(REL_STORAGE).orElseThrow().target();
+        assertEquals(STORAGE, resource);
+        String metadataUrl = authParams(refused.header("WWW-Authenticate").orElseThrow().substring(7))
+                .get("resource_metadata");
+        String issuer = send("GET", local(metadataUrl), null, Map.of("Accept", "application/json"), null)
+                .json().getJsonArray("authorization_servers").getString(0);
+        // RFC 8414 §3.1: the well-known suffix goes between the issuer's host and its path.
+        URI iss = URI.create(issuer);
+        String asMetadataUrl = iss.getScheme() + "://" + iss.getRawAuthority()
+                + AuthorizationServerSettings.METADATA_PATH + Optional.ofNullable(iss.getRawPath()).orElse("");
+        JsonObject asMetadata = send("GET", local(asMetadataUrl), null,
+                Map.of("Accept", "application/json"), null).json();
+        assertEquals(issuer, asMetadata.getString("issuer"));
+
+        KeyPairGenerator g = KeyPairGenerator.getInstance("EC");
+        g.initialize(new ECGenParameterSpec("secp256r1"));
+        KeyPair kp = g.generateKeyPair();
+        String did = didKey((ECPublicKey) kp.getPublic());
+        Instant now = Instant.now();
+        String credential = io.jsonwebtoken.Jwts.builder()
+                .header().keyId(did + "#" + did.substring("did:key:".length())).and()
+                .subject(did).issuer(did).claim("client_id", did)
+                .audience().add(issuer).and()
+                .issuedAt(Date.from(now)).expiration(Date.from(now.plusSeconds(300)))
+                .signWith(kp.getPrivate()).compact();
+        String form = "grant_type=" + enc("urn:ietf:params:oauth:grant-type:token-exchange")
+                + "&resource=" + enc(resource)
+                + "&subject_token=" + enc(credential)
+                + "&subject_token_type=" + enc("urn:ietf:params:oauth:token-type:jwt");
+        Res issued = send("POST", local(asMetadata.getString("token_endpoint")), null,
+                Map.of("Content-Type", "application/x-www-form-urlencoded"),
+                form.getBytes(StandardCharsets.UTF_8));
+        assertEquals(200, issued.status(), issued.text());
+        String token = issued.json().getString("access_token");
+        JsonObject claims = Json.createReader(new StringReader(new String(java.util.Base64
+                .getUrlDecoder().decode(token.split("\\.")[1]), StandardCharsets.UTF_8))).readObject();
+        JsonValue aud = claims.get("aud");
+        List<String> audiences = aud instanceof JsonArray a ? strings(a)
+                : List.of(((JsonString) aud).getString());
+        assertTrue(audiences.contains(resource), "aud MUST include the resource requested: " + aud);
+
+        Res r = send("GET", "/alice/private/", token, Map.of("Accept", LWS_JSON), null);
+        assertTrue(r.status() == 403 || r.status() == 404, r.status() + " " + r.text());
+    }
+
     // --- Assertions ---------------------------------------------------------
 
     /**
-     * lws10-core §Authorization Server Discovery: a 401 carries a {@code Bearer} challenge with
-     * {@code as_uri} (the {@code iss} of a valid token) and {@code realm}, and the request URI must
-     * be logically contained in the realm — which the client is told to verify, so it is verified
-     * here too.
+     * lws10-core §Authorization Server Discovery (since #256): a 401 carries a {@code Bearer}
+     * challenge whose {@code resource_metadata} is the URL of the protected resource metadata for the
+     * requested resource, and a {@code Link} to the storage. A client then checks (§Discovery
+     * Validation by a Client) that the URL has the requested URI's scheme and authority and that the
+     * document's {@code resource} is identical to the requested URI — so both are checked here, by
+     * fetching the document as a client would; and that it names the authorization server whose
+     * {@code iss} a valid token carries. {@code as_uri} and {@code realm} still follow, for clients of
+     * the earlier drafts ({@code :LWSLegacyChallenge}, on by default).
      */
-    private static void assertConformingChallenge(Res r, String path, String error) {
+    private static void assertConformingChallenge(Res r, String path, String error) throws Exception {
         String challenge = r.header("WWW-Authenticate")
                 .orElseThrow(() -> new AssertionError("401 without WWW-Authenticate"));
         assertTrue(challenge.regionMatches(true, 0, "Bearer ", 0, 7), challenge);
         Map<String, String> p = authParams(challenge.substring(7));
-        assertEquals(SITE, p.get("as_uri"), challenge);
+        String requested = SITE + path;
+        String metadataUrl = p.get("resource_metadata");
+        assertEquals(SITE + ProtectedResourceMetadataServlet.PATH + path, metadataUrl, challenge);
+        assertEquals(List.of("resource_metadata", "as_uri", "realm"),
+                p.keySet().stream().filter(k -> !k.equals("error")).toList(),
+                "resource_metadata first: " + challenge);
+        URI m = URI.create(metadataUrl);
+        URI q = URI.create(requested);
+        assertEquals(q.getScheme() + "://" + q.getRawAuthority(), m.getScheme() + "://" + m.getRawAuthority(),
+                "the metadata URL has the requested URI's scheme and authority");
+        assertEquals(error, p.get("error"), challenge);
         assertEquals(as.settings().issuer(), p.get("as_uri"));
         String realm = p.get("realm");
-        assertNotNull(realm, challenge);
-        String realmPrefix = realm.endsWith("/") ? realm : realm + "/";
-        assertTrue((SITE + path).startsWith(realmPrefix),
-                "the request URI must be logically contained within the realm: " + challenge);
-        assertEquals(error, p.get("error"), challenge);
+        assertTrue((requested + "/").startsWith(realm.endsWith("/") ? realm : realm + "/"),
+                "the request URI is logically contained within the legacy realm: " + challenge);
+        assertEquals(STORAGE, r.link(REL_STORAGE).orElseThrow().target(),
+                "the 401 MUST also link the storage");
+
+        Res doc = send("GET", local(metadataUrl), null, Map.of("Accept", "application/json"), null);
+        assertEquals(200, doc.status(), doc.text());
+        assertEquals("application/json", doc.mediaType());
+        JsonObject d = doc.json();
+        assertEquals(requested, d.getString("resource"), "RFC 9728 §3.3: identical to the URL requested");
+        assertEquals(List.of(as.settings().issuer()), strings(d.getJsonArray("authorization_servers")));
+    }
+
+    /** The path on this test server of a URL the storage minted on {@link #SITE}. */
+    private static String local(String url) {
+        assertTrue(url.startsWith(SITE + "/"), "a URL on the storage's own origin: " + url);
+        return url.substring(SITE.length());
+    }
+
+    private static String enc(String s) {
+        return java.net.URLEncoder.encode(s, StandardCharsets.UTF_8);
+    }
+
+    /** did:key:z... for a P-256 key: multicodec 0x1200 (varint 0x80 0x24), the compressed point. */
+    private static String didKey(ECPublicKey pk) {
+        byte[] x = pk.getW().getAffineX().toByteArray();
+        byte[] data = new byte[2 + 33];
+        data[0] = (byte) 0x80;
+        data[1] = 0x24;
+        data[2] = (byte) (pk.getW().getAffineY().testBit(0) ? 0x03 : 0x02);
+        System.arraycopy(x, Math.max(0, x.length - 32), data, 3 + Math.max(0, 32 - x.length),
+                Math.min(32, x.length));
+        return "did:key:z" + base58(data);
+    }
+
+    private static String base58(byte[] data) {
+        String alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+        BigInteger n = new BigInteger(1, data);
+        StringBuilder sb = new StringBuilder();
+        BigInteger fiftyEight = BigInteger.valueOf(58);
+        while (n.signum() > 0) {
+            BigInteger[] qr = n.divideAndRemainder(fiftyEight);
+            sb.append(alphabet.charAt(qr[1].intValue()));
+            n = qr[0];
+        }
+        for (int i = 0; i < data.length && data[i] == 0; i++) {
+            sb.append('1');
+        }
+        return sb.reverse().toString();
     }
 
     /** lws10-core §read: a container's GET carries linkset, up, and type=Container. */

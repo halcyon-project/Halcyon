@@ -67,6 +67,7 @@ public final class LwsSettings {
     private final boolean authorizationServerEnabled;
     private final long accessTokenLifetimeSeconds;
     private final boolean acceptAuthenticationCredentials;
+    private final boolean legacyChallenge;
     private final String userDataStoragePath;
     private volatile com.ebremer.lws.auth.oidc.TrustPolicy issuerPolicy;
     private volatile com.ebremer.lws.auth.oidc.TrustPolicy webIdHostPolicy;
@@ -83,6 +84,7 @@ public final class LwsSettings {
         this.accessTokenLifetimeSeconds = readLong(m, "LWSAccessTokenLifetime", 300L);
         this.acceptAuthenticationCredentials =
                 readBoolean(m, "LWSAcceptAuthenticationCredentials", true);
+        this.legacyChallenge = readBoolean(m, "LWSLegacyChallenge", true);
         this.userDataStoragePath = readString(m, "LWSUserDataStorage");
         this.issuerPolicy = com.ebremer.lws.auth.oidc.TrustPolicy.forIssuers(
                 readAll(m, "AllowedIssuer"), readAll(m, "DeniedIssuer"));
@@ -263,6 +265,22 @@ public final class LwsSettings {
      */
     public boolean acceptAuthenticationCredentials() {
         return acceptAuthenticationCredentials;
+    }
+
+    /**
+     * Whether a storage's {@code 401} challenge still carries {@code as_uri} and {@code realm} after
+     * {@code resource_metadata}.
+     *
+     * <p>From {@code :LWSLegacyChallenge}, default {@code true}. Since the drafts of 19 October 2026
+     * (w3c/lws-protocol#256) a conforming challenge names the requested resource's protected resource
+     * metadata (RFC 9728), which names the authorization server, and the two parameters the earlier
+     * drafts required are no longer mentioned. lws10-core still lets a challenge carry other
+     * parameters, so they stay by default for clients written against those drafts, which read the
+     * authorization server from {@code as_uri}; turning this off sends the challenge the current
+     * draft describes and nothing else.
+     */
+    public boolean legacyChallenge() {
+        return legacyChallenge;
     }
 
     /**

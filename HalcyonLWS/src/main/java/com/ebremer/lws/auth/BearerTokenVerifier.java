@@ -114,8 +114,8 @@ public final class BearerTokenVerifier implements CredentialVerifier {
      * <p>Explicitly <em>not</em> {@code HalcyonSettings.getRealm()}, which is a
      * hardcoded {@code "master"} and does not describe this deployment — the realm is
      * {@code Halcyon}, as both {@code keycloak.json} and {@code Cool.java} say. Trusting
-     * that accessor would point every client's {@code as_uri} at the wrong
-     * authorization server and reject every token that came back from the right one.
+     * that accessor would point every client at the wrong authorization server and
+     * reject every token that came back from the right one.
      */
     private static String realm() {
         java.io.File f = new java.io.File("keycloak.json");
@@ -212,16 +212,18 @@ public final class BearerTokenVerifier implements CredentialVerifier {
      * {@code aud} of {@code https://localhost:8888} covers the storage at
      * {@code https://localhost:8888/W3Clws} and the MCP endpoint at
      * {@code https://localhost:8888/mcp}, which is what lets one Keycloak audience
-     * mapper serve every protected service on the instance. Keycloak does not put the
-     * resource server in {@code aud} by default, so that mapper is a deployment
-     * requirement, not an optional nicety.
+     * mapper serve every protected service on the instance. The resource's own URI
+     * with a trailing slash names it too: that is how a storage's URI is spelled in
+     * the {@code Link} of its 401, which lws10-core has a client ask for a token for.
+     * Keycloak does not put the resource server in {@code aud} by default, so that
+     * mapper is a deployment requirement, not an optional nicety.
      *
-     * <p>Deviation, deliberately: the spec asks that {@code aud} contain "exactly one
-     * value", and Keycloak always emits several (for example {@code realm-management},
-     * {@code broker}). Requiring exactly one would reject every token Keycloak can
-     * issue. Requiring that <em>some</em> audience covers this resource preserves the
-     * property the rule exists for — a token minted for a different service will not
-     * be accepted here.
+     * <p>Keycloak always emits several audiences (for example {@code realm-management},
+     * {@code broker}). The drafts before 19 October 2026 asked that {@code aud} contain
+     * "exactly one value", which every Keycloak token broke; the current one asks only
+     * that it "includes" the storage, which is what this checks. Requiring that
+     * <em>some</em> audience covers this resource preserves the property the rule exists
+     * for — a token minted for a different service will not be accepted here.
      */
     private void requireAudience(Claims claims) {
         var aud = claims.getAudience();
@@ -230,7 +232,7 @@ public final class BearerTokenVerifier implements CredentialVerifier {
                     "the access token names no audience");
         }
         boolean ok = aud.stream().anyMatch(a -> a != null && !a.isBlank()
-                && (resource.equals(a) || resource.startsWith(stripSlash(a) + "/")));
+                && (resource.equals(stripSlash(a)) || resource.startsWith(stripSlash(a) + "/")));
         if (!ok) {
             LOG.debug("token audience {} does not cover resource {}", aud, resource);
             throw new InvalidBearerTokenException("invalid_token",

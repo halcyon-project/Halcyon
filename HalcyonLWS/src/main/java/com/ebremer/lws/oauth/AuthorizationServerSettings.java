@@ -3,6 +3,7 @@ package com.ebremer.lws.oauth;
 import com.ebremer.lws.config.LwsSettings;
 import com.ebremer.lws.config.LwsStorageConfig;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Where this deployment's embedded LWS authorization server lives, and which storages it issues
@@ -69,8 +70,9 @@ public final class AuthorizationServerSettings {
     }
 
     /**
-     * The {@code iss} of every token this server issues, the {@code as_uri} of every challenge, and
-     * the base RFC 8414 resolves {@link #METADATA_PATH} against.
+     * The {@code iss} of every token this server issues, the issuer every storage's protected
+     * resource metadata names in {@code authorization_servers} (and its legacy challenge as
+     * {@code as_uri}), and the base RFC 8414 resolves {@link #METADATA_PATH} against.
      */
     public String issuer() {
         return origin;
@@ -107,14 +109,17 @@ public final class AuthorizationServerSettings {
         return acceptCredentialsDirectly;
     }
 
-    /** The storages this server issues tokens for, by the {@code realm} of their challenges. */
+    /**
+     * The storages this server issues tokens for, by their base URI ({@link LwsStorageConfig#realm()},
+     * the {@code realm} of their legacy challenges).
+     */
     public List<String> realms() {
         return realms;
     }
 
     /**
-     * The {@code aud} to mint for a {@code resource} parameter, or {@code null} if it names no
-     * storage of this instance.
+     * The storage a {@code resource} parameter identifies, by its base URI, or {@code null} if it
+     * names no storage of this instance.
      *
      * <p>A storage is identified by its base URI, and its own storage URI carries a trailing slash,
      * so both spellings are accepted and both resolve to the one canonical value. Anything else —
@@ -127,6 +132,37 @@ public final class AuthorizationServerSettings {
         }
         String r = strip(resource);
         return realms.contains(r) ? r : null;
+    }
+
+    /**
+     * The {@code aud} to mint for a {@code resource} parameter: the storage it identifies, spelled as
+     * the client spelled it — with the trailing slash of the storage URI a {@code 401}'s {@code Link}
+     * names, or as the base URI without it — or {@code null} if it names no storage of this instance.
+     *
+     * <p>lws10-core: "The supplied value MUST be the URI of the storage that contains the requested
+     * resource, as provided in the {@code Link} header of an unauthorized response", and the access
+     * token's {@code aud} "MUST include the URI supplied by the client in the resource parameter". A
+     * client checks for its own spelling, so the token carries that one; either is accepted by the
+     * storage ({@link #storageUris}).
+     */
+    public String audienceFor(String resource) {
+        String realm = realmFor(resource);
+        if (realm == null) {
+            return null;
+        }
+        return resource.trim().endsWith("/") ? realm + "/" : realm;
+    }
+
+    /**
+     * The URIs that identify the storage whose base URI is {@code realm}: the storage URI, which
+     * carries a trailing slash ({@link LwsStorageConfig#storageRootUri()}) and is what a
+     * {@code 401}'s {@code Link} names, and the base URI without it, which the earlier drafts'
+     * challenge named as {@code realm}. An access token for the storage names one of them in
+     * {@code aud}.
+     */
+    public static Set<String> storageUris(String realm) {
+        String base = strip(realm);
+        return Set.of(base, base + "/");
     }
 
     private static String strip(String uri) {

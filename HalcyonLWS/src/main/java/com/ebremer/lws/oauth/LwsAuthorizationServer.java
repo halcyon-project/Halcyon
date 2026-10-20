@@ -18,7 +18,8 @@ import org.slf4j.LoggerFactory;
  * metadata document a client discovers, the token endpoint that issues, and the validator each
  * storage checks with. One object owns all three so they cannot disagree — the signing key the
  * endpoint uses is the verification key the validator holds and the key the {@code jwks_uri}
- * publishes, and the issuer in a token is the {@code as_uri} of every challenge.
+ * publishes, and the issuer in a token is the authorization server every storage's protected resource
+ * metadata names.
  *
  * <p>A singleton primed by {@link #init}, for the same reason the webhook key and the cursor secret
  * are: the signing key is persisted, and reading it needs a write transaction the first time, which

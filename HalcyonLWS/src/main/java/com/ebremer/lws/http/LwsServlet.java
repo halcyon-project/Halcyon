@@ -215,8 +215,8 @@ public class LwsServlet extends HttpServlet {
         // a first-use lazy load could need a write transaction while a paginating request already
         // holds a read one, which cannot be done. Idempotent across the storages. (M3.)
         // The authorization server is among them (its signing key is persisted too) and must be up
-        // before the validator below, which names it as the challenge's as_uri and holds its
-        // verification key.
+        // before the validator below, which names it in the storage's protected resource metadata
+        // and holds its verification key.
         com.ebremer.lws.search.Cursor.init(store);
         com.ebremer.lws.notify.HttpMessageSignatures.init(store);
         com.ebremer.lws.oauth.LwsAuthorizationServer.init(store);
@@ -315,6 +315,16 @@ public class LwsServlet extends HttpServlet {
         return cfg;
     }
 
+    /**
+     * The issuer whose access tokens this storage accepts, which its protected resource metadata
+     * names ({@link com.ebremer.lws.oauth.ProtectedResourceMetadataServlet}); {@code null} until
+     * {@link #init()} has run.
+     */
+    public String authorizationServer() {
+        BearerTokenValidator a = auth;
+        return a == null ? null : a.authorizationServer();
+    }
+
     private ResourceRegistry registry() {
         return new ResourceRegistry(store, cfg);
     }
@@ -335,7 +345,7 @@ public class LwsServlet extends HttpServlet {
             AgentContext agent = auth.authenticate(req);
             dispatch(new Req(agent, new AcpEngine(store)), req, resp);
         } catch (Problem p) {
-            p.writeTo(resp);
+            p.writeTo(req, resp);
         } catch (RuntimeException | IOException e) {
             LOG.error("LWS {} {} failed", req.getMethod(), req.getRequestURI(), e);
             Problem.internal(null).writeTo(resp);

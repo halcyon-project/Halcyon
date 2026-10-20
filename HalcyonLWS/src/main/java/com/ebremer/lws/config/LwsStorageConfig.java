@@ -163,10 +163,12 @@ public record LwsStorageConfig(
     }
 
     /**
-     * The {@code realm} of the {@code WWW-Authenticate} challenge, and the
-     * {@code aud} an access token must carry. lws10-core requires a client to
-     * verify that the request URI is logically contained within the realm, so the
-     * storage base URI is exactly the right value.
+     * The storage's base URI, which identifies it to the authorization server: a
+     * token request's {@code resource} and an access token's {@code aud} name it
+     * either so or as the {@link #storageRootUri() storage URI}, with its trailing
+     * slash, that a 401's {@code Link} names. It is also the {@code realm} of the
+     * legacy challenge ({@code :LWSLegacyChallenge}), whose drafts had a client
+     * verify that the request URI is logically contained within it.
      */
     public String realm() {
         return baseUri();
