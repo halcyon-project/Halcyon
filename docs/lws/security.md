@@ -15,8 +15,15 @@ hardcoded URI:
 ```
 GET  {storage}/private                    -> 401
      Link: <{storage}/>; rel="https://www.w3.org/ns/lws#storage"
-     WWW-Authenticate: Bearer as_uri="https://halcyon.example",
-                              realm="https://halcyon.example/W3Clws"
+     WWW-Authenticate: Bearer resource_metadata=
+                "https://halcyon.example/.well-known/oauth-protected-resource/W3Clws/private",
+                as_uri="https://halcyon.example", realm="https://halcyon.example/W3Clws"
+                                          (as_uri, realm: legacy, while :LWSLegacyChallenge is on)
+
+GET  https://halcyon.example/.well-known/oauth-protected-resource/W3Clws/private   (RFC 9728)
+     -> { "resource": "https://halcyon.example/W3Clws/private",
+          "authorization_servers": ["https://halcyon.example"],
+          "bearer_methods_supported": ["header"] }
 
 GET  https://halcyon.example/.well-known/lws-configuration     (RFC 8414; the path lws10-core fixes)
      -> { "issuer": ..., "token_endpoint": .../lws-as/token, "jwks_uri": .../lws-as/jwks,
@@ -26,13 +33,25 @@ GET  https://halcyon.example/.well-known/lws-configuration     (RFC 8414; the pa
 
 POST https://halcyon.example/lws-as/token                       (RFC 8693 token exchange)
      grant_type=urn:ietf:params:oauth:grant-type:token-exchange
-     &resource=https://halcyon.example/W3Clws          <- the challenge's realm
+     &resource=https://halcyon.example/W3Clws/         <- the 401's lws#storage Link
      &subject_token_type=urn:ietf:params:oauth:token-type:id_token
      &subject_token=<the ID Token>
      -> { "access_token": "<at+jwt>", "token_type": "Bearer", "expires_in": 300 }
 
 GET  {storage}/private   Authorization: Bearer <at+jwt>         -> 200
 ```
+
+Since the drafts of 19 October 2026 (w3c/lws-protocol#256) the challenge's `resource_metadata` is how a
+client finds the authorization server: RFC 9728 protected resource metadata, served per storage (see
+[http-api.md](http-api.md#protected-resource-metadata)). It is anonymous — the `Authorization` header
+is never read, so a stale token cannot stand between a client and the document that says where to get
+a new one — and it consults no store, so it says the same thing of an existing, an absent and a private
+resource: no existence oracle. lws10-core asks the *client* to validate what it discovers (the metadata
+URL on the requested URL's scheme and authority, `resource` identical to the requested URL, the
+storage's `StorageRoot` on the same scheme and authority); this server meets all three by construction,
+since all three are derived from the same `:ProxyHostName`. No client in this repository performs
+discovery: `client/LwsClient` attaches the token it already holds to same-origin requests and never
+reads a challenge.
 
 **What the exchange is for.** Presenting a credential straight to a storage authenticates the agent,
 but it hands the credential the storage's authority: one with no audience restriction, replayed at a
@@ -50,8 +69,11 @@ REQUIRED: `iss`, `sub` (a URI), `client_id` (a URI, from the credential's `azp`)
 at the `jwks_uri` — public half only, so the storage holds a verification key and cannot mint tokens.
 
 **Validating** (`auth/AccessTokenValidator`), in lws10-core's own order: signature, issuer, an `aud`
-holding **exactly one** value naming the storage that contains the target resource, then temporal
-validity with a small clock skew. A token whose `aud` names another storage is `401` — the confinement
+that **includes** the storage that contains the target resource (its base URI, or the storage URI with
+its trailing slash — the spelling of the 401's `Link`; other values beside it are allowed since the
+drafts of 19 October 2026, which replaced "exactly one value"), then temporal validity with a small
+clock skew. The tokens this server issues still carry the one audience the client asked for, spelled
+as it asked. A token whose `aud` names another storage is `401` — the confinement
 property is what most of this is for. A token claiming an HMAC or `none` algorithm is refused outright
 rather than handed to a parser along with a public key.
 
@@ -86,15 +108,16 @@ that require a mode the public agent lacks then fail.
    discovery is unreachable. The issuer is never assumed from the request host, because Keycloak stamps
    `iss` from the host the token was requested through (the `/auth` proxy on `:8888` vs. direct `:8080`).
 3. **Audience** — the token's `aud` must *logically contain* this storage. An audience of
-   `https://localhost:8888` covers `https://localhost:8888/W3Clws`, which is what lets one Keycloak
-   audience serve both storages. A token that names **no** audience is rejected `401` — without this
+   `https://localhost:8888` covers `https://localhost:8888/W3Clws` (and the storage URI with its trailing
+   slash), which is what lets one Keycloak audience serve both storages. A token that names **no** audience is rejected `401` — without this
    check a token minted for any audience in the realm would be accepted.
 4. **Expiry** and the usual JWT temporal claims.
 
-A malformed or invalid token is `401` with a `WWW-Authenticate: Bearer as_uri="<issuer>",
-realm="<realm>"` challenge (an `error=` code is added only when credentials were actually presented, per
-RFC 6750). The challenge also carries the storage-description `Link`, so a client can discover where to
-authenticate.
+A malformed or invalid token is `401` with a `WWW-Authenticate: Bearer resource_metadata="<metadata
+URL>"` challenge, followed by the legacy `as_uri="<issuer>", realm="<storage>"` while
+`:LWSLegacyChallenge` is on (an `error=` code is added only when credentials were actually presented, per
+RFC 6750). The `401` also carries the `lws#storage` `Link`, which lws10-core makes a MUST: it is the
+storage a client names as the token request's `resource`.
 
 ### The WebID
 
@@ -219,11 +242,26 @@ The HTTP layer maps each operation to the mode it demands:
 | POST (create child) | `Append` on the **container** |
 | PUT / PATCH | `Write` on the resource |
 | DELETE | `Write` on the resource **and** `Append` on the parent |
+| PATCH `.meta` changing `up` (a move) | what a DELETE of the resource needs — for a container, `Write` on every descendant too — **and** `Append` on the destination |
 | GET/PUT `.acr` | `Control` |
 
 Creation is authorized against the **container**, not the not-yet-existing child. Deletion touches the
 parent's `items`, so it needs a mode on the parent too. These checks run at the HTTP layer *and*, for
 mutations, are re-verified with a fresh engine inside the commit transaction.
+
+**A move** (w3c/lws-protocol#237) is authorized as lws10-core requires: the agent must be allowed to
+delete the resource and to create in the destination, and, for a container, to delete it recursively.
+The whole subtree is checked before anything changes, and a failure does not say which descendant
+refused. A destination the agent holds no mode on is refused with the same `409` as one that does not
+exist, so a move is no probe for containers it cannot see. Because inheritance follows the parent chain,
+**a move can change who may read a resource, in either direction, without any policy being edited** —
+the security consideration lws10-core spells out; the resource's own ACR (and any grant policy installed
+on it) travels with it, the ancestors' member policies do not, and the ACP epoch is bumped so that no
+cached decision outlives the move. On the disk mirror a move renames the resource, and the ACR's
+`acp:resource` objects and `.acr` nodes are rewritten to the new URIs; `acp:agent` values are never
+rewritten, since they name agents, not resources. The `301` from a previous URI is given only to an agent
+that may read the resource where it is now — anyone else gets the usual `404`/`401` — so the redirect
+discloses nothing the move hid; the records behind it are kept in `urn:lws:system`, never served.
 
 ### How a decision is computed
 

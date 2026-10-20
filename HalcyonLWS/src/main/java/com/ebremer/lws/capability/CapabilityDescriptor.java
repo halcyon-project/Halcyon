@@ -51,7 +51,16 @@ public record CapabilityDescriptor(ServiceEntry service, CapabilityEntry capabil
      *
      * @param serviceEndpoint the endpoint the feature is exercised at, or {@code null}
      * @param note            a human-readable hint, or {@code null}
+     * @param properties      the capability's own members (a {@code MoveResource}'s
+     *                        {@code appliesTo} and {@code preservesIdentifier}), rendered after
+     *                        {@code type} in their order here, or {@code null} for none
      */
-    public record CapabilityEntry(String type, String serviceEndpoint, String note) {
+    public record CapabilityEntry(String type, String serviceEndpoint, String note,
+            jakarta.json.JsonObject properties) {
+
+        /** An entry with no members of its own beyond the endpoint and the note. */
+        public CapabilityEntry(String type, String serviceEndpoint, String note) {
+            this(type, serviceEndpoint, note, null);
+        }
     }
 }

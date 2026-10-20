@@ -181,6 +181,8 @@ public class LwsServlet extends HttpServlet {
     private transient BearerTokenValidator auth;
     private transient Notifications notify;
     private transient com.ebremer.lws.sharing.AccessSharing sharing;
+    /** Moves resources between containers when a linkset PATCH changes their {@code up} link. */
+    private transient MoveHandler moves;
 
     /**
      * Capabilities installed on this storage — the per-resource SPARQL endpoint, the IIIF Image
@@ -215,8 +217,8 @@ public class LwsServlet extends HttpServlet {
         // a first-use lazy load could need a write transaction while a paginating request already
         // holds a read one, which cannot be done. Idempotent across the storages. (M3.)
         // The authorization server is among them (its signing key is persisted too) and must be up
-        // before the validator below, which names it as the challenge's as_uri and holds its
-        // verification key.
+        // before the validator below, which names it in the storage's protected resource metadata
+        // and holds its verification key.
         com.ebremer.lws.search.Cursor.init(store);
         com.ebremer.lws.notify.HttpMessageSignatures.init(store);
         com.ebremer.lws.oauth.LwsAuthorizationServer.init(store);
@@ -224,6 +226,7 @@ public class LwsServlet extends HttpServlet {
         this.auth = new BearerTokenValidator(cfg);
         this.notify = new Notifications(store, cfg);
         this.sharing = new com.ebremer.lws.sharing.AccessSharing(store, cfg, notify);
+        this.moves = new MoveHandler(store, cfg, content, notify, LwsSettings.get().moveAppliesTo(cfg));
         store.initStorage(cfg);
         AcpBootstrap.seed(store, cfg);
         notify.backfillSeqs();
@@ -315,6 +318,16 @@ public class LwsServlet extends HttpServlet {
         return cfg;
     }
 
+    /**
+     * The issuer whose access tokens this storage accepts, which its protected resource metadata
+     * names ({@link com.ebremer.lws.oauth.ProtectedResourceMetadataServlet}); {@code null} until
+     * {@link #init()} has run.
+     */
+    public String authorizationServer() {
+        BearerTokenValidator a = auth;
+        return a == null ? null : a.authorizationServer();
+    }
+
     private ResourceRegistry registry() {
         return new ResourceRegistry(store, cfg);
     }
@@ -335,7 +348,7 @@ public class LwsServlet extends HttpServlet {
             AgentContext agent = auth.authenticate(req);
             dispatch(new Req(agent, new AcpEngine(store)), req, resp);
         } catch (Problem p) {
-            p.writeTo(resp);
+            p.writeTo(req, resp);
         } catch (RuntimeException | IOException e) {
             LOG.error("LWS {} {} failed", req.getMethod(), req.getRequestURI(), e);
             Problem.internal(null).writeTo(resp);
@@ -376,6 +389,9 @@ public class LwsServlet extends HttpServlet {
             // resets the headers (see Problem.send) and carries its own; the 401 challenge adds
             // this link itself, which is where the spec's SHOULD for 401 is met.
             addStorageLink(resp);
+            if (redirectMoved(rq, t, resp)) {
+                return;
+            }
         }
         switch (method) {
             case "GET" -> get(rq, t, req, resp, true);
@@ -483,6 +499,12 @@ public class LwsServlet extends HttpServlet {
      * relations become the resource's user-managed links ({@link LinksetJson#userLinks}). A merge
      * patch, still accepted, overlays relations one at a time ({@link LinksetJson#relations}).
      *
+     * <p>A patch that changes {@code up} asks to move the resource to another container
+     * (w3c/lws-protocol#237). Where this storage moves resources it is applied by {@link MoveHandler}
+     * in this same transaction, atomically with the patch's other link changes, and answered
+     * {@code 204} where the resource keeps its URI and {@code 200} with the linkset at its new place
+     * where it does not; elsewhere {@code up} stays server-managed, and changing it a {@code 403}.
+     *
      * <p>Metadata is the one thing several actors touch concurrently — a scanner adding types
      * while an owner adds a license — and lws10-core asks clients to make these writes
      * conditional (SHOULD), rejecting a stale {@code If-Match} with 412. It no longer lets a
@@ -511,7 +533,9 @@ public class LwsServlet extends HttpServlet {
         // (a stale If-Match is a 412 whatever the body says), then the body. A refusal throws
         // before anything is replaced, and a throw aborts the transaction, so a rejected patch
         // leaves the linkset -- and its entity tag -- exactly as they were.
-        String etag = store.write(() -> {
+        record Outcome(String etag, MoveHandler.Moved moved, JsonObject linkset) {
+        }
+        Outcome out = moves.write(() -> {
             LwsResource r = known(rq, t.uri());
             demandOn(rq, r, AccessMode.WRITE);
             // Compared inside the write transaction, so this is a compare-and-swap.
@@ -522,10 +546,10 @@ public class LwsServlet extends HttpServlet {
             var current = LinksetStore.read(store, t.uri());
             List<String> serverManaged = new ArrayList<>();
             Map<String, List<String>> updated;
+            JsonValue result = null;
             if (jsonPatch) {
                 var links = new LinkedHashMap<>(server);
                 links.putAll(current);
-                JsonValue result;
                 try {
                     result = Json.createPatch(operations).apply(LinksetJson.build(t.uri(), links));
                 } catch (JsonException e) {
@@ -546,15 +570,81 @@ public class LwsServlet extends HttpServlet {
                 }
                 updated = LinksetJson.mergePatch(current, relations, new ArrayList<>());
             }
+            // A changed up link is a move where this storage moves resources (lws10-core, Moving
+            // Resources), and stays a server-managed relation everywhere else.
+            List<String> up = null;
+            if (serverManaged.contains(LinkHeader.REL_UP) && moves.enabled()) {
+                serverManaged.remove(LinkHeader.REL_UP);
+                up = jsonPatch ? LinksetJson.targets(result, LinkHeader.REL_UP)
+                        : LinksetJson.mergeTargets(patch.asJsonObject(), LinkHeader.REL_UP)
+                                .orElse(server.getOrDefault(LinkHeader.REL_UP, List.of()));
+            }
             if (!serverManaged.isEmpty()) {
                 throw Problem.forbidden("these relations are server-managed and cannot be set: "
                         + String.join(", ", serverManaged));
             }
-            return LinksetStore.replace(store, t.uri(), updated);
+            MoveHandler.Moved moved = up == null ? null
+                    : moves.move(r, up, t.linksetUri(), authority(rq), rq.agent().webId());
+            String anchor = moved == null ? t.uri() : moved.uri();
+            String etag = LinksetStore.replace(store, anchor, updated);
+            JsonObject linkset = null;
+            if (moved != null && moved.renamed()) {
+                LwsResource now = registry().find(anchor)
+                        .orElseThrow(() -> Problem.internal("the resource vanished on move"));
+                var links = serverLinks(now);
+                links.putAll(LinksetStore.read(store, anchor));
+                linkset = LinksetJson.build(anchor, links);
+            }
+            return new Outcome(etag, moved, linkset);
         });
 
-        resp.setStatus(HttpServletResponse.SC_NO_CONTENT);
-        resp.setHeader("ETag", etag);
+        if (out.moved() != null) {
+            // Posted after the commit, so a notification describes a move that happened; planned
+            // inside the transaction, on the state before and after it.
+            notify.deliver(out.moved().plan());
+            resp.addHeader("Link", LinkHeader.link(out.moved().parent(), LinkHeader.REL_UP));
+        }
+        resp.setHeader("ETag", out.etag());
+        if (out.linkset() == null) {
+            resp.setStatus(HttpServletResponse.SC_NO_CONTENT);
+            return;
+        }
+        // "A server that does not preserve the identifier of a moved resource MUST respond with 200
+        // OK and a representation of the updated linkset resource whose anchor is the new identifier
+        // of the resource, and MUST include a Content-Location header field carrying the new
+        // identifier of the linkset resource itself."
+        byte[] bytes = out.linkset().toString().getBytes(StandardCharsets.UTF_8);
+        agentSpecific(resp);
+        resp.setStatus(HttpServletResponse.SC_OK);
+        resp.setHeader("Content-Location", out.moved().uri() + LwsStorageConfig.LINKSET_SUFFIX);
+        resp.setContentType(MediaTypes.LINKSET_JSON);
+        resp.setCharacterEncoding(StandardCharsets.UTF_8.name());
+        resp.setContentLength(bytes.length);
+        resp.getOutputStream().write(bytes);
+    }
+
+    /**
+     * Answer a request for a renamed resource's previous URI, or its linkset's or ACR's, with
+     * {@code 301} and the URI it has now, when the agent may read it there (see
+     * {@link MoveHandler#redirect}); otherwise leave the request to be answered as for any URI where
+     * nothing lives. Agent-specific, as every authorized response here is.
+     */
+    private boolean redirectMoved(Req rq, Target t, HttpServletResponse resp) {
+        String to = moves.redirect(t, uri -> may(rq, uri, AccessMode.READ));
+        if (to == null) {
+            return false;
+        }
+        agentSpecific(resp);
+        resp.setStatus(HttpServletResponse.SC_MOVED_PERMANENTLY);
+        resp.setHeader("Location", to);
+        resp.setContentLength(0);
+        return true;
+    }
+
+    /** The agent of a request, as {@link MoveHandler} asks about it: the modes it holds, and the refusal. */
+    private MoveHandler.Authority authority(Req rq) {
+        return new MoveHandler.Authority(uri -> rq.acp().modes(rq.agent(), uri),
+                (mode, what) -> refusal(rq, mode, what));
     }
 
     // --- Authorization ------------------------------------------------------
@@ -677,11 +767,16 @@ public class LwsServlet extends HttpServlet {
         if (granted) {
             return;
         }
+        throw refusal(rq, mode, what);
+    }
+
+    /** The refusal of {@code mode}: a challenge for an anonymous agent, 403 for one we know. */
+    private Problem refusal(Req rq, AccessMode mode, String what) {
         String verb = mode.name().toLowerCase(Locale.ROOT);
         if (!rq.agent().isAuthenticated()) {
-            throw auth.unauthenticated("authentication is required to " + verb + " " + what);
+            return auth.unauthenticated("authentication is required to " + verb + " " + what);
         }
-        throw Problem.forbidden("the agent may not " + verb + " " + what);
+        return Problem.forbidden("the agent may not " + verb + " " + what);
     }
 
     // --- Read ---------------------------------------------------------------
@@ -736,7 +831,7 @@ public class LwsServlet extends HttpServlet {
                 // request for the storage URI to answer with the storage description "unless
                 // content negotiation requires a different format". So the description is the
                 // default, and only an Accept naming a container format (lws+json, ld+json, json,
-                // turtle) without the CID type reads the container. The description is served
+                // an RDF syntax) without the CID type reads the container. The description is served
                 // unauthenticated exactly as it is at its own URI -- it is a discovery document,
                 // identical for every caller, and a client that cannot read it cannot learn how
                 // to authenticate.
@@ -809,19 +904,20 @@ public class LwsServlet extends HttpServlet {
         String base = pageEtag(v.etag(), v.afterSeq());
         addPageLinks(resp, r.uri(), CONTAINER_CURSOR, v.prevAfter(), v.nextAfter(), v.lastAfter());
 
-        // A container's canonical representation is application/lws+json. Turtle is offered as an
-        // additional serialization (a MAY) for a client that accepts only an RDF type — which used
-        // to be a 406. The two serializations are distinct representations of the same page, so each
-        // carries its own entity tag (Turtle's is the JSON tag with a marker), and Vary: Accept
+        // A container's canonical representation is application/lws+json; the same page is also
+        // offered as application/ld+json and application/json, and its RDF in Turtle, N-Triples,
+        // N-Quads and TriG — all in the LWS profile, named in Content-Type when asked for
+        // (Negotiation). Negotiated first, because each RDF syntax is a distinct representation of
+        // the page and carries its own entity tag (the JSON tag with a marker), and Vary: Accept
         // tells a cache to key on the negotiated type.
-        boolean turtle = prefersTurtle(req);
-        String etag = turtle ? tagVariant(base, "ttl") : base;
+        Negotiation.Variant variant = Negotiation.container(req.getHeader("Accept"));
+        String etag = variant.tag(base);
         resp.setHeader("ETag", etag);
 
         // Validated on the entity tag alone. Last-Modified belongs to the container and is the
         // same on every page, so honouring If-Modified-Since here would answer 304 to a client
-        // asking for a page it has never seen. A 304 MUST still echo Vary (RFC 7232); the JSON 200
-        // gets Vary from sendJson, so each path emits it exactly once. If-Unmodified-Since, by
+        // asking for a page it has never seen. A 304 MUST still echo Vary (RFC 7232); the 200
+        // gets Vary from sendContainer, so each path emits it exactly once. If-Unmodified-Since, by
         // contrast, asks about the container's state, not a page, so it is evaluated on that.
         Preconditions.evaluateRead(req, etag, r.modified());
         if (Preconditions.isNotModified(req, etag, null)) {
@@ -829,20 +925,7 @@ public class LwsServlet extends HttpServlet {
             resp.setStatus(HttpServletResponse.SC_NOT_MODIFIED);
             return;
         }
-        if (turtle) {
-            byte[] bytes = LwsRdf.toTurtle(LwsJson.container(r.uri(), v.total(), v.items()));
-            resp.addHeader("Vary", "Accept");
-            resp.setStatus(HttpServletResponse.SC_OK);
-            resp.setContentType(MediaTypes.TURTLE);
-            resp.setCharacterEncoding(StandardCharsets.UTF_8.name());
-            resp.setContentLength(bytes.length);
-            addBytesDigests(req, resp, bytes);
-            if (body) {
-                resp.getOutputStream().write(bytes);
-            }
-            return;
-        }
-        sendJson(req, resp, LwsJson.container(r.uri(), v.total(), v.items()), body);
+        sendContainer(req, resp, LwsJson.container(r.uri(), v.total(), v.items()), variant, body);
     }
 
     /**
@@ -937,14 +1020,6 @@ public class LwsServlet extends HttpServlet {
         cap.serve(new CapabilityRequest(req, resp, cfg, rq.agent(),
                 src.r(), src.content(), src.ext()));
         return true;
-    }
-
-    /** An entity tag for a variant serialization: the base tag with a marker before its closing quote. */
-    private static String tagVariant(String etag, String marker) {
-        if (etag != null && etag.length() > 1 && etag.endsWith("\"")) {
-            return etag.substring(0, etag.length() - 1) + "-" + marker + "\"";
-        }
-        return etag;
     }
 
     /**
@@ -1170,9 +1245,11 @@ public class LwsServlet extends HttpServlet {
 
         // Digested from the body about to be sent, so it cannot fail to track it. There is no
         // version counter to lean on here, and the listing is per-agent anyway — two agents GET
-        // the same URI and get different bytes, which is what Vary: Authorization is for. Turtle is a
-        // distinct representation, so it validates against its own tag.
-        String etag = prefersTurtle(req) ? tagVariant(bodyEtag(doc), "ttl") : bodyEtag(doc);
+        // the same URI and get different bytes, which is what Vary: Authorization is for. The
+        // listing is a container, negotiated as one; each RDF syntax is a distinct representation,
+        // so it validates against its own tag.
+        Negotiation.Variant variant = Negotiation.container(req.getHeader("Accept"));
+        String etag = variant.tag(bodyEtag(doc));
 
         agentSpecific(resp);
         addContainerTypeLink(resp);
@@ -1182,10 +1259,11 @@ public class LwsServlet extends HttpServlet {
                 v.prevAfter(), v.nextAfter(), v.lastAfter());
 
         if (Preconditions.isNotModified(req, etag, null)) {
+            resp.addHeader("Vary", "Accept");
             resp.setStatus(HttpServletResponse.SC_NOT_MODIFIED);
             return;
         }
-        sendJson(req, resp, doc, body);
+        sendContainer(req, resp, doc, variant, body);
     }
 
     /** A strong entity tag over a document's exact bytes. */
@@ -2793,7 +2871,8 @@ public class LwsServlet extends HttpServlet {
         agentSpecific(resp);
         addContainerTypeLink(resp);
         resp.setHeader("Allow", "OPTIONS, HEAD, GET, POST");
-        sendJson(req, resp, doc, body);
+        // "the access request and access grant endpoints are LWS containers": negotiated as one.
+        sendContainer(req, resp, doc, Negotiation.container(req.getHeader("Accept")), body);
     }
 
     /** Retrieve one access request/grant, if this agent is a party to it or the controller. */
@@ -3079,8 +3158,10 @@ public class LwsServlet extends HttpServlet {
         }
 
         JsonObject doc = LwsJson.typeIndex(all.size(), pageTypes);
-        // Turtle is a distinct representation of this page, so it validates against its own tag.
-        String etag = prefersTurtle(req) ? tagVariant(bodyEtag(doc), "ttl") : bodyEtag(doc);
+        // Each RDF syntax is a distinct representation of this page, so it validates against its
+        // own tag. The index is not a container, so it is in no profile.
+        Negotiation.Variant variant = Negotiation.document(req.getHeader("Accept"));
+        String etag = variant.tag(bodyEtag(doc));
 
         agentSpecific(resp);
         resp.setHeader("ETag", etag);
@@ -3093,18 +3174,18 @@ public class LwsServlet extends HttpServlet {
         }
 
         if (Preconditions.isNotModified(req, etag, null)) {
+            resp.addHeader("Vary", "Accept");
             resp.setStatus(HttpServletResponse.SC_NOT_MODIFIED);
             return;
         }
-        sendJson(req, resp, doc, body);
+        sendDocument(req, resp, doc, variant, body);
     }
 
     private void typeSearch(Req rq, LwsQuery q, HttpServletRequest req, HttpServletResponse resp,
             boolean body) throws IOException {
-        if (!prefersTurtle(req) && !MediaTypes.admitsLwsJson(req.getHeader("Accept"))) {
-            throw Problem.notAcceptable("this service produces " + MediaTypes.LWS_JSON
-                    + " or " + MediaTypes.TURTLE);
-        }
+        // Negotiated before the search runs, so an unacceptable Accept costs nothing. A page of
+        // results is not a container, so it is in no profile.
+        Negotiation.Variant variant = Negotiation.document(req.getHeader("Accept"));
         String fp = q.fingerprint();
         Cursor cursor = Cursor.decode(req.getParameter("cursor"), cfg.typeSearchUri(), fp);
 
@@ -3128,7 +3209,7 @@ public class LwsServlet extends HttpServlet {
                     LinkHeader.REL_NEXT));
         }
         agentSpecific(resp);
-        sendJson(req, resp, LwsJson.containerPage(page.total(), page.items()), body);
+        sendDocument(req, resp, LwsJson.containerPage(page.total(), page.items()), variant, body);
     }
 
     // --- Response helpers ---------------------------------------------------
@@ -3251,7 +3332,7 @@ public class LwsServlet extends HttpServlet {
             throw Problem.notAcceptable("the storage description is available as "
                     + MediaTypes.LWS_CID + ", " + MediaTypes.LWS_JSON + " or " + MediaTypes.TURTLE);
         }
-        JsonObject doc = LwsJson.storageDescription(cfg, capabilities.descriptors(cfg));
+        JsonObject doc = LwsJson.storageDescription(cfg, descriptors());
         byte[] bytes;
         if (turtle) {
             bytes = LwsRdf.toTurtle(doc);
@@ -3271,34 +3352,62 @@ public class LwsServlet extends HttpServlet {
         }
     }
 
+    /** The installed capabilities' descriptors, and the storage's own {@code MoveResource} if it moves. */
+    private List<com.ebremer.lws.capability.CapabilityDescriptor> descriptors() {
+        List<com.ebremer.lws.capability.CapabilityDescriptor> out =
+                new ArrayList<>(capabilities.descriptors(cfg));
+        var move = moves.descriptor();
+        if (move != null) {
+            out.add(move);
+        }
+        return out;
+    }
+
     /**
-     * Serialize an LWS document, negotiating between the JSON forms and Turtle. A client that accepts
-     * an RDF type but not the JSON family gets Turtle (an offered MAY); one that accepts neither gets a
-     * 406. The three JSON forms share one byte-identical body (a MUST) — only the Content-Type varies.
-     *
-     * <p>Turtle is a distinct representation, so any caller that sets an entity tag and answers a
-     * conditional request before calling this MUST vary that tag by negotiated type (see
-     * {@link #prefersTurtle} and {@code tagVariant}); otherwise a client holding the JSON tag would be
-     * answered 304 to a Turtle request it has never seen. {@code Vary: Accept} is emitted here so a
-     * cache keys the two apart regardless.
+     * Serialize an LWS document that is not a container representation — a subscription, an access
+     * request or grant — in the representation {@link Negotiation#document} selects: the JSON
+     * document, labelled as asked, or its RDF in no profile; an {@code Accept} that admits none of
+     * them is a 406.
      */
     private void sendJson(HttpServletRequest req, HttpServletResponse resp, JsonObject doc,
             boolean body) throws IOException {
-        String accept = req.getHeader("Accept");
-        boolean turtle = prefersTurtle(req);
-        if (!turtle && !MediaTypes.admitsLwsJson(accept)) {
-            throw Problem.notAcceptable("this resource is available as " + MediaTypes.LWS_JSON
-                    + " or " + MediaTypes.TURTLE);
-        }
+        sendDocument(req, resp, doc, Negotiation.document(req.getHeader("Accept")), body);
+    }
 
-        byte[] bytes;
-        if (turtle) {
-            bytes = LwsRdf.toTurtle(doc);
-            resp.setContentType(MediaTypes.TURTLE);
-        } else {
-            bytes = doc.toString().getBytes(StandardCharsets.UTF_8);
-            resp.setContentType(MediaTypes.negotiate(accept));
-        }
+    /**
+     * Serialize an LWS document that is not a container representation in {@code variant}: the
+     * JSON, or its RDF through {@link LwsRdf#toRdf}'s mapping.
+     *
+     * <p>Each RDF syntax is a distinct representation, so any caller that sets an entity tag and
+     * answers a conditional request before calling this MUST tag it with
+     * {@link Negotiation.Variant#tag}; otherwise a client holding the JSON tag would be answered 304
+     * to a Turtle request it has never seen. {@code Vary: Accept} is emitted here so a cache keys
+     * them apart regardless.
+     */
+    private void sendDocument(HttpServletRequest req, HttpServletResponse resp, JsonObject doc,
+            Negotiation.Variant variant, boolean body) throws IOException {
+        sendBytes(req, resp, variant.isRdf()
+                ? LwsRdf.toRdf(doc, variant.syntax().format())
+                : doc.toString().getBytes(StandardCharsets.UTF_8), variant, body);
+    }
+
+    /**
+     * Serialize a container representation in {@code variant}, which {@link Negotiation#container}
+     * selected: the lws+json document, or its RDF in the LWS profile — the same document read as
+     * JSON-LD ({@link LwsRdf#profileRdf}), so the RDF is isomorphic to the JSON of the same page by
+     * construction, as lws10-core's LWS profile requires. Tagging, as for {@link #sendDocument}, is
+     * the caller's.
+     */
+    private void sendContainer(HttpServletRequest req, HttpServletResponse resp, JsonObject doc,
+            Negotiation.Variant variant, boolean body) throws IOException {
+        sendBytes(req, resp, variant.isRdf()
+                ? LwsRdf.write(LwsRdf.profileRdf(doc, doc.getString("id")), variant.syntax().format())
+                : doc.toString().getBytes(StandardCharsets.UTF_8), variant, body);
+    }
+
+    private void sendBytes(HttpServletRequest req, HttpServletResponse resp, byte[] bytes,
+            Negotiation.Variant variant, boolean body) throws IOException {
+        resp.setContentType(variant.contentType());
         resp.setStatus(HttpServletResponse.SC_OK);
         resp.setCharacterEncoding(StandardCharsets.UTF_8.name());
         resp.setContentLength(bytes.length);
@@ -3355,7 +3464,10 @@ public class LwsServlet extends HttpServlet {
         }
     }
 
-    /** True when the client accepts an RDF (Turtle) representation but not the JSON family. */
+    /**
+     * True when the client accepts an RDF (Turtle) representation but not the JSON family: the
+     * storage description's rule. The other LWS documents are negotiated by {@link Negotiation}.
+     */
     private static boolean prefersTurtle(HttpServletRequest req) {
         String accept = req.getHeader("Accept");
         return !MediaTypes.admitsLwsJson(accept) && MediaTypes.admits(accept, MediaTypes.TURTLE);

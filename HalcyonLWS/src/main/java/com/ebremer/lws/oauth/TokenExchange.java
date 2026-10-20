@@ -26,7 +26,8 @@ import org.slf4j.LoggerFactory;
  * storage</em>. Before it, this module accepted an authentication credential — a Keycloak access
  * token, or an LWS OpenID ID Token — directly at a storage, which works but gives the credential
  * the storage's authority: a credential with no audience restriction, replayed at a second storage,
- * is accepted there too. An exchanged access token names exactly one storage in {@code aud} and
+ * is accepted there too. An exchanged access token names exactly one storage in {@code aud} — the
+ * single audience lws10-core's Audience Binding consideration asks of an authorization server — and
  * lives 300 seconds, so a captured one is worth very little and is worth nothing anywhere else.
  *
  * <p>What is checked, in order, because an error must not depend on how much of the request the
@@ -34,9 +35,10 @@ import org.slf4j.LoggerFactory;
  *
  * <ul>
  *   <li>{@code grant_type} is the token-exchange grant, and nothing else;</li>
- *   <li>{@code resource} is REQUIRED and MUST identify a storage this server knows — an unknown or
- *       untrusted one is {@code invalid_target}, which is what stops this endpoint minting tokens
- *       for somebody else's storage;</li>
+ *   <li>{@code resource} is REQUIRED and MUST identify a storage this server knows — the storage
+ *       URI a {@code 401}'s {@code Link} names, or its base URI — and an unknown or untrusted one is
+ *       {@code invalid_target}, which is what stops this endpoint minting tokens for somebody else's
+ *       storage;</li>
  *   <li>{@code requested_token_type}, if given, is an access token; delegation ({@code actor_token})
  *       is refused rather than silently ignored, since ignoring it would issue a token for the
  *       subject while the client asked to act on someone else's behalf;</li>
@@ -46,8 +48,10 @@ import org.slf4j.LoggerFactory;
  *       {@code client_id}, which lws10-core requires to be URIs.</li>
  * </ul>
  *
- * <p>The issued token carries {@code iss}, {@code sub}, {@code client_id}, {@code aud},
- * {@code exp}, {@code iat} and {@code jti} — every claim lws10-core makes REQUIRED — and never
+ * <p>The issued token carries {@code iss}, {@code sub}, {@code client_id}, {@code aud} — the
+ * {@code resource} as the client spelled it, which lws10-core requires {@code aud} to include
+ * ({@link AuthorizationServerSettings#audienceFor}) — {@code exp}, {@code iat} and {@code jti}, every
+ * claim lws10-core makes REQUIRED, and never
  * outlives the credential it was exchanged for: an expiring credential that could be traded for a
  * longer-lived token would defeat its own expiry.
  */
@@ -60,7 +64,11 @@ public final class TokenExchange {
     public static final String TYPE_JWT = "urn:ietf:params:oauth:token-type:jwt";
     public static final String TYPE_ACCESS_TOKEN = "urn:ietf:params:oauth:token-type:access_token";
 
-    /** The spelling lws10-core's own metadata example uses; accepted as {@link #TYPE_ID_TOKEN}. */
+    /**
+     * The spelling lws10-core's own metadata example used until the drafts of 19 October 2026, which
+     * corrected it to RFC 8693's {@link #TYPE_ID_TOKEN}; still accepted as that, for clients written
+     * against the earlier example.
+     */
     private static final String TYPE_ID_TOKEN_HYPHENATED = "urn:ietf:params:oauth:token-type:id-token";
 
     /** An OAuth 2.0 error response (RFC 6749 §5.2). */
@@ -161,6 +169,7 @@ public final class TokenExchange {
                     "resource is required: the URI of the storage the token is for");
         }
         String realm = as.realmFor(resource);
+        String aud = as.audienceFor(resource);
         if (realm == null) {
             // "The authorization server MUST reject any request in which the resource parameter
             // identifies an unknown or untrusted storage."
@@ -218,7 +227,7 @@ public final class TokenExchange {
         claims.put("iss", as.issuer());
         claims.put("sub", agent.webId());
         claims.put("client_id", agent.clientId());
-        claims.put("aud", realm);
+        claims.put("aud", aud);
         claims.put("jti", UUID.randomUUID().toString());
         String token = keys.sign(claims, Date.from(now), Date.from(exp));
         LOG.debug("issued an access token for {} on {} (client {})",

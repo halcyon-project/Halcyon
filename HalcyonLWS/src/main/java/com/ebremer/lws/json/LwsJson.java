@@ -17,11 +17,13 @@ import java.util.List;
  * normative context URI ({@code https://www.w3.org/ns/lws/v1}) is <em>not yet
  * published</em> — it currently 404s — so any processor that tried to resolve it
  * at runtime would fail. The spec still requires us to emit it, so it is emitted
- * as a literal string and never dereferenced.
+ * as a literal string and never dereferenced. (Reading a container document back as
+ * JSON-LD, for its RDF, uses a bundled copy of the context: see {@link LwsRdf}.)
  *
  * <p>The same bytes serve {@code application/lws+json}, {@code application/ld+json}
- * and {@code application/json}: lws10-core requires the payload to be identical
- * across all three, with only the {@code Content-Type} header varying.
+ * and {@code application/json}, with only the {@code Content-Type} header varying.
+ * lws10-core no longer requires the latter two (w3c/lws-protocol#253), but they are
+ * still offered.
  */
 public final class LwsJson {
 
@@ -119,16 +121,20 @@ public final class LwsJson {
                                         .add("application/json-patch+json")
                                         .add("application/merge-patch+json"))))
                 // The one transcoding this storage performs: every LWS document it serves is
-                // also available as Turtle. One entry per source type, as the spec's example
-                // shows — a client reads it as "ask for a target and you will get it", so
-                // listing a conversion this storage cannot do would be a broken promise.
+                // also available in these RDF syntaxes — a container's in the LWS profile, when
+                // asked for. One entry per source type, as the spec's example shows — a client
+                // reads it as "ask for a target and you will get it", so listing a conversion
+                // this storage cannot do would be a broken promise.
                 .add(Json.createObjectBuilder()
                         .add("type", "https://www.w3.org/ns/lws#ContentNegotiation")
                         .add("source", MediaTypes.LWS_JSON)
                         .add("target", Json.createArrayBuilder()
                                 .add(MediaTypes.LD_JSON)
                                 .add(MediaTypes.JSON)
-                                .add(MediaTypes.TURTLE)))
+                                .add(MediaTypes.TURTLE)
+                                .add(MediaTypes.N_TRIPLES)
+                                .add(MediaTypes.N_QUADS)
+                                .add(MediaTypes.TRIG)))
                 .add(Json.createObjectBuilder()
                         .add("type", "https://www.w3.org/ns/lws#ContentNegotiation")
                         .add("source", MediaTypes.LWS_CID)
@@ -198,6 +204,9 @@ public final class LwsJson {
     /** Render a capability's {@code capability[]} entry. */
     private static JsonObjectBuilder capabilityEntry(CapabilityDescriptor.CapabilityEntry ce) {
         JsonObjectBuilder b = Json.createObjectBuilder().add("type", ce.type());
+        if (ce.properties() != null) {
+            ce.properties().forEach(b::add);
+        }
         if (ce.serviceEndpoint() != null) {
             b.add("serviceEndpoint", ce.serviceEndpoint());
         }

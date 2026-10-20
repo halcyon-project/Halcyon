@@ -2,11 +2,13 @@ package com.ebremer.lws.http;
 
 import jakarta.json.Json;
 import jakarta.json.JsonObjectBuilder;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.function.Function;
 
 /**
  * RFC 9457 problem responses.
@@ -28,6 +30,11 @@ import java.util.Map;
  * {@link #send} calls {@code reset()} to discard any partially-built body, and
  * that clears headers too. So they travel with the problem and are re-applied
  * after the reset.
+ *
+ * <p>A few depend on the request the problem answers, and those travel as functions of it, applied
+ * when the problem is written: a 401's {@code WWW-Authenticate} names the protected resource
+ * metadata of the URL the client requested, and the code that refuses — an authorization check deep
+ * in a handler — holds the resource it is deciding about, not the request it arrived as.
  */
 public final class Problem extends RuntimeException {
 
@@ -37,6 +44,8 @@ public final class Problem extends RuntimeException {
     private final String title;
     private final String detail;
     private final Map<String, String> headers = new LinkedHashMap<>();
+    private final Map<String, Function<HttpServletRequest, String>> requestHeaders =
+            new LinkedHashMap<>();
 
     public Problem(int status, String title, String detail) {
         super(status + " " + title + (detail == null ? "" : ": " + detail));
@@ -55,8 +64,36 @@ public final class Problem extends RuntimeException {
         return this;
     }
 
-    /** Write this problem to the response. Does nothing if the response is already committed. */
+    /**
+     * Attach a header whose value is computed from the request this problem answers, when it is
+     * written with {@link #writeTo(HttpServletRequest, HttpServletResponse)}.
+     */
+    public Problem header(String name, Function<HttpServletRequest, String> value) {
+        requestHeaders.put(name, value);
+        return this;
+    }
+
+    /**
+     * Write this problem to the response as the answer to {@code req}. Does nothing if the response
+     * is already committed.
+     */
+    public void writeTo(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        Map<String, String> all = new LinkedHashMap<>(headers);
+        requestHeaders.forEach((name, value) -> all.put(name, value.apply(req)));
+        send(resp, status, title, detail, all);
+    }
+
+    /**
+     * Write this problem to the response. Does nothing if the response is already committed.
+     *
+     * @throws IllegalStateException if a header of this problem depends on the request, which this
+     *     form does not have: leaving the header out would send, say, a 401 without its challenge
+     */
     public void writeTo(HttpServletResponse resp) throws IOException {
+        if (!requestHeaders.isEmpty()) {
+            throw new IllegalStateException("the " + requestHeaders.keySet()
+                    + " of a " + status + " depend on the request it answers");
+        }
         send(resp, status, title, detail, headers);
     }
 
@@ -106,7 +143,10 @@ public final class Problem extends RuntimeException {
         return new Problem(400, "Bad Request", detail);
     }
 
-    /** No valid credentials. The caller must also set {@code WWW-Authenticate}. */
+    /**
+     * No valid credentials. The caller must also set {@code WWW-Authenticate}, which names the
+     * request's protected resource metadata, so this problem is written with its request.
+     */
     public static Problem unauthorized(String detail) {
         return new Problem(401, "Unauthorized", detail);
     }

@@ -65,10 +65,16 @@ Each delivery is a `POST` to the inbox with this body (ActivityStreams-flavored)
 }
 ```
 
-- `activity.type` is one of `Create`, `Update`, or `Delete`:
+- `activity.type` is one of `Create`, `Update`, `Delete` or `Move`:
   - **`Create`** — a `POST` created a child. Emitted with `target` = the parent container.
   - **`Update`** — a `PUT` or `PATCH` changed a resource. Emitted with `target` = the parent.
   - **`Delete`** — a `DELETE` removed a resource. Emitted with **`origin`** (not `target`) = the parent.
+  - **`Move`** — a linkset `PATCH` changed the resource's `up` link, moving it to another container
+    (lws10-core since w3c/lws-protocol#237; see [http-api.md](http-api.md#moving-a-resource)). Emitted
+    with **`origin`** = the container it left, **`target`** = the container it joined, and `object` = the
+    resource as it is *after* the move — on the disk mirror, where a move changes the URI, its new URI.
+    One `Move` per move, never a `Delete` and a `Create`, batching or not; a moved container's
+    descendants move with it and are not announced one by one.
 - `object.type` is `["DataResource"]` or `["Container"]`.
 - `actor` (the WebID of the agent that made the change) is **omitted by default** — the spec says it
   SHOULD be, since telling every subscriber who touched a resource discloses more than the change itself
@@ -79,6 +85,19 @@ Each delivery is a `POST` to the inbox with this body (ActivityStreams-flavored)
   `DELETE` uses this to announce the whole removed subtree at once; each subscriber still only ever
   receives the activities for resources it is authorized to read. Off (the default) → a recursive delete
   announces only the container itself, and `activity` is always a single object.
+
+### Who hears about a move
+
+A move changes where a resource sits, and so possibly who may read it, so its audience is worked out
+from both positions. A `Move` goes to every subscriber whose topic covers the resource **in its new
+position or the container it left** and who may read the resource **now** (after the move). A subscriber
+who could read it only in its old position — the move took it out of their sight — gets a `Delete` of
+the URI they knew instead, which is the truth from where they stand. Both audiences are computed inside
+the move's transaction and delivered after it commits.
+
+On the disk mirror, where a move renames the resource and its descendants, subscriptions whose topic
+named one of the renamed URIs are rewritten to the new URI in the same transaction, so a subscription
+follows the resource it watches.
 
 ## Verifying the signature (RFC 9421)
 

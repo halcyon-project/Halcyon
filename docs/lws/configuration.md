@@ -28,6 +28,9 @@ namespace):
     # :LWSIncludeActor       true ;   # put the acting agent's WebID as `actor` on a notification
     # :LWSBatchNotifications true ;   # a bulk op's activities in one envelope (`activity` → array)
     # :LWSSetLinkset         true ;   # honour `Prefer: set-linkset` (combined content + linkset update)
+
+    # Moving resources by their `up` link: both kinds by default; "" turns it off. Also per storage.
+    # :LWSMoveAppliesTo "DataResource Container" ;
 ```
 
 ### Properties
@@ -44,7 +47,9 @@ namespace):
 | `:LWSIncludeActor` | Optional (default `false`). Include the acting agent's WebID as `actor` on a notification. The spec says omit it by default (it discloses who touched a resource) but MAY be configurable. See [notifications.md](notifications.md). |
 | `:LWSBatchNotifications` | Optional (default `false`). Deliver a bulk operation's activities as one batched envelope (`activity` becomes an array). A recursive `DELETE` then announces the whole removed subtree at once, each subscriber filtered to what it may read. |
 | `:LWSSetLinkset` | Optional (default `false`). Honor `Prefer: set-linkset`: a `PUT`/`PATCH` to a resource carrying `Link` headers updates the content **and** the linkset atomically. Off → the preference is ignored (spec-permitted). See [http-api.md](http-api.md). |
-| `:LWSAuthorizationServer` | Optional (default `true`). Run this instance's embedded LWS authorization server: RFC 8414 metadata at `/.well-known/lws-configuration`, an RFC 8693 token endpoint at `/lws-as/token`, and its `jwks_uri` at `/lws-as/jwks`. lws10-core makes an authorization server the baseline way to obtain an access token, so leave it on unless a **separate** authorization server fronts these storages. Inert when no storage is mounted. See [security.md](security.md). |
+| `:LWSAuthorizationServer` | Optional (default `true`). Run this instance's embedded LWS authorization server: RFC 8414 metadata at `/.well-known/lws-configuration`, an RFC 8693 token endpoint at `/lws-as/token`, and its `jwks_uri` at `/lws-as/jwks`. lws10-core makes an authorization server the baseline way to obtain an access token, so leave it on unless a **separate** authorization server fronts these storages. Inert when no storage is mounted. Each storage's protected resource metadata (RFC 9728, `/.well-known/oauth-protected-resource{urlPath}/…`) names this issuer in `authorization_servers`, and is mounted whether this is on or off (off, it names the issuer discovered from Keycloak). See [security.md](security.md). |
+| `:LWSMoveAppliesTo` | Optional (default both kinds). Which resources may be moved between containers by changing the `up` link in their linkset (lws10-core since w3c/lws-protocol#237): `"DataResource"` and/or `"Container"` (terms or full IRIs, as separate literals or one comma/space-separated literal). `""` or `"none"` turns moves off: no `MoveResource` capability, and a changed `up` is refused `403` as before. On the settings node it applies to every storage; on a `:hasLWSStorage` node it applies to that storage and wins. An unknown value is logged and ignored, so a typo narrows what may move rather than widening it. E.g. `:hasLWSStorage [ … ; :LWSMoveAppliesTo "DataResource" ]` lets that storage move data resources but not containers. See [http-api.md](http-api.md#moving-a-resource). |
+| `:LWSLegacyChallenge` | Optional (default `true`). Keep `as_uri` and `realm` in the `401` challenge, after the `resource_metadata` parameter the drafts of 19 October 2026 require — for clients written against earlier drafts, which read the authorization server from `as_uri`. Set `false` to send only `resource_metadata` (and `error`). See [http-api.md](http-api.md#protected-resource-metadata). |
 | `:LWSAccessTokenLifetime` | Optional (default `300`). Seconds an issued access token lives — lws10-core's RECOMMENDED ceiling. A token never outlives the credential it was exchanged for, whatever this says. |
 | `:LWSAcceptAuthenticationCredentials` | Optional (default `true`). Also accept an authentication credential (an ID Token, a Keycloak access token) presented directly as the bearer token, alongside exchanged access tokens. lws10-core permits it as an additional mechanism. Set `false` to require the exchange — which is what makes an access token's audience confinement actually bite, at the cost of invalidating every credential existing clients hold. |
 
@@ -170,9 +175,13 @@ is constructed:
 | the "Login" menu item, the Account page's Keycloak console link, and the logout redirect to the end-session endpoint | "WebID Login" is the way in; logout invalidates the session and goes home |
 
 Authentication then runs entirely on the LWS stack — WebID-OIDC, enabled in `lws-oidc.json` — for both
-bearer tokens (`LwsOidcVerifier`) and interactive sign-in (`/webid-login`). The `WWW-Authenticate`
-challenge's required `as_uri` becomes `{site}/webid-login`, because under WebID-OIDC the issuer is
-whichever OP the agent's own WebID nominates and cannot be named before one is presented.
+bearer tokens (`LwsOidcVerifier`) and interactive sign-in (`/webid-login`). With the embedded
+authorization server on (the default) a client still gets its token there, and the protected resource
+metadata names it. Only if `:LWSAuthorizationServer` is off as well does the metadata's
+`authorization_servers` (and the legacy `as_uri`) become `{site}/webid-login` — or the site, with
+`lws-oidc.json` off too — because under WebID-OIDC the issuer is whichever OP the agent's own WebID
+nominates and cannot be named before one is presented; that value is not an issuer, so a client
+following lws10-core's discovery cannot get a token in that configuration.
 
 **Nothing is deleted.** Every class, bean and filter is still there; restoring the `:AuthServer` line
 brings the whole subsystem back exactly as it was. The gate is `@Conditional(KeycloakEnabled.class)`,
@@ -230,6 +239,18 @@ The same configuration mounts the embedded authorization server's three endpoint
 `:LWSAuthorizationServer` is on, and `/lws-as/` and `/.well-known/` are both in the Wicket ignores for
 the same reason: a token request answered with the home page would fail every client's login with
 HTTP 200.
+
+It also mounts each storage's **protected resource metadata** (RFC 9728), the document every `401`
+points to, at `/.well-known/oauth-protected-resource{urlPath}/*` — one servlet per storage, never one on
+the whole `/.well-known/oauth-protected-resource/` tree, which would shadow the MCP endpoint's metadata at
+`/.well-known/oauth-protected-resource/mcp` (a Spring MVC route in HalcyonMCP).
+
+**Behind a proxy that maps a path** (`:ProxyHostName` `https://host/app`, the proxy stripping `/app`),
+RFC 9728 puts a resource's metadata *outside* that path: the metadata of `https://host/app/W3Clws/x` is
+`https://host/.well-known/oauth-protected-resource/app/W3Clws/x`. Route
+`/.well-known/oauth-protected-resource/app/` to this server's `/.well-known/oauth-protected-resource/`,
+stripping `/app`, exactly as `/.well-known/lws-configuration/app` is routed to
+`/.well-known/lws-configuration`.
 
 ## A trap to know: the `?query=` filter
 

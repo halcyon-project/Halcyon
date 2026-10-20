@@ -379,10 +379,42 @@ public final class Notifications {
         graph().removeAll(sub(id), null, null);
     }
 
+    /**
+     * Follow renamed resources with the subscriptions whose topics name them. A topic is the
+     * resource a subscriber asked to hear about, and a move that renames it (on a storage whose URIs
+     * are paths) is still that resource: without this its subscribers would stop hearing about it at
+     * the moment it moved, the Move included. Assumes the move's write transaction.
+     *
+     * @param renamed every renamed resource, previous URI to new
+     */
+    public void renameTopics(java.util.Map<String, String> renamed) {
+        Model g = graph();
+        for (var e : renamed.entrySet()) {
+            Resource from = ResourceFactory.createResource(e.getKey());
+            for (Resource s : g.listSubjectsWithProperty(LWS.topic, from).toList()) {
+                g.remove(s, LWS.topic, from);
+                g.add(s, LWS.topic, ResourceFactory.createResource(e.getValue()));
+            }
+        }
+    }
+
     // --- Delivery -----------------------------------------------------------
 
-    /** One change to announce: an activity about a resource. */
-    public record Change(String activityType, String resourceUri, boolean isContainer, String parent) {
+    /**
+     * One change to announce: an activity about a resource.
+     *
+     * @param parent the container the resource is in after the change: the {@code target} of a
+     *               Create or a Move, and the {@code origin} of a Delete (the container it was in)
+     * @param origin the container a Move took the resource out of; {@code null} for every other
+     *               activity
+     */
+    public record Change(String activityType, String resourceUri, boolean isContainer, String parent,
+            String origin) {
+
+        /** A change that is not a move: one container is all it has. */
+        public Change(String activityType, String resourceUri, boolean isContainer, String parent) {
+            this(activityType, resourceUri, isContainer, parent, null);
+        }
     }
 
     /**
@@ -503,7 +535,8 @@ public final class Notifications {
             AcpEngine acp = new AcpEngine(store);
             List<JsonObject> activities = new ArrayList<>();
             for (Change c : changes) {
-                if (!covered(topics, c.resourceUri())) {
+                if (!covered(topics, c.resourceUri())
+                        && (c.origin() == null || !coveredContainer(topics, c.origin()))) {
                     continue;
                 }
                 if (!acp.allows(subscriber, c.resourceUri(), AccessMode.READ)) {
@@ -620,6 +653,20 @@ public final class Notifications {
         if (topics.contains(uri)) {
             return true;
         }
+        return ancestorIn(topics, uri);
+    }
+
+    /**
+     * Is a change in container {@code container} covered: the container itself is a topic, or an
+     * ancestor of it is. How a Move reaches the subscribers of the container it left, as well as
+     * those of the one it joined, whom {@link #covered} finds from where the resource is now.
+     */
+    private boolean coveredContainer(List<String> topics, String container) {
+        return topics.contains(container) || ancestorIn(topics, container);
+    }
+
+    /** Whether a container above {@code uri}, walking {@link LWSX#parent}, is one of {@code topics}. */
+    private boolean ancestorIn(List<String> topics, String uri) {
         Model sys = store.system();
         Resource cur = ResourceFactory.createResource(uri);
         for (int i = 0; i < 256; i++) {
@@ -648,7 +695,13 @@ public final class Notifications {
                 .add("type", Json.createArrayBuilder().add(c.activityType()))
                 .add("object", object)
                 .add("published", Instant.now().toString());
-        if (c.parent() != null) {
+        if (c.origin() != null) {
+            // A move: the container it was removed from, and the one it was added to (lws10-core,
+            // Activity Types: "The origin field indicates the container from which the resource
+            // was removed, and the target field indicates the container into which it was added").
+            activity.add("origin", c.origin());
+            activity.add("target", c.parent());
+        } else if (c.parent() != null) {
             // `target` for a create, `origin` for a delete: where it went, or came from.
             activity.add("Delete".equals(c.activityType()) ? "origin" : "target", c.parent());
         }

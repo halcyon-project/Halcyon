@@ -56,7 +56,8 @@ a file into the folder and it appears as a resource within a second or two. See
 ## What it does
 
 - Full CRUD on data resources and containers (`GET`/`HEAD`/`OPTIONS`/`POST`/`PUT`/`PATCH`/`DELETE`/`QUERY`)
-- Content negotiation: every LWS JSON document serves `application/lws+json` (canonical) and `text/turtle`
+- Content negotiation: every LWS JSON document serves `application/lws+json` (canonical) and its RDF in
+  Turtle, N-Triples, N-Quads and TriG; containers in the LWS profile, isomorphic to the lws+json
 - Conditional requests: strong `ETag`s, `If-Match`/`If-None-Match`/`If-Modified-Since`, compare-and-swap
   writes (`412`), unconditional ones allowed as lws10-core allows them
 - Byte ranges on data resources (`206`/`416`)
@@ -65,7 +66,8 @@ a file into the folder and it appears as a resource within a second or two. See
 - RFC 9264 linksets (`{resource}.meta`), ACP access-control resources (`{resource}.acr`)
 - Metadata enrichment from Halcyon's file readers (image dimensions, media type, …)
 - An embedded OAuth 2.0 authorization server: RFC 8414 metadata at
-  `/.well-known/lws-configuration`, RFC 8693 token exchange, RFC 9068 `at+jwt` access tokens
+  `/.well-known/lws-configuration`, RFC 8693 token exchange, RFC 9068 `at+jwt` access tokens; each
+  storage's RFC 9728 protected resource metadata, which every `401` points to
 - Webhook notifications signed with RFC 9421
 - Type Index / Type Search (HTTP `QUERY`), authorization-filtered by construction
 - ODRL access requests and grants that install/remove ACP policies
@@ -86,13 +88,15 @@ TOK=$(curl -sk "$SITE/auth/realms/Halcyon/protocol/openid-connect/token" \
 # 2. Discover the storage (the storage URI answers with its description; .description also works)
 curl -sk "$SITE/W3Clws/" -H "Accept: application/lws+cid" | jq .type   # -> "Storage"
 
-# 2b. …or go the conformant route: the 401 challenge names the authorization server, whose
-#     metadata names the token endpoint, which exchanges a credential for an access token.
-curl -skD- -o/dev/null "$SITE/W3Clws/private" | grep -i www-authenticate
+# 2b. …or go the conformant route: the 401 challenge points at the resource's protected resource
+#     metadata (RFC 9728), which names the authorization server, whose metadata names the token
+#     endpoint, which exchanges a credential for an access token to the storage in the 401's Link.
+curl -skD- -o/dev/null "$SITE/W3Clws/private" | grep -i -e www-authenticate -e '^link'
+curl -sk "$SITE/.well-known/oauth-protected-resource/W3Clws/private" | jq .authorization_servers
 curl -sk "$SITE/.well-known/lws-configuration" | jq .token_endpoint
 AT=$(curl -sk "$SITE/lws-as/token" \
   -d grant_type=urn:ietf:params:oauth:grant-type:token-exchange \
-  -d resource="$SITE/W3Clws" \
+  -d resource="$SITE/W3Clws/" \
   -d subject_token_type=urn:ietf:params:oauth:token-type:id_token \
   --data-urlencode "subject_token=$ID_TOKEN" | jq -r .access_token)
 

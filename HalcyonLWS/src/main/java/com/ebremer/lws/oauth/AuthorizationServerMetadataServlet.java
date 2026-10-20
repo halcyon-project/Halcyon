@@ -14,10 +14,12 @@ import java.util.List;
  * {@value AuthorizationServerSettings#METADATA_PATH} as lws10-core §Authorization Server Metadata
  * requires.
  *
- * <p>This document is the whole of discovery: a client that has only a 401 challenge naming an
- * {@code as_uri} dereferences this to learn where to exchange a credential, which key set to verify
- * a token against, and which credentials this server will take. Nothing about the flow is
- * hardcoded on either side.
+ * <p>This document is where discovery ends: a client that has only a 401 follows its challenge's
+ * {@code resource_metadata} to the storage's protected resource metadata
+ * ({@link ProtectedResourceMetadataServlet}), whose {@code authorization_servers} names this issuer,
+ * and dereferences this to learn where to exchange a credential, which key set to verify a token
+ * against, and which credentials this server will take. Nothing about the flow is hardcoded on
+ * either side.
  *
  * <p>Beyond RFC 8414's members it carries the two lws10-core defines:
  *

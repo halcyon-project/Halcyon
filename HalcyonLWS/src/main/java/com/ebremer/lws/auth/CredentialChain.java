@@ -39,8 +39,10 @@ public final class CredentialChain {
 
     /**
      * @param resource            the URI of the protected resource this chain guards
-     * @param authorizationServer the authorization server a client should go to for a token
-     *                            (the {@code as_uri} of the {@code WWW-Authenticate} challenge)
+     * @param authorizationServer the authorization server a client should go to for a token (what
+     *                            a storage's protected resource metadata names in
+     *                            {@code authorization_servers}, and its legacy challenge in
+     *                            {@code as_uri})
      * @param verifiers           the verifiers, in the order they are consulted
      */
     public CredentialChain(String resource, String authorizationServer,
@@ -61,8 +63,8 @@ public final class CredentialChain {
      * {@code lws-oidc.json} enables it.
      *
      * <p>The Keycloak verifier's constructor performs OIDC discovery, so building it both makes it
-     * and captures the discovered issuer, which is the fallback {@code as_uri} when no embedded
-     * authorization server is running.
+     * and captures the discovered issuer, which is the authorization server named when no embedded
+     * one is running.
      */
     public static CredentialChain forResource(String resource) {
         return forResource(resource, LwsOidcSettings.load(),
@@ -82,9 +84,10 @@ public final class CredentialChain {
         boolean acceptCredentials = true;
         if (server != null) {
             verifiers.add(server.validatorFor(resource));
-            // as_uri "will be the same as the iss claim of a valid access token", so once this
-            // instance issues tokens the challenge must name it and nothing else: a client that
-            // went to some other as_uri would come back with a token this storage cannot validate.
+            // The authorization server a storage names is the one whose tokens it validates, so once
+            // this instance issues tokens the protected resource metadata must name it and nothing
+            // else: a client that went to some other authorization server would come back with a
+            // token this storage cannot validate.
             as = server.settings().issuer();
             acceptCredentials = server.settings().acceptCredentialsDirectly();
         }
@@ -106,18 +109,21 @@ public final class CredentialChain {
             }
             // A self-signed CID credential presented directly must name this storage in aud: it is
             // self-minted, so without that a credential made for another storage would work here.
+            // Either spelling of the storage: its base URI, or the storage URI a 401's Link names.
+            java.util.Set<String> audiences =
+                    com.ebremer.lws.oauth.AuthorizationServerSettings.storageUris(resource);
             verifiers.add(new com.ebremer.lws.auth.cid.SelfIssuedCidVerifier(
-                    () -> java.util.Set.of(resource), lws::allowedInternalHosts,
+                    () -> audiences, lws::allowedInternalHosts,
                     () -> com.ebremer.lws.config.LwsSettings.get().webIdHostPolicy()));
         }
 
-        // as_uri is REQUIRED in the challenge, and without an embedded authorization server there
-        // is no single one to name: under WebID-OIDC the issuer is whichever OP the agent's own
-        // WebID nominates, which cannot be known before one is presented. The interactive login
-        // endpoint is the honest answer — it is the one URI on this host that will take an agent
-        // from "no credential" to "credential", by asking for the WebID and going to that WebID's
-        // OP. Falling back to the host itself keeps the challenge well-formed when nothing can
-        // satisfy it.
+        // The protected resource metadata MUST name an authorization server, and without an embedded
+        // one or Keycloak there is no single one to name: under WebID-OIDC the issuer is whichever
+        // OP the agent's own WebID nominates, which cannot be known before one is presented. The
+        // interactive login endpoint is the honest answer — it is the one URI on this host that
+        // will take an agent from "no credential" to "credential", by asking for the WebID and
+        // going to that WebID's OP. Falling back to the host itself keeps the metadata (and the
+        // legacy challenge's as_uri) well-formed when nothing can satisfy it.
         if (as == null) {
             String host = HalcyonSettings.getSettings().getProxyHostName();
             as = lws.enabled() ? host + "/webid-login" : host;
@@ -130,7 +136,11 @@ public final class CredentialChain {
         return resource;
     }
 
-    /** The authorization server a client should go to for a token (the challenge's {@code as_uri}). */
+    /**
+     * The authorization server a client should go to for a token: the issuer a storage's protected
+     * resource metadata names in {@code authorization_servers} (and its legacy challenge in
+     * {@code as_uri}).
+     */
     public String authorizationServer() {
         return authorizationServer;
     }

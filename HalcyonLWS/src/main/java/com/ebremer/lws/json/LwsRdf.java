@@ -1,12 +1,26 @@
 package com.ebremer.lws.json;
 
+import com.apicatalog.jsonld.JsonLdError;
+import com.apicatalog.jsonld.JsonLdErrorCode;
+import com.apicatalog.jsonld.JsonLdOptions;
+import com.apicatalog.jsonld.document.Document;
+import com.apicatalog.jsonld.document.JsonDocument;
+import com.apicatalog.jsonld.http.media.MediaType;
+import com.apicatalog.jsonld.loader.DocumentLoaderOptions;
 import com.ebremer.lws.vocab.AS;
 import com.ebremer.lws.vocab.LWS;
+import jakarta.json.Json;
 import jakarta.json.JsonNumber;
 import jakarta.json.JsonObject;
+import jakarta.json.JsonReader;
 import jakarta.json.JsonString;
+import jakarta.json.JsonStructure;
 import jakarta.json.JsonValue;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
+import java.net.URI;
 import java.util.Map;
 import java.util.function.Consumer;
 import org.apache.jena.datatypes.RDFDatatype;
@@ -16,29 +30,48 @@ import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.Property;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.ResourceFactory;
+import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.riot.RDFFormat;
+import org.apache.jena.riot.RDFParser;
+import org.apache.jena.riot.RIOT;
+import org.apache.jena.riot.system.jsonld.TitaniumJsonLdOptions;
+import org.apache.jena.sparql.util.Context;
+import org.apache.jena.vocabulary.DCTerms;
 import org.apache.jena.vocabulary.RDF;
+import org.apache.jena.vocabulary.XSD;
 
 /**
- * A Turtle rendering of any LWS JSON document, offered as an additional serialization through content
- * negotiation — so a client that accepts only an RDF type gets the same document as triples rather than
- * a 406.
+ * The RDF of the LWS JSON documents this module builds, offered through content negotiation
+ * ({@link com.ebremer.lws.http.Negotiation}) in Turtle, N-Triples, N-Quads and TriG.
  *
- * <p>lws10-core makes the JSON forms of these documents ({@code application/lws+json},
- * {@code application/ld+json}, {@code application/json}) mandatory and byte-identical; an RDF
- * serialization is a MAY.
+ * <p>Two ways of getting there, for two kinds of document.
  *
- * <p><strong>Built by expanding the document against a hard-coded context, not by feeding it to a
- * JSON-LD processor</strong> — for the same reason the JSON is native: the normative {@code @context}
- * URI ({@code https://www.w3.org/ns/lws/v1}) is not published and cannot be dereferenced. The mapping
- * below is that context, made explicit: the terms the module actually emits, mapped to the IRIs they
- * denote. The core LWS/ActivityStreams/schema.org terms are exact (they are the ones written into a
- * resource's own named graph). The storage description also carries security-vocabulary, Dublin Core
- * and LDP terms, and a client-authored access grant carries ODRL terms; those are mapped to their
- * established vocabularies. Anything genuinely unmapped falls back to the module's own
- * {@code https://www.w3.org/ns/lws#} namespace rather than being dropped — a best-effort IRI, since the
- * JSON remains the canonical representation and the Turtle is an alternative a client asked for.
+ * <p><strong>A container representation is in the LWS profile</strong>, which lws10-core defines by
+ * the JSON: a representation conforms "if the RDF it encodes is isomorphic ... to the RDF that the
+ * {@code application/lws+json} representation encodes when interpreted as JSON-LD". So
+ * {@link #profileRdf} does exactly that — it reads the very document the JSON representation sends,
+ * as JSON-LD 1.1, through the same Jena/Titanium reader a client would use — and the RDF is isomorphic
+ * to the JSON by construction, page for page. A mapping kept beside the context could only hope to
+ * stay so, and this one had not: it wrote {@code https://schema.org/size} where the context says
+ * {@code http://schema.org/size}, a long {@code totalItems} where JSON-LD reads an integer, and a
+ * contained container's {@code modified}, which the context leaves undefined (its {@code format},
+ * {@code size} and {@code modified} are scoped to {@code DataResource}).
+ *
+ * <p>The context is never fetched. {@code https://www.w3.org/ns/lws/v1} is not published yet (it
+ * answers 404), and lws10-core advises against fetching contexts at runtime anyway, so the reader is
+ * given the bundled copy ({@code lws-v1.jsonld} beside this class) and refuses every other context.
+ *
+ * <p><strong>Every other document</strong> — the storage description, the type index, a search page,
+ * a subscription, an access request or grant — is in no profile, and its RDF is a best-effort
+ * alternative a client asked for, built by {@link #toRdf} from a hard-coded mapping: the terms the
+ * module actually emits, mapped to the IRIs they denote. Most of those documents are not JSON-LD the
+ * LWS context fully describes (the storage description carries security-vocabulary, Dublin Core and
+ * LDP terms, a client-authored access grant ODRL terms; the type index's {@code items} are defined
+ * only on a {@code Container}), so reading them with the context would drop what they say. The core
+ * LWS/ActivityStreams/schema.org terms are those written into a resource's own named graph; anything
+ * genuinely unmapped falls back to the module's own {@code https://www.w3.org/ns/lws#} namespace rather
+ * than being dropped, since the JSON remains the canonical representation.
  */
 public final class LwsRdf {
 
@@ -133,8 +166,13 @@ public final class LwsRdf {
     private LwsRdf() {
     }
 
-    /** Any LWS JSON document, serialized as Turtle. */
+    /** Any LWS JSON document in no profile, serialized as Turtle. */
     public static byte[] toTurtle(JsonObject doc) {
+        return toRdf(doc, RDFFormat.TURTLE_PRETTY);
+    }
+
+    /** Any LWS JSON document in no profile, serialized in {@code format}, through the mapping above. */
+    public static byte[] toRdf(JsonObject doc, RDFFormat format) {
         Model m = ModelFactory.createDefaultModel();
         m.setNsPrefix("lws", LWS.NS);
         m.setNsPrefix("as", AS.NS);
@@ -146,10 +184,81 @@ public final class LwsRdf {
         m.setNsPrefix("rdf", RDF.getURI());
 
         emit(m, doc);
+        return write(m, format);
+    }
 
+    /** A model serialized in {@code format}; a dataset syntax writes it as the default graph. */
+    public static byte[] write(Model m, RDFFormat format) {
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
-        RDFDataMgr.write(bos, m, RDFFormat.TURTLE_PRETTY);
+        RDFDataMgr.write(bos, m, format);
         return bos.toByteArray();
+    }
+
+    // --- The LWS profile ----------------------------------------------------
+
+    /**
+     * The LWS vocabulary's JSON-LD context: the file the Working Group's CI builds from
+     * {@code lws10-vocab/vocabulary.yml} after w3c/lws-protocol 9a08ff6 (19 October 2026), unmodified
+     * (sha256 {@code b2dda589fea8bb68cdd8f741c46f60e0f439dd303d6765a94498031b18033e50}) — the copy the
+     * Touchstone harness judges the LWS profile with, and the one the Working Group checks its tabbed
+     * examples with. Replace it byte for byte when the vocabulary changes: a hand-edited copy would let
+     * this storage's RDF and a client's reading of the same lws+json disagree.
+     */
+    private static final JsonStructure LWS_CONTEXT = readContext("lws-v1.jsonld");
+
+    /**
+     * The RDF an {@code application/lws+json} container document encodes: the document read as
+     * JSON-LD 1.1 with the bundled LWS context, which is how lws10-core's LWS profile defines it.
+     * Serving this model in an RDF syntax is what puts that representation in the profile.
+     *
+     * <p>The reader's options are made per call. Titanium's context cache is not safe to share
+     * between threads, and Jena sets the base on the options it is given.
+     *
+     * @param base the container's URI, against which a relative {@code id} would resolve (the
+     *     module's are absolute; this only makes the reading independent of that)
+     * @throws org.apache.jena.riot.RiotException if the document is not JSON-LD the processor accepts —
+     *     a server fault, since the module wrote it
+     */
+    public static Model profileRdf(JsonObject doc, String base) {
+        Context context = RIOT.getContext().copy()
+                .set(TitaniumJsonLdOptions.JSONLD_OPTIONS, new JsonLdOptions(LwsRdf::bundledContext));
+        Model m = ModelFactory.createDefaultModel();
+        RDFParser.create()
+                .fromString(doc.toString())
+                .lang(Lang.JSONLD)
+                .base(base)
+                .context(context)
+                .parse(m);
+        // The prefixes lws10-core's own examples use, so the Turtle and TriG read the same way.
+        m.setNsPrefix("lws", LWS.NS);
+        m.setNsPrefix("dcterms", DCTerms.getURI());
+        m.setNsPrefix("schema", "http://schema.org/");
+        m.setNsPrefix("xsd", XSD.getURI());
+        return m;
+    }
+
+    /** The JSON-LD document loader: the bundled LWS context, and nothing else, ever. */
+    private static Document bundledContext(URI url, DocumentLoaderOptions options) throws JsonLdError {
+        if (!LWS.CONTEXT.equals(url.toString())) {
+            throw new JsonLdError(JsonLdErrorCode.LOADING_REMOTE_CONTEXT_FAILED,
+                    "<" + url + "> is not fetched: only the LWS context is available, from the copy"
+                            + " bundled with the module");
+        }
+        return JsonDocument.of(MediaType.JSON_LD, LWS_CONTEXT);
+    }
+
+    private static JsonStructure readContext(String resource) {
+        try (InputStream in = LwsRdf.class.getResourceAsStream(resource)) {
+            if (in == null) {
+                throw new IllegalStateException("the bundled JSON-LD context " + resource
+                        + " is missing from the classpath");
+            }
+            try (JsonReader r = Json.createReader(in)) {
+                return r.read();
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException("cannot read the bundled JSON-LD context " + resource, e);
+        }
     }
 
     /** Turn one JSON object into a resource (named by its {@code id}, else a blank node) and its triples. */

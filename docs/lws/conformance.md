@@ -2,19 +2,22 @@
 
 ## Specification baseline
 
-HalcyonLWS is tracked against the **W3C LWS Protocol editor's drafts as of 5 October 2026** —
-[`w3c/lws-protocol`](https://github.com/w3c/lws-protocol) @ `ef02548`, the text W3C published that day
-as the core Working Draft [`WD-lws10-core-20261005`](https://www.w3.org/TR/2026/WD-lws10-core-20261005/).
-These are unofficial proposals, not Recommendations: they change, and this document records *which*
-revision the code follows so that a future reader can tell a deliberate divergence from a stale
-implementation.
+HalcyonLWS is tracked against the **W3C LWS Protocol editor's drafts as of 19 October 2026** —
+[`w3c/lws-protocol`](https://github.com/w3c/lws-protocol) @ `9a08ff6`, the text W3C published that day
+as the core Working Draft [`WD-lws10-core-20261019`](https://www.w3.org/TR/2026/WD-lws10-core-20261019/)
+(the OpenID, SAML and SSI-CID authentication suites were republished as Working Drafts of 15 October,
+with wording changes only). These are unofficial proposals, not Recommendations: they change, and this
+document records *which* revision the code follows so that a future reader can tell a deliberate
+divergence from a stale implementation.
 
-The one commit since the previous baseline, `9b03b32` (28 September), is
-[#255](https://github.com/w3c/lws-protocol/pull/255): **JSON Patch replaces JSON Merge Patch** as the
-patch format a server must support and advertise (the next section but one). The normative text at
-`9b03b32` was in turn identical to `3ddc642` (21 September); what that re-check *did* turn up is
-recorded below: a change inside the old baseline (#228) that had been only half applied here, and
-the core test suite the README now links (#213).
+Three changes since the previous baseline, `ef02548` (5 October), reach the wire, and all three are
+implemented ([the section below](#after-5-october-to-19-october)): **authorization-server discovery by
+RFC 9728 protected resource metadata** (#256), **the LWS profile** for container representations (#253),
+and **moving resources** between containers by their `up` link (#237). Before that, `ef02548` had
+brought one change, #255 (JSON Patch replaces JSON Merge Patch); the normative text at `9b03b32`
+(28 September) was identical to `3ddc642` (21 September), and what that re-check *did* turn up is
+recorded below: a change inside the old baseline (#228) that had been only half applied here, and the
+core test suite the README then linked (#213).
 
 | Specification | Document | Followed |
 |---|---|---|
@@ -67,12 +70,32 @@ Everything in this table was a real difference on the wire, not a rewording.
 |---|---|---|
 | [#255](https://github.com/w3c/lws-protocol/pull/255) | Servers MUST support and advertise **JSON Patch** (RFC 6902, `application/json-patch+json`) as the baseline patch format, for PATCH on resources and on linksets, replacing JSON Merge Patch (and its citation of RFC 7386, which RFC 7396 obsoletes). The storage description example lists JSON Patch first; merge patch stays an optional alternative | JSON data resources already took both. A linkset took merge patch only, and now takes JSON Patch, applied to the document a GET returns (`LwsServlet.patchLinkset`, `LinksetJson.userLinks`): the result must be a linkset document for this resource (`422`) whose server-managed relations are unchanged (`403`), a failed operation is a `409` with nothing applied, and a malformed one a `400`. Merge patch is still accepted on both. `Accept-Patch` and the `PatchSupport` capability list `application/json-patch+json` first |
 
+### After 5 October, to 19 October
+
+| Upstream | Change | Here |
+|---|---|---|
+| [#256](https://github.com/w3c/lws-protocol/pull/256) | **Authorization-server discovery by RFC 9728.** A `401` MUST carry a challenge with `resource_metadata`, the protected resource metadata URL of the requested resource, and MUST carry the `lws#storage` `Link`; `as_uri` and `realm` are gone. The metadata conforms to RFC 9728, with `authorization_servers` REQUIRED (at least one issuer) and `resource` the requested URI. The token request's `resource` is the storage from the `Link`, and a token's `aud` MUST *include* it (it had to hold exactly one value). Clients validate what they discover (same scheme and authority, `resource` identical, the storage's `StorageRoot` on the same origin). The AS metadata example spells `urn:ietf:params:oauth:token-type:id_token` | Every `401` leads with `resource_metadata` (`auth/BearerTokenValidator`, computed from the request as the problem is written), and keeps `as_uri`/`realm` after it under `:LWSLegacyChallenge` (default `true`) for older clients. Each storage's metadata is served by `oauth/ProtectedResourceMetadataServlet`, mounted per storage at `/.well-known/oauth-protected-resource{urlPath}/*` — anonymous, no store consulted, `authorization_servers` the issuer `CredentialChain` trusts. `AccessTokenValidator` accepts an `aud` that includes the storage (either spelling, other values allowed); the token endpoint mints `aud` as the client spelled `resource`. `id_token` was already the advertised spelling; the hyphenated alias is still accepted. No client in this repository performs discovery |
+| [#253](https://github.com/w3c/lws-protocol/pull/253) | **The LWS profile.** `https://www.w3.org/ns/lws/v1` identifies it; a container representation conforms when its RDF is isomorphic to that of the `application/lws+json` representation read as JSON-LD. Only `application/lws+json` is required of a container (the equivalence of lws+json, ld+json and json is removed, and so is the IANA SHOULD treating ld+json with the profile as lws+json). A client asks with the `profile` parameter of an RDF media type; a response in such a type MUST be in the profile and name it in its `Content-Type`, and a server MUST NOT select such a type if it cannot | `http/Negotiation`: RFC 9110 q-value negotiation, most specific range first, `profile` read as a URI list. A container is offered as lws+json, ld+json and json (the same bytes) and as Turtle, N-Triples, N-Quads and TriG, every one in the profile: the RDF is the lws+json page read back by Jena's JSON-LD 1.1 reader with the Working Group's context bundled (`LwsRdf.profileRdf`), so isomorphic by construction. The `Content-Type` names the profile when the client asked for it; a range naming only other profiles matches nothing. The previous hand mapping was not isomorphic (`https://schema.org/size` for `http://schema.org/size`, `totalItems` as `xsd:long`, a sub-container's `modified`) |
+| [#237](https://github.com/w3c/lws-protocol/pull/237) | **Moving resources.** A resource moves to another container when a client changes the `up` link in its linkset with a JSON Patch (there is no `MOVE` method). A server that allows it MUST describe a `MoveResource` capability (`appliesTo` — absent means data resources only — and `preservesIdentifier`), and one that does not MUST refuse with a 4xx and describe none. The destination MUST be an existing container; no `up` left, a cycle, or a container move a server does not support MUST be refused; the change is atomic on both `items` lists and both containers' ETags; links the client may not modify are preserved; authorization is delete (recursive, for a container) on the resource plus create in the destination, for the whole subtree, never partially applied. Identifiers SHOULD be preserved; a server that does not MUST answer `200` with the new linkset and a `Content-Location`, and SHOULD `301` the previous URIs. A move SHOULD be one `Move` activity (`origin`, `target`, `object` after the move) | Every MUST, on both storage kinds (`http/MoveHandler`, a linkset JSON Patch or merge patch whose result changes `up`; `:LWSMoveAppliesTo`, both kinds by default, per storage or global). **Flat storages** (`uuid`, and S3) preserve the identifier — the spec's preferred case: `ResourceRegistry.reparent`, `204`, `preservesIdentifier: true`. **The disk mirror** cannot, since its URI is its path and the disk is authoritative: the subtree is renamed on disk atomically and every URI-keyed fact rewritten (`ResourceRegistry.rename`, `AcrStore.rename`, subscription topics), `200` + `Content-Location`, `301` from every previous URI (and its `.meta`/`.acr`) to an agent that may read the new one, `preservesIdentifier: false`; a name taken in the destination becomes `name-N` as a taken `Slug` does. All refusals are `409`, authorization failures `403`/`401`. One `Move` activity per move, a `Delete` to subscribers who can no longer read it. Cross-storage moves are refused (`409`), which the draft allows. The harness's `aJsonPatchCannotRedirectUp` (an `up` into another storage) now gets that `409` where it got `403` |
+| [#274](https://github.com/w3c/lws-protocol/pull/274), [#265](https://github.com/w3c/lws-protocol/pull/265), [#268](https://github.com/w3c/lws-protocol/pull/268) | Vocabulary: `MoveResource`, `appliesTo`, `preservesIdentifier`, `as:Move` and `AccessRequest` defined; scopes for the notification and access terms; `xsd:anyURI` ranges become IRIs; spec references corrected | The bundled context is the Working Group's build of this vocabulary |
+| [#275](https://github.com/w3c/lws-protocol/pull/275), [#264](https://github.com/w3c/lws-protocol/pull/264), [#269](https://github.com/w3c/lws-protocol/pull/269), [#270](https://github.com/w3c/lws-protocol/pull/270), [#271](https://github.com/w3c/lws-protocol/pull/271), [#273](https://github.com/w3c/lws-protocol/pull/273), [#257](https://github.com/w3c/lws-protocol/pull/257) | Editorial: core consistency edits and new Privacy/Security considerations text, a leftover name hint dropped from the create example, OpenID and SAML terminology, the SAML example's XML, SSI-CID wording, implementation reports | Nothing on the wire |
+
 ## The LWS test suite
 
-The suite is a declarative manifest with no runner: `lws10/manifest.yaml` @ `b8cb134`, every entry
+The suite was a declarative manifest with no runner: `lws10/manifest.yaml` @ `b8cb134`, every entry
 `mf:Proposed`. `LwsTestSuiteConformanceTest` is its runner — one test per entry, named after it,
 issuing the entry's request against a real `LwsServlet` and the embedded authorization server over a
-real socket. It runs in `mvn test` as the `lws-conformance` surefire execution, in its own JVM.
+real socket. It runs in `mvn test` as the `lws-conformance` surefire execution, in its own JVM, and
+since the 19 October baseline it also exercises what that baseline added: the full discovery loop
+(401 → `Link` → `resource_metadata` → authorization server metadata → a did:key credential exchanged
+for the `Link`'s storage → a token whose `aud` includes it), the protected resource metadata of every
+challenge it asserts, and the LWS profile over HTTP.
+
+**Upstream reset the suite on 11 October** (`84aea55`, "reset lws10 to empty directory"): the YAML
+manifest and its resources are gone, replaced by a Turtle manifest of 39 step-based tests contributed
+from LWS.net (`0345523`, `2bc7d43`, `7a2ba98`, to 19 October), one of them deliberately failing
+("Delete returns 999"). The entries below are therefore those of `b8cb134`, kept as regression tests;
+porting the new manifest is an open item.
 
 Every entry passes. Where an entry is stale — it predates the drafts it cites — its test asserts the
 normative text instead, and says why:
@@ -87,8 +110,9 @@ normative text instead, and says why:
 | `authz-token-exchange-invalid-resource` | `"error": "invalid_request"` | Any RFC 6749 §5.2 error; RFC 8693 §2.2.2 says `invalid_target` SHOULD be used for an unknown `resource`, and it is |
 
 `authz-token-exchange-valid` needs a live OpenID provider to mint the subject token, so it is not in
-the harness; the exchange is pinned by `TokenExchangeTest` and `AuthorizationServerServletTest`. The
-suite's `auth/*` manifests are empty.
+the harness as the entry wrote it; the exchange is pinned by `TokenExchangeTest` and
+`AuthorizationServerServletTest`, and the discovery test above exchanges a self-issued did:key
+credential end to end. The suite's `auth/*` manifests were empty.
 
 Running the suite is what found the #228 divergence above: `updateDataResource` sends an unconditional
 `PUT`, and it was refused `428`.
@@ -100,12 +124,17 @@ Each of these is a choice, with the reason it was made. None is an oversight.
 1. **The storage URI is the storage root container, and `Accept` chooses between them.**
    lws10-core requires a request for the storage URI to return the storage description, and
    separately requires the storage root to be a container with a listing. Here they are one
-   resource — a storage's canonical URI must prefix every resource it contains for the `realm`/`aud`
-   containment rule to mean anything — so `Accept: application/lws+cid` selects the description and
-   everything else gets the listing. A wildcard is *not* treated as asking for the description: a
-   browser's default `Accept` must still navigate the container. The description is also served at
-   the reserved `.description` path, which predates the requirement and is kept for existing
-   clients.
+   resource — the storage's canonical URI prefixes every resource it contains, which is what lets a
+   token whose `aud` names the storage cover each of them — so `Accept` chooses. lws10-core settles
+   the default ("MUST return a document that conforms to the storage description resource data model
+   with a media type of `application/lws+cid`, unless content negotiation requires a different
+   format"): no `Accept`, a wildcard, a browser's default and `application/lws+cid` get the
+   description, and a request that names one of the container's own formats (`application/lws+json`,
+   `ld+json`, `json`, or an RDF syntax) and not `application/lws+cid` gets the root listing — every
+   container client names its format. The description is also served at the reserved `.description`
+   path, which predates the requirement and is kept for existing clients. (Until the 19 October
+   re-check this paragraph said the opposite of the code — that a wildcard got the listing; the code
+   has served the description since #183.)
 
 2. **Authentication credentials are still accepted directly at a storage**, alongside access tokens
    from the embedded authorization server, under `:LWSAcceptAuthenticationCredentials` (default
@@ -147,14 +176,18 @@ Each of these is a choice, with the reason it was made. None is an oversight.
    mentions). `Slug` is the long-established spelling and is what this storage reads; the server
    still decides the final URI.
 
-9. **The JSON-LD context is compiled in, never fetched.** `https://www.w3.org/ns/lws/v1` is not
-   published yet and returns 404. The context URI is emitted, as required, and the term mapping is
-   made explicit in `json/LwsRdf` — which is also what lws10-core's own note advises ("Production
-   systems are advised not to fetch remote JSON-LD context documents at runtime").
+9. **The JSON-LD context is bundled, never fetched.** `https://www.w3.org/ns/lws/v1` is not
+   published yet and returns 404. The context URI is emitted, as required, and a copy of the Working
+   Group's CI build of the vocabulary after `9a08ff6` (sha256 `b2dda589…`, the copy Touchstone judges
+   with) is bundled at `json/lws-v1.jsonld`: it is the only context the JSON-LD reader that produces a
+   container's RDF in the LWS profile may load (`LwsRdf.profileRdf`). That is what lws10-core's own
+   note advises ("Production systems are advised not to fetch remote JSON-LD context documents at
+   runtime"). The other documents' RDF (description, type index, search, subscriptions, sharing),
+   which no profile governs, still comes from `LwsRdf`'s explicit term mapping.
 
 10. **`PATCH` is advertised only where a patch could succeed.** A non-JSON data resource omits
     `Accept-Patch` and leaves `PATCH` out of `Allow`, rather than advertising a method that would
-    answer 415. lws10-core requires merge patch on linksets, which is honoured everywhere.
+    answer 415. lws10-core requires JSON Patch on linksets (#255), which is honoured everywhere.
 
 11. **`:LWSSetLinkset` (`Prefer: set-linkset`) is off by default.** The combined
     content-and-metadata update is OPTIONAL, and a server that does not support it "MUST ignore the
@@ -172,6 +205,28 @@ Each of these is a choice, with the reason it was made. None is an oversight.
     lost edit but a silently changed authorization decision — a revocation that evaporates. So an
     agent cannot rewrite a policy without having read the one it replaces.
 
+14. **The `401` challenge still carries `as_uri` and `realm`**, after `resource_metadata`, while
+    `:LWSLegacyChallenge` is on (the default). #256 replaced them, but lws10-core still lets a
+    challenge carry "other headers and parameters", and every client written against the earlier
+    drafts finds its authorization server through `as_uri`. Turning it off sends `resource_metadata`
+    (and `error`) only.
+
+15. **A move on the disk mirror changes the resource's URI.** lws10-core says servers SHOULD preserve the
+    identifier of a moved resource. On the hierarchical storage the URI *is* the file's path and the
+    disk is the source of truth — a file renamed by hand is a resource renamed — so a resource that moved
+    on disk has a new URI. The storage says so (`preservesIdentifier: false`), answers the move with the
+    new linkset and `Content-Location`, and `301`s every previous URI, as the draft asks of a server that
+    does not preserve identifiers. Link targets clients wrote, and stored content, are not rewritten (the
+    `301`s cover them); neither are access grant and request documents, which stay a record of what was
+    granted while the policies they installed move with the resource. The flat storages keep the
+    identifier.
+
+16. **A move cannot cross storages, mounts or file systems.** The draft lets a server refuse a move into
+    another storage, and Halcyon's do (`409`). On the disk mirror a move is one atomic rename, so it is
+    also refused (`409`) when it would cross a mount (`:hasMount`) or a file system, or when the resource
+    is or holds a mount point — a copy-then-delete across disks would give up the atomicity the draft
+    requires.
+
 ## Open items
 
 - **lws10-authn-saml** — SAML 2.0 assertions. Not implemented, and there is no SAML relying party
@@ -182,9 +237,26 @@ Each of these is a choice, with the reason it was made. None is an oversight.
   the request for exactly this.
 - **The JSON-LD context digest** — lws10-core §JSON-LD Context will publish a SHA-256 of the context
   document ([#216](https://github.com/w3c/lws-protocol/issues/216)). Nothing to pin until it exists.
+- **The reset LWS test suite.** `lws-contrib/lws-test-suite` restarted on 11 October as a Turtle
+  manifest of step-based tests (`lws10/manifest.ttl` @ `7a2ba98`); `LwsTestSuiteConformanceTest` still
+  runs the entries of the YAML manifest it replaced. Port the new entries once the manifest settles —
+  it still carries a deliberately failing test.
+- **Moves on the disk mirror, the edges.** A crash between the rename on disk and the TDB2 commit (a
+  window of milliseconds) leaves a rename the reconciler takes for an external one: the content is kept,
+  the subtree's types, links, ACR and owner are not. A `POST`/`PUT` into a container *while* it is being
+  moved can re-create its old directory, which is then adopted as an empty container. And a moved
+  resource takes a fresh sequence number, so a client paging through a type search during a move can meet
+  it twice. In the Halcyon app, open handles in the reader and BeakGraph pools (kept a few minutes) can
+  make a rename fail on Windows (`409`), and UI state that remembers a URI — a Zephyr page's stack, a
+  colour-class document, the storage tree, a bookmark — goes stale when that resource is renamed.
+- **Two spellings of schema.org.** The store's own graphs say `https://schema.org/` (`Terms.SCHEMA`:
+  `size`, `expires`, `validFrom`), as does `LwsRdf`'s mapping for the documents no profile governs; the
+  LWS context, and so a container's RDF in the LWS profile, says `http://schema.org/`. A SPARQL query
+  over the store and the profile RDF of a listing therefore name `size` differently. Aligning the
+  store needs a migration of every resource graph.
 - **Re-check against newer drafts.** Clone `w3c/lws-protocol` fresh and
-  `git log ef02548..` over `lws10-core`, `lws10-index`, `lws10-notifications-webhook`,
+  `git log 9a08ff6..` over `lws10-core`, `lws10-index`, `lws10-notifications-webhook`,
   `lws10-authn-*` and `lws10-vocab` — and read each PR's *whole* diff, not its title: #228 was
   recorded here by its headline and its second half was missed. Then pull
-  `lws-contrib/lws-test-suite` and `git log b8cb134..` over `lws10/`; a new or changed entry belongs
+  `lws-contrib/lws-test-suite` and `git log 7a2ba98..` over `lws10/`; a new or changed entry belongs
   in `LwsTestSuiteConformanceTest`.

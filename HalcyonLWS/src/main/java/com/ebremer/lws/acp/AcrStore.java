@@ -289,6 +289,56 @@ public final class AcrStore {
     }
 
     /**
+     * Carry access control along with resources that were renamed (a move on a storage whose URIs are
+     * paths): "Auxiliary resources whose lifetime is bound to the moved resource remain bound to it
+     * after the move" (lws10-core, Moving Resources).
+     *
+     * <p>Two kinds of IRI in {@code urn:lws:acp} name a resource. The object of {@code acp:resource}
+     * is the resource an ACR governs — {@code {resource}.acr} and every access grant's own ACR node
+     * alike — and follows it. And a resource's own ACR is named after it, {@code {resource}.acr}, with
+     * its access controls, policies and matchers conventionally {@code {resource}.acr#…}; those nodes
+     * are renamed wherever they occur, so the ACR is still served at {@code {new}.acr} and a later
+     * {@link #replace} still reaches all of it. Nothing else is touched: an {@code acp:agent} that
+     * happens to be a WebID stored in the moved subtree names an agent, whose identity does not
+     * change with its profile document's address.
+     *
+     * <p>No epoch bump of its own: the move that calls this bumps it. Assumes the caller's write
+     * transaction.
+     *
+     * @param renamed every renamed resource, previous URI to new
+     */
+    public static void rename(LwsStore store, java.util.Map<String, String> renamed) {
+        java.util.Map<String, String> acrs = new java.util.HashMap<>();
+        renamed.forEach((from, to) -> acrs.put(acrUri(from), acrUri(to)));
+        Model acp = store.acp();
+        List<Statement> before = new ArrayList<>();
+        List<Statement> after = new ArrayList<>();
+        for (StmtIterator it = acp.listStatements(); it.hasNext();) {
+            Statement st = it.next();
+            Resource s = renamedNode(st.getSubject(), acrs).asResource();
+            RDFNode o = st.getPredicate().equals(ACP.resource)
+                    ? renamedNode(st.getObject(), renamed)
+                    : renamedNode(st.getObject(), acrs);
+            if (!s.equals(st.getSubject()) || !o.equals(st.getObject())) {
+                before.add(st);
+                after.add(acp.createStatement(s, st.getPredicate(), o));
+            }
+        }
+        acp.remove(before);
+        acp.add(after);
+    }
+
+    /** A node under its new name, if it is (a fragment of) one of {@code names}' keys. */
+    private static RDFNode renamedNode(RDFNode n, java.util.Map<String, String> names) {
+        if (!n.isURIResource()) {
+            return n;
+        }
+        String uri = n.asResource().getURI();
+        String to = com.ebremer.lws.store.ResourceRegistry.renameIri(uri, names);
+        return to.equals(uri) ? n : ResourceFactory.createResource(to);
+    }
+
+    /**
      * Remove from {@code acp} everything {@code acr} reaches that no <em>other</em> access control
      * resource still reaches: {@code closure(acr) − ⋃ closure(other ACRs)}.
      *

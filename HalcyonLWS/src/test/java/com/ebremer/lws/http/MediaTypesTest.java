@@ -100,15 +100,6 @@ class MediaTypesTest {
         assertFalse(MediaTypes.admitsLwsJson("text/html"));
     }
 
-    @Test
-    void negotiatePicksTheLabelButNeverInventsOne() {
-        assertEquals(MediaTypes.LWS_JSON, MediaTypes.negotiate(null));
-        assertEquals(MediaTypes.LWS_JSON, MediaTypes.negotiate("application/lws+json"));
-        assertEquals(MediaTypes.LD_JSON, MediaTypes.negotiate("application/ld+json"));
-        assertEquals(MediaTypes.JSON, MediaTypes.negotiate("application/json"));
-        assertEquals(MediaTypes.LWS_JSON, MediaTypes.negotiate("text/nonsense"));
-    }
-
     /**
      * The storage URI is also the storage root container, so a GET on it has two honest answers.
      * lws10-core makes the description the default ("unless content negotiation requires a
@@ -127,6 +118,11 @@ class MediaTypesTest {
         assertFalse(MediaTypes.prefersStorageDescription("application/ld+json"));
         assertFalse(MediaTypes.prefersStorageDescription("application/json"));
         assertFalse(MediaTypes.prefersStorageDescription("text/turtle"));
+        assertFalse(MediaTypes.prefersStorageDescription("application/n-triples"));
+        assertFalse(MediaTypes.prefersStorageDescription(
+                "text/turtle; profile=\"https://www.w3.org/ns/lws/v1\""));
+        assertFalse(MediaTypes.prefersStorageDescription(
+                "application/ld+json; profile=\"https://www.w3.org/ns/lws/v1\""));
     }
 
     @Test

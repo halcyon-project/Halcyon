@@ -82,6 +82,37 @@ final class FakeHttp {
         return request("GET", null, Map.of());
     }
 
+    /**
+     * A request for a URL path, as the container hands it over: the raw request URI, still
+     * percent-encoded, and the decoded servlet path the container mapped it by.
+     *
+     * <p>{@code Authorization} is the one header it will not give out: a servlet that asks for it
+     * is processing a credential, and the protected resource metadata must not.
+     *
+     * @param rawUri the raw request URI, no context path
+     * @param query  the raw query string, or {@code null}
+     */
+    static HttpServletRequest at(String method, String rawUri, String query) {
+        String decoded = java.net.URI.create("http://host" + rawUri).getPath();
+        InvocationHandler h = (proxy, m, args) -> switch (m.getName()) {
+            case "getMethod" -> method;
+            case "getRequestURI" -> rawUri;
+            case "getContextPath" -> "";
+            case "getServletPath" -> decoded;
+            case "getPathInfo" -> null;
+            case "getQueryString" -> query;
+            case "toString" -> "request[" + method + " " + rawUri + "]";
+            case "equals" -> proxy == args[0];
+            case "hashCode" -> System.identityHashCode(proxy);
+            case "getHeader", "getHeaders" -> throw new AssertionError(
+                    "the servlet read the request header " + args[0]);
+            default -> throw new UnsupportedOperationException(
+                    "the servlet called " + m.getName() + ", which this double does not provide");
+        };
+        return (HttpServletRequest) Proxy.newProxyInstance(FakeHttp.class.getClassLoader(),
+                new Class<?>[] { HttpServletRequest.class }, h);
+    }
+
     static HttpServletResponse response(Response out) {
         ServletOutputStream stream = new ServletOutputStream() {
             @Override
@@ -110,6 +141,13 @@ final class FakeHttp {
         InvocationHandler h = (proxy, m, args) -> {
             switch (m.getName()) {
                 case "setStatus" -> out.status = (int) args[0];
+                case "reset" -> {
+                    out.status = 200;
+                    out.contentType = null;
+                    out.contentLength = null;
+                    out.headers.clear();
+                    out.body.reset();
+                }
                 case "setContentType" -> out.contentType = (String) args[0];
                 case "setCharacterEncoding" -> { /* recorded nowhere; harmless */ }
                 case "setContentLength" -> out.contentLength = (int) args[0];

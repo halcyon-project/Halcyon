@@ -39,6 +39,19 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Small write transactions throughout (one per resource): the single TDB2 writer serves both
  * storages, and hashing a file to compute its entity tag is done outside any transaction.
+ *
+ * <p>So a pass sees the disk and the index at different moments, and the server changes both in
+ * between — above all when a client moves a resource, which renames its file or directory and
+ * rewrites its URI in one write transaction ({@code MoveHandler.write}). A pass that walked the disk
+ * before such a move and read the index after it would find the resource gone from where the index
+ * now puts it, and an unknown file where it was; acting on that would de-register the moved resource
+ * and adopt it afresh at its old place, losing its types, links, access control and owner. Hence
+ * every change a pass makes checks again, inside its own write transaction, the disk and the index
+ * fact it acts on: a resource is de-registered only if it is still registered and still absent from
+ * disk, and adopted only if it is still unregistered and still on disk. The single TDB2 writer
+ * orders that check before the move's transaction or after its commit, never between, and a move
+ * renames on disk only inside its transaction; so whichever it sees, the disk and the index agree,
+ * and the pass leaves the moved resource alone.
  */
 public final class MirrorReconciler {
 
@@ -56,25 +69,48 @@ public final class MirrorReconciler {
 
     public MirrorReconciler(LwsStore store, LwsStorageConfig cfg, MirrorContentStore mirror,
             ContentStore content) {
+        this(store, cfg, mirror, content, LwsSettings.get().owner());
+    }
+
+    /** @param owner the WebID adopted resources are created and owned by, or null */
+    public MirrorReconciler(LwsStore store, LwsStorageConfig cfg, MirrorContentStore mirror,
+            ContentStore content, String owner) {
         this.store = store;
         this.cfg = cfg;
         this.mirror = mirror;
         this.content = content;
         this.base = cfg.baseUri() + "/";
-        this.owner = LwsSettings.get().owner();
+        this.owner = owner;
     }
 
     /** A registered mirror resource, keyed by its storage key (its path under the mount). */
-    private record Idx(String uri, String key, boolean container, long size, long mtime,
+    record Idx(String uri, String key, boolean container, long size, long mtime,
             String mediaType) {
     }
 
-    private record FileInfo(long size, Instant mtime) {
+    record FileInfo(long size, Instant mtime) {
+    }
+
+    /** What one pass found: the index entries gone from disk, and the directories and files on it. */
+    record Survey(List<Idx> gone, List<String> dirs, Map<String, FileInfo> files,
+            Map<String, Idx> index) {
     }
 
     public void reconcile() {
+        Survey s = survey();
+        if (s != null) {
+            apply(s);
+        }
+    }
+
+    /**
+     * Walk the disk, then read the index, and say what differs. Changes nothing. {@code null} when
+     * the main tree is not there, or could not be walked whole: a half-seen tree must not drive
+     * de-registrations.
+     */
+    Survey survey() {
         if (!Files.isDirectory(mirror.root())) {
-            return;
+            return null;
         }
         MountTable table = mirror.mounts();
 
@@ -129,7 +165,7 @@ public final class MirrorReconciler {
             } catch (IOException e) {
                 LOG.warn("reconcile: walking {} failed", root, e);
                 if (isMain) {
-                    return;     // a half-seen main tree must not drive de-registrations
+                    return null;    // a half-seen main tree must not drive de-registrations
                 }
                 offline.add(wr.prefix());   // half-walked mount: treat as unavailable
             }
@@ -150,17 +186,35 @@ public final class MirrorReconciler {
             }
         }
         gone.sort(Comparator.comparingInt((Idx e) -> depth(e.key())).reversed());
-        for (Idx e : gone) {
-            store.write(() -> {
-                new ResourceRegistry(store, cfg).remove(e.uri());
+        diskDirs.sort(Comparator.comparingInt(MirrorReconciler::depth));
+        return new Survey(gone, diskDirs, diskFiles, index);
+    }
+
+    /**
+     * Act on what {@link #survey} found, each change re-checked against the disk and the index in
+     * its own write transaction (see the class note), so a survey that has gone stale changes nothing
+     * it should not.
+     */
+    void apply(Survey s) {
+        Map<String, Idx> index = s.index();
+        // 1. De-register what is gone from disk, deepest first.
+        for (Idx e : s.gone()) {
+            boolean removed = store.write(() -> {
+                ResourceRegistry reg = new ResourceRegistry(store, cfg);
+                if (!reg.exists(e.uri()) || Files.exists(mirror.pathFor(e.key(), null))) {
+                    return false;   // moved, re-created, or back on disk since the survey
+                }
+                reg.remove(e.uri());
                 AcrStore.purge(store, e.uri());
+                return true;
             });
-            LOG.info("reconcile: de-registered {} (gone from disk)", e.uri());
+            if (removed) {
+                LOG.info("reconcile: de-registered {} (gone from disk)", e.uri());
+            }
         }
 
         // 2. Adopt directories as containers — shallowest first, so a parent exists before its child.
-        diskDirs.sort(Comparator.comparingInt(MirrorReconciler::depth));
-        for (String rel : diskDirs) {
+        for (String rel : s.dirs()) {
             if (!index.containsKey(rel)) {
                 adoptContainer(rel);
             }
@@ -170,7 +224,7 @@ public final class MirrorReconciler {
         //    same-size overwrite (an in-place edit that keeps the byte count) bumps the mtime but not
         //    the size, so the size-only check alone would silently miss it on this periodic pass —
         //    only the real-time watcher's modify event would have caught it. mtime closes that gap.
-        for (var en : diskFiles.entrySet()) {
+        for (var en : s.files().entrySet()) {
             String rel = en.getKey();
             FileInfo fi = en.getValue();
             long diskMtime = fi.mtime().toEpochMilli();
@@ -277,17 +331,23 @@ public final class MirrorReconciler {
     private void adoptContainer(String rel) {
         String uri = base + rel + "/";
         String parentUri = parentUriOf(rel);
-        store.write(() -> {
+        boolean adopted = store.write(() -> {
             ResourceRegistry reg = registry();
             if (reg.exists(uri) || !reg.exists(parentUri)) {
-                return;                                     // already there, or parent not ready this pass
+                return false;                               // already there, or parent not ready this pass
+            }
+            if (!Files.isDirectory(mirror.pathFor(rel, null))) {
+                return false;                               // gone (or moved away) since the survey
             }
             LwsResource c = new LwsResource(uri, ResourceType.CONTAINER, List.of(), null, 0,
                     Instant.now(), ResourceRegistry.containerEtag(0), rel, null, parentUri,
                     reg.nextSeq(), owner, owner, null);
             reg.create(c, null);
+            return true;
         });
-        LOG.info("reconcile: adopted container {}", uri);
+        if (adopted) {
+            LOG.info("reconcile: adopted container {}", uri);
+        }
     }
 
     private void adoptFile(String rel, FileInfo fi, boolean replace) {
@@ -308,6 +368,9 @@ public final class MirrorReconciler {
         long mtimeMillis = fi.mtime().toEpochMilli();
         LwsResource created = store.write(() -> {
             ResourceRegistry reg = registry();
+            if (!Files.isRegularFile(mirror.pathFor(rel, null))) {
+                return null;                                // gone (or moved away) since it was hashed
+            }
             String etag = ResourceRegistry.dataEtag(sha256, mediaType, fi.size());
             if (replace && reg.exists(uri)) {
                 LwsResource cur = reg.find(uri).orElse(null);

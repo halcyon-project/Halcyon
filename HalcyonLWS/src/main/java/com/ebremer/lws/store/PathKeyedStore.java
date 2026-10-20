@@ -83,4 +83,36 @@ public interface PathKeyedStore extends ContentStore {
      * a non-empty or busy directory is left in place.
      */
     void removeDir(String key);
+
+    /**
+     * Whether this store can rename what it holds, which is what moving a resource to another
+     * container is here: the key is the URI path, so a resource that moves takes a new path, and a
+     * container takes its whole subtree along. A store that cannot is not offered moves at all.
+     */
+    default boolean supportsMove() {
+        return false;
+    }
+
+    /**
+     * Why the file or directory at {@code fromKey} cannot be renamed to {@code toKey}, or
+     * {@code null} when it can — asked before anything changes, so a move this store cannot make is
+     * refused rather than half made.
+     */
+    default String moveRefusal(String fromKey, String toKey) {
+        return "this store cannot rename what it holds";
+    }
+
+    /**
+     * Rename the file or directory at {@code fromKey} to {@code toKey} in one atomic step, creating
+     * the destination's parent directory if needed, and failing — never replacing — if anything is
+     * already at {@code toKey}.
+     *
+     * <p>Called inside the write transaction that records the move, and undone (by the reverse call)
+     * if that transaction does not commit. A store that is reconciled from disk relies on this: a
+     * reconciler's writes are serialized with the move's, so whenever one of them runs the disk and
+     * the index agree about where the resource is.
+     */
+    default void move(String fromKey, String toKey) throws IOException {
+        throw new UnsupportedOperationException("this store cannot rename what it holds");
+    }
 }

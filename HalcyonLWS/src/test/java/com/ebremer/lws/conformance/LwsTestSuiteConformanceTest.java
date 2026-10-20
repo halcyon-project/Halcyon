@@ -11,12 +11,17 @@ import com.ebremer.lws.acp.AcrStore;
 import com.ebremer.lws.config.LwsSettings;
 import com.ebremer.lws.config.LwsStorageConfig;
 import com.ebremer.lws.http.LwsServlet;
+import com.ebremer.lws.json.LwsProfileReader;
 import com.ebremer.lws.oauth.AuthorizationServerMetadataServlet;
 import com.ebremer.lws.oauth.AuthorizationServerSettings;
 import com.ebremer.lws.oauth.JwksServlet;
 import com.ebremer.lws.oauth.LwsAuthorizationServer;
+import com.ebremer.lws.oauth.ProtectedResourceMetadataServlet;
 import com.ebremer.lws.oauth.TokenEndpointServlet;
+import com.ebremer.lws.store.LwsResource;
 import com.ebremer.lws.store.LwsStore;
+import com.ebremer.lws.store.ResourceRegistry;
+import com.ebremer.lws.store.ResourceType;
 import jakarta.json.Json;
 import jakarta.json.JsonArray;
 import jakarta.json.JsonNumber;
@@ -25,6 +30,7 @@ import jakarta.json.JsonString;
 import jakarta.json.JsonValue;
 import java.io.IOException;
 import java.io.StringReader;
+import java.math.BigInteger;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
@@ -35,19 +41,28 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.interfaces.ECPublicKey;
+import java.security.spec.ECGenParameterSpec;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.apache.jena.sparql.core.DatasetGraph;
+import org.apache.jena.sparql.util.IsoMatcher;
 import org.eclipse.jetty.ee11.servlet.ServletContextHandler;
 import org.eclipse.jetty.ee11.servlet.ServletHolder;
 import org.eclipse.jetty.server.Server;
@@ -143,9 +158,13 @@ class LwsTestSuiteConformanceTest {
 
         server = new Server(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
         ServletContextHandler ctx = new ServletContextHandler("/");
-        ServletHolder storage = new ServletHolder(new LwsServlet(cfg));
+        LwsServlet lws = new LwsServlet(cfg);
+        ServletHolder storage = new ServletHolder(lws);
         storage.setInitOrder(3);
         ctx.addServlet(storage, cfg.servletMapping());
+        // As LwsStorageConfiguration mounts it: per storage, under the storage's own path.
+        ctx.addServlet(new ServletHolder(new ProtectedResourceMetadataServlet(cfg,
+                lws::authorizationServer)), ProtectedResourceMetadataServlet.servletMapping(cfg));
         ctx.addServlet(new ServletHolder(new AuthorizationServerMetadataServlet(as.settings(),
                 as.exchange().subjectTokenTypes())), AuthorizationServerSettings.METADATA_PATH);
         ctx.addServlet(new ServletHolder(new TokenEndpointServlet(as.exchange())),
@@ -336,6 +355,251 @@ class LwsTestSuiteConformanceTest {
         assertEquals(SHOPPING_LIST.getBytes(StandardCharsets.UTF_8).length,
                 item.getJsonNumber("size").intValue());
         Instant.parse(item.getString("modified"));
+    }
+
+    // --- The LWS profile (w3c/lws-protocol#253) ------------------------------
+
+    private static final String LWS_PROFILE = "https://www.w3.org/ns/lws/v1";
+
+    /** Touchstone's check that a {@code Content-Type} names the LWS profile. */
+    private static final Pattern NAMES_LWS_PROFILE = Pattern.compile(
+            "(?i);\\s*profile\\s*=\\s*\"?([^\";]*\\s)?https://www\\.w3\\.org/ns/lws/v1(\\s[^\";]*)?\"?\\s*(;|$)");
+
+    /** The RDF media types lws10-core names as taking the {@code profile} parameter. */
+    private static final List<String> RDF_TYPES = List.of("application/ld+json", "text/turtle",
+            "application/n-triples", "application/n-quads", "application/trig");
+
+    private static String inProfile(String mediaType) {
+        return mediaType + "; profile=\"" + LWS_PROFILE + "\"";
+    }
+
+    /**
+     * Not a suite entry: Touchstone's {@code container-lws-profile-ld-json} and
+     * {@code container-lws-profile-turtle}, for every RDF media type lws10-core names. "If the server
+     * selects such a media type, the response MUST conform to the LWS profile, that is, it MUST be
+     * RDF isomorphic to the {@code application/lws+json} representation, and its
+     * {@code Content-Type} MUST include the same {@code profile} parameter." The container holds a
+     * data resource, one with a declared type, and a container, whose {@code modified} the context
+     * leaves out of the RDF; the lws+json is read as Touchstone reads it, with its own copy of the
+     * context.
+     */
+    @Test
+    void aContainerInTheLwsProfileIsIsomorphicToItsLwsJson() throws Exception {
+        String path = "/alice/profile/";
+        givenProfileContainer(path);
+        Res json = send("GET", path, owner(), Map.of("Accept", LWS_JSON), null);
+        assertEquals(200, json.status(), json.text());
+        DatasetGraph expected = rdf(json);
+
+        for (String type : RDF_TYPES) {
+            Res r = send("GET", path, owner(), Map.of("Accept", inProfile(type)), null);
+            assertEquals(200, r.status(), type + ": " + r.text());
+            assertEquals(type, r.mediaType());
+            String ct = r.header("Content-Type").orElseThrow();
+            assertTrue(NAMES_LWS_PROFILE.matcher(ct).find(), "the Content-Type names the profile: " + ct);
+            assertTrue(IsoMatcher.isomorphic(expected, rdf(r)),
+                    type + " is not isomorphic to the lws+json:\n" + json.text() + "\n" + r.text());
+            assertTrue(varies(r), type + ": Vary " + r.headers().allValues("Vary"));
+        }
+    }
+
+    /** The profile is named when it is asked for, and the RDF is the same either way. */
+    @Test
+    void theProfileIsNamedOnlyWhenAskedFor() throws Exception {
+        String path = "/alice/profile/";
+        givenProfileContainer(path);
+        DatasetGraph expected = rdf(send("GET", path, owner(), Map.of("Accept", LWS_JSON), null));
+
+        for (String type : RDF_TYPES) {
+            Res r = send("GET", path, owner(), Map.of("Accept", type), null);
+            assertEquals(200, r.status(), type + ": " + r.text());
+            assertEquals(type, r.mediaType());
+            String ct = r.header("Content-Type").orElseThrow();
+            assertFalse(ct.contains("profile"), "not asked for, so not named: " + ct);
+            assertTrue(IsoMatcher.isomorphic(expected, rdf(r)), type);
+        }
+    }
+
+    /**
+     * A range naming only another profile asks for a representation this storage cannot produce, so
+     * it selects nothing and the client's other ranges decide; and nothing but a container is in the
+     * LWS profile, so the type index answers a request for it with 406.
+     */
+    @Test
+    void aRangeNamingAnotherProfileSelectsNothing() throws Exception {
+        String path = "/alice/profile/";
+        givenProfileContainer(path);
+        String compacted = "application/ld+json; profile=\"http://www.w3.org/ns/json-ld#compacted\"";
+
+        assertEquals(406, send("GET", path, owner(), Map.of("Accept", compacted), null).status());
+        Res fallback = send("GET", path, owner(),
+                Map.of("Accept", compacted + ", application/lws+json;q=0.1"), null);
+        assertEquals(200, fallback.status());
+        assertEquals(LWS_JSON, fallback.mediaType());
+
+        String index = cfg.typeIndexUri().substring(SITE.length());
+        assertEquals(406, send("GET", index, owner(), Map.of("Accept", inProfile("text/turtle")), null)
+                .status(), "the type index is not a container, so it is in no profile");
+        Res plain = send("GET", index, owner(), Map.of("Accept", "text/turtle"), null);
+        assertEquals(200, plain.status(), plain.text());
+        assertEquals("text/turtle", plain.mediaType());
+        assertFalse(plain.header("Content-Type").orElseThrow().contains("profile"));
+    }
+
+    /**
+     * Each serialization is a representation of its own, with its own entity tag, so a client
+     * holding one is never told 304 for another; the JSON labels share the document's tag, and the
+     * profile parameter changes no bytes. Every one varies by {@code Accept}, the 304 included.
+     */
+    @Test
+    void eachRepresentationOfAContainerHasItsOwnTag() throws Exception {
+        String path = "/alice/profile/";
+        givenProfileContainer(path);
+        Map<String, String> tags = new LinkedHashMap<>();
+        for (String accept : List.of(LWS_JSON, "application/ld+json", inProfile("application/ld+json"),
+                "text/turtle", inProfile("text/turtle"), inProfile("application/n-triples"),
+                inProfile("application/n-quads"), inProfile("application/trig"))) {
+            Res r = send("GET", path, owner(), Map.of("Accept", accept), null);
+            assertEquals(200, r.status(), accept);
+            assertTrue(varies(r), accept + ": Vary " + r.headers().allValues("Vary"));
+            tags.put(accept, r.header("ETag").orElseThrow());
+        }
+        String json = tags.get(LWS_JSON);
+        String turtle = tags.get("text/turtle");
+        assertEquals(json, tags.get("application/ld+json"), "the same bytes");
+        assertEquals(json, tags.get(inProfile("application/ld+json")), "the same bytes");
+        assertEquals(turtle, tags.get(inProfile("text/turtle")), "naming the profile changes no bytes");
+        assertEquals(5, new HashSet<>(tags.values()).size(), tags.toString());
+
+        Res hit = send("GET", path, owner(),
+                Map.of("Accept", inProfile("text/turtle"), "If-None-Match", turtle), null);
+        assertEquals(304, hit.status());
+        assertTrue(varies(hit), "a 304 varies as the 200 would: " + hit.headers().allValues("Vary"));
+        Res miss = send("GET", path, owner(),
+                Map.of("Accept", inProfile("text/turtle"), "If-None-Match", json), null);
+        assertEquals(200, miss.status(), "the JSON's tag does not validate the Turtle");
+    }
+
+    /** HEAD answers as GET does, without the body. */
+    @Test
+    void headInTheProfileIsGetWithoutTheBody() throws Exception {
+        String path = "/alice/profile/";
+        givenProfileContainer(path);
+        Map<String, String> h = Map.of("Accept", inProfile("text/turtle"));
+        Res get = send("GET", path, owner(), h, null);
+        Res head = send("HEAD", path, owner(), h, null);
+        assertEquals(200, head.status());
+        assertEquals(get.header("Content-Type"), head.header("Content-Type"));
+        assertEquals(get.header("ETag"), head.header("ETag"));
+        assertEquals(String.valueOf(get.body().length), head.header("Content-Length").orElseThrow());
+        assertEquals(0, head.body().length);
+    }
+
+    /**
+     * The profile is defined on "the {@code application/lws+json} representation of the same
+     * container state and page": a paginated container's RDF is paginated as its JSON is, page by
+     * page, with {@code totalItems} counting the whole container on each. A page holds 100 members,
+     * so the container gets 100 sub-containers and then a data resource, which lands on the second
+     * page.
+     */
+    @Test
+    void aPagedListingIsInTheProfilePageByPage() throws Exception {
+        String path = "/alice/paged/";
+        givenAbsent(path);
+        givenContainer(path, false);
+        givenSubContainers(path, 100);
+        Res last = send("POST", path, owner(), Map.of("Slug", "last.txt", "Content-Type", "text/plain"),
+                "the hundred and first".getBytes(StandardCharsets.UTF_8));
+        assertEquals(201, last.status(), last.text());
+
+        String page = path;
+        Set<String> tags = new HashSet<>();
+        Set<String> members = new HashSet<>();
+        List<Integer> sizes = new ArrayList<>();
+        while (page != null) {
+            Res json = send("GET", page, owner(), Map.of("Accept", LWS_JSON), null);
+            Res ttl = send("GET", page, owner(), Map.of("Accept", inProfile("text/turtle")), null);
+            assertEquals(200, json.status());
+            assertEquals(200, ttl.status());
+            assertEquals(101, json.json().getInt("totalItems"));
+            assertTrue(IsoMatcher.isomorphic(rdf(json), rdf(ttl)), "page " + page + ":\n" + ttl.text());
+            assertTrue(tags.add(ttl.header("ETag").orElseThrow()), "each page's Turtle has its own tag");
+            for (JsonValue item : json.json().getJsonArray("items")) {
+                assertTrue(members.add(item.asJsonObject().getString("id")), "no member on two pages");
+            }
+            sizes.add(json.json().getJsonArray("items").size());
+            page = json.link("next").map(l -> l.target().substring(SITE.length())).orElse(null);
+        }
+        assertEquals(List.of(100, 1), sizes);
+        assertTrue(members.contains(last.location()), "the data resource is on the last page");
+    }
+
+    /**
+     * The other listings that are containers — the notification service's, and the access request
+     * and grant endpoints' ("the access request and access grant endpoints are LWS containers") —
+     * are in the profile too.
+     */
+    @Test
+    void theListingsThatAreContainersAreInTheProfile() throws Exception {
+        for (String path : List.of("/alice/.access/grants", "/alice/.access/requests",
+                "/alice/.notifications/subscriptions")) {
+            Res json = send("GET", path, owner(), Map.of("Accept", LWS_JSON), null);
+            Res ttl = send("GET", path, owner(), Map.of("Accept", inProfile("text/turtle")), null);
+            assertEquals(200, ttl.status(), path + ": " + ttl.text());
+            assertTrue(NAMES_LWS_PROFILE.matcher(ttl.header("Content-Type").orElseThrow()).find(), path);
+            assertTrue(IsoMatcher.isomorphic(rdf(json), rdf(ttl)), path + ":\n" + ttl.text());
+        }
+    }
+
+    /** Whether {@link #givenProfileContainer} has built its container; no test changes it. */
+    private static final Set<String> PROFILE_CONTAINERS = new HashSet<>();
+
+    /** A container holding a data resource, one with a declared type, and a container. */
+    private static void givenProfileContainer(String path) throws Exception {
+        if (!PROFILE_CONTAINERS.add(path)) {
+            return;
+        }
+        givenAbsent(path);
+        givenContainer(path, false);
+        for (Map<String, String> h : List.of(
+                Map.of("Slug", "note.txt", "Content-Type", "text/plain"),
+                Map.of("Slug", "typed.txt", "Content-Type", "text/plain",
+                        "Link", "<http://example.org/customType>; rel=\"type\""),
+                Map.of("Slug", "inner", "Link", "<" + LWS + "Container>; rel=\"type\""))) {
+            byte[] body = h.containsKey("Content-Type")
+                    ? "in the profile".getBytes(StandardCharsets.UTF_8) : new byte[0];
+            Res created = send("POST", path, owner(), h, body);
+            assertEquals(201, created.status(), created.text());
+        }
+    }
+
+    /**
+     * {@code count} empty containers in {@code path}, created as a POST creates them but in one
+     * transaction: a hundred creates over HTTP take minutes on a slow disk, and the listing is what
+     * is under test, not the create.
+     */
+    private static void givenSubContainers(String path, int count) {
+        LwsStore store = LwsStore.get();
+        ResourceRegistry reg = new ResourceRegistry(store, cfg);
+        String parent = SITE + path;
+        store.write(() -> {
+            for (int i = 0; i < count; i++) {
+                reg.create(new LwsResource(parent + "c" + i + "/", ResourceType.CONTAINER, List.of(),
+                        null, 0, Instant.now(), ResourceRegistry.containerEtag(0), null, null, parent,
+                        reg.nextSeq(), ALICE, ALICE, null), "c" + i);
+            }
+        });
+    }
+
+    /** A response's RDF, read as Touchstone reads it. */
+    private static DatasetGraph rdf(Res r) {
+        return LwsProfileReader.dataset(r.body(), r.header("Content-Type").orElseThrow(), r.uri());
+    }
+
+    private static boolean varies(Res r) {
+        return r.headers().allValues("Vary").stream()
+                .flatMap(v -> Arrays.stream(v.split(",")))
+                .anyMatch(v -> v.trim().equalsIgnoreCase("Accept"));
     }
 
     /**
@@ -704,8 +968,10 @@ class LwsTestSuiteConformanceTest {
     }
 
     /**
-     * Not a suite entry: Touchstone's {@code linkset-up-not-redirected}. A JSON Patch may not
-     * change a server-managed relation: setting {@code up} is refused, and the resource's
+     * Not a suite entry: Touchstone's {@code linkset-up-not-redirected}. A JSON Patch may not make
+     * {@code up} name anything but a container of this storage: since this storage moves resources
+     * (w3c/lws-protocol#237) a changed {@code up} is a move, and one to a container that does not
+     * exist, elsewhere, is refused with 409 rather than as a server-managed relation; the resource's
      * {@code rel="up"} still names its container.
      */
     @Test
@@ -717,7 +983,7 @@ class LwsTestSuiteConformanceTest {
                         + "\"value\":[{\"href\":\"https://linkset.invalid/forged-parent/\"}]}]")
                         .getBytes(StandardCharsets.UTF_8));
 
-        assertEquals(403, r.status(), r.text());
+        assertEquals(409, r.status(), r.text());
         Res head = send("HEAD", "/alice/stays.txt", owner(), Map.of(), null);
         assertEquals(List.of(STORAGE), head.links("up").stream().map(l -> l.target()).toList());
     }
@@ -921,27 +1187,205 @@ class LwsTestSuiteConformanceTest {
         assertConformingChallenge(r, "/alice/private/", "invalid_token");
     }
 
+    // --- Protected resource metadata (w3c/lws-protocol#256) ----------------
+
+    /**
+     * Touchstone {@code protected-resource-metadata} and {@code -data-resource}: the challenge of a
+     * container, a data resource and the storage root — spelled with and without its slash — names
+     * metadata that describes exactly the URL requested and names the authorization server.
+     * ({@link #assertConformingChallenge} fetches the metadata and checks it.)
+     */
+    @Test
+    void everyChallengeNamesTheMetadataOfTheUrlRequested() throws Exception {
+        givenContainer("/alice/prm/", false);
+        givenDataResource("/alice/prm/secret.txt", "s", false);
+
+        for (String path : List.of("/alice/prm/", "/alice/prm/secret.txt", "/alice/", "/alice",
+                "/alice/prm/?page=2")) {
+            Res r = send("GET", path, null, Map.of("Accept", LWS_JSON), null);
+
+            assertEquals(401, r.status(), path);
+            assertConformingChallenge(r, path, null);
+        }
+    }
+
+    /**
+     * The metadata is served to whoever asks, whatever {@code Authorization} they send: a client
+     * reads it right after its token was refused, and may well resend the refused one.
+     */
+    @Test
+    void theMetadataIsAnonymousAndIgnoresCredentials() throws Exception {
+        String metadata = ProtectedResourceMetadataServlet.PATH + "/alice/private/";
+        for (String bearer : java.util.Arrays.asList(null, "not.a.token", owner())) {
+            Res r = send("GET", metadata, bearer, Map.of("Accept", "application/json"), null);
+
+            assertEquals(200, r.status(), String.valueOf(bearer));
+            assertEquals(SITE + "/alice/private/", r.json().getString("resource"));
+        }
+        Res head = send("HEAD", metadata, "not.a.token", Map.of(), null);
+        assertEquals(200, head.status());
+        assertEquals(0, head.body().length);
+        assertEquals(405, send("POST", metadata, null, Map.of(), new byte[0]).status());
+    }
+
+    /**
+     * lws10-core §Token Validation, since #256: "Verify the {@code aud} claim includes the URI of
+     * the storage" — a token whose {@code aud} names this storage among other values is accepted;
+     * the drafts before required exactly one value.
+     */
+    @Test
+    void aTokenWhoseAudienceIncludesTheStorageIsAccepted() throws Exception {
+        givenContainer("/alice/private/", false);
+        Map<String, Object> claims = claims(ALICE);
+        claims.put("aud", List.of("https://elsewhere.example/storage/", STORAGE));
+        Instant now = Instant.now();
+        String token = as.keys().sign(claims, Date.from(now), Date.from(now.plusSeconds(300)));
+
+        Res r = send("GET", "/alice/private/", token, Map.of("Accept", LWS_JSON), null);
+
+        assertEquals(200, r.status(), r.text());
+    }
+
+    /**
+     * Discovery end to end, as Touchstone's harness and a conforming client do it: an anonymous
+     * request is refused; the {@code Link} of the 401 names the storage, which is the token request's
+     * {@code resource}; the challenge's {@code resource_metadata} names the authorization server,
+     * whose RFC 8414 metadata names the token endpoint; a self-issued did:key credential (the CID
+     * suite, which needs nothing reachable) is exchanged there; the token's {@code aud} includes the
+     * storage as the client named it; and the storage accepts it — the agent owns nothing, so it may
+     * be refused, but never as unauthenticated.
+     */
+    @Test
+    void aClientDiscoversTheAuthorizationServerFromA401AndGetsATokenTheStorageAccepts()
+            throws Exception {
+        givenContainer("/alice/private/", false);
+
+        Res refused = send("GET", "/alice/private/", null, Map.of("Accept", LWS_JSON), null);
+        assertEquals(401, refused.status());
+        String resource = refused.link(REL_STORAGE).orElseThrow().target();
+        assertEquals(STORAGE, resource);
+        String metadataUrl = authParams(refused.header("WWW-Authenticate").orElseThrow().substring(7))
+                .get("resource_metadata");
+        String issuer = send("GET", local(metadataUrl), null, Map.of("Accept", "application/json"), null)
+                .json().getJsonArray("authorization_servers").getString(0);
+        // RFC 8414 §3.1: the well-known suffix goes between the issuer's host and its path.
+        URI iss = URI.create(issuer);
+        String asMetadataUrl = iss.getScheme() + "://" + iss.getRawAuthority()
+                + AuthorizationServerSettings.METADATA_PATH + Optional.ofNullable(iss.getRawPath()).orElse("");
+        JsonObject asMetadata = send("GET", local(asMetadataUrl), null,
+                Map.of("Accept", "application/json"), null).json();
+        assertEquals(issuer, asMetadata.getString("issuer"));
+
+        KeyPairGenerator g = KeyPairGenerator.getInstance("EC");
+        g.initialize(new ECGenParameterSpec("secp256r1"));
+        KeyPair kp = g.generateKeyPair();
+        String did = didKey((ECPublicKey) kp.getPublic());
+        Instant now = Instant.now();
+        String credential = io.jsonwebtoken.Jwts.builder()
+                .header().keyId(did + "#" + did.substring("did:key:".length())).and()
+                .subject(did).issuer(did).claim("client_id", did)
+                .audience().add(issuer).and()
+                .issuedAt(Date.from(now)).expiration(Date.from(now.plusSeconds(300)))
+                .signWith(kp.getPrivate()).compact();
+        String form = "grant_type=" + enc("urn:ietf:params:oauth:grant-type:token-exchange")
+                + "&resource=" + enc(resource)
+                + "&subject_token=" + enc(credential)
+                + "&subject_token_type=" + enc("urn:ietf:params:oauth:token-type:jwt");
+        Res issued = send("POST", local(asMetadata.getString("token_endpoint")), null,
+                Map.of("Content-Type", "application/x-www-form-urlencoded"),
+                form.getBytes(StandardCharsets.UTF_8));
+        assertEquals(200, issued.status(), issued.text());
+        String token = issued.json().getString("access_token");
+        JsonObject claims = Json.createReader(new StringReader(new String(java.util.Base64
+                .getUrlDecoder().decode(token.split("\\.")[1]), StandardCharsets.UTF_8))).readObject();
+        JsonValue aud = claims.get("aud");
+        List<String> audiences = aud instanceof JsonArray a ? strings(a)
+                : List.of(((JsonString) aud).getString());
+        assertTrue(audiences.contains(resource), "aud MUST include the resource requested: " + aud);
+
+        Res r = send("GET", "/alice/private/", token, Map.of("Accept", LWS_JSON), null);
+        assertTrue(r.status() == 403 || r.status() == 404, r.status() + " " + r.text());
+    }
+
     // --- Assertions ---------------------------------------------------------
 
     /**
-     * lws10-core §Authorization Server Discovery: a 401 carries a {@code Bearer} challenge with
-     * {@code as_uri} (the {@code iss} of a valid token) and {@code realm}, and the request URI must
-     * be logically contained in the realm — which the client is told to verify, so it is verified
-     * here too.
+     * lws10-core §Authorization Server Discovery (since #256): a 401 carries a {@code Bearer}
+     * challenge whose {@code resource_metadata} is the URL of the protected resource metadata for the
+     * requested resource, and a {@code Link} to the storage. A client then checks (§Discovery
+     * Validation by a Client) that the URL has the requested URI's scheme and authority and that the
+     * document's {@code resource} is identical to the requested URI — so both are checked here, by
+     * fetching the document as a client would; and that it names the authorization server whose
+     * {@code iss} a valid token carries. {@code as_uri} and {@code realm} still follow, for clients of
+     * the earlier drafts ({@code :LWSLegacyChallenge}, on by default).
      */
-    private static void assertConformingChallenge(Res r, String path, String error) {
+    private static void assertConformingChallenge(Res r, String path, String error) throws Exception {
         String challenge = r.header("WWW-Authenticate")
                 .orElseThrow(() -> new AssertionError("401 without WWW-Authenticate"));
         assertTrue(challenge.regionMatches(true, 0, "Bearer ", 0, 7), challenge);
         Map<String, String> p = authParams(challenge.substring(7));
-        assertEquals(SITE, p.get("as_uri"), challenge);
+        String requested = SITE + path;
+        String metadataUrl = p.get("resource_metadata");
+        assertEquals(SITE + ProtectedResourceMetadataServlet.PATH + path, metadataUrl, challenge);
+        assertEquals(List.of("resource_metadata", "as_uri", "realm"),
+                p.keySet().stream().filter(k -> !k.equals("error")).toList(),
+                "resource_metadata first: " + challenge);
+        URI m = URI.create(metadataUrl);
+        URI q = URI.create(requested);
+        assertEquals(q.getScheme() + "://" + q.getRawAuthority(), m.getScheme() + "://" + m.getRawAuthority(),
+                "the metadata URL has the requested URI's scheme and authority");
+        assertEquals(error, p.get("error"), challenge);
         assertEquals(as.settings().issuer(), p.get("as_uri"));
         String realm = p.get("realm");
-        assertNotNull(realm, challenge);
-        String realmPrefix = realm.endsWith("/") ? realm : realm + "/";
-        assertTrue((SITE + path).startsWith(realmPrefix),
-                "the request URI must be logically contained within the realm: " + challenge);
-        assertEquals(error, p.get("error"), challenge);
+        assertTrue((requested + "/").startsWith(realm.endsWith("/") ? realm : realm + "/"),
+                "the request URI is logically contained within the legacy realm: " + challenge);
+        assertEquals(STORAGE, r.link(REL_STORAGE).orElseThrow().target(),
+                "the 401 MUST also link the storage");
+
+        Res doc = send("GET", local(metadataUrl), null, Map.of("Accept", "application/json"), null);
+        assertEquals(200, doc.status(), doc.text());
+        assertEquals("application/json", doc.mediaType());
+        JsonObject d = doc.json();
+        assertEquals(requested, d.getString("resource"), "RFC 9728 §3.3: identical to the URL requested");
+        assertEquals(List.of(as.settings().issuer()), strings(d.getJsonArray("authorization_servers")));
+    }
+
+    /** The path on this test server of a URL the storage minted on {@link #SITE}. */
+    private static String local(String url) {
+        assertTrue(url.startsWith(SITE + "/"), "a URL on the storage's own origin: " + url);
+        return url.substring(SITE.length());
+    }
+
+    private static String enc(String s) {
+        return java.net.URLEncoder.encode(s, StandardCharsets.UTF_8);
+    }
+
+    /** did:key:z... for a P-256 key: multicodec 0x1200 (varint 0x80 0x24), the compressed point. */
+    private static String didKey(ECPublicKey pk) {
+        byte[] x = pk.getW().getAffineX().toByteArray();
+        byte[] data = new byte[2 + 33];
+        data[0] = (byte) 0x80;
+        data[1] = 0x24;
+        data[2] = (byte) (pk.getW().getAffineY().testBit(0) ? 0x03 : 0x02);
+        System.arraycopy(x, Math.max(0, x.length - 32), data, 3 + Math.max(0, 32 - x.length),
+                Math.min(32, x.length));
+        return "did:key:z" + base58(data);
+    }
+
+    private static String base58(byte[] data) {
+        String alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+        BigInteger n = new BigInteger(1, data);
+        StringBuilder sb = new StringBuilder();
+        BigInteger fiftyEight = BigInteger.valueOf(58);
+        while (n.signum() > 0) {
+            BigInteger[] qr = n.divideAndRemainder(fiftyEight);
+            sb.append(alphabet.charAt(qr[1].intValue()));
+            n = qr[0];
+        }
+        for (int i = 0; i < data.length && data[i] == 0; i++) {
+            sb.append('1');
+        }
+        return sb.reverse().toString();
     }
 
     /** lws10-core §read: a container's GET carries linkset, up, and type=Container. */

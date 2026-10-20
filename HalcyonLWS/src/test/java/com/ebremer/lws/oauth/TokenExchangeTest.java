@@ -35,8 +35,8 @@ import org.junit.jupiter.api.Test;
  * <p>This is the part of the protocol this module had no implementation of at all — it accepted an
  * authentication credential directly at a storage, which works but gives the credential the
  * storage's authority. The property the exchange buys, and the one most of these tests are about,
- * is confinement: a token names exactly one storage in {@code aud} and lives 300 seconds, so it is
- * worth nothing at another storage and little after a few minutes. Every check below is a way that
+ * is confinement: a token names one storage in {@code aud} and lives 300 seconds, so it is worth
+ * nothing at another storage and little after a few minutes. Every check below is a way that
  * confinement could be lost.
  *
  * <p>The authentication suite is stubbed. Which credentials are valid is
@@ -190,9 +190,24 @@ class TokenExchangeTest {
 
         assertEquals(java.util.Set.of(OTHER_STORAGE), audienceOf(
                 ex.exchange(request(OTHER_STORAGE, cred), null).accessToken()));
+    }
+
+    @Test
+    void theAudienceIsTheStorageAsTheClientSpelledIt() {
+        // lws10-core: the resource "MUST be the URI of the storage ... as provided in the Link header
+        // of an unauthorized response" -- the storage URI, with its trailing slash -- and aud "MUST
+        // include the URI supplied by the client in the resource parameter". A client of the earlier
+        // drafts asked for the challenge's realm, the base URI without the slash, and gets that.
+        var ex = exchange(accepts(ALICE, CLIENT));
+        String cred = credential(NOW.plusSeconds(3600));
+
+        assertEquals(java.util.Set.of(STORAGE + "/"), audienceOf(
+                ex.exchange(request(STORAGE + "/", cred), null).accessToken()));
         assertEquals(java.util.Set.of(STORAGE), audienceOf(
-                ex.exchange(request(STORAGE + "/", cred), null).accessToken()),
-                "the storage URI's trailing slash names the same storage");
+                ex.exchange(request(STORAGE, cred), null).accessToken()));
+        assertEquals(STORAGE + "/", settings().audienceFor(" " + STORAGE + "// "),
+                "however the slash is repeated, it is the one storage URI");
+        assertNull(settings().audienceFor(STORAGE + "x/"));
     }
 
     // --- Refusals -----------------------------------------------------------
@@ -332,6 +347,16 @@ class TokenExchangeTest {
     }
 
     @Test
+    void aStorageAcceptsATokenMintedForItsStorageUri() {
+        // The token a conforming client gets: requested for the storage URI the 401 linked to.
+        String token = exchange(accepts(ALICE, CLIENT))
+                .exchange(request(STORAGE + "/", credential(NOW.plusSeconds(3600))), null)
+                .accessToken();
+
+        assertEquals(ALICE, validator(STORAGE).tryAuthenticate(presented(token), null).webId());
+    }
+
+    @Test
     void aStorageRefusesATokenMintedForAnother() {
         // The confinement property: one storage's token is worthless at the next.
         String token = exchange(accepts(ALICE, CLIENT))
@@ -344,19 +369,44 @@ class TokenExchangeTest {
     }
 
     @Test
-    void aStorageRefusesATokenWithSeveralAudiences() {
-        // "Verify the aud claim contains exactly one value": a token good for several storages is
-        // one that spreads a single storage's compromise.
+    void aStorageAcceptsATokenWhoseAudienceIncludesIt() {
+        // The drafts of 19 October 2026: "Verify the aud claim includes the URI of the storage that
+        // contains the target resource" -- no longer "contains exactly one value". Whether to mint
+        // such a token is the authorization server's call; this one never does.
+        for (String self : List.of(STORAGE, STORAGE + "/")) {
+            String token = token(List.of(OTHER_STORAGE, self, "https://elsewhere.example/api"));
+
+            AgentContext agent = validator(STORAGE).tryAuthenticate(presented(token), null);
+
+            assertEquals(ALICE, agent.webId(), "aud " + self + " among others");
+        }
+    }
+
+    @Test
+    void aStorageRefusesATokenWhoseAudiencesAreAllOthers() {
+        // Several audiences, none of them this storage -- nor merely something inside it, nor the
+        // origin it lives on: the token was not minted for it.
+        for (List<String> aud : List.of(
+                List.of(OTHER_STORAGE, UNKNOWN_STORAGE),
+                List.of(STORAGE + "/sub/", ORIGIN),
+                List.of(STORAGE + "x"))) {
+            String token = token(aud);
+
+            assertEquals("invalid_token", assertThrows(InvalidBearerTokenException.class,
+                    () -> validator(STORAGE).tryAuthenticate(presented(token), null), aud.toString())
+                    .error());
+        }
+    }
+
+    /** An access token from this server for Alice, with the given audiences. */
+    private String token(List<String> aud) {
         Map<String, Object> claims = new LinkedHashMap<>();
         claims.put("iss", ORIGIN);
         claims.put("sub", ALICE);
         claims.put("client_id", CLIENT);
-        claims.put("aud", List.of(STORAGE, OTHER_STORAGE));
+        claims.put("aud", aud);
         claims.put("jti", "x");
-        String token = keys.sign(claims, Date.from(NOW), Date.from(NOW.plusSeconds(300)));
-
-        assertEquals("invalid_token", assertThrows(InvalidBearerTokenException.class,
-                () -> validator(STORAGE).tryAuthenticate(presented(token), null)).error());
+        return keys.sign(claims, Date.from(NOW), Date.from(NOW.plusSeconds(300)));
     }
 
     @Test
