@@ -21,21 +21,35 @@ public final class MediaTypes {
     public static final String LWS_CID = "application/lws+cid";
 
     /**
-     * lws10-core requires content negotiation across these three for container
-     * representations, and is explicit that "the response payload MUST be
-     * identical regardless of the requested media type — only the
-     * {@code Content-Type} response header varies". So they share one serializer;
-     * the negotiation only decides what to label the bytes.
+     * Two more labels for the {@code application/lws+json} document, which is JSON-LD and JSON.
+     *
+     * <p>Until the drafts of 19 October 2026 lws10-core made the three media types equivalent for a
+     * container and required all of them, the payload "identical regardless of the requested media
+     * type". w3c/lws-protocol#253 removed that: only {@code application/lws+json} is required. They
+     * are still offered, and still label the same bytes — as {@code application/ld+json} the
+     * document is in the {@link #LWS_PROFILE LWS profile} trivially, since its RDF is its own (see
+     * {@link Negotiation}).
      */
     public static final String LD_JSON = "application/ld+json";
     public static final String JSON = "application/json";
 
-    /** Considered equivalent to {@link #LWS_JSON} — LWS containers are a restricted JSON-LD profile. */
-    public static final String LD_JSON_LWS_PROFILE =
-            "application/ld+json; profile=\"https://www.w3.org/ns/lws/v1\"";
+    /**
+     * The LWS profile (lws10-core, LWS Profile; RFC 6906). "A representation of a container
+     * conforms to the LWS profile if it is RDF isomorphic to the {@code application/lws+json}
+     * representation of the same container state and page". A client asks for it with the
+     * {@code profile} parameter of an RDF media type, and a response in it names it the same way.
+     * It is also the URI of the LWS JSON-LD context, which is a separate matter.
+     */
+    public static final String LWS_PROFILE = "https://www.w3.org/ns/lws/v1";
 
-    /** Optional additional serialization offered through content negotiation. */
+    /**
+     * The RDF syntaxes an LWS document's RDF is offered in. lws10-core names all four, with
+     * {@code application/ld+json}, as RDF media types that define the {@code profile} parameter.
+     */
     public static final String TURTLE = "text/turtle";
+    public static final String N_TRIPLES = "application/n-triples";
+    public static final String N_QUADS = "application/n-quads";
+    public static final String TRIG = "application/trig";
 
     /** A resource's linkset (RFC 9264). */
     public static final String LINKSET_JSON = "application/linkset+json";
@@ -83,6 +97,9 @@ public final class MediaTypes {
      * <p>An absent {@code Accept}, or one that admits any type, counts as admitting
      * it: the search-index spec is explicit that "a request that omits
      * {@code Accept} or admits that media type never results in 406".
+     *
+     * <p>Used for the storage description, which keeps its own rule. The LWS documents — container
+     * listings, the type index, search pages, subscriptions — are negotiated by {@link Negotiation}.
      */
     public static boolean admitsLwsJson(String accept) {
         if (accept == null || accept.isBlank()) {
@@ -129,9 +146,10 @@ public final class MediaTypes {
      * a different format." So the description is the answer to no {@code Accept}, to a wildcard,
      * to a browser's default and to {@code application/lws+cid} itself; the container listing is
      * the answer only when the client names one of the container's own formats
-     * ({@code application/lws+json}, {@code application/ld+json}, {@code application/json} or
-     * {@code text/turtle}) and not the CID type. Every container client names its format, which is
-     * how Halcyon's own {@code LwsClient} has always read the root.
+     * ({@code application/lws+json}, {@code application/ld+json}, {@code application/json} or one
+     * of the RDF syntaxes, with or without the LWS profile) and not the CID type. Every container
+     * client names its format, which is how Halcyon's own {@code LwsClient} has always read the
+     * root.
      */
     public static boolean prefersStorageDescription(String accept) {
         if (accept == null || accept.isBlank()) {
@@ -141,7 +159,8 @@ public final class MediaTypes {
         if (a.contains(LWS_CID)) {
             return true;
         }
-        return !(a.contains(LWS_JSON) || a.contains(LD_JSON) || a.contains(JSON) || a.contains(TURTLE));
+        return !(a.contains(LWS_JSON) || a.contains(LD_JSON) || a.contains(JSON) || a.contains(TURTLE)
+                || a.contains(N_TRIPLES) || a.contains(N_QUADS) || a.contains(TRIG));
     }
 
     /**
@@ -175,28 +194,6 @@ public final class MediaTypes {
             return JSON;
         }
         return LWS_CID;
-    }
-
-    /**
-     * Pick the {@code Content-Type} to label an LWS document with, given the
-     * request's {@code Accept}. The body is the same either way.
-     */
-    public static String negotiate(String accept) {
-        if (accept == null || accept.isBlank()) {
-            return LWS_JSON;
-        }
-        String a = accept.toLowerCase();
-        // Most specific first: a client asking for lws+json must get lws+json back.
-        if (a.contains(LWS_JSON)) {
-            return LWS_JSON;
-        }
-        if (a.contains(LD_JSON)) {
-            return LD_JSON;
-        }
-        if (a.contains(JSON)) {
-            return JSON;
-        }
-        return LWS_JSON;
     }
 
     /**

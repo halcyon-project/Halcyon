@@ -74,6 +74,14 @@
             <groupId>org.eclipse.parsson</groupId>
             <artifactId>parsson</artifactId>
         </dependency>
+        <!-- A container's RDF in the LWS profile is its lws+json document read back as JSON-LD
+             (Jena's reader is Titanium), with a bundled copy of the context and a loader that
+             fetches nothing. Named here because LwsRdf supplies that loader; the version is the
+             reactor's, as halcyon-core's. -->
+        <dependency>
+            <groupId>com.apicatalog</groupId>
+            <artifactId>titanium-json-ld</artifactId>
+        </dependency>
 
         <!-- Bearer access-token validation against the Keycloak realm JWKS. -->
         <dependency>

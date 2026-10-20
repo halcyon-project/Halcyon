@@ -11,13 +11,17 @@ import com.ebremer.lws.acp.AcrStore;
 import com.ebremer.lws.config.LwsSettings;
 import com.ebremer.lws.config.LwsStorageConfig;
 import com.ebremer.lws.http.LwsServlet;
+import com.ebremer.lws.json.LwsProfileReader;
 import com.ebremer.lws.oauth.AuthorizationServerMetadataServlet;
 import com.ebremer.lws.oauth.AuthorizationServerSettings;
 import com.ebremer.lws.oauth.JwksServlet;
 import com.ebremer.lws.oauth.LwsAuthorizationServer;
 import com.ebremer.lws.oauth.ProtectedResourceMetadataServlet;
 import com.ebremer.lws.oauth.TokenEndpointServlet;
+import com.ebremer.lws.store.LwsResource;
 import com.ebremer.lws.store.LwsStore;
+import com.ebremer.lws.store.ResourceRegistry;
+import com.ebremer.lws.store.ResourceType;
 import jakarta.json.Json;
 import jakarta.json.JsonArray;
 import jakarta.json.JsonNumber;
@@ -44,16 +48,21 @@ import java.security.spec.ECGenParameterSpec;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.apache.jena.sparql.core.DatasetGraph;
+import org.apache.jena.sparql.util.IsoMatcher;
 import org.eclipse.jetty.ee11.servlet.ServletContextHandler;
 import org.eclipse.jetty.ee11.servlet.ServletHolder;
 import org.eclipse.jetty.server.Server;
@@ -346,6 +355,251 @@ class LwsTestSuiteConformanceTest {
         assertEquals(SHOPPING_LIST.getBytes(StandardCharsets.UTF_8).length,
                 item.getJsonNumber("size").intValue());
         Instant.parse(item.getString("modified"));
+    }
+
+    // --- The LWS profile (w3c/lws-protocol#253) ------------------------------
+
+    private static final String LWS_PROFILE = "https://www.w3.org/ns/lws/v1";
+
+    /** Touchstone's check that a {@code Content-Type} names the LWS profile. */
+    private static final Pattern NAMES_LWS_PROFILE = Pattern.compile(
+            "(?i);\\s*profile\\s*=\\s*\"?([^\";]*\\s)?https://www\\.w3\\.org/ns/lws/v1(\\s[^\";]*)?\"?\\s*(;|$)");
+
+    /** The RDF media types lws10-core names as taking the {@code profile} parameter. */
+    private static final List<String> RDF_TYPES = List.of("application/ld+json", "text/turtle",
+            "application/n-triples", "application/n-quads", "application/trig");
+
+    private static String inProfile(String mediaType) {
+        return mediaType + "; profile=\"" + LWS_PROFILE + "\"";
+    }
+
+    /**
+     * Not a suite entry: Touchstone's {@code container-lws-profile-ld-json} and
+     * {@code container-lws-profile-turtle}, for every RDF media type lws10-core names. "If the server
+     * selects such a media type, the response MUST conform to the LWS profile, that is, it MUST be
+     * RDF isomorphic to the {@code application/lws+json} representation, and its
+     * {@code Content-Type} MUST include the same {@code profile} parameter." The container holds a
+     * data resource, one with a declared type, and a container, whose {@code modified} the context
+     * leaves out of the RDF; the lws+json is read as Touchstone reads it, with its own copy of the
+     * context.
+     */
+    @Test
+    void aContainerInTheLwsProfileIsIsomorphicToItsLwsJson() throws Exception {
+        String path = "/alice/profile/";
+        givenProfileContainer(path);
+        Res json = send("GET", path, owner(), Map.of("Accept", LWS_JSON), null);
+        assertEquals(200, json.status(), json.text());
+        DatasetGraph expected = rdf(json);
+
+        for (String type : RDF_TYPES) {
+            Res r = send("GET", path, owner(), Map.of("Accept", inProfile(type)), null);
+            assertEquals(200, r.status(), type + ": " + r.text());
+            assertEquals(type, r.mediaType());
+            String ct = r.header("Content-Type").orElseThrow();
+            assertTrue(NAMES_LWS_PROFILE.matcher(ct).find(), "the Content-Type names the profile: " + ct);
+            assertTrue(IsoMatcher.isomorphic(expected, rdf(r)),
+                    type + " is not isomorphic to the lws+json:\n" + json.text() + "\n" + r.text());
+            assertTrue(varies(r), type + ": Vary " + r.headers().allValues("Vary"));
+        }
+    }
+
+    /** The profile is named when it is asked for, and the RDF is the same either way. */
+    @Test
+    void theProfileIsNamedOnlyWhenAskedFor() throws Exception {
+        String path = "/alice/profile/";
+        givenProfileContainer(path);
+        DatasetGraph expected = rdf(send("GET", path, owner(), Map.of("Accept", LWS_JSON), null));
+
+        for (String type : RDF_TYPES) {
+            Res r = send("GET", path, owner(), Map.of("Accept", type), null);
+            assertEquals(200, r.status(), type + ": " + r.text());
+            assertEquals(type, r.mediaType());
+            String ct = r.header("Content-Type").orElseThrow();
+            assertFalse(ct.contains("profile"), "not asked for, so not named: " + ct);
+            assertTrue(IsoMatcher.isomorphic(expected, rdf(r)), type);
+        }
+    }
+
+    /**
+     * A range naming only another profile asks for a representation this storage cannot produce, so
+     * it selects nothing and the client's other ranges decide; and nothing but a container is in the
+     * LWS profile, so the type index answers a request for it with 406.
+     */
+    @Test
+    void aRangeNamingAnotherProfileSelectsNothing() throws Exception {
+        String path = "/alice/profile/";
+        givenProfileContainer(path);
+        String compacted = "application/ld+json; profile=\"http://www.w3.org/ns/json-ld#compacted\"";
+
+        assertEquals(406, send("GET", path, owner(), Map.of("Accept", compacted), null).status());
+        Res fallback = send("GET", path, owner(),
+                Map.of("Accept", compacted + ", application/lws+json;q=0.1"), null);
+        assertEquals(200, fallback.status());
+        assertEquals(LWS_JSON, fallback.mediaType());
+
+        String index = cfg.typeIndexUri().substring(SITE.length());
+        assertEquals(406, send("GET", index, owner(), Map.of("Accept", inProfile("text/turtle")), null)
+                .status(), "the type index is not a container, so it is in no profile");
+        Res plain = send("GET", index, owner(), Map.of("Accept", "text/turtle"), null);
+        assertEquals(200, plain.status(), plain.text());
+        assertEquals("text/turtle", plain.mediaType());
+        assertFalse(plain.header("Content-Type").orElseThrow().contains("profile"));
+    }
+
+    /**
+     * Each serialization is a representation of its own, with its own entity tag, so a client
+     * holding one is never told 304 for another; the JSON labels share the document's tag, and the
+     * profile parameter changes no bytes. Every one varies by {@code Accept}, the 304 included.
+     */
+    @Test
+    void eachRepresentationOfAContainerHasItsOwnTag() throws Exception {
+        String path = "/alice/profile/";
+        givenProfileContainer(path);
+        Map<String, String> tags = new LinkedHashMap<>();
+        for (String accept : List.of(LWS_JSON, "application/ld+json", inProfile("application/ld+json"),
+                "text/turtle", inProfile("text/turtle"), inProfile("application/n-triples"),
+                inProfile("application/n-quads"), inProfile("application/trig"))) {
+            Res r = send("GET", path, owner(), Map.of("Accept", accept), null);
+            assertEquals(200, r.status(), accept);
+            assertTrue(varies(r), accept + ": Vary " + r.headers().allValues("Vary"));
+            tags.put(accept, r.header("ETag").orElseThrow());
+        }
+        String json = tags.get(LWS_JSON);
+        String turtle = tags.get("text/turtle");
+        assertEquals(json, tags.get("application/ld+json"), "the same bytes");
+        assertEquals(json, tags.get(inProfile("application/ld+json")), "the same bytes");
+        assertEquals(turtle, tags.get(inProfile("text/turtle")), "naming the profile changes no bytes");
+        assertEquals(5, new HashSet<>(tags.values()).size(), tags.toString());
+
+        Res hit = send("GET", path, owner(),
+                Map.of("Accept", inProfile("text/turtle"), "If-None-Match", turtle), null);
+        assertEquals(304, hit.status());
+        assertTrue(varies(hit), "a 304 varies as the 200 would: " + hit.headers().allValues("Vary"));
+        Res miss = send("GET", path, owner(),
+                Map.of("Accept", inProfile("text/turtle"), "If-None-Match", json), null);
+        assertEquals(200, miss.status(), "the JSON's tag does not validate the Turtle");
+    }
+
+    /** HEAD answers as GET does, without the body. */
+    @Test
+    void headInTheProfileIsGetWithoutTheBody() throws Exception {
+        String path = "/alice/profile/";
+        givenProfileContainer(path);
+        Map<String, String> h = Map.of("Accept", inProfile("text/turtle"));
+        Res get = send("GET", path, owner(), h, null);
+        Res head = send("HEAD", path, owner(), h, null);
+        assertEquals(200, head.status());
+        assertEquals(get.header("Content-Type"), head.header("Content-Type"));
+        assertEquals(get.header("ETag"), head.header("ETag"));
+        assertEquals(String.valueOf(get.body().length), head.header("Content-Length").orElseThrow());
+        assertEquals(0, head.body().length);
+    }
+
+    /**
+     * The profile is defined on "the {@code application/lws+json} representation of the same
+     * container state and page": a paginated container's RDF is paginated as its JSON is, page by
+     * page, with {@code totalItems} counting the whole container on each. A page holds 100 members,
+     * so the container gets 100 sub-containers and then a data resource, which lands on the second
+     * page.
+     */
+    @Test
+    void aPagedListingIsInTheProfilePageByPage() throws Exception {
+        String path = "/alice/paged/";
+        givenAbsent(path);
+        givenContainer(path, false);
+        givenSubContainers(path, 100);
+        Res last = send("POST", path, owner(), Map.of("Slug", "last.txt", "Content-Type", "text/plain"),
+                "the hundred and first".getBytes(StandardCharsets.UTF_8));
+        assertEquals(201, last.status(), last.text());
+
+        String page = path;
+        Set<String> tags = new HashSet<>();
+        Set<String> members = new HashSet<>();
+        List<Integer> sizes = new ArrayList<>();
+        while (page != null) {
+            Res json = send("GET", page, owner(), Map.of("Accept", LWS_JSON), null);
+            Res ttl = send("GET", page, owner(), Map.of("Accept", inProfile("text/turtle")), null);
+            assertEquals(200, json.status());
+            assertEquals(200, ttl.status());
+            assertEquals(101, json.json().getInt("totalItems"));
+            assertTrue(IsoMatcher.isomorphic(rdf(json), rdf(ttl)), "page " + page + ":\n" + ttl.text());
+            assertTrue(tags.add(ttl.header("ETag").orElseThrow()), "each page's Turtle has its own tag");
+            for (JsonValue item : json.json().getJsonArray("items")) {
+                assertTrue(members.add(item.asJsonObject().getString("id")), "no member on two pages");
+            }
+            sizes.add(json.json().getJsonArray("items").size());
+            page = json.link("next").map(l -> l.target().substring(SITE.length())).orElse(null);
+        }
+        assertEquals(List.of(100, 1), sizes);
+        assertTrue(members.contains(last.location()), "the data resource is on the last page");
+    }
+
+    /**
+     * The other listings that are containers — the notification service's, and the access request
+     * and grant endpoints' ("the access request and access grant endpoints are LWS containers") —
+     * are in the profile too.
+     */
+    @Test
+    void theListingsThatAreContainersAreInTheProfile() throws Exception {
+        for (String path : List.of("/alice/.access/grants", "/alice/.access/requests",
+                "/alice/.notifications/subscriptions")) {
+            Res json = send("GET", path, owner(), Map.of("Accept", LWS_JSON), null);
+            Res ttl = send("GET", path, owner(), Map.of("Accept", inProfile("text/turtle")), null);
+            assertEquals(200, ttl.status(), path + ": " + ttl.text());
+            assertTrue(NAMES_LWS_PROFILE.matcher(ttl.header("Content-Type").orElseThrow()).find(), path);
+            assertTrue(IsoMatcher.isomorphic(rdf(json), rdf(ttl)), path + ":\n" + ttl.text());
+        }
+    }
+
+    /** Whether {@link #givenProfileContainer} has built its container; no test changes it. */
+    private static final Set<String> PROFILE_CONTAINERS = new HashSet<>();
+
+    /** A container holding a data resource, one with a declared type, and a container. */
+    private static void givenProfileContainer(String path) throws Exception {
+        if (!PROFILE_CONTAINERS.add(path)) {
+            return;
+        }
+        givenAbsent(path);
+        givenContainer(path, false);
+        for (Map<String, String> h : List.of(
+                Map.of("Slug", "note.txt", "Content-Type", "text/plain"),
+                Map.of("Slug", "typed.txt", "Content-Type", "text/plain",
+                        "Link", "<http://example.org/customType>; rel=\"type\""),
+                Map.of("Slug", "inner", "Link", "<" + LWS + "Container>; rel=\"type\""))) {
+            byte[] body = h.containsKey("Content-Type")
+                    ? "in the profile".getBytes(StandardCharsets.UTF_8) : new byte[0];
+            Res created = send("POST", path, owner(), h, body);
+            assertEquals(201, created.status(), created.text());
+        }
+    }
+
+    /**
+     * {@code count} empty containers in {@code path}, created as a POST creates them but in one
+     * transaction: a hundred creates over HTTP take minutes on a slow disk, and the listing is what
+     * is under test, not the create.
+     */
+    private static void givenSubContainers(String path, int count) {
+        LwsStore store = LwsStore.get();
+        ResourceRegistry reg = new ResourceRegistry(store, cfg);
+        String parent = SITE + path;
+        store.write(() -> {
+            for (int i = 0; i < count; i++) {
+                reg.create(new LwsResource(parent + "c" + i + "/", ResourceType.CONTAINER, List.of(),
+                        null, 0, Instant.now(), ResourceRegistry.containerEtag(0), null, null, parent,
+                        reg.nextSeq(), ALICE, ALICE, null), "c" + i);
+            }
+        });
+    }
+
+    /** A response's RDF, read as Touchstone reads it. */
+    private static DatasetGraph rdf(Res r) {
+        return LwsProfileReader.dataset(r.body(), r.header("Content-Type").orElseThrow(), r.uri());
+    }
+
+    private static boolean varies(Res r) {
+        return r.headers().allValues("Vary").stream()
+                .flatMap(v -> Arrays.stream(v.split(",")))
+                .anyMatch(v -> v.trim().equalsIgnoreCase("Accept"));
     }
 
     /**
