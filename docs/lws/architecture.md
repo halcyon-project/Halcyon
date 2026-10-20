@@ -51,7 +51,7 @@ Never served, and unconditionally hidden from `listGraphNodes()` and every `Node
 
 | Graph | Holds |
 |---|---|
-| `urn:lws:system` | storage key, parent pointer, per-storage monotonic sequence, ETag, scan version |
+| `urn:lws:system` | storage key, parent pointer, per-storage monotonic sequence, ETag, scan version; `movedTo` records of renamed resources |
 | `urn:lws:acp` | all ACRs, policies, matchers |
 | `urn:lws:subscriptions` | webhook subscriptions |
 | `urn:lws:keys` | the webhook signing keypair and the cursor HMAC secret (**private key material**) |
@@ -101,6 +101,44 @@ reconcile re-adopts the empty dir as the container you just deleted), and PUT-cr
 name against the filesystem** (`validateMirrorPath`: reserved device names, illegal characters, trailing
 dot/space, length, `.meta`/`.acr` suffix; a case-only clash on case-insensitive Windows is a 409) — POST
 needs none, since `SlugNaming` mints a legal name.
+
+### Moving resources
+
+A move (lws10-core since w3c/lws-protocol#237) is a linkset `PATCH` that changes `up`; the wire side is
+in [http-api.md](http-api.md#moving-a-resource). `http/MoveHandler` decides and applies it inside the
+linkset's write transaction, and the two content backends are again what decides the shape:
+
+- **Key-minting stores** (sharded, S3) — the URI is the identity and the bytes sit under an opaque key,
+  so a move is `ResourceRegistry.reparent`: the parent pointer changes, the resource leaves one `items`
+  and joins the other with a fresh sequence number, both containers and their ancestors get a version
+  bump, and the ACP epoch is bumped because inherited access may have changed. Nothing else moves —
+  content, linkset, ACR, types and owner stay with the URI. The capability says `preservesIdentifier:
+  true`.
+- **The disk mirror** — the disk path *is* the URI and the disk is authoritative, so the identifier
+  cannot be kept: the resource (and a container's whole subtree) is renamed under the destination,
+  keeping its last segment (`name-N.ext` if that is taken, by a resource or by an unadopted file). The
+  store side is `PathKeyedStore.supportsMove/moveRefusal/move` — the mirror's is one atomic
+  `Files.move(ATOMIC_MOVE)` without replace, refused across mounts or file systems
+  (`MountTable.mountWithin`) — and the index side is `ResourceRegistry.rename`, which rewrites every fact
+  keyed by URI: the system graph (parents, storage keys), each resource's named graph (its URI,
+  `#fragments`, `items`), the linkset graphs, the ACRs (`AcrStore.rename`: `acp:resource` objects and
+  every `{uri}.acr` node, so installed grant policies follow), and subscription topics
+  (`Notifications.renameTopics`). `store/MoveRecords` keeps an `<old> lwsx:movedTo <new>` triple in
+  `urn:lws:system` per renamed resource, which is what answers the old URIs with `301`. The capability
+  says `preservesIdentifier: false`.
+
+**The rename happens inside the transaction, last** (`MoveHandler.write`): a body that fails undoes it
+while the transaction still holds the writer, and a commit that fails undoes it right after. **The
+reconciler cannot undo a move**: `MirrorReconciler` is split into `survey()` (walk the disk and the index)
+and `apply()`, and each de-registration or adoption re-checks its facts in its own write transaction — a
+resource is de-registered only if it is still registered and still absent on disk, a path adopted only if
+it is still unregistered and still on disk. With one writer that check runs before the move or after its
+commit, never in between, so the watcher's events for a rename find nothing to do. The one window left
+is a crash between the rename and the commit (milliseconds): the reconciler then sees an external move,
+keeps the content and loses the subtree's metadata.
+
+The Halcyon app keys its IIIF engine by URI, path *and* entity tag (`LwsIiifBridge`), so a resource
+created at a moved-from URI is never served the previous image's cached tiles.
 
 ## Write atomicity
 

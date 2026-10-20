@@ -39,6 +39,11 @@ subset — e.g. read-only, one profile, or client-of) · ○ vocabulary / refere
 > _Revised 2026-10-05: brought to the drafts of 5 October 2026 (`w3c/lws-protocol` @ `ef02548`, published
 > as `WD-lws10-core-20261005`), whose one change, #255, makes JSON Patch the required patch format in
 > place of JSON Merge Patch. Linksets now take it; both formats are accepted._
+>
+> _Revised 2026-10-19: brought to the drafts of 19 October 2026 (`w3c/lws-protocol` @ `9a08ff6`, published
+> as `WD-lws10-core-20261019`): authorization-server discovery by RFC 9728 protected resource metadata
+> (#256), the LWS profile for container representations (#253), and moving resources between containers
+> (#237)._
 
 ---
 
@@ -49,7 +54,7 @@ lws10-notifications-webhook"*); the `Halcyon` web app is an LWS *client* (the St
 `com.ebremer.halcyon.lws.*`).
 
 The LWS drafts are unofficial proposals and they move. The revision the code follows —
-[`w3c/lws-protocol`](https://github.com/w3c/lws-protocol) @ `ef02548`, **5 October 2026** — together
+[`w3c/lws-protocol`](https://github.com/w3c/lws-protocol) @ `9a08ff6`, **19 October 2026** — together
 with every deliberate divergence from it, and how the
 [LWS 1.0 test suite](https://github.com/lws-contrib/lws-test-suite) fares against it, is recorded in
 [`docs/lws/conformance.md`](docs/lws/conformance.md).
@@ -57,13 +62,13 @@ with every deliberate divergence from it, and how the
 | Specification | Coverage | Module | Notes |
 |---|---|---|---|
 | [LWS 1.0 Core](https://w3c.github.io/lws-protocol/lws10-core/) | ● | HalcyonLWS | Data resources & containers; `GET`/`HEAD`/`OPTIONS`/`POST`/`PUT`/`PATCH`/`DELETE`/`QUERY`; content negotiation; conditional requests; byte ranges; keyset pagination; the storage description as a CID document; linksets (`.meta`) & access-control resources (`.acr`); the `lws#storage` discovery link. `LwsServlet`, `capability/*`. |
-| **LWS 1.0 Core — Authorization framework** | ● | HalcyonLWS | An embedded OAuth 2.0 authorization server: RFC 8414 metadata at `/.well-known/lws-configuration`, RFC 8693 token exchange, RFC 9068 `at+jwt` access tokens, and storage-side validation (`aud` exactly one value naming the storage). `oauth/*`, `auth/AccessTokenValidator`. |
+| **LWS 1.0 Core — Authorization framework** | ● | HalcyonLWS | An embedded OAuth 2.0 authorization server: RFC 8414 metadata at `/.well-known/lws-configuration`, RFC 8693 token exchange, RFC 9068 `at+jwt` access tokens, and storage-side validation (`aud` includes the storage). Discovery by RFC 9728: every `401` carries `resource_metadata` and the `lws#storage` link, and each storage serves its protected resource metadata (`as_uri`/`realm` kept behind `:LWSLegacyChallenge`). `oauth/*`, `auth/AccessTokenValidator`, `auth/BearerTokenValidator`. |
 | [LWS 1.0 Notifications (webhook)](https://w3c.github.io/lws-protocol/lws10-notifications-webhook/) | ● | HalcyonLWS | Webhook subscriptions with signed delivery (RFC 9421), `keyid` a resolvable `{storage}#{thumbprint}` URL; the notification data model itself is lws10-core. `notify/Notifications`, `notify/HttpMessageSignatures`. |
 | [LWS 1.0 Search and Type Index](https://w3c.github.io/lws-protocol/lws10-index/) | ● | HalcyonLWS | Type Index (`GET`) + Type Search over the HTTP `QUERY` method only, authorization-filtered by construction; page links carry a sealed filter. |
 | [LWS 1.0 Authentication Suite: OpenID Connect](https://w3c.github.io/lws-protocol/lws10-authn-openid/) | ● | HalcyonLWS | An ID Token as an authentication credential: `sub` dereferenced to a controlled identifier document that names `iss` as its `lws:OpenIdProvider`, `azp` as the client identifier. Exchangeable at the token endpoint, and (optionally) presentable directly. `auth/oidc/*`. |
 | [LWS 1.0 Authentication Suite: Self-signed Identity using Controlled Identifiers](https://w3c.github.io/lws-protocol/lws10-authn-ssi-cid/) | ● | HalcyonLWS | A JWT the subject signs itself (`sub` = `iss` = `client_id`), subject token type `...:jwt`: the subject dereferenced to its controlled identifier document (HTTPS fetched and SSRF-checked, `did:web` from its HTTPS URL, `did:key` derived locally), the `kid` selecting an `authentication` method (`JsonWebKey` or `Multikey`, not revoked or expired), `aud` naming the authorization server (or the storage, when presented directly). `auth/cid/*`. |
 | LWS 1.0 Core — Access Requests & Grants | ◐ | HalcyonLWS | ODRL access requests and grants that install/remove real ACP policies, with the target matcher checked and every access-profile constraint enforced (`purpose` fails closed). `sharing/AccessSharing`. |
-| LWS `application/lws+json` and `application/lws+cid` representations | ● | HalcyonLWS | Native (no runtime `@context` fetch — the normative context URI is not yet published, which lws10-core also advises against relying on). `json/LwsJson`, `json/LwsRdf`, `vocab/Terms`. |
+| LWS `application/lws+json` and `application/lws+cid` representations | ● | HalcyonLWS | Native (no runtime `@context` fetch — the normative context URI is not yet published, which lws10-core also advises against relying on). Containers also in the **LWS profile** (#253) as `ld+json`, Turtle, N-Triples, N-Quads and TriG: the lws+json read as JSON-LD with the bundled Working Group context, so isomorphic by construction. `json/LwsJson`, `json/LwsRdf`, `http/Negotiation`, `vocab/Terms`. |
 | LWS ContentStore SPI (S3 backend) | ◐ | HalcyonLWS-S3 | An out-of-tree `ContentStoreProvider` implementation; in-house SPI, not a public standard. `S3ContentStoreProvider`. |
 
 ---
@@ -114,7 +119,7 @@ a plain bearer check: OIDC discovery, dynamic client registration, PKCE, refresh
 | RFC 7636 — PKCE | ● | HalcyonLWS, Halcyon | `code_challenge`/`code_verifier`, `code_challenge_method=S256`, on every Authorization-Code flow. `auth/oidc/WebIdOidcLogin`, `server/WebIdLoginServlet`; Keycloak realm pins `pkce.code.challenge.method: S256`. |
 | RFC 6749 — OAuth 2.0 | ● | HalcyonLWS, Halcyon | Authorization-Code grant + refresh-token grant (`§6`); `state` (CSRF) & `nonce` (replay) defenses. `auth/oidc/WebIdOidcLogin`. |
 | RFC 6750 — OAuth 2.0 Bearer Token Usage | ● | HalcyonLWS, HalcyonMCP, Halcyon | `Authorization: Bearer`; `WWW-Authenticate` challenge with `error=` / `resource_metadata` semantics; no `error` code when nothing presented. `auth/InvalidBearerTokenException`, `mcp/McpBearerAuth`. |
-| RFC 9728 — OAuth 2.0 Protected Resource Metadata | ● | HalcyonMCP, Halcyon | Served anonymously at `/.well-known/oauth-protected-resource/mcp`; the 401 challenge points clients at it. `mcp/HalcyonMcpAutoConfiguration`, `server/URLControl`. |
+| RFC 9728 — OAuth 2.0 Protected Resource Metadata | ● | HalcyonLWS, HalcyonMCP, Halcyon | Served anonymously for every LWS storage at `/.well-known/oauth-protected-resource{storage path}/…` (lws10-core since #256: `authorization_servers` REQUIRED, `resource` the URL requested) and for MCP at `/.well-known/oauth-protected-resource/mcp`; every 401 challenge points clients at it with `resource_metadata`. `oauth/ProtectedResourceMetadataServlet`, `server/LwsStorageConfiguration`, `mcp/HalcyonMcpAutoConfiguration`, `server/URLControl`. |
 | RFC 7519 — JSON Web Token (JWT) | ● | HalcyonLWS, HalcyonMCP, Halcyon | Parse/validate access & ID tokens (`jjwt` 0.13). |
 | RFC 7515 — JSON Web Signature (JWS) | ● | HalcyonLWS, Halcyon | Token signature verification (RS256/ES256). |
 | RFC 7517 — JSON Web Key / JWK Set | ● | HalcyonLWS, Halcyon | Consume the realm/OP JWKS (`kid`-aware, rotation) to obtain signing keys. `auth/oidc/OidcKeys`, `auth/JwksCache`, `fuseki/shiro/KeycloakPublicKeyFetcher`. |
@@ -149,7 +154,7 @@ Backed by Apache Jena (6.1.0) across all modules.
 |---|---|---|---|
 | RDF 1.1 (data model) | ● | all | |
 | RDF 1.1 Turtle | ● | all | Read & write. |
-| JSON-LD 1.1 | ● | halcyon-core, Halcyon, HalcyonLWS | Titanium JSON-LD (expand/frame); HalcyonLWS maps its native `application/lws+json` to/from RDF without a runtime context fetch. |
+| JSON-LD 1.1 | ● | halcyon-core, Halcyon, HalcyonLWS | Titanium JSON-LD (expand/frame); HalcyonLWS reads a container's `application/lws+json` as JSON-LD with the bundled LWS context (the LWS profile) and maps its other documents to RDF by hand, never fetching a context. |
 | RDF/XML | ● | halcyon-core, HalcyonLWS | Read & write (incl. XMP packets; CID documents). |
 | N-Triples / N-Quads, TriG | ● | halcyon-core, HalcyonLWS | Via Jena RIOT. |
 | RDF Schema (RDFS) | ○ | Halcyon, halcyon-core | Vocabulary + RDF container/collection model. |
@@ -157,7 +162,7 @@ Backed by Apache Jena (6.1.0) across all modules.
 | W3C SHACL | ● | halcyon-core, Halcyon | Shape authoring + validation (`geosparqlshacl.ttl`, `vandegraph/shapes.ttl`); SHACL-driven forms in the UI (via the `vandegraph` dependency). `lib/shacl/GeoSPARQL`. |
 | W3C PROV-O | ○ | halcyon-core, Halcyon | Provenance vocabulary. `ns/PROVO`. |
 | W3C RDF Data Cube (QB) | ○ | halcyon-core | Vocabulary. `ns/QB`. |
-| W3C ActivityStreams 2.0 | ◐ | HalcyonLWS | Notification activities (`Create`/`Update`/`Delete`) and the JSON-LD terms `totalItems`/`mediaType`/`modified`. `vocab/AS`. |
+| W3C ActivityStreams 2.0 | ◐ | HalcyonLWS | Notification activities (`Create`/`Update`/`Delete`/`Move`) and the JSON-LD terms `totalItems`/`mediaType`/`modified`. `vocab/AS`. |
 | schema.org | ○–◐ | all | Widely used (`schema:ImageObject`, `schema:size`, `schema:validFrom`/`expires`, `schema:name`). |
 | DCMI Metadata Terms (Dublin Core) | ○ | halcyon-core | `dc:` / `dcterms:` (IIIF context, GeoSPARQL SHACL). |
 | FOAF | ○ | halcyon-core, HalcyonLWS | `foaf:Agent` (the ACP public agent), `foaf:` in IIIF context. |
