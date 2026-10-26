@@ -221,7 +221,7 @@ public final class SelfIssuedCidVerifier implements CredentialVerifier {
 
     private JsonObject fetch(String subject, String url) {
         try {
-            webIdHosts.get().require("WebID host", url);
+            webIdHosts.get().require("CID host", url);
         } catch (TrustPolicy.RefusedException e) {
             throw refuse(e.getMessage());
         }

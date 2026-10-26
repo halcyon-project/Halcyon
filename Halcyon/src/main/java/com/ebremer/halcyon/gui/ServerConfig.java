@@ -71,7 +71,7 @@ public class ServerConfig extends BasePage {
         rows.add(new String[]{"Realm", String.valueOf(hs.getRealm())});
         rows.add(new String[]{"Classic RDF store", String.valueOf(hs.getRDFStoreLocation())});
         rows.add(new String[]{"LWS RDF store", String.valueOf(LwsSettings.get().storeLocation())});
-        rows.add(new String[]{"LWS owner (WebID)", String.valueOf(LwsSettings.get().owner())});
+        rows.add(new String[]{"LWS owner (CID URL)", String.valueOf(LwsSettings.get().owner())});
         for (LwsStorageConfig cfg : LwsSettings.get().storages()) {
             StringBuilder v = new StringBuilder(cfg.contentRoot() + "  (" + cfg.naming() + " naming)");
             cfg.mounts().forEach(mt ->

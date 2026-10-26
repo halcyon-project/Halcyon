@@ -1178,7 +1178,7 @@ public class LWSContainers extends BasePage {
                                     return switch (t) {
                                         case PUBLIC -> "Public (everyone)";
                                         case AUTHENTICATED -> "Any signed-in user";
-                                        case WEBID -> "WebID →";
+                                        case WEBID -> "CID URL →";
                                     };
                                 }
 
@@ -1351,7 +1351,7 @@ public class LWSContainers extends BasePage {
             String webid = currentWebId();
             String endpoint = accessRequestsEndpoint();
             if (webid == null || endpoint == null) {
-                message = "No signed-in WebID or no Data Sharing Service for this storage.";
+                message = "No signed-in CID URL or no Data Sharing Service for this storage.";
                 return;
             }
             var actions = Json.createArrayBuilder();

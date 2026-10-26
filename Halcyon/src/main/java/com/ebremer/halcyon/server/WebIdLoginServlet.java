@@ -25,7 +25,7 @@ public class WebIdLoginServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
         if (!WebIdLogin.enabled()) {
-            response.sendError(HttpServletResponse.SC_NOT_FOUND, "WebID login is not enabled");
+            response.sendError(HttpServletResponse.SC_NOT_FOUND, "CID URL login is not enabled");
             return;
         }
         String webid = request.getParameter("cid");
@@ -41,8 +41,8 @@ public class WebIdLoginServlet extends HttpServlet {
             request.getSession(true).setAttribute(WebIdLogin.PENDING, redirect.pending());
             response.sendRedirect(redirect.authorizationUrl());
         } catch (WebIdOidcLogin.WebIdLoginException e) {
-            logger.warn("WebID login could not start for {}: {}", webid, e.getMessage());
-            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "WebID login failed: " + e.getMessage());
+            logger.warn("CID URL login could not start for {}: {}", webid, e.getMessage());
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "CID URL login failed: " + e.getMessage());
         }
     }
 
@@ -50,16 +50,16 @@ public class WebIdLoginServlet extends HttpServlet {
         response.setContentType("text/html");
         response.setCharacterEncoding("UTF-8");
         response.getWriter().write("""
-                <!doctype html><html><head><meta charset="utf-8"><title>Log in with your WebID</title></head>
+                <!doctype html><html><head><meta charset="utf-8"><title>Log in with your CID URL</title></head>
                 <body style="font-family:sans-serif;max-width:40em;margin:3em auto">
-                <h2>Log in with your WebID</h2>
+                <h2>Log in with your CID URL</h2>
                 <form method="get" action="/cid-login">
                   <input type="text" name="cid" size="50" autofocus
                          placeholder="https://you.example/profile#me"
                          style="padding:.5em;width:100%;box-sizing:border-box">
                   <p><button type="submit" style="padding:.5em 1em">Continue</button></p>
                 </form>
-                <p>You'll be sent to the OpenID Provider your WebID names, then back here.</p>
+                <p>You'll be sent to the OpenID Provider your CID document names, then back here.</p>
                 </body></html>
                 """);
     }

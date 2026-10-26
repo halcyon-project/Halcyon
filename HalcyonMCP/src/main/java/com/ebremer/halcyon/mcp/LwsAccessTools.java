@@ -59,7 +59,7 @@ public class LwsAccessTools {
         if (webId == null || webId.isBlank()) {
             return Json.createObjectBuilder()
                     .add("resource", resource)
-                    .add("error", "the caller has no WebID to assign the request to")
+                    .add("error", "the caller has no CID URL to assign the request to")
                     .build().toString();
         }
 

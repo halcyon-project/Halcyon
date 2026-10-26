@@ -68,11 +68,11 @@ public final class AcpBootstrap {
         // document, and no per-resource ACR can narrow it: inheritance in AcpEngine is a union, and
         // a stranger holding inherited Control can simply PUT the restriction away.
         throw new UnownedStorageException(
-                "LWS storage " + root + " has no owner: set :LWSOwner <your-webid> in settings.ttl."
+                "LWS storage " + root + " has no owner: set :LWSOwner <your-cid-url> in settings.ttl."
                 + " Refusing to start, because the alternative is a storage whose root policy grants"
                 + " full control -- Read, Write, Append AND Control, inherited by every resource in"
-                + " it -- to any authenticated agent, and this server accepts any WebID that names"
-                + " its own OpenID Provider unless :AllowedIssuer says otherwise.");
+                + " it -- to any authenticated agent, and this server accepts any CID URL whose"
+                + " document names its own OpenID Provider unless :AllowedIssuer says otherwise.");
     }
 
     /** Idempotent: TDB2's single writer serializes the check and the seed. */

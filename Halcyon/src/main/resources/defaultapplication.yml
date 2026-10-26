@@ -66,7 +66,7 @@ spring:
             password: "password"
             type: "JKS"
 # Per-principal rate limit on /mcp (MCP-17): calls per window, per verified
-# WebID. Generous for an interactive agent; caps a runaway.
+# CID URL. Generous for an interactive agent; caps a runaway.
 # NOTE: keep this top-level block BELOW the whole spring: tree. It once sat in the
 # middle of it, which re-parented spring.h2/datasource/jpa/ssl under halcyon.* and
 # broke fresh installs with "SSL bundle name 'server' cannot be found".
@@ -86,7 +86,7 @@ logging:
   # Production default. root OFF used to hide everything, including Boot's
   # "APPLICATION FAILED TO START" report — every startup problem looked like a
   # silent hang. ERROR everywhere, plus Halcyon's own one-time/operational
-  # events: service startup, LWS storage mounts, Keycloak key loads, WebID
+  # events: service startup, LWS storage mounts, Keycloak key loads, CID URL
   # login successes (INFO) and failures (WARN).
   level:
     root: ERROR

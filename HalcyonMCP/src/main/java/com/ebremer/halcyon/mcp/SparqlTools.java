@@ -35,7 +35,7 @@ public class SparqlTools {
     @Tool(name = "sparql_query",
             description = "Run a read-only SPARQL query (SELECT/ASK/CONSTRUCT/DESCRIBE) over "
                     + "Halcyon's RDF dataset as the calling user - you see only triples ACP "
-                    + "grants your WebID. Updates and SERVICE clauses are refused; results are "
+                    + "grants your CID URL. Updates and SERVICE clauses are refused; results are "
                     + "row-capped and time-bounded. Returns SPARQL Results JSON, or Turtle for "
                     + "CONSTRUCT/DESCRIBE.")
     public String query(

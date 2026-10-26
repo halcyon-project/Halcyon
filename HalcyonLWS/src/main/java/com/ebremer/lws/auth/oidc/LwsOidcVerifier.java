@@ -114,7 +114,7 @@ public final class LwsOidcVerifier implements CredentialVerifier {
         // any dereference, so a refused issuer costs no outbound request.
         try {
             issuers.get().require("OpenID Provider", iss);
-            webIdHosts.get().require("WebID host", sub);
+            webIdHosts.get().require("CID host", sub);
         } catch (TrustPolicy.RefusedException e) {
             LOG.debug("rejecting LWS credential for <{}>: {}", sub, e.getMessage());
             throw new InvalidBearerTokenException("invalid_token", e.getMessage());

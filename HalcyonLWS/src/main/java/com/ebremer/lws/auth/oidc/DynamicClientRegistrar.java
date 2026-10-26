@@ -18,17 +18,18 @@ import org.slf4j.LoggerFactory;
 
 /**
  * OpenID Connect Dynamic Client Registration (RFC 7591): registers this resource server as a client
- * at an OP discovered from a WebID, so interactive WebID login works with <em>any</em> conformant OP
- * without a pre-arranged {@code client_id}.
+ * at an OP discovered from a CID URL, so interactive CID URL login works with <em>any</em> conformant
+ * OP without a pre-arranged {@code client_id}.
  *
  * <p>The registered client is public (PKCE, {@code token_endpoint_auth_method: none}), authorization
- * code only, with the storage's {@code /webid-callback} as its sole redirect URI. The resulting
+ * code only, with the storage's {@code /cid-callback} as its sole redirect URI. The resulting
  * {@code client_id} is cached per issuer so a login does not register a fresh client every time. The
  * registration endpoint is {@link SsrfGuard}-checked like every other outbound call.
  *
  * <p>Note: registration only gives a {@code client_id}; the login still requires the OP to assert the
- * WebID in the ID token (as {@code sub} or a {@code webid} claim) — see {@link WebIdOidcLogin}. For a
- * Keycloak OP that means the WebID mapper on a default client scope, and a realm that permits
+ * CID URL in the ID token (as {@code sub} or a Solid-OIDC {@code webid} claim) — see
+ * {@link WebIdOidcLogin}. For a Keycloak OP that means the {@code webid} mapper on a default client
+ * scope, and a realm that permits
  * anonymous registration.
  */
 public final class DynamicClientRegistrar {
@@ -61,7 +62,7 @@ public final class DynamicClientRegistrar {
         SsrfGuard.verify(registrationEndpoint, allowedHosts);
         String body = Json.createObjectBuilder()
                 .add("application_type", "web")
-                .add("client_name", "Halcyon WebID Login")
+                .add("client_name", "Halcyon CID URL Login")
                 .add("token_endpoint_auth_method", "none")
                 .add("grant_types", Json.createArrayBuilder().add("authorization_code"))
                 .add("response_types", Json.createArrayBuilder().add("code"))
@@ -85,7 +86,7 @@ public final class DynamicClientRegistrar {
                 if (clientId == null || clientId.isBlank()) {
                     throw new RegistrationException("dynamic registration response carried no client_id");
                 }
-                LOG.info("dynamically registered WebID-login client {} at {}", clientId, registrationEndpoint);
+                LOG.info("dynamically registered CID URL login client {} at {}", clientId, registrationEndpoint);
                 return clientId;
             }
         } catch (IOException e) {

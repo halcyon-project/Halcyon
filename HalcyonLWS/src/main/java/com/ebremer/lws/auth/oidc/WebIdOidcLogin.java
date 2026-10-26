@@ -30,10 +30,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Interactive WebID login (the browser relying-party flow): a person types a WebID, and this
- * discovers <em>their</em> OpenID Provider from the WebID's controlled identifier document, runs an
+ * Interactive CID URL login (the browser relying-party flow): a person types a CID URL, and this
+ * discovers <em>their</em> OpenID Provider from that controlled identifier document, runs an
  * OpenID Connect Authorization-Code + PKCE login against that OP, and — on the callback — validates
- * the returned ID Token and confirms it authenticates that exact WebID.
+ * the returned ID Token and confirms it authenticates that exact CID URL. (The class keeps its
+ * pre-rename name; "WebID" is the Solid term for the same identifier.)
  *
  * <p>The {@code client_id} is resolved per OP: either a configured, pre-registered id (for an OP you
  * arranged with), or — when dynamic registration is enabled — obtained at login time via
@@ -153,12 +154,12 @@ public final class WebIdOidcLogin {
      */
     public Redirect begin(String webId) {
         if (!isUrl(webId)) {
-            throw new WebIdLoginException("not an absolute http(s) WebID: " + webId);
+            throw new WebIdLoginException("not an absolute http(s) CID URL: " + webId);
         }
         // Refuse a WebID this deployment does not accept before dereferencing it, so an
         // unacceptable identifier costs no outbound request. Unset means allow all.
         try {
-            webIdHosts().require("WebID host", webId);
+            webIdHosts().require("CID host", webId);
         } catch (TrustPolicy.RefusedException e) {
             throw new WebIdLoginException(e.getMessage());
         }
@@ -167,10 +168,10 @@ public final class WebIdOidcLogin {
             Model cid = cids.dereference(webId, allowedHosts);
             issuer = cids.openIdProvider(cid, webId);
         } catch (SsrfGuard.BlockedException | CidResolver.CidException e) {
-            throw new WebIdLoginException("could not resolve the WebID: " + e.getMessage());
+            throw new WebIdLoginException("could not resolve the CID document: " + e.getMessage());
         }
         if (issuer == null) {
-            throw new WebIdLoginException("the WebID document names no OpenIdProvider: " + webId);
+            throw new WebIdLoginException("the CID document names no OpenIdProvider: " + webId);
         }
         // The provider is named BY the WebID document, so it is the caller's choice, not ours.
         // This is where the deployment gets a say -- and it is checked before OIDC discovery, so a
@@ -308,7 +309,7 @@ public final class WebIdOidcLogin {
         try {
             return new WebIdOidcLogin(current.clientId(), null, false, allowedHosts).refresh(current);
         } catch (RuntimeException e) {
-            LOG.warn("WebID token refresh failed for {}: {}", current.webId(), e.getMessage());
+            LOG.warn("CID URL login token refresh failed for {}: {}", current.webId(), e.getMessage());
             return current;
         }
     }
@@ -337,7 +338,7 @@ public final class WebIdOidcLogin {
         boolean bound = webId.equals(claims.getSubject())
                 || webId.equals(claims.get("webid", String.class));
         if (!bound) {
-            throw new WebIdLoginException("the id_token does not assert the requested WebID <"
+            throw new WebIdLoginException("the id_token does not assert the requested CID URL <"
                     + webId + "> (sub=" + claims.getSubject() + ")");
         }
         if (claims.getExpiration() == null) {

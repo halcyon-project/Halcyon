@@ -10,12 +10,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * {@code GET /webid-callback} — the OpenID Provider redirects the browser here with the
- * authorization code (Option B).
+ * {@code GET /cid-callback} (and its deprecated alias {@code /webid-callback}) — the OpenID
+ * Provider redirects the browser here with the authorization code (Option B).
  *
  * <p>It validates {@code state}, exchanges the code, validates the returned ID Token (the OP's
- * signature, issuer, nonce, expiry, and that {@code sub} equals the WebID), then stores the
- * authenticated WebID in the session for {@code HalcyonSession} to seat as the principal (B3) and
+ * signature, issuer, nonce, expiry, and that {@code sub} equals the CID URL), then stores the
+ * authenticated CID URL in the session for {@code HalcyonSession} to seat as the principal (B3) and
  * redirects home. Anonymous route; off unless {@code lws-oidc.json} enables it.
  */
 public class WebIdCallbackServlet extends HttpServlet {
@@ -25,7 +25,7 @@ public class WebIdCallbackServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
         if (!WebIdLogin.enabled()) {
-            response.sendError(HttpServletResponse.SC_NOT_FOUND, "WebID login is not enabled");
+            response.sendError(HttpServletResponse.SC_NOT_FOUND, "CID URL login is not enabled");
             return;
         }
         String oauthError = request.getParameter("error");
@@ -37,7 +37,7 @@ public class WebIdCallbackServlet extends HttpServlet {
         WebIdOidcLogin.Pending pending = session == null ? null
                 : (WebIdOidcLogin.Pending) session.getAttribute(WebIdLogin.PENDING);
         if (pending == null) {
-            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "no WebID login is in progress");
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "no CID URL login is in progress");
             return;
         }
         try {
@@ -55,12 +55,12 @@ public class WebIdCallbackServlet extends HttpServlet {
             // presents to LWS storage as this WebID, and the refresh token renews it on expiry (a WebID
             // login has no Keycloak access token).
             fresh.setAttribute(WebIdLogin.TOKENS, tokens);
-            logger.info("WebID login succeeded for {}", tokens.webId());
+            logger.info("CID URL login succeeded for {}", tokens.webId());
             response.sendRedirect("/");
         } catch (WebIdOidcLogin.WebIdLoginException e) {
-            logger.warn("WebID login callback failed: {}", e.getMessage());
+            logger.warn("CID URL login callback failed: {}", e.getMessage());
             session.removeAttribute(WebIdLogin.PENDING);
-            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "WebID login failed: " + e.getMessage());
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "CID URL login failed: " + e.getMessage());
         }
     }
 }
