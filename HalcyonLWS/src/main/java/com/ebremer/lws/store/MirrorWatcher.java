@@ -1,6 +1,7 @@
 package com.ebremer.lws.store;
 
 import com.ebremer.lws.config.LwsStorageConfig;
+import com.sun.nio.file.ExtendedWatchEventModifier;
 import java.io.IOException;
 import java.nio.file.ClosedWatchServiceException;
 import java.nio.file.FileSystems;
@@ -11,6 +12,7 @@ import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -30,8 +32,11 @@ import org.slf4j.LoggerFactory;
  * work out the adopts, updates and de-registrations. The periodic reconcile remains the safety net
  * for anything the OS drops (a {@code WatchService} may overflow under bulk change).
  *
- * <p>A {@code WatchService} is not recursive, so every directory is registered individually and any
- * newly-created directory (including a whole subtree moved in) is registered as it appears.
+ * <p>On Windows each root is watched as a whole tree ({@code FILE_TREE}), one handle per root. A
+ * handle on every directory would stop the server renaming any directory with a watched one inside
+ * it, which is what a MOVE of a container does. Elsewhere a {@code WatchService} is not recursive,
+ * so every directory is registered individually and any newly-created directory (including a whole
+ * subtree moved in) is registered as it appears.
  */
 public final class MirrorWatcher {
 
@@ -40,12 +45,19 @@ public final class MirrorWatcher {
     /** Quiet period after the last event before a reconcile fires, coalescing a burst into one pass. */
     private static final long DEBOUNCE_MS = 1500;
 
+    private static final WatchEvent.Kind<?>[] KINDS = {
+            StandardWatchEventKinds.ENTRY_CREATE,
+            StandardWatchEventKinds.ENTRY_MODIFY,
+            StandardWatchEventKinds.ENTRY_DELETE};
+
     private final LwsStore store;
     private final LwsStorageConfig cfg;
     private final MirrorContentStore mirror;
     private final ContentStore content;
 
     private final Map<WatchKey, Path> watched = new ConcurrentHashMap<>();
+    /** The keys that watch a whole tree, so a new directory under them needs no registration. */
+    private final Set<WatchKey> trees = ConcurrentHashMap.newKeySet();
     private final ScheduledExecutorService debouncer;
     private WatchService ws;
     private Thread eventThread;
@@ -79,10 +91,10 @@ public final class MirrorWatcher {
         try {
             this.ws = FileSystems.getDefault().newWatchService();
             // Every disk backing this storage: the content root plus each mount.
-            // registerTree quietly skips a root that is not there (offline disk);
+            // watchRoot quietly skips a root that is not there (offline disk);
             // the periodic reconcile picks it up when it returns.
             for (MountTable.WalkRoot wr : mirror.mounts().walkRoots()) {
-                registerTree(wr.root());
+                watchRoot(wr.root());
             }
         } catch (IOException e) {
             LOG.warn("mirror watcher for {} could not start; relying on the periodic reconcile",
@@ -112,17 +124,26 @@ public final class MirrorWatcher {
         debouncer.shutdownNow();
     }
 
+    private void watchRoot(Path root) throws IOException {
+        if (!Files.isDirectory(root)) {
+            return;
+        }
+        try {
+            WatchKey key = root.register(ws, KINDS, ExtendedWatchEventModifier.FILE_TREE);
+            watched.put(key, root);
+            trees.add(key);
+        } catch (UnsupportedOperationException notWindows) {
+            registerTree(root);
+        }
+    }
+
     private void registerTree(Path dir) throws IOException {
         if (!Files.isDirectory(dir)) {
             return;
         }
         try (var walk = Files.walk(dir)) {
             for (Path p : (Iterable<Path>) walk.filter(Files::isDirectory)::iterator) {
-                WatchKey key = p.register(ws,
-                        StandardWatchEventKinds.ENTRY_CREATE,
-                        StandardWatchEventKinds.ENTRY_MODIFY,
-                        StandardWatchEventKinds.ENTRY_DELETE);
-                watched.put(key, p);
+                watched.put(p.register(ws, KINDS), p);
             }
         }
     }
@@ -142,8 +163,10 @@ public final class MirrorWatcher {
                         continue;   // the reconcile walks the whole tree, so a dropped event is caught
                     }
                     Path child = dir.resolve((Path) ev.context());
-                    // A new directory (or a whole subtree moved in) must be watched too.
-                    if (ev.kind() == StandardWatchEventKinds.ENTRY_CREATE && Files.isDirectory(child)) {
+                    // A new directory (or a whole subtree moved in) must be watched too, unless
+                    // a tree watch already covers it.
+                    if (ev.kind() == StandardWatchEventKinds.ENTRY_CREATE && !trees.contains(key)
+                            && Files.isDirectory(child)) {
                         try {
                             registerTree(child);
                         } catch (IOException e) {
@@ -155,6 +178,7 @@ public final class MirrorWatcher {
             }
             if (!key.reset()) {
                 watched.remove(key);    // the directory was deleted; stop tracking its key
+                trees.remove(key);
             }
         }
     }
