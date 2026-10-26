@@ -47,7 +47,7 @@ public class MenuPanel extends Panel {
             }
         };
         LogoutLink logout = new LogoutLink("logoutLink");
-        ExternalLink webidlogin = new ExternalLink("webidLoginLink", host+"/webid-login","WebID Login");
+        ExternalLink webidlogin = new ExternalLink("webidLoginLink", host+"/cid-login","WebID Login");
         add(images);
         add(account);
         add(colorclasses);

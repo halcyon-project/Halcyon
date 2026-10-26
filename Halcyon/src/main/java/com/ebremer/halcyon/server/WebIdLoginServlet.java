@@ -9,10 +9,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * {@code GET /webid-login} — the interactive WebID login entry point (Option B).
+ * {@code GET /cid-login} (and its deprecated alias {@code /webid-login}) — the interactive CID URL
+ * login entry point (Option B).
  *
- * <p>With no {@code webid} parameter it serves a minimal form; with one it discovers that WebID's
- * OpenID Provider, stashes the PKCE/state in the session, and redirects the browser to the OP.
+ * <p>With no {@code cid} parameter (or the deprecated {@code webid}) it serves a minimal form; with
+ * one it discovers the OpenID Provider that CID document names, stashes the PKCE/state in the
+ * session, and redirects the browser to the OP.
  * Anonymous by design (not in {@code URLControl.getSecuredURLs()}); off unless {@code lws-oidc.json}
  * enables it. The existing Keycloak login is untouched.
  */
@@ -26,7 +28,10 @@ public class WebIdLoginServlet extends HttpServlet {
             response.sendError(HttpServletResponse.SC_NOT_FOUND, "WebID login is not enabled");
             return;
         }
-        String webid = request.getParameter("webid");
+        String webid = request.getParameter("cid");
+        if (webid == null || webid.isBlank()) {
+            webid = request.getParameter("webid"); // the pre-rename parameter, still accepted
+        }
         if (webid == null || webid.isBlank()) {
             serveForm(response);
             return;
@@ -48,8 +53,8 @@ public class WebIdLoginServlet extends HttpServlet {
                 <!doctype html><html><head><meta charset="utf-8"><title>Log in with your WebID</title></head>
                 <body style="font-family:sans-serif;max-width:40em;margin:3em auto">
                 <h2>Log in with your WebID</h2>
-                <form method="get" action="/webid-login">
-                  <input type="text" name="webid" size="50" autofocus
+                <form method="get" action="/cid-login">
+                  <input type="text" name="cid" size="50" autofocus
                          placeholder="https://you.example/profile#me"
                          style="padding:.5em;width:100%;box-sizing:border-box">
                   <p><button type="submit" style="padding:.5em 1em">Continue</button></p>

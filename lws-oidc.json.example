@@ -1,9 +1,9 @@
 {
   "enabled": true,
   "allowedInternalHosts": [],
-  "webIdLoginClientId": "halcyon-local",
-  "webIdLoginDynamicRegistration": false,
-  "webIdGroups": {
+  "cidLoginClientId": "halcyon-local",
+  "cidLoginDynamicRegistration": false,
+  "cidGroups": {
     "https://ebremer.com/id/erich": ["admin"]
   }
 }

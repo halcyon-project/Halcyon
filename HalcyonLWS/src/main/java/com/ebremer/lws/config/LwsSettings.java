@@ -93,8 +93,7 @@ public final class LwsSettings {
         this.moveAppliesToByStorage = readMoveAppliesToByStorage(m);
         this.issuerPolicy = com.ebremer.lws.auth.oidc.TrustPolicy.forIssuers(
                 readAll(m, "AllowedIssuer"), readAll(m, "DeniedIssuer"));
-        this.webIdHostPolicy = com.ebremer.lws.auth.oidc.TrustPolicy.forHosts(
-                readAll(m, "AllowedWebIdHost"), readAll(m, "DeniedWebIdHost"));
+        this.webIdHostPolicy = cidHostPolicy(m);
     }
 
     public static synchronized LwsSettings get() {
@@ -125,12 +124,11 @@ public final class LwsSettings {
         Model m = load();
         var issuers = com.ebremer.lws.auth.oidc.TrustPolicy.forIssuers(
                 readAll(m, "AllowedIssuer"), readAll(m, "DeniedIssuer"));
-        var hosts = com.ebremer.lws.auth.oidc.TrustPolicy.forHosts(
-                readAll(m, "AllowedWebIdHost"), readAll(m, "DeniedWebIdHost"));
+        var hosts = cidHostPolicy(m);
         // Both parsed: swap together, so a half-applied policy is never observable.
         this.issuerPolicy = issuers;
         this.webIdHostPolicy = hosts;
-        String desc = "issuers=" + issuers + ", webIdHosts=" + hosts;
+        String desc = "issuers=" + issuers + ", cidHosts=" + hosts;
         LOG.info("trust policies reloaded from {}: {}", SETTINGS_FILE, desc);
         return desc;
     }
@@ -157,15 +155,36 @@ public final class LwsSettings {
     }
 
     /**
-     * Which hosts may serve a WebID, from {@code :AllowedWebIdHost} and {@code :DeniedWebIdHost}.
+     * Which hosts may serve a CID document, from {@code :AllowedCidHost} and {@code :DeniedCidHost}.
      *
      * <p>Separate from {@link #issuerPolicy()} and usually not needed: the provider is the trust
-     * anchor, since it is what signs the token, and a provider you trust will not vouch for a WebID
+     * anchor, since it is what signs the token, and a provider you trust will not vouch for a CID URL
      * it does not control. Constrain this as well when the deployment also wants the identifiers
      * themselves to live somewhere it recognises. Unset means allow all.
      */
     public com.ebremer.lws.auth.oidc.TrustPolicy webIdHostPolicy() {
         return webIdHostPolicy;
+    }
+
+    /**
+     * The CID host policy in {@code m}. The deprecated names {@code :AllowedWebIdHost} and
+     * {@code :DeniedWebIdHost} still count, added to the new ones, so a settings file written before
+     * the rename neither loosens nor tightens.
+     */
+    static com.ebremer.lws.auth.oidc.TrustPolicy cidHostPolicy(Model m) {
+        return com.ebremer.lws.auth.oidc.TrustPolicy.forHosts(
+                readAliased(m, "AllowedCidHost", "AllowedWebIdHost"),
+                readAliased(m, "DeniedCidHost", "DeniedWebIdHost"));
+    }
+
+    private static java.util.List<String> readAliased(Model m, String localName, String deprecated) {
+        java.util.List<String> out = new java.util.ArrayList<>(readAll(m, localName));
+        java.util.List<String> old = readAll(m, deprecated);
+        if (!old.isEmpty()) {
+            LOG.warn("{}: :{} is deprecated; rename it to :{}", SETTINGS_FILE, deprecated, localName);
+            out.addAll(old);
+        }
+        return out;
     }
 
     /** The configured storages, in declaration order. Possibly empty. */

@@ -38,7 +38,7 @@ class WebIdOidcLoginTest {
 
     private static final String KID = "k1";
     private static final KeyPair RSA = genRsa();
-    private static final String REDIRECT = "https://storage.example/webid-callback";
+    private static final String REDIRECT = "https://storage.example/cid-callback";
 
     private final WebIdOidcLogin login = new WebIdOidcLogin(
             "halcyon-local", REDIRECT, false, Set.of("127.0.0.1"));

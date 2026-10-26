@@ -22,8 +22,6 @@ public final class WebIdLogin {
      *  LWS-OIDC credential the GUI presents to LWS storage as this WebID) plus the refresh token and
      *  the OP coordinates to refresh it. A WebID login has no Keycloak access token. */
     public static final String TOKENS = "halcyon.webidlogin.tokens";
-    /** Callback path — also the OAuth {@code redirect_uri} registered at the OP. */
-    static final String CALLBACK_PATH = "/webid-callback";
 
     private static volatile boolean loaded;
     private static volatile boolean enabled;
@@ -71,14 +69,16 @@ public final class WebIdLogin {
             }
             LwsOidcSettings settings = LwsOidcSettings.load();
             enabled = settings.enabled();
-            webIdGroups = settings.webIdGroups();
+            webIdGroups = settings.cidGroups();
             allowedHosts = settings.allowedInternalHosts();
             if (enabled) {
-                String redirectUri = HalcyonSettings.getSettings().getProxyHostName() + CALLBACK_PATH;
+                // The OAuth redirect_uri: /cid-callback, or /webid-callback for a pre-arranged client
+                // still configured the old way (LwsOidcSettings.from). Both paths are served.
+                String redirectUri = HalcyonSettings.getSettings().getProxyHostName() + settings.callbackPath();
                 // Which providers this deployment accepts, from settings.ttl. Unset means allow
                 // all, so an unconfigured install logs in exactly as it did before.
-                flow = new WebIdOidcLogin(settings.webIdLoginClientId(), redirectUri,
-                        settings.webIdLoginDynamicRegistration(), settings.allowedInternalHosts())
+                flow = new WebIdOidcLogin(settings.cidLoginClientId(), redirectUri,
+                        settings.cidLoginDynamicRegistration(), settings.allowedInternalHosts())
                         .withTrust(() -> com.ebremer.lws.config.LwsSettings.get().issuerPolicy(),
                                 () -> com.ebremer.lws.config.LwsSettings.get().webIdHostPolicy());
             }

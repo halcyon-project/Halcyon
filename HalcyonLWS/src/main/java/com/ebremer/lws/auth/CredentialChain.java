@@ -126,7 +126,7 @@ public final class CredentialChain {
         // legacy challenge's as_uri) well-formed when nothing can satisfy it.
         if (as == null) {
             String host = HalcyonSettings.getSettings().getProxyHostName();
-            as = lws.enabled() ? host + "/webid-login" : host;
+            as = lws.enabled() ? host + com.ebremer.lws.auth.oidc.LwsOidcSettings.LOGIN_PATH : host;
         }
         return new CredentialChain(resource, as, verifiers);
     }

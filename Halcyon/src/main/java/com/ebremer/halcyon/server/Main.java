@@ -4,6 +4,7 @@ import com.ebremer.halcyon.services.ServicesLoader;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import com.ebremer.halcyon.filereaders.FileReaderFactoryProvider;
 import com.ebremer.halcyon.imagebox.ImageServer;
+import com.ebremer.lws.auth.oidc.LwsOidcSettings;
 import java.util.Arrays;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.Banner.Mode;
@@ -130,10 +131,11 @@ public class Main {
         return srb;
     }
 
-    // /webid-login + /webid-callback: interactive WebID login (Option B) — discovers the user's
-    // OpenID Provider from a typed WebID and runs Authorization-Code + PKCE against it. Anonymous
+    // /cid-login + /cid-callback: interactive CID URL login (Option B) — discovers the user's
+    // OpenID Provider from a typed CID URL and runs Authorization-Code + PKCE against it. Anonymous
     // (NOT in getSecuredURLs) and Wicket-ignored (URLControl). Off unless lws-oidc.json enables it;
-    // the fixed-Keycloak login is untouched.
+    // the fixed-Keycloak login is untouched. The pre-rename paths /webid-login and /webid-callback
+    // stay mapped to the same servlets, for bookmarks and for redirect URIs registered at an OP.
     @Lazy(true)
     @Bean
     ServletRegistrationBean WebIdLoginServletRegistration() {
@@ -141,7 +143,7 @@ public class Main {
         srb.setLoadOnStartup(3);
         srb.setOrder(Ordered.HIGHEST_PRECEDENCE + 9);
         srb.setServlet(new WebIdLoginServlet());
-        srb.setUrlMappings(Arrays.asList("/webid-login"));
+        srb.setUrlMappings(Arrays.asList(LwsOidcSettings.LOGIN_PATH, LwsOidcSettings.LEGACY_LOGIN_PATH));
         return srb;
     }
 
@@ -152,7 +154,7 @@ public class Main {
         srb.setLoadOnStartup(3);
         srb.setOrder(Ordered.HIGHEST_PRECEDENCE + 10);
         srb.setServlet(new WebIdCallbackServlet());
-        srb.setUrlMappings(Arrays.asList("/webid-callback"));
+        srb.setUrlMappings(Arrays.asList(LwsOidcSettings.CALLBACK_PATH, LwsOidcSettings.LEGACY_CALLBACK_PATH));
         return srb;
     }
 

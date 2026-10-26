@@ -31,10 +31,12 @@ public class HalcyonInfoTools {
      */
     @Tool(name = "halcyon_whoami",
             description = "The authenticated caller as this server verified them: "
-                    + "WebID, OAuth client, and token issuer.")
+                    + "CID URL (cidUrl), OAuth client, and token issuer.")
     public String whoami(ToolContext toolContext) {
         AgentContext agent = McpCallers.require(toolContext).agent();
         return Json.createObjectBuilder()
+                .add("cidUrl", agent.webId())
+                // Deprecated: the same value under its pre-rename key, for clients that read it.
                 .add("webid", agent.webId())
                 .add("client", agent.clientId() == null ? "" : agent.clientId())
                 .add("issuer", agent.issuer() == null ? "" : agent.issuer())

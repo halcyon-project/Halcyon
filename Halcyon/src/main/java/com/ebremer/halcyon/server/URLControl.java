@@ -64,8 +64,11 @@ public class URLControl {
             "/h2",
             "/skunkworks/",
             "/login",
-            // Interactive WebID login (Option B): the entry point and the OP's redirect target.
-            // Anonymous servlets (see Main.java), so Wicket must not claim their URL trees.
+            // Interactive CID URL login (Option B): the entry point and the OP's redirect target,
+            // under their names and their pre-rename aliases. Anonymous servlets (see Main.java),
+            // so Wicket must not claim their URL trees.
+            "/cid-login",
+            "/cid-callback",
             "/webid-login",
             "/webid-callback",
             "/auth",
