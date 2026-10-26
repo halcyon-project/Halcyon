@@ -147,10 +147,10 @@ public final class LWSX {
 
     // --- Provenance ---------------------------------------------------------
 
-    /** WebID of the agent that created the resource. Backs {@code acp:CreatorAgent}. */
+    /** CID URL of the agent that created the resource. Backs {@code acp:CreatorAgent}. */
     public static final Property createdBy = prop("createdBy");
 
-    /** WebID of the agent that owns the resource. Backs {@code acp:OwnerAgent}. */
+    /** CID URL of the agent that owns the resource. Backs {@code acp:OwnerAgent}. */
     public static final Property ownedBy = prop("ownedBy");
 
     public static final Property created = prop("created");
@@ -202,7 +202,7 @@ public final class LWSX {
      * stop delivery — but it can only reconstruct the agent from what was stored. Without these, a
      * policy that grants read only when {@code acp:client} or {@code acp:issuer} matches would
      * deny at delivery time even for an agent who can read the resource interactively: the
-     * notification would silently stop. So the whole context is persisted, not just the WebID.
+     * notification would silently stop. So the whole context is persisted, not just the CID URL.
      */
     public static final Property clientId = prop("clientId");
     public static final Property issuer = prop("issuer");

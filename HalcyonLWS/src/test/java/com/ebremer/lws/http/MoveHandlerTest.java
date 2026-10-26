@@ -411,14 +411,14 @@ class MoveHandlerTest {
     }
 
     /** An agent that may do anything: what is being tested is not authorization. */
-    private static MoveHandler.Authority all(String webId) {
+    private static MoveHandler.Authority all(String cidUrl) {
         return new MoveHandler.Authority(uri -> EnumSet.allOf(AccessMode.class),
                 (mode, what) -> Problem.forbidden(what));
     }
 
     /** The agent as the ACP engine judges it, refused as the servlet refuses. */
-    private MoveHandler.Authority acp(String webId) {
-        AgentContext agent = new AgentContext(webId, null, null, List.of());
+    private MoveHandler.Authority acp(String cidUrl) {
+        AgentContext agent = new AgentContext(cidUrl, null, null, List.of());
         AcpEngine engine = new AcpEngine(store);
         return new MoveHandler.Authority(uri -> engine.modes(agent, uri),
                 (mode, what) -> agent.isAuthenticated() ? Problem.forbidden("may not " + what)
@@ -484,13 +484,13 @@ class MoveHandlerTest {
         matcher.addProperty(ACP.agent, agent == null ? ACP.PublicAgent : acp.createResource(agent));
     }
 
-    private void subscribe(String id, String webId, String topic) {
+    private void subscribe(String id, String cidUrl, String topic) {
         Model g = store.raw().getNamedModel(LWSX.SUBSCRIPTION_GRAPH);
         Resource s = g.createResource("urn:lws:subscription:" + id);
         s.addProperty(RDF.type, LWS.WebhookSubscription);
         s.addProperty(LWSX.storage, g.createResource(cfg.storageRootUri()));
         s.addProperty(LWS.subscription, "https://inbox.example/" + id);
-        s.addProperty(LWSX.ownedBy, g.createResource(webId));
+        s.addProperty(LWSX.ownedBy, g.createResource(cidUrl));
         s.addProperty(LWS.topic, g.createResource(topic));
     }
 

@@ -246,7 +246,7 @@ public final class MoveHandler {
      *
      * @param up      the {@code up} targets the patched linkset holds, as the client wrote them
      * @param base    the linkset's URI, against which a relative target is resolved
-     * @param actor   the agent's WebID, for the notification's {@code actor} when that is switched on
+     * @param actor   the agent's CID URL, for the notification's {@code actor} when that is switched on
      * @return what was done, or {@code null} for no move
      */
     public Moved move(LwsResource r, List<String> up, String base, Authority authz, String actor) {

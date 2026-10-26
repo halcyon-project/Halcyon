@@ -28,8 +28,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * <p>When {@code :LWSOwner} was unset, the seed granted {@code acp:AuthenticatedAgent}
  * Read+Write+Append+Control on the storage root under both {@code acp:accessControl} and
  * {@code acp:memberAccessControl} — so the grant inherited to every resource the storage would ever
- * hold. Since this server accepts any WebID that names its own OpenID Provider, that is full control
- * for anyone who can host a WebID document, and no per-resource ACR can narrow it: inheritance in
+ * hold. Since this server accepts any CID URL that names its own OpenID Provider, that is full control
+ * for anyone who can host a CID document, and no per-resource ACR can narrow it: inheritance in
  * {@link AcpEngine} is a union, and a stranger holding inherited Control can PUT the restriction
  * away. The comment defending it reasoned that a root naming nobody "would lock everyone out,
  * including whoever is trying to configure the storage" — but {@code :LWSOwner} is read from a FILE,
@@ -98,8 +98,8 @@ class AcpBootstrapTest {
         });
     }
 
-    private Set<AccessMode> modesFor(String webId, String uri) {
-        AgentContext ctx = new AgentContext(webId, null, null, List.of());
+    private Set<AccessMode> modesFor(String cidUrl, String uri) {
+        AgentContext ctx = new AgentContext(cidUrl, null, null, List.of());
         return store.read(() -> new AcpEngine(store).modes(ctx, uri));
     }
 
@@ -107,7 +107,7 @@ class AcpBootstrapTest {
 
     /**
      * What the old default meant, stated as a test so it cannot come back quietly: a stranger with
-     * any WebID held Control over the storage root.
+     * any CID URL held Control over the storage root.
      */
     @Test
     void theOldPermissiveRootGaveAnyAuthenticatedAgentControl() {

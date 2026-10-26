@@ -94,8 +94,8 @@ class TokenExchangeTest {
     }
 
     /** A suite that accepts anything and reports Alice. */
-    private static CredentialVerifier accepts(String webId, String clientId) {
-        return (token, req) -> new AgentContext(webId, clientId, "https://openid.example",
+    private static CredentialVerifier accepts(String cidUrl, String clientId) {
+        return (token, req) -> new AgentContext(cidUrl, clientId, "https://openid.example",
                 List.of());
     }
 
@@ -341,7 +341,7 @@ class TokenExchangeTest {
         AgentContext agent = validator(STORAGE).tryAuthenticate(presented(token), null);
 
         assertNotNull(agent);
-        assertEquals(ALICE, agent.webId());
+        assertEquals(ALICE, agent.cidUrl());
         assertEquals(CLIENT, agent.clientId());
         assertEquals(ORIGIN, agent.issuer());
     }
@@ -353,7 +353,7 @@ class TokenExchangeTest {
                 .exchange(request(STORAGE + "/", credential(NOW.plusSeconds(3600))), null)
                 .accessToken();
 
-        assertEquals(ALICE, validator(STORAGE).tryAuthenticate(presented(token), null).webId());
+        assertEquals(ALICE, validator(STORAGE).tryAuthenticate(presented(token), null).cidUrl());
     }
 
     @Test
@@ -378,7 +378,7 @@ class TokenExchangeTest {
 
             AgentContext agent = validator(STORAGE).tryAuthenticate(presented(token), null);
 
-            assertEquals(ALICE, agent.webId(), "aud " + self + " among others");
+            assertEquals(ALICE, agent.cidUrl(), "aud " + self + " among others");
         }
     }
 

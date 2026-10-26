@@ -376,19 +376,19 @@ public final class AcpEngine {
                 continue;
             }
             if (r.equals(ACP.CreatorAgent)) {
-                if (ctx.isAuthenticated() && isSelf(sys, target, LWSX.createdBy, ctx.webId())) {
+                if (ctx.isAuthenticated() && isSelf(sys, target, LWSX.createdBy, ctx.cidUrl())) {
                     return true;
                 }
                 continue;
             }
             if (r.equals(ACP.OwnerAgent)) {
-                if (ctx.isAuthenticated() && isSelf(sys, target, LWSX.ownedBy, ctx.webId())) {
+                if (ctx.isAuthenticated() && isSelf(sys, target, LWSX.ownedBy, ctx.cidUrl())) {
                     return true;
                 }
                 continue;
             }
-            // A concrete WebID.
-            if (ctx.isAuthenticated() && r.getURI().equals(ctx.webId())) {
+            // A concrete CID URL.
+            if (ctx.isAuthenticated() && r.getURI().equals(ctx.cidUrl())) {
                 return true;
             }
         }
@@ -396,10 +396,10 @@ public final class AcpEngine {
     }
 
     private static boolean isSelf(Model sys, Resource target, org.apache.jena.rdf.model.Property p,
-            String webId) {
+            String cidUrl) {
         Statement st = sys.getProperty(target, p);
         return st != null && st.getObject().isURIResource()
-                && st.getObject().asResource().getURI().equals(webId);
+                && st.getObject().asResource().getURI().equals(cidUrl);
     }
 
     private static boolean containsUri(List<RDFNode> nodes, String uri) {

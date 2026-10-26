@@ -175,11 +175,11 @@ public final class AccessSharing {
             Resource s = node(false, id);
             g.add(s, RDF.type, cls("AccessRequest"));
             g.add(s, LWSX.document, g.createLiteral(doc.toString()));
-            g.add(s, LWSX.ownedBy, res(agent.webId()));
+            g.add(s, LWSX.ownedBy, res(agent.cidUrl()));
             g.add(s, LWSX.storage, res(cfg.storageRootUri()));
             g.add(s, LWSX.seq, typedLong(new ResourceRegistry(store, cfg).nextSeq()));
         });
-        LOG.info("access request {} from {}", id, agent.webId());
+        LOG.info("access request {} from {}", id, agent.cidUrl());
         return cfg.accessRequestsUri() + "/" + id;
     }
 
@@ -235,14 +235,14 @@ public final class AccessSharing {
             g.add(s, RDF.type, cls("AccessGrant"));
             g.add(s, LWSX.isGrant, ResourceFactory.createTypedLiteral(true));
             g.add(s, LWSX.document, g.createLiteral(doc.toString()));
-            g.add(s, LWSX.ownedBy, res(agent.webId()));
+            g.add(s, LWSX.ownedBy, res(agent.cidUrl()));
             g.add(s, LWSX.storage, res(cfg.storageRootUri()));
             g.add(s, LWSX.seq, typedLong(new ResourceRegistry(store, cfg).nextSeq()));
             installed.forEach(uri -> g.add(s, LWSX.grantedPolicy, res(uri)));
             store.bumpAcpEpoch();   // a policy changed; cached listings must revalidate (C6)
         });
         String grantUri = cfg.accessGrantsUri() + "/" + id;
-        LOG.info("access grant {} by {} installed {} policy node(s)", id, agent.webId(),
+        LOG.info("access grant {} by {} installed {} policy node(s)", id, agent.cidUrl(),
                 policies.size());
 
         // SHOULD (lws10-core): tell each assignee they were granted access. Best-effort and
@@ -349,7 +349,7 @@ public final class AccessSharing {
      */
     public List<Ref> visible(AgentContext agent, boolean grants, boolean controller) {
         Model g = graph();
-        Resource me = agent.isAuthenticated() ? res(agent.webId()) : null;
+        Resource me = agent.isAuthenticated() ? res(agent.cidUrl()) : null;
         List<Ref> out = new ArrayList<>();
         for (var it = g.listSubjectsWithProperty(RDF.type, cls(grants ? "AccessGrant" : "AccessRequest"));
                 it.hasNext();) {
@@ -408,7 +408,7 @@ public final class AccessSharing {
         if (controller) {
             return true;
         }
-        Resource me = agent.isAuthenticated() ? res(agent.webId()) : null;
+        Resource me = agent.isAuthenticated() ? res(agent.cidUrl()) : null;
         return me != null && maySee(g, s, me, grant);
     }
 
@@ -426,7 +426,7 @@ public final class AccessSharing {
     /** Whether the agent owns (created) this request/grant — for cancel/revoke. Read txn. */
     public boolean ownedBy(AgentContext agent, boolean grant, String id) {
         return agent.isAuthenticated()
-                && graph().contains(node(grant, id), LWSX.ownedBy, res(agent.webId()));
+                && graph().contains(node(grant, id), LWSX.ownedBy, res(agent.cidUrl()));
     }
 
     public boolean exists(boolean grant, String id) {

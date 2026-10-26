@@ -26,7 +26,7 @@ import org.slf4j.LoggerFactory;
  * <p>Every bean here except {@link #httpSessionListener()} is conditional on Keycloak
  * being switched on — i.e. on {@code settings.ttl} naming an {@code :AuthServer}. With it
  * commented out none of them are built and the Wicket pages are guarded by
- * {@code HalcyonAuthorizationStrategy} alone, off the WebID seated by the LWS interactive
+ * {@code HalcyonAuthorizationStrategy} alone, off the CID URL seated by the LWS interactive
  * login. The code is untouched and returns with the setting. See {@link KeycloakEnabled}.
  *
  * @author erich

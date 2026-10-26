@@ -73,7 +73,7 @@ public final class LwsSettings {
     private final java.util.Map<String, java.util.Set<com.ebremer.lws.store.ResourceType>>
             moveAppliesToByStorage;
     private volatile com.ebremer.lws.auth.oidc.TrustPolicy issuerPolicy;
-    private volatile com.ebremer.lws.auth.oidc.TrustPolicy webIdHostPolicy;
+    private volatile com.ebremer.lws.auth.oidc.TrustPolicy cidHostPolicy;
 
     private LwsSettings() {
         Model m = load();
@@ -93,7 +93,7 @@ public final class LwsSettings {
         this.moveAppliesToByStorage = readMoveAppliesToByStorage(m);
         this.issuerPolicy = com.ebremer.lws.auth.oidc.TrustPolicy.forIssuers(
                 readAll(m, "AllowedIssuer"), readAll(m, "DeniedIssuer"));
-        this.webIdHostPolicy = cidHostPolicy(m);
+        this.cidHostPolicy = cidHostPolicy(m);
     }
 
     public static synchronized LwsSettings get() {
@@ -127,7 +127,7 @@ public final class LwsSettings {
         var hosts = cidHostPolicy(m);
         // Both parsed: swap together, so a half-applied policy is never observable.
         this.issuerPolicy = issuers;
-        this.webIdHostPolicy = hosts;
+        this.cidHostPolicy = hosts;
         String desc = "issuers=" + issuers + ", cidHosts=" + hosts;
         LOG.info("trust policies reloaded from {}: {}", SETTINGS_FILE, desc);
         return desc;
@@ -142,9 +142,9 @@ public final class LwsSettings {
      * and on a multi-tenant identity server two realms on one host are different trust domains, so
      * a host-level list would read as a restriction while imposing almost none.
      *
-     * <p>This is what gives {@code acp:AuthenticatedAgent} a defensible meaning. The WebID login
-     * takes the provider from the caller's OWN WebID document, so without a policy here
-     * "authenticated" means "anyone who can host a WebID document and run an OP" — which is correct
+     * <p>This is what gives {@code acp:AuthenticatedAgent} a defensible meaning. The CID URL login
+     * takes the provider from the caller's OWN CID document, so without a policy here
+     * "authenticated" means "anyone who can host a CID document and run an OP" — which is correct
      * for open federation and useless as a trust tier. Naming the providers you accept turns the
      * middle tier into "someone an identity provider I named vouches for".
      *
@@ -162,8 +162,8 @@ public final class LwsSettings {
      * it does not control. Constrain this as well when the deployment also wants the identifiers
      * themselves to live somewhere it recognises. Unset means allow all.
      */
-    public com.ebremer.lws.auth.oidc.TrustPolicy webIdHostPolicy() {
-        return webIdHostPolicy;
+    public com.ebremer.lws.auth.oidc.TrustPolicy cidHostPolicy() {
+        return cidHostPolicy;
     }
 
     /**
@@ -198,7 +198,7 @@ public final class LwsSettings {
     }
 
     /**
-     * WebID of the storage controller, from {@code :LWSOwner}.
+     * CID URL of the storage controller, from {@code :LWSOwner}.
      *
      * <p>Null when unset, in which case the bootstrap policy grants full control to
      * any <em>authenticated</em> agent instead. That is a deliberate development

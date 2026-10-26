@@ -103,7 +103,7 @@ public class Graph3D extends BasePage {
      * surface that did, and the wrapper it skipped is the one whose job is to hide
      * {@code hal:SecurityGraph} and {@code hal:GroupsAndUsers} — so an explorer meant for the data
      * graph was serving the deployment's identity substrate instead: every realm user's name, email
-     * address and WebID, the group-membership graph, and the WAC rules themselves. The javadoc here
+     * address and CID URL, the group-membership graph, and the WAC rules themselves. The javadoc here
      * already said "never raw"; only the code disagreed. (C01.)
      *
      * <p>{@code CLOSED} is deny-by-default, so this can only narrow what the page shows. The

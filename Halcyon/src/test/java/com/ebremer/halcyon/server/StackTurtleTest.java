@@ -73,7 +73,7 @@ class StackTurtleTest {
         assertTrue(ttl.contains("<" + ELSEWHERE + ">"),
                 "a cross-container reference must stay absolute:\n" + ttl);
         assertTrue(ttl.contains("<" + CREATOR + ">"),
-                "the creator WebID must stay absolute:\n" + ttl);
+                "the creator CID URL must stay absolute:\n" + ttl);
         assertFalse(ttl.contains("<../"), "no parent-hopping forms:\n" + ttl);
     }
 

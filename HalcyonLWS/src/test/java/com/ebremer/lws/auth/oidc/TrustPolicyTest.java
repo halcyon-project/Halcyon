@@ -13,9 +13,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Pins the identity-provider allow/deny policy.
  *
- * <p>This is what gives {@code acp:AuthenticatedAgent} a defensible meaning. Halcyon's WebID login
- * takes the OpenID Provider from the caller's OWN WebID document, so without a policy here
- * "authenticated" means "anyone who can host a WebID document and run an OP" — correct for open
+ * <p>This is what gives {@code acp:AuthenticatedAgent} a defensible meaning. Halcyon's CID URL login
+ * takes the OpenID Provider from the caller's OWN CID document, so without a policy here
+ * "authenticated" means "anyone who can host a CID document and run an OP" — correct for open
  * federation, useless as a trust tier. The three states below are the whole contract, and the
  * allow-all default is the one that matters most: adding this class must not change the behaviour
  * of a deployment that has configured nothing.

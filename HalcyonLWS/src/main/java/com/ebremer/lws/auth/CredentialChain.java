@@ -19,7 +19,7 @@ import java.util.List;
  * <p>The chain holds, first, the {@link AccessTokenValidator} for an RFC 9068 access token from
  * this deployment's embedded authorization server — the baseline lws10-core defines — and then the
  * verifiers that accept an <em>authentication credential</em> directly: the Keycloak bearer-JWT
- * verifier Halcyon has always used and/or the LWS-OIDC verifier (a WebID {@code sub} whose CID
+ * verifier Halcyon has always used and/or the LWS-OIDC verifier (a CID URL {@code sub} whose CID
  * names the token's issuer as its OpenID Provider). Each is present only when its subsystem is
  * switched on — Keycloak by {@code :AuthServer} in {@code settings.ttl}, LWS-OIDC by
  * {@code lws-oidc.json} — and the whole direct-credential group only while
@@ -114,15 +114,15 @@ public final class CredentialChain {
                     com.ebremer.lws.oauth.AuthorizationServerSettings.storageUris(resource);
             verifiers.add(new com.ebremer.lws.auth.cid.SelfIssuedCidVerifier(
                     () -> audiences, lws::allowedInternalHosts,
-                    () -> com.ebremer.lws.config.LwsSettings.get().webIdHostPolicy()));
+                    () -> com.ebremer.lws.config.LwsSettings.get().cidHostPolicy()));
         }
 
         // The protected resource metadata MUST name an authorization server, and without an embedded
-        // one or Keycloak there is no single one to name: under WebID-OIDC the issuer is whichever
-        // OP the agent's own WebID nominates, which cannot be known before one is presented. The
+        // one or Keycloak there is no single one to name: under LWS OpenID Connect the issuer is whichever
+        // OP the agent's own CID URL nominates, which cannot be known before one is presented. The
         // interactive login endpoint is the honest answer — it is the one URI on this host that
-        // will take an agent from "no credential" to "credential", by asking for the WebID and
-        // going to that WebID's OP. Falling back to the host itself keeps the metadata (and the
+        // will take an agent from "no credential" to "credential", by asking for the CID URL and
+        // going to that CID URL's OP. Falling back to the host itself keeps the metadata (and the
         // legacy challenge's as_uri) well-formed when nothing can satisfy it.
         if (as == null) {
             String host = HalcyonSettings.getSettings().getProxyHostName();

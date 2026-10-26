@@ -1,7 +1,7 @@
 package com.ebremer.halcyon.wicket;
 
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
-import com.ebremer.halcyon.server.WebIdLogin;
+import com.ebremer.halcyon.server.CidLogin;
 import com.ebremer.halcyon.datum.HalcyonPrincipal;
 import com.ebremer.halcyon.gui.Blank;
 import com.ebremer.halcyon.gui.HalcyonSession;
@@ -47,7 +47,7 @@ public class MenuPanel extends Panel {
             }
         };
         LogoutLink logout = new LogoutLink("logoutLink");
-        ExternalLink webidlogin = new ExternalLink("webidLoginLink", host+"/cid-login","CID URL Login");
+        ExternalLink cidLogin = new ExternalLink("cidLoginLink", host+"/cid-login","CID URL Login");
         add(images);
         add(account);
         add(colorclasses);
@@ -59,7 +59,7 @@ public class MenuPanel extends Panel {
         add(threed);
         add(logout);
         add(login);
-        add(webidlogin);
+        add(cidLogin);
         add(revisionhistory);
         images.setVisible(false);
         security.setVisible(false);
@@ -72,15 +72,15 @@ public class MenuPanel extends Panel {
         stacks.setVisible(false);
         logout.setVisible(false);
         login.setVisible(false);
-        webidlogin.setVisible(false);
+        cidLogin.setVisible(false);
         revisionhistory.setVisible(false);
         if (hp.isAnon()) {
             // The plain "Login" link starts the Keycloak redirect, so it is only offered
             // when that subsystem is switched on (:AuthServer in settings.ttl). With it
-            // commented out the WebID login is the way in, and showing a dead link beside
+            // commented out the CID URL login is the way in, and showing a dead link beside
             // it would just be a trap.
             login.setVisible(HalcyonSettings.getSettings().isKeycloakEnabled());
-            webidlogin.setVisible(WebIdLogin.enabled());
+            cidLogin.setVisible(CidLogin.enabled());
         } else {
             revisionhistory.setVisible(true);
             login.setVisible(false);

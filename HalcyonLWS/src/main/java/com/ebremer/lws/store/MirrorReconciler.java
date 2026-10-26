@@ -72,7 +72,7 @@ public final class MirrorReconciler {
         this(store, cfg, mirror, content, LwsSettings.get().owner());
     }
 
-    /** @param owner the WebID adopted resources are created and owned by, or null */
+    /** @param owner the CID URL adopted resources are created and owned by, or null */
     public MirrorReconciler(LwsStore store, LwsStorageConfig cfg, MirrorContentStore mirror,
             ContentStore content, String owner) {
         this.store = store;

@@ -1,6 +1,6 @@
 package com.ebremer.halcyon.server;
 
-import com.ebremer.lws.auth.oidc.WebIdOidcLogin;
+import com.ebremer.lws.auth.oidc.CidOidcLogin;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -18,30 +18,30 @@ import org.slf4j.LoggerFactory;
  * Anonymous by design (not in {@code URLControl.getSecuredURLs()}); off unless {@code lws-oidc.json}
  * enables it. The existing Keycloak login is untouched.
  */
-public class WebIdLoginServlet extends HttpServlet {
+public class CidLoginServlet extends HttpServlet {
 
-    private static final Logger logger = LoggerFactory.getLogger(WebIdLoginServlet.class);
+    private static final Logger logger = LoggerFactory.getLogger(CidLoginServlet.class);
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
-        if (!WebIdLogin.enabled()) {
+        if (!CidLogin.enabled()) {
             response.sendError(HttpServletResponse.SC_NOT_FOUND, "CID URL login is not enabled");
             return;
         }
-        String webid = request.getParameter("cid");
-        if (webid == null || webid.isBlank()) {
-            webid = request.getParameter("webid"); // the pre-rename parameter, still accepted
+        String cidUrl = request.getParameter("cid");
+        if (cidUrl == null || cidUrl.isBlank()) {
+            cidUrl = request.getParameter("webid"); // the pre-rename parameter, still accepted
         }
-        if (webid == null || webid.isBlank()) {
+        if (cidUrl == null || cidUrl.isBlank()) {
             serveForm(response);
             return;
         }
         try {
-            WebIdOidcLogin.Redirect redirect = WebIdLogin.flow().begin(webid.trim());
-            request.getSession(true).setAttribute(WebIdLogin.PENDING, redirect.pending());
+            CidOidcLogin.Redirect redirect = CidLogin.flow().begin(cidUrl.trim());
+            request.getSession(true).setAttribute(CidLogin.PENDING, redirect.pending());
             response.sendRedirect(redirect.authorizationUrl());
-        } catch (WebIdOidcLogin.WebIdLoginException e) {
-            logger.warn("CID URL login could not start for {}: {}", webid, e.getMessage());
+        } catch (CidOidcLogin.CidLoginException e) {
+            logger.warn("CID URL login could not start for {}: {}", cidUrl, e.getMessage());
             response.sendError(HttpServletResponse.SC_BAD_REQUEST, "CID URL login failed: " + e.getMessage());
         }
     }

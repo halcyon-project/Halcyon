@@ -29,7 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 /**
  * {@link LwsOidcVerifier} end to end: a real RS256 ID Token whose CID (served from a loopback
  * server) names the token's issuer as its OpenID Provider verifies to an AgentContext carrying
- * the WebID; a token with a non-URL {@code sub} is not this verifier's kind; a CID that names a
+ * the CID URL; a token with a non-URL {@code sub} is not this verifier's kind; a CID that names a
  * different issuer, and an expired token, are rejected.
  */
 class LwsOidcVerifierTest {
@@ -49,21 +49,21 @@ class LwsOidcVerifierTest {
     }
 
     @Test
-    void verifiesAnLwsCredentialToItsWebId() throws IOException {
+    void verifiesAnLwsCredentialToItsCidUrl() throws IOException {
         String base = start(null); // CID names `base` (== iss) as its OpenID Provider
         String sub = base + "/cid";
         String token = mint(base, sub, Date.from(Instant.now().plusSeconds(300)));
 
         AgentContext ctx = verifier.tryAuthenticate(PresentedToken.parse("Bearer " + token), null);
 
-        assertEquals(sub, ctx.webId(), "the WebID sub becomes the authenticated identity");
+        assertEquals(sub, ctx.cidUrl(), "the CID URL sub becomes the authenticated identity");
         assertEquals(base, ctx.issuer());
         assertEquals("client-x", ctx.clientId());
     }
 
     @Test
     void aNonUrlSubIsNotThisVerifiersKind() {
-        String token = mint("https://issuer.example", "urn:uuid:not-a-webid",
+        String token = mint("https://issuer.example", "urn:uuid:not-a-cid-url",
                 Date.from(Instant.now().plusSeconds(300)));
         assertNull(verifier.tryAuthenticate(PresentedToken.parse("Bearer " + token), null),
                 "an opaque sub must fall through to the next verifier, not be rejected");

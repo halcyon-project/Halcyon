@@ -23,11 +23,11 @@ class AcrDocTest {
     private static final String TARGET = "https://x/W3Clws/data/report";
     private static final String ACR = TARGET + ".acr";
 
-    private static AcrDoc.Row row(AcrDoc.AgentType type, String webid,
+    private static AcrDoc.Row row(AcrDoc.AgentType type, String cidUrl,
             boolean read, boolean write, boolean control, boolean self, boolean members) {
         AcrDoc.Row r = new AcrDoc.Row();
         r.setAgentType(type);
-        r.setWebid(webid);
+        r.setCidUrl(cidUrl);
         r.setRead(read);
         r.setWrite(write);
         r.setControl(control);
@@ -39,7 +39,7 @@ class AcrDocTest {
     @Test
     void buildSatisfiesTheStoragesPutValidation() {
         Model m = AcrDoc.build(ACR, TARGET, List.of(
-                row(AcrDoc.AgentType.WEBID, "https://x/users/alice", true, true, false, true, true)));
+                row(AcrDoc.AgentType.CID_URL, "https://x/users/alice", true, true, false, true, true)));
         Resource acr = m.getResource(ACR);
         assertTrue(m.contains(acr, ACP.resource, m.getResource(TARGET)),
                 "putAcr refuses an ACR that does not declare its resource");
@@ -52,7 +52,7 @@ class AcrDocTest {
     @Test
     void roundTripIsFaithful() {
         Model m = AcrDoc.build(ACR, TARGET, List.of(
-                row(AcrDoc.AgentType.WEBID, "https://x/users/alice", true, true, false, true, true),
+                row(AcrDoc.AgentType.CID_URL, "https://x/users/alice", true, true, false, true, true),
                 row(AcrDoc.AgentType.PUBLIC, "", true, false, false, true, false),
                 row(AcrDoc.AgentType.AUTHENTICATED, "", true, false, true, false, true)));
 
@@ -61,8 +61,8 @@ class AcrDocTest {
         assertEquals(3, parsed.rows().size());
 
         AcrDoc.Row alice = parsed.rows().stream()
-                .filter(r -> r.getAgentType() == AcrDoc.AgentType.WEBID).findFirst().orElseThrow();
-        assertEquals("https://x/users/alice", alice.getWebid());
+                .filter(r -> r.getAgentType() == AcrDoc.AgentType.CID_URL).findFirst().orElseThrow();
+        assertEquals("https://x/users/alice", alice.getCidUrl());
         assertTrue(alice.isRead() && alice.isWrite() && !alice.isControl());
         assertTrue(alice.isSelf() && alice.isMembers());
 

@@ -584,7 +584,7 @@ public class LwsServlet extends HttpServlet {
                         + String.join(", ", serverManaged));
             }
             MoveHandler.Moved moved = up == null ? null
-                    : moves.move(r, up, t.linksetUri(), authority(rq), rq.agent().webId());
+                    : moves.move(r, up, t.linksetUri(), authority(rq), rq.agent().cidUrl());
             String anchor = moved == null ? t.uri() : moved.uri();
             String etag = LinksetStore.replace(store, anchor, updated);
             JsonObject linkset = null;
@@ -1707,13 +1707,13 @@ public class LwsServlet extends HttpServlet {
         // carry — so the header is this storage's choice, and Slug is the long-established one.
         // The server still decides the final URI (see NamingPolicy and Slugs.sanitize).
         String slug = req.getHeader("Slug");
-        String webId = rq.agent().webId();
+        String cidUrl = rq.agent().cidUrl();
 
         LwsResource created;
         if (mirror != null) {
-            created = createMirror(rq, parent, makeContainer, slug, webId, req);
+            created = createMirror(rq, parent, makeContainer, slug, cidUrl, req);
         } else if (makeContainer) {
-            created = store.write(() -> commitCreation(rq, parent, slug, webId, true, null));
+            created = store.write(() -> commitCreation(rq, parent, slug, cidUrl, true, null));
         } else {
             // Extension from the slug, else from the media type. Without this fallback a
             // whole-slide image POSTed as image/tiff with no Slug had no extension for the reader
@@ -1738,7 +1738,7 @@ public class LwsServlet extends HttpServlet {
             verifyUpload(req, w, ext);
             try {
                 created = store.write(() ->
-                        commitCreation(rq, parent, slug, webId, false, new Content(w, mt, ext)));
+                        commitCreation(rq, parent, slug, cidUrl, false, new Content(w, mt, ext)));
             } catch (RuntimeException e) {
                 // Refused, or the store rejected it. The upload is discarded rather than left
                 // behind as an unreferenced blob.
@@ -1753,7 +1753,7 @@ public class LwsServlet extends HttpServlet {
         declareInitialLinks(req, created);
 
         notify.emit("Create", created.uri(), created.isContainer(), parent.uri(),
-                rq.agent().webId());
+                rq.agent().cidUrl());
 
         resp.setStatus(HttpServletResponse.SC_CREATED);
         resp.setHeader("Location", created.uri());
@@ -1853,7 +1853,7 @@ public class LwsServlet extends HttpServlet {
         }
     }
 
-    private LwsResource commitCreation(Req rq, LwsResource parent, String slug, String webId,
+    private LwsResource commitCreation(Req rq, LwsResource parent, String slug, String cidUrl,
             boolean makeContainer, Content content) {
         ResourceRegistry reg = registry();
         Req now = new Req(rq.agent(), new AcpEngine(store));
@@ -1865,13 +1865,13 @@ public class LwsServlet extends HttpServlet {
         LwsResource r = makeContainer
                 ? new LwsResource(uri, ResourceType.CONTAINER, List.of(),
                         null, 0, when, ResourceRegistry.containerEtag(0),
-                        null, null, parent.uri(), reg.nextSeq(), webId, webId, null)
+                        null, null, parent.uri(), reg.nextSeq(), cidUrl, cidUrl, null)
                 : new LwsResource(uri, ResourceType.DATA_RESOURCE, List.of(),
                         content.mediaType(), content.written().size(), when,
                         ResourceRegistry.dataEtag(content.written().sha256(),
                                 content.mediaType(), content.written().size()),
                         content.written().key(), content.ext(), parent.uri(),
-                        reg.nextSeq(), webId, webId, content.written().sha256());
+                        reg.nextSeq(), cidUrl, cidUrl, content.written().sha256());
 
         reg.create(r, slug);
         return reg.find(uri).orElseThrow(() -> Problem.internal("the resource vanished on create"));
@@ -1959,14 +1959,14 @@ public class LwsServlet extends HttpServlet {
      * at the mirror of that URI ({@code writeAt} makes the parent directories on the way).
      */
     private LwsResource createMirror(Req rq, LwsResource parent, boolean makeContainer, String slug,
-            String webId, HttpServletRequest req) throws IOException {
+            String cidUrl, HttpServletRequest req) throws IOException {
         String uri = store.read(() -> naming.mint(parent.uri(), slug, makeContainer, registry()::exists));
         String key = keyForUri(uri);
 
         if (makeContainer) {
             mirror.mkdirs(key);
             return store.write(() ->
-                    commitMirrorCreate(rq, parent.uri(), uri, key, webId, true, null, null, null));
+                    commitMirrorCreate(rq, parent.uri(), uri, key, cidUrl, true, null, null, null));
         }
 
         String ext = extOfPath(key);
@@ -1986,7 +1986,7 @@ public class LwsServlet extends HttpServlet {
             ContentStore.Written w = staged.written();
             verifyUpload(req, w, fext);
             LwsResource created = store.write(() ->
-                    commitMirrorCreate(rq, parent.uri(), uri, key, webId, false, w, mt, fext));
+                    commitMirrorCreate(rq, parent.uri(), uri, key, cidUrl, false, w, mt, fext));
             staged.publish();
             LwsMetadataScanner.enrichAsync(store, cfg, content, created);
             return created;
@@ -1994,7 +1994,7 @@ public class LwsServlet extends HttpServlet {
     }
 
     private LwsResource commitMirrorCreate(Req rq, String parentUri, String uri, String key,
-            String webId, boolean makeContainer, ContentStore.Written w, String mediaType, String ext) {
+            String cidUrl, boolean makeContainer, ContentStore.Written w, String mediaType, String ext) {
         ResourceRegistry reg = registry();
         Req now = new Req(rq.agent(), new AcpEngine(store));
         demandOn(now, known(now, parentUri), AccessMode.APPEND);
@@ -2006,10 +2006,10 @@ public class LwsServlet extends HttpServlet {
         Instant when = Instant.now();
         LwsResource r = makeContainer
                 ? new LwsResource(uri, ResourceType.CONTAINER, List.of(), null, 0, when,
-                        ResourceRegistry.containerEtag(0), key, null, parentUri, reg.nextSeq(), webId, webId, null)
+                        ResourceRegistry.containerEtag(0), key, null, parentUri, reg.nextSeq(), cidUrl, cidUrl, null)
                 : new LwsResource(uri, ResourceType.DATA_RESOURCE, List.of(), mediaType, w.size(), when,
                         ResourceRegistry.dataEtag(w.sha256(), mediaType, w.size()), key, ext, parentUri,
-                        reg.nextSeq(), webId, webId, w.sha256());
+                        reg.nextSeq(), cidUrl, cidUrl, w.sha256());
         reg.create(r, null);
         return reg.find(uri).orElseThrow(() -> Problem.internal("the resource vanished on create"));
     }
@@ -2084,7 +2084,7 @@ public class LwsServlet extends HttpServlet {
             declareTypes(req, out.r(), out.created());
             LwsMetadataScanner.enrichAsync(store, cfg, content, out.r());
             notify.emit(out.created() ? "Create" : "Update", out.r().uri(), false, out.r().parent(),
-                    rq.agent().webId());
+                    rq.agent().cidUrl());
 
             resp.setStatus(out.created()
                     ? HttpServletResponse.SC_CREATED : HttpServletResponse.SC_NO_CONTENT);
@@ -2120,8 +2120,8 @@ public class LwsServlet extends HttpServlet {
                     () -> Problem.internal("the resource vanished on replace")), false);
         }
 
-        String webId = rq.agent().webId();
-        String parentUri = ensureContainerChain(now, reg, uri, webId);
+        String cidUrl = rq.agent().cidUrl();
+        String parentUri = ensureContainerChain(now, reg, uri, cidUrl);
         demandOn(now, known(now, parentUri), AccessMode.APPEND);
         // After authorization, as RFC 9110 §13.2.1 orders it (a throw rolls back the chain above).
         // Nothing is here yet, so an If-Match — which names a representation that would have to
@@ -2129,7 +2129,7 @@ public class LwsServlet extends HttpServlet {
         Preconditions.evaluate(req, null);
         LwsResource r = new LwsResource(uri, ResourceType.DATA_RESOURCE, List.of(), mt, w.size(), when,
                 ResourceRegistry.dataEtag(w.sha256(), mt, w.size()), key, ext, parentUri,
-                reg.nextSeq(), webId, webId, w.sha256());
+                reg.nextSeq(), cidUrl, cidUrl, w.sha256());
         reg.create(r, null);
         if (setLinks != null) {
             applySetLinkset(uri, setLinks, false);
@@ -2166,7 +2166,7 @@ public class LwsServlet extends HttpServlet {
      * (each an Append on its parent, each inheriting the parent's ACP). Returns the resource's
      * immediate parent URI. Assumes an ambient write transaction.
      */
-    private String ensureContainerChain(Req now, ResourceRegistry reg, String resourceUri, String webId) {
+    private String ensureContainerChain(Req now, ResourceRegistry reg, String resourceUri, String cidUrl) {
         String base = cfg.storageRootUri();
         String rel = resourceUri.substring(base.length());
         int slash = rel.lastIndexOf('/');
@@ -2189,7 +2189,7 @@ public class LwsServlet extends HttpServlet {
                 }
                 LwsResource c = new LwsResource(childUri, ResourceType.CONTAINER, List.of(), null, 0,
                         Instant.now(), ResourceRegistry.containerEtag(0), key, null, cur,
-                        reg.nextSeq(), webId, webId, null);
+                        reg.nextSeq(), cidUrl, cidUrl, null);
                 reg.create(c, null);
             }
             cur = childUri;
@@ -2354,7 +2354,7 @@ public class LwsServlet extends HttpServlet {
         }
         declareTypes(req, res.r(), false);
         LwsMetadataScanner.enrichAsync(store, cfg, content, res.r());
-        notify.emit("Update", res.r().uri(), false, res.r().parent(), rq.agent().webId());
+        notify.emit("Update", res.r().uri(), false, res.r().parent(), rq.agent().cidUrl());
 
         resp.setStatus(HttpServletResponse.SC_NO_CONTENT);
         resp.setHeader("ETag", res.r().etag());
@@ -2514,7 +2514,7 @@ public class LwsServlet extends HttpServlet {
             content.delete(res.oldKey(), ext);
         }
         LwsMetadataScanner.enrichAsync(store, cfg, content, res.r());
-        notify.emit("Update", res.r().uri(), false, res.r().parent(), rq.agent().webId());
+        notify.emit("Update", res.r().uri(), false, res.r().parent(), rq.agent().cidUrl());
 
         resp.setStatus(HttpServletResponse.SC_NO_CONTENT);
         resp.setHeader("ETag", res.r().etag());
@@ -2767,7 +2767,7 @@ public class LwsServlet extends HttpServlet {
                 changes.add(new Notifications.Change(
                         "Delete", node.uri(), node.isContainer(), node.parent()));
             }
-            String actor = rq.agent().webId();
+            String actor = rq.agent().cidUrl();
             List<Notifications.Planned> plan = LwsSettings.get().batchNotifications()
                     ? notify.plan(changes, actor)
                     : notify.plan(List.of(new Notifications.Change(

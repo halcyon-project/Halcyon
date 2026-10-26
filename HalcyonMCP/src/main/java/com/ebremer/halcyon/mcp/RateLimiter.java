@@ -3,13 +3,13 @@ package com.ebremer.halcyon.mcp;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * MCP-17: a per-principal token bucket — one authenticated WebID cannot turn
+ * MCP-17: a per-principal token bucket — one authenticated CID URL cannot turn
  * the endpoint into a firehose. Burst up to {@code capacity}, refilling at
  * {@code capacity} tokens per {@code windowMillis}; a request with no token
  * left is refused (the filter answers 429).
  *
  * <p>Time is passed in, not read, so the refill is deterministic under test.
- * Keyed by WebID (the verified identity), never by client or connection —
+ * Keyed by CID URL (the verified identity), never by client or connection —
  * the limit is on the <em>person</em>, so it holds across reconnects and
  * across whichever MCP client they use.
  */

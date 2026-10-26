@@ -26,7 +26,7 @@ import java.util.List;
  * <ul>
  *   <li>{@code subject_token_types_supported} — the {@code subject_token_type} values the token
  *       endpoint accepts, so a client with an ID Token knows it can use it here;</li>
- *   <li>{@code subject_identifier_types_supported} — {@code https}, for the WebIDs both suites
+ *   <li>{@code subject_identifier_types_supported} — {@code https}, for the CID URLs both suites
  *       dereference to a controlled identifier document, and with the CID suite
  *       ({@code SelfIssuedCidVerifier}) also {@code did:key} and {@code did:web}, the DID methods
  *       its verifier resolves. Stated rather than left to the {@code ["https"]} default.</li>
@@ -66,7 +66,7 @@ public final class AuthorizationServerMetadataServlet extends HttpServlet {
     }
 
     /**
-     * {@code https} for the OpenID suite's WebIDs; with the CID suite (advertised by its token type,
+     * {@code https} for the OpenID suite's CID URLs; with the CID suite (advertised by its token type,
      * {@code ...:jwt}) also the DID methods its verifier resolves, {@code did:key} and
      * {@code did:web}.
      */

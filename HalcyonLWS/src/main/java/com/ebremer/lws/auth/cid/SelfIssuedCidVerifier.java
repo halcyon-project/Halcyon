@@ -65,7 +65,7 @@ import org.slf4j.LoggerFactory;
  * nothing to fetch, and {@code did:web} from the HTTPS URL it names. Any other DID method is
  * refused. Documents are cached for a few minutes, and failures for less, because an unauthenticated
  * client chooses the URL: without a cache each exchange would be an outbound request to an address of
- * the caller's choosing. The deployment's WebID-host policy applies to HTTPS and did:web subjects.
+ * the caller's choosing. The deployment's CID host policy applies to HTTPS and did:web subjects.
  *
  * <p><b>Routing.</b> The suite claims a credential whose subject is a DID, or whose subject is an
  * HTTPS URL equal to its issuer (self-issued). An OpenID credential names a separate provider as its
@@ -88,7 +88,7 @@ public final class SelfIssuedCidVerifier implements CredentialVerifier {
 
     private final Supplier<Set<String>> audiences;
     private final Supplier<Set<String>> allowedInternalHosts;
-    private final Supplier<TrustPolicy> webIdHosts;
+    private final Supplier<TrustPolicy> cidHosts;
     private final Clock clock;
     private final HttpClient http;
     private final Map<String, Cached> documents = new ConcurrentHashMap<>();
@@ -103,19 +103,19 @@ public final class SelfIssuedCidVerifier implements CredentialVerifier {
     /**
      * @param audiences            the values one of which a credential's {@code aud} must include
      * @param allowedInternalHosts hosts the SSRF guard lets through although they resolve internally
-     * @param webIdHosts           the deployment's WebID-host policy
+     * @param cidHosts           the deployment's CID host policy
      */
     public SelfIssuedCidVerifier(Supplier<Set<String>> audiences, Supplier<Set<String>> allowedInternalHosts,
-            Supplier<TrustPolicy> webIdHosts) {
-        this(audiences, allowedInternalHosts, webIdHosts, Clock.systemUTC(),
+            Supplier<TrustPolicy> cidHosts) {
+        this(audiences, allowedInternalHosts, cidHosts, Clock.systemUTC(),
                 HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NEVER).connectTimeout(FETCH_TIMEOUT).build());
     }
 
     SelfIssuedCidVerifier(Supplier<Set<String>> audiences, Supplier<Set<String>> allowedInternalHosts,
-            Supplier<TrustPolicy> webIdHosts, Clock clock, HttpClient http) {
+            Supplier<TrustPolicy> cidHosts, Clock clock, HttpClient http) {
         this.audiences = audiences;
         this.allowedInternalHosts = allowedInternalHosts;
-        this.webIdHosts = webIdHosts == null ? () -> TrustPolicy.ALLOW_ALL : webIdHosts;
+        this.cidHosts = cidHosts == null ? () -> TrustPolicy.ALLOW_ALL : cidHosts;
         this.clock = clock;
         this.http = http;
     }
@@ -221,7 +221,7 @@ public final class SelfIssuedCidVerifier implements CredentialVerifier {
 
     private JsonObject fetch(String subject, String url) {
         try {
-            webIdHosts.get().require("CID host", url);
+            cidHosts.get().require("CID host", url);
         } catch (TrustPolicy.RefusedException e) {
             throw refuse(e.getMessage());
         }

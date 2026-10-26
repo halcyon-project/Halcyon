@@ -200,7 +200,7 @@ public final class TokenExchange {
         }
 
         AgentContext agent = validate(subjectToken, req);
-        if (!isUri(agent.webId())) {
+        if (!isUri(agent.cidUrl())) {
             throw new OAuthError(400, "invalid_request",
                     "the credential's subject is not a URI, so it cannot be the token's sub");
         }
@@ -225,13 +225,13 @@ public final class TokenExchange {
 
         Map<String, Object> claims = new LinkedHashMap<>();
         claims.put("iss", as.issuer());
-        claims.put("sub", agent.webId());
+        claims.put("sub", agent.cidUrl());
         claims.put("client_id", agent.clientId());
         claims.put("aud", aud);
         claims.put("jti", UUID.randomUUID().toString());
         String token = keys.sign(claims, Date.from(now), Date.from(exp));
         LOG.debug("issued an access token for {} on {} (client {})",
-                agent.webId(), realm, agent.clientId());
+                agent.cidUrl(), realm, agent.clientId());
         return new Issued(token, Math.max(1, exp.getEpochSecond() - now.getEpochSecond()));
     }
 

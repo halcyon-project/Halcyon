@@ -28,7 +28,7 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Note: registration only gives a {@code client_id}; the login still requires the OP to assert the
  * CID URL in the ID token (as {@code sub} or a Solid-OIDC {@code webid} claim) — see
- * {@link WebIdOidcLogin}. For a Keycloak OP that means the {@code webid} mapper on a default client
+ * {@link CidOidcLogin}. For a Keycloak OP that means the {@code webid} mapper on a default client
  * scope, and a realm that permits
  * anonymous registration.
  */

@@ -23,7 +23,7 @@ import org.slf4j.LoggerFactory;
  * <p>Two policies are attached to the root, both as {@code acp:memberAccessControl}
  * so they inherit to every descendant:
  * <ul>
- *   <li><strong>owner</strong> — full control, to the WebID in {@code :LWSOwner}.</li>
+ *   <li><strong>owner</strong> — full control, to the CID URL in {@code :LWSOwner}.</li>
  *   <li><strong>creator</strong> — whoever creates a resource may read, write and
  *       control <em>that</em> resource. Matched through {@code acp:CreatorAgent}, so
  *       it is evaluated per-target rather than naming anyone up front.</li>
@@ -52,9 +52,9 @@ public final class AcpBootstrap {
     }
 
     private static String requireOwner(String root) {
-        String ownerWebId = LwsSettings.get().owner();
-        if (ownerWebId != null && !ownerWebId.isBlank()) {
-            return ownerWebId;
+        String ownerCidUrl = LwsSettings.get().owner();
+        if (ownerCidUrl != null && !ownerCidUrl.isBlank()) {
+            return ownerCidUrl;
         }
         // This used to grant acp:AuthenticatedAgent Read+Write+Append+Control instead, reasoning
         // that a root ACR naming nobody "would lock everyone out, including whoever is trying to
@@ -63,8 +63,8 @@ public final class AcpBootstrap {
         // the API this policy guards. An operator can always name an owner without first having
         // access, so there was never a bootstrapping deadlock to avoid -- and the price of avoiding
         // it was that the owner policy (Control included) hung off acp:memberAccessControl and so
-        // inherited to every resource the storage would ever hold. Combined with a WebID login that
-        // accepts any self-nominated provider, that is Control for anyone who can host a WebID
+        // inherited to every resource the storage would ever hold. Combined with a CID URL login that
+        // accepts any self-nominated provider, that is Control for anyone who can host a CID
         // document, and no per-resource ACR can narrow it: inheritance in AcpEngine is a union, and
         // a stranger holding inherited Control can simply PUT the restriction away.
         throw new UnownedStorageException(
@@ -89,14 +89,14 @@ public final class AcpBootstrap {
                 return;
             }
 
-            String ownerWebId = requireOwner(root);
+            String ownerCidUrl = requireOwner(root);
             Resource target = ResourceFactory.createResource(root);
 
             acp.add(acr, RDF.type, ACP.AccessControlResource);
             acp.add(acr, ACP.resource, target);
 
-            acp.add(ownerMatcher, ACP.agent, ResourceFactory.createResource(ownerWebId));
-            LOG.info("LWS storage {} owner: {}", root, ownerWebId);
+            acp.add(ownerMatcher, ACP.agent, ResourceFactory.createResource(ownerCidUrl));
+            LOG.info("LWS storage {} owner: {}", root, ownerCidUrl);
             acp.add(ownerMatcher, RDF.type, ACP.Matcher);
 
             Resource ownerPolicy = policy(acp, base + "#pol-owner", ownerMatcher,
@@ -138,12 +138,12 @@ public final class AcpBootstrap {
         if (!acp.contains(ownerMatcher, ACP.agent, ACP.AuthenticatedAgent)) {
             return;   // already owned, or an owner has rewritten the root ACR themselves
         }
-        String ownerWebId = requireOwner(root);
+        String ownerCidUrl = requireOwner(root);
         acp.remove(acp.listStatements(ownerMatcher, ACP.agent, ACP.AuthenticatedAgent).toList());
-        acp.add(ownerMatcher, ACP.agent, ResourceFactory.createResource(ownerWebId));
+        acp.add(ownerMatcher, ACP.agent, ResourceFactory.createResource(ownerCidUrl));
         LOG.warn("LWS storage {} was seeded with full control granted to ANY authenticated agent;"
                 + " that grant has been replaced with the configured :LWSOwner {}. Any resource"
-                + " created in the meantime kept whatever its creator was given.", root, ownerWebId);
+                + " created in the meantime kept whatever its creator was given.", root, ownerCidUrl);
     }
 
     private static Resource policy(Model acp, String uri, Resource matcher, List<AccessMode> allow) {

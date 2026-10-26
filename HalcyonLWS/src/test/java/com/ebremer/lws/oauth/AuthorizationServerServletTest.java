@@ -130,7 +130,7 @@ class AuthorizationServerServletTest {
         assertEquals(List.of(TokenExchange.TYPE_ID_TOKEN), strings(d, "subject_token_types_supported"),
                 "...:jwt is the SSI-CID suite's token type; advertising it would claim that suite");
         assertEquals(List.of("https"), strings(d, "subject_identifier_types_supported"),
-                "the subject identifiers the OpenID suite can verify are WebIDs over HTTPS; "
+                "the subject identifiers the OpenID suite can verify are CID URLs over HTTPS; "
                         + "advertising did:web or did:key would claim a suite this module lacks");
     }
 

@@ -85,7 +85,7 @@ class SelfIssuedCidVerifierTest {
         KeyPair kp = p256();
         String did = didKey((ECPublicKey) kp.getPublic());
         AgentContext agent = verify(credential(did).signWith(kp.getPrivate()).compact());
-        assertEquals(did, agent.webId());
+        assertEquals(did, agent.cidUrl());
         assertEquals(did, agent.clientId());
     }
 
@@ -115,7 +115,7 @@ class SelfIssuedCidVerifierTest {
         data[1] = 0x01;
         System.arraycopy(le, 0, data, 2, 32);
         String did = "did:key:z" + Base58.encode(data);
-        assertEquals(did, verify(credential(did).signWith(kp.getPrivate()).compact()).webId());
+        assertEquals(did, verify(credential(did).signWith(kp.getPrivate()).compact()).cidUrl());
     }
 
     @Test

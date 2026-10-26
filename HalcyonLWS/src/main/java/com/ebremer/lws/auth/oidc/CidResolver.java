@@ -31,14 +31,14 @@ import org.apache.jena.riot.RDFLanguages;
 import org.apache.jena.vocabulary.RDF;
 
 /**
- * Dereferences a WebID to its controlled identifier document (CID) and answers the LWS-OIDC
+ * Dereferences a CID URL to its controlled identifier document (CID) and answers the LWS-OIDC
  * trust question: does that document name a given issuer as the subject's OpenID Provider?
  *
  * <p>The fetch is {@link SsrfGuard}-checked and uses normal TLS validation — the {@code sub}
  * is attacker-influenced and points at an arbitrary external host, so (unlike the same-box
  * Keycloak JWKS fetch) its certificate MUST chain to a real CA.
  *
- * <p>Turtle is requested first (the WebID/Solid norm); Turtle / N-Triples / RDF-XML are parsed
+ * <p>Turtle is requested first (the Solid norm); Turtle / N-Triples / RDF-XML are parsed
  * with Jena RIOT, and a compact JSON-LD document is read directly for the standardized CID
  * shape (a subject {@code id} with {@code service} entries carrying {@code type} and
  * {@code serviceEndpoint}) rather than through a full JSON-LD processor. The trust check binds
@@ -129,16 +129,16 @@ public final class CidResolver {
     }
 
     /**
-     * The OpenID Provider (issuer) that {@code cid} names for {@code webId} — the
+     * The OpenID Provider (issuer) that {@code cid} names for {@code cidUrl} — the
      * {@code serviceEndpoint} of its {@code lws:OpenIdProvider} service — or {@code null} if it
-     * names none. This is the discovery direction used by interactive WebID login: given a typed
-     * WebID, find where to send the user to authenticate.
+     * names none. This is the discovery direction used by interactive CID URL login: given a typed
+     * CID URL, find where to send the user to authenticate.
      */
-    public String openIdProvider(Model cid, String webId) {
+    public String openIdProvider(Model cid, String cidUrl) {
         ParameterizedSparqlString pss = new ParameterizedSparqlString();
         pss.setNsPrefix("did", DID_NS);
         pss.setCommandText("SELECT ?iss WHERE { ?sub did:service ?svc . ?svc a ?providerType ; did:serviceEndpoint ?iss . }");
-        pss.setIri("sub", webId);
+        pss.setIri("sub", cidUrl);
         pss.setIri("providerType", OPENID_PROVIDER_TYPE);
         try (QueryExecution qe = QueryExecutionFactory.create(pss.asQuery(), cid)) {
             ResultSet rs = qe.execSelect();

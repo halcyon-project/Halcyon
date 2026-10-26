@@ -24,18 +24,18 @@ import org.springframework.context.annotation.Configuration;
 
 /**
  * The app-side implementation of MCP-9's {@link HalcyonSparqlService}: it runs
- * the (already parsed and bounded) query <strong>as the caller's WebID</strong>
+ * the (already parsed and bounded) query <strong>as the caller's CID URL</strong>
  * against the WAC-secured dataset, and returns the results.
  *
  * <p>This is where the module split pays off. The tool
  * ({@code com.ebremer.halcyon.mcp.SparqlTools}) cannot see the triple store —
  * HalcyonMCP does not (and must not) depend on the app. The app depends on
  * HalcyonMCP, so it implements the interface here and Spring wires it into the
- * tool. The security decision — which triples this WebID may read — stays
+ * tool. The security decision — which triples this CID URL may read — stays
  * entirely inside {@code DataCore}/{@code jena-permissions}, reached through
  * {@link DataCore#getSecuredDataset(DataCore.Level, java.security.Principal)}
  * with the caller bound as an explicit {@link HalcyonPrincipal}. An unknown
- * WebID is granted nothing (CLOSED denies), so the query simply returns
+ * CID URL is granted nothing (CLOSED denies), so the query simply returns
  * empty — it can never widen access.
  */
 @Configuration
@@ -48,12 +48,12 @@ public class McpSparqlConfiguration {
         return McpSparqlConfiguration::runReadOnly;
     }
 
-    private static String runReadOnly(String boundedSparql, String callerWebId,
+    private static String runReadOnly(String boundedSparql, String callerCidUrl,
             long maxRows, Duration timeout) {
         Query query = QueryFactory.create(boundedSparql);
-        // The caller is authenticated (bearer token); bind their WebID as the
+        // The caller is authenticated (bearer token); bind their CID URL as the
         // WAC identity so the secured dataset scopes to exactly their grants.
-        HalcyonPrincipal principal = new HalcyonPrincipal(callerWebId);
+        HalcyonPrincipal principal = new HalcyonPrincipal(callerCidUrl);
         Dataset ds = DataCore.getInstance().getSecuredDataset(DataCore.Level.CLOSED, principal);
         return Txn.calculateRead(ds, () -> {
             try (QueryExecution qe = QueryExecution.dataset(ds).query(query)
@@ -74,7 +74,7 @@ public class McpSparqlConfiguration {
                 }
                 return out.toString(StandardCharsets.UTF_8);
             } catch (RuntimeException ex) {
-                logger.warn("MCP sparql_query failed for {}: {}", callerWebId, ex.toString());
+                logger.warn("MCP sparql_query failed for {}: {}", callerCidUrl, ex.toString());
                 return jsonString("error", "query execution failed");
             }
         });

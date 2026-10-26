@@ -470,7 +470,7 @@ public class LWSContainers extends BasePage {
         }
     }
 
-    private static String currentWebId() {
+    private static String currentCidUrl() {
         HalcyonPrincipal hp = HalcyonSession.get().getHalcyonPrincipal();
         return hp == null || hp.isAnon() ? null : hp.getUserURI();
     }
@@ -1178,7 +1178,7 @@ public class LWSContainers extends BasePage {
                                     return switch (t) {
                                         case PUBLIC -> "Public (everyone)";
                                         case AUTHENTICATED -> "Any signed-in user";
-                                        case WEBID -> "CID URL →";
+                                        case CID_URL -> "CID URL →";
                                     };
                                 }
 
@@ -1193,7 +1193,7 @@ public class LWSContainers extends BasePage {
                                     return id == null ? null : AcrDoc.AgentType.valueOf(id);
                                 }
                             }));
-                    item.add(new TextField<>("webid", new PropertyModel<>(row, "webid")));
+                    item.add(new TextField<>("cidUrl", new PropertyModel<>(row, "cidUrl")));
                     item.add(new CheckBox("read", new PropertyModel<>(row, "read")));
                     item.add(new CheckBox("write", new PropertyModel<>(row, "write")));
                     item.add(new CheckBox("append", new PropertyModel<>(row, "append")));
@@ -1328,9 +1328,9 @@ public class LWSContainers extends BasePage {
 
             Form<Void> form = new Form<>("form");
             add(form);
-            // The markup nests "webid" inside <form wicket:id="form">, so it must be added to the
+            // The markup nests "cidUrl" inside <form wicket:id="form">, so it must be added to the
             // form, not the panel (Wicket matches the component tree to the markup tree exactly).
-            form.add(new Label("webid", String.valueOf(currentWebId())));
+            form.add(new Label("cidUrl", String.valueOf(currentCidUrl())));
             form.add(new CheckBox("read", new PropertyModel<>(this, "read")));
             form.add(new CheckBox("modify", new PropertyModel<>(this, "modify")));
             form.add(new CheckBox("create", new PropertyModel<>(this, "create")));
@@ -1348,9 +1348,9 @@ public class LWSContainers extends BasePage {
         }
 
         private void submit() {
-            String webid = currentWebId();
+            String cidUrl = currentCidUrl();
             String endpoint = accessRequestsEndpoint();
-            if (webid == null || endpoint == null) {
+            if (cidUrl == null || endpoint == null) {
                 message = "No signed-in CID URL or no Data Sharing Service for this storage.";
                 return;
             }
@@ -1369,7 +1369,7 @@ public class LWSContainers extends BasePage {
                     .add("type", "AccessRequest")
                     .add("access", Json.createArrayBuilder().add(Json.createObjectBuilder()
                             .add("action", actions)
-                            .add("assignee", webid)
+                            .add("assignee", cidUrl)
                             .add("target", Json.createObjectBuilder()
                                     .add("value", Json.createArrayBuilder().add(uri)))))
                     .build();

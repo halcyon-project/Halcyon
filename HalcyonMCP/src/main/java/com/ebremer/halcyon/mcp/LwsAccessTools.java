@@ -19,7 +19,7 @@ import org.springframework.ai.tool.annotation.ToolParam;
  * Data Sharing Service ({@code .access/requests}).
  *
  * <p>The request grants nothing by itself — it records an ODRL/ActivityStreams
- * {@code AccessRequest} (the caller's WebID as {@code assignee}, the resource
+ * {@code AccessRequest} (the caller's CID URL as {@code assignee}, the resource
  * as {@code target}, the requested actions), and a storage controller answers
  * it with a grant. It is the exact document the storage's own
  * {@code AccessRequestPanel} posts; the tool just lets an agent file it for
@@ -55,15 +55,15 @@ public class LwsAccessTools {
                     .add("resource", resource).add("error", e.getMessage()).build().toString();
         }
 
-        String webId = caller.webId();
-        if (webId == null || webId.isBlank()) {
+        String cidUrl = caller.cidUrl();
+        if (cidUrl == null || cidUrl.isBlank()) {
             return Json.createObjectBuilder()
                     .add("resource", resource)
                     .add("error", "the caller has no CID URL to assign the request to")
                     .build().toString();
         }
 
-        String doc = accessRequestJson(webId, resource, requested);
+        String doc = accessRequestJson(cidUrl, resource, requested);
         LwsClient.Result r = caller.lwsClient().post(cfg.accessRequestsUri(), null,
                 "application/lws+json", doc.getBytes(StandardCharsets.UTF_8), false);
         if (r.status() == 201) {
@@ -114,7 +114,7 @@ public class LwsAccessTools {
      * storage's {@code AccessRequestPanel} posts. Split out so the payload is
      * testable without a live Data Sharing Service.
      */
-    static String accessRequestJson(String webId, String resource, Set<String> actions) {
+    static String accessRequestJson(String cidUrl, String resource, Set<String> actions) {
         JsonArrayBuilder actionArr = Json.createArrayBuilder();
         actions.forEach(actionArr::add);
         return Json.createObjectBuilder()
@@ -122,7 +122,7 @@ public class LwsAccessTools {
                 .add("type", "AccessRequest")
                 .add("access", Json.createArrayBuilder().add(Json.createObjectBuilder()
                         .add("action", actionArr)
-                        .add("assignee", webId)
+                        .add("assignee", cidUrl)
                         .add("target", Json.createObjectBuilder()
                                 .add("value", Json.createArrayBuilder().add(resource)))))
                 .build().toString();

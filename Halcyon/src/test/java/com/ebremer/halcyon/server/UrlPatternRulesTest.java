@@ -128,7 +128,7 @@ class UrlPatternRulesTest {
     @Test
     void aServletNoPatternClaimsIsLeftAlone() {
         assertDoesNotThrow(() -> UrlPatternRules.assertCovers("test",
-                List.of("/callback"), List.of("/webid-login", "/rdf2", "/iiif/*")));
+                List.of("/callback"), List.of("/cid-login", "/rdf2", "/iiif/*")));
     }
 
     /** The original defect, as one assertion: the pattern named /iiif and did not cover it. */

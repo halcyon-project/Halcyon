@@ -30,9 +30,9 @@ public class UnownedStorageFailureAnalyzer
                 Add an owner to settings.ttl, inside the <http://localhost> a :HalcyonSettingsFile \
                 block, and restart:
 
-                    :LWSOwner <https://example.org/your-webid#me> ;
+                    :LWSOwner <https://example.org/your-cid-url#me> ;
 
-                The owner is the WebID that holds Read, Write, Append and Control on each storage \
+                The owner is the CID URL that holds Read, Write, Append and Control on each storage \
                 root, and through acp:memberAccessControl on everything within it. Everyone else \
                 starts with nothing: a resource's creator keeps control of what they create \
                 (acp:CreatorAgent), and public or authenticated access is a policy the owner adds \

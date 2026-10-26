@@ -35,7 +35,7 @@ import org.slf4j.LoggerFactory;
  * confirm it self-identifies as that issuer, fetch its JWKS, and return the public key for a
  * given {@code kid} — pinned to the token's algorithm.
  *
- * <p>Unlike the same-box Keycloak {@code JwksCache}, the issuer here is any OP a WebID's CID
+ * <p>Unlike the same-box Keycloak {@code JwksCache}, the issuer here is any OP a CID document
  * vouches for, so fetches use <strong>normal TLS validation</strong> (a real CA chain), are
  * {@link SsrfGuard}-checked, and never follow redirects (a redirect could point back inside
  * the network). Discovery is cached per issuer and the JWKS is refreshed on an unknown

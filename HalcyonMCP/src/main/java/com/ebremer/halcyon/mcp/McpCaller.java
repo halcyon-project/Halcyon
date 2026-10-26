@@ -5,7 +5,7 @@ import com.ebremer.lws.auth.AgentContext;
 import com.ebremer.lws.client.LwsClient;
 
 /**
- * One authenticated MCP caller: their verified {@link AgentContext} (WebID,
+ * One authenticated MCP caller: their verified {@link AgentContext} (CID URL,
  * client, issuer — the identity ACP matches on) together with the raw bearer
  * token their request carried. Both are needed and they are not the same
  * thing: the agent is who a tool <em>is acting as</em>, the token is what a
@@ -34,8 +34,8 @@ public record McpCaller(AgentContext agent, String token) {
         return new LwsClient(token, HalcyonSettings.getSettings().getProxyHostName());
     }
 
-    /** The caller's WebID — how a tool names them in output or an audit line. */
-    public String webId() {
-        return agent.webId();
+    /** The caller's CID URL — how a tool names them in output or an audit line. */
+    public String cidUrl() {
+        return agent.cidUrl();
     }
 }

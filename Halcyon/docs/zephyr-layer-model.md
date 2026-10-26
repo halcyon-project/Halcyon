@@ -190,7 +190,7 @@ authenticated `/rdf` endpoint). Load `CONSTRUCT`s the graph back.
 ```turtle
 <stack> a zeph:Stack ;
         schema:name "…" ;
-        schema:creator <webid> ;          # saver; the Stacks page treats this as write-access
+        schema:creator <cid-url> ;          # saver; the Stacks page treats this as write-access
         zeph:layers ( <member1> <member2> … ) .   # an rdf:List, in order
 ```
 
@@ -280,7 +280,7 @@ so `registry.views` is re-emitted every time.
 | `zeph:blend` | member | `multiply` / `screen` |
 | `zeph:view` / `zeph:View` / `zeph:state` / `zeph:order` | stack | named views |
 | `schema:name` | any | display name |
-| `schema:creator` | stack | saver's WebID (write-access marker) |
+| `schema:creator` | stack | saver's CID URL (write-access marker) |
 
 Only **non-default** transform/presentation values are written (opacity always,
 for deterministic reload). `scalex/scaley` for pre-frame layers is recovered by

@@ -21,7 +21,7 @@ import org.springframework.ai.tool.annotation.Tool;
  * {@code .types/search} endpoint for a scanner-discovered RDF type, which
  * searches the whole storage in one request and is <strong>ACP-filtered by
  * the storage itself</strong> — the caller sees a match only where their
- * WebID is granted read. Whole-slide imagery is typed
+ * CID URL is granted read. Whole-slide imagery is typed
  * {@code schema:ImageObject} by the metadata scanner (every image reader
  * emits it); an LWS-native Zephyr stack types itself {@code zeph:Stack}.
  * Each match carries the URIs a client needs next (the resource, its media

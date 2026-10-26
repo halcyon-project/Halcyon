@@ -39,7 +39,7 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Three sections, all scoped to THE CALLER:
  * <ul>
- *   <li><b>Identity</b> — the session principal as Halcyon uses it: WebID
+ *   <li><b>Identity</b> — the session principal as Halcyon uses it: CID URL
  *       (the identity every ACP policy and creator stamp names), preferred
  *       username, display name, groups.</li>
  *   <li><b>Annotation color classes</b> — the user's palette (their LWS
@@ -65,11 +65,11 @@ public class AccountPage extends BasePage {
         // --- Identity ---------------------------------------------------------
         add(new Label("username", String.valueOf(user)));
         add(new Label("fullname", String.valueOf(hp.getName())));
-        add(new Label("webid", String.valueOf(hp.getUserURI())));
+        add(new Label("cidUrl", String.valueOf(hp.getUserURI())));
         add(new Label("groups", hp.getGroups() == null || hp.getGroups().isEmpty()
                 ? "(none)" : String.join(", ", hp.getGroups())));
         // Only offered while Keycloak is running: with :AuthServer commented out /auth is
-        // not mounted, and a WebID user's profile and credentials live at their own OP
+        // not mounted, and a CID URL user's profile and credentials live at their own OP
         // anyway, which is not ours to link to.
         add(new ExternalLink("keycloak",
                 "/auth/realms/" + HalcyonSettings.REALM + "/account",

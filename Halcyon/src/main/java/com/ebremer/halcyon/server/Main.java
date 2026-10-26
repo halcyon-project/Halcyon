@@ -138,22 +138,22 @@ public class Main {
     // stay mapped to the same servlets, for bookmarks and for redirect URIs registered at an OP.
     @Lazy(true)
     @Bean
-    ServletRegistrationBean WebIdLoginServletRegistration() {
+    ServletRegistrationBean CidLoginServletRegistration() {
         ServletRegistrationBean srb = new ServletRegistrationBean();
         srb.setLoadOnStartup(3);
         srb.setOrder(Ordered.HIGHEST_PRECEDENCE + 9);
-        srb.setServlet(new WebIdLoginServlet());
+        srb.setServlet(new CidLoginServlet());
         srb.setUrlMappings(Arrays.asList(LwsOidcSettings.LOGIN_PATH, LwsOidcSettings.LEGACY_LOGIN_PATH));
         return srb;
     }
 
     @Lazy(true)
     @Bean
-    ServletRegistrationBean WebIdCallbackServletRegistration() {
+    ServletRegistrationBean CidCallbackServletRegistration() {
         ServletRegistrationBean srb = new ServletRegistrationBean();
         srb.setLoadOnStartup(3);
         srb.setOrder(Ordered.HIGHEST_PRECEDENCE + 10);
-        srb.setServlet(new WebIdCallbackServlet());
+        srb.setServlet(new CidCallbackServlet());
         srb.setUrlMappings(Arrays.asList(LwsOidcSettings.CALLBACK_PATH, LwsOidcSettings.LEGACY_CALLBACK_PATH));
         return srb;
     }

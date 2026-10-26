@@ -224,7 +224,7 @@ class AcpEngineTest {
                 p.addProperty(ACP.allow, ACL.Read);
                 for (int i = 0; i < matching.length; i++) {
                     Resource mt = matcher(m, combinator.getLocalName() + i);
-                    // A matcher matches Alice iff we point it at her WebID; otherwise at Bob's.
+                    // A matcher matches Alice iff we point it at her CID URL; otherwise at Bob's.
                     mt.addProperty(ACP.agent, m.createResource(matching[i] ? ALICE : BOB));
                     p.addProperty(combinator, mt);
                 }
@@ -408,7 +408,7 @@ class AcpEngineTest {
         }
 
         @Test
-        void aConcreteWebIdMatchesOnlyThatAgent() {
+        void aConcreteCidUrlMatchesOnlyThatAgent() {
             acp(m -> {
                 Resource ac = control(m, TARGET, ACP.accessControl, "own");
                 Resource p = policy(m, ac, "grant");

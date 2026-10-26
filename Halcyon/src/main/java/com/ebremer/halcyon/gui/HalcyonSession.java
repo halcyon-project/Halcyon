@@ -7,8 +7,8 @@ import com.ebremer.vandegraph.VandegraphSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
-import com.ebremer.halcyon.server.WebIdLogin;
-import com.ebremer.lws.auth.oidc.WebIdOidcLogin;
+import com.ebremer.halcyon.server.CidLogin;
+import com.ebremer.lws.auth.oidc.CidOidcLogin;
 import com.ebremer.ns.HAL;
 import jakarta.json.Json;
 import jakarta.json.JsonArray;
@@ -69,22 +69,22 @@ public final class HalcyonSession extends VandegraphSession {
         setLocale(Locale.ENGLISH);
         HttpSession httpSession = servletRequest.getSession(true);
         httpSession.setMaxInactiveInterval(60*60*24); // 1 day for now
-        // Option B: an interactive WebID login (the /webid-callback servlet) seats its result as a
-        // session attribute. Identity is the WebID itself; this path carries no Keycloak token and
+        // Option B: an interactive CID URL login (the /cid-callback servlet) seats its result as a
+        // session attribute. Identity is the CID URL itself; this path carries no Keycloak token and
         // therefore skips the Keycloak-admin group sync below.
-        String webidLogin = (String) httpSession.getAttribute(WebIdLogin.WEBID);
-        if (webidLogin != null && !webidLogin.isBlank()) {
-            userURI = webidLogin;
-            // Groups come from the local WebID->role map (WebIdLogin.groupsFor), never the OP's token.
-            // The retained tokens are the credential the GUI presents to LWS storage as this WebID
+        String cidUrl = (String) httpSession.getAttribute(CidLogin.CID_URL);
+        if (cidUrl != null && !cidUrl.isBlank()) {
+            userURI = cidUrl;
+            // Groups come from the local CID URL->role map (CidLogin.groupsFor), never the OP's token.
+            // The retained tokens are the credential the GUI presents to LWS storage as this CID URL
             // (the principal refreshes the ID Token from them on demand).
-            WebIdOidcLogin.Tokens webidTokens =
-                    (WebIdOidcLogin.Tokens) httpSession.getAttribute(WebIdLogin.TOKENS);
-            principal = new HalcyonPrincipal(webidLogin, WebIdLogin.groupsFor(webidLogin),
-                    webidTokens, WebIdLogin.allowedHosts());
-            // getUser() is the short, path-safe username (a WebID's last segment), exactly like the
-            // Keycloak branch's preferred_username below — NOT the WebID itself, which getUserURI()
-            // carries. A per-user storage path built from the raw WebID has %2F-laden segments the
+            CidOidcLogin.Tokens cidTokens =
+                    (CidOidcLogin.Tokens) httpSession.getAttribute(CidLogin.TOKENS);
+            principal = new HalcyonPrincipal(cidUrl, CidLogin.groupsFor(cidUrl),
+                    cidTokens, CidLogin.allowedHosts());
+            // getUser() is the short, path-safe username (a CID URL's last segment), exactly like the
+            // Keycloak branch's preferred_username below — NOT the CID URL itself, which getUserURI()
+            // carries. A per-user storage path built from the raw CID URL has %2F-laden segments the
             // storage rejects (HTTP 400); the /colorclasses palette relay already keys on the short
             // name, so the editor must resolve the SAME document path.
             user = principal.getPreferredUserName();
@@ -104,7 +104,7 @@ public final class HalcyonSession extends VandegraphSession {
         // anything when that subsystem is running. With :AuthServer commented out there is
         // no pac4j profile to be had either, so this is belt and braces — but it states the
         // dependency instead of leaving it to be inferred from the profile being empty.
-        if (webidLogin == null && profile.isPresent() && s.isKeycloakEnabled()) {
+        if (cidUrl == null && profile.isPresent() && s.isKeycloakEnabled()) {
             OidcProfile oidcProfile = (OidcProfile) profile.get();
             String jwt = oidcProfile.getAccessToken().getValue();
             ResteasyClientBuilder builder = (ResteasyClientBuilder) ClientBuilder.newBuilder();

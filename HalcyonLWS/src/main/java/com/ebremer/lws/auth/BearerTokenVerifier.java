@@ -192,7 +192,7 @@ public final class BearerTokenVerifier implements CredentialVerifier {
         requireAudience(claims);
 
         return new AgentContext(
-                webIdOf(claims),
+                cidUrlOf(claims),
                 claims.get("azp", String.class) != null
                         ? claims.get("azp", String.class)
                         : claims.get("client_id", String.class),
@@ -245,7 +245,7 @@ public final class BearerTokenVerifier implements CredentialVerifier {
     }
 
     /**
-     * The agent's WebID.
+     * The agent's CID URL.
      *
      * <p>Preferred from a {@code webid} claim, which is what Keycloak will carry once
      * a protocol mapper exposes the user attribute Halcyon already stores. Until
@@ -255,10 +255,10 @@ public final class BearerTokenVerifier implements CredentialVerifier {
      * <p>Note what is <em>not</em> used: Keycloak's {@code sub} is an opaque UUID, not
      * a URI, and would make every ACP policy meaningless outside this one realm.
      */
-    private static String webIdOf(Claims claims) {
-        String webid = claims.get("webid", String.class);
-        if (webid != null && !webid.isBlank()) {
-            return webid;
+    private static String cidUrlOf(Claims claims) {
+        String cidUrl = claims.get("webid", String.class);
+        if (cidUrl != null && !cidUrl.isBlank()) {
+            return cidUrl;
         }
         String user = claims.get("preferred_username", String.class);
         if (user == null || user.isBlank()) {

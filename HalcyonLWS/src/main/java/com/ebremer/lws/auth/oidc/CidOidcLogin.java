@@ -33,8 +33,7 @@ import org.slf4j.LoggerFactory;
  * Interactive CID URL login (the browser relying-party flow): a person types a CID URL, and this
  * discovers <em>their</em> OpenID Provider from that controlled identifier document, runs an
  * OpenID Connect Authorization-Code + PKCE login against that OP, and — on the callback — validates
- * the returned ID Token and confirms it authenticates that exact CID URL. (The class keeps its
- * pre-rename name; "WebID" is the Solid term for the same identifier.)
+ * the returned ID Token and confirms it authenticates that exact CID URL.
  *
  * <p>The {@code client_id} is resolved per OP: either a configured, pre-registered id (for an OP you
  * arranged with), or — when dynamic registration is enabled — obtained at login time via
@@ -45,28 +44,28 @@ import org.slf4j.LoggerFactory;
  * <p>This is the login counterpart to {@link LwsOidcVerifier} (which verifies a <em>presented</em>
  * credential), reusing {@link CidResolver} and {@link OidcKeys}. The Authorization-Code mechanics are
  * OAuth's, not LWS's — see PLAN.md. {@code state} defends the callback against CSRF, {@code nonce}
- * against ID Token replay, and the flow refuses unless the ID Token asserts the typed WebID as its
+ * against ID Token replay, and the flow refuses unless the ID Token asserts the typed CID URL as its
  * {@code sub} or a {@code webid} claim.
  */
-public final class WebIdOidcLogin {
+public final class CidOidcLogin {
 
     private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(10);
     private static final long SKEW_SECONDS = 60;
     /** Refresh the ID Token once it is within this many seconds of expiry. */
     private static final long REFRESH_SKEW_SECONDS = 30;
-    private static final Logger LOG = LoggerFactory.getLogger(WebIdOidcLogin.class);
+    private static final Logger LOG = LoggerFactory.getLogger(CidOidcLogin.class);
 
     /** A login attempt could not be started or completed. */
-    public static final class WebIdLoginException extends RuntimeException {
+    public static final class CidLoginException extends RuntimeException {
         private static final long serialVersionUID = 1L;
 
-        public WebIdLoginException(String message) {
+        public CidLoginException(String message) {
             super(message);
         }
     }
 
     /** Server-side state for one in-flight login; stash between {@link #begin} and {@link #complete}. */
-    public record Pending(String state, String nonce, String codeVerifier, String webId,
+    public record Pending(String state, String nonce, String codeVerifier, String cidUrl,
             String issuer, String tokenEndpoint, String clientId) implements java.io.Serializable {
     }
 
@@ -75,12 +74,12 @@ public final class WebIdOidcLogin {
     }
 
     /**
-     * The tokens from a completed login: the authenticated WebID, the validated ID Token (itself a
-     * bare LWS-OIDC credential whose {@code sub} is the WebID — presentable to LWS storage as that
-     * WebID), the refresh token, and the OP coordinates needed to refresh. A browser session retains
+     * The tokens from a completed login: the authenticated CID URL, the validated ID Token (itself a
+     * bare LWS-OIDC credential whose {@code sub} is the CID URL — presentable to LWS storage as that
+     * CID URL), the refresh token, and the OP coordinates needed to refresh. A browser session retains
      * this and calls {@link #freshTokens} to keep the presented ID Token current.
      */
-    public record Tokens(String webId, String idToken, String refreshToken, String issuer,
+    public record Tokens(String cidUrl, String idToken, String refreshToken, String issuer,
             String tokenEndpoint, String clientId) implements java.io.Serializable {
     }
 
@@ -95,9 +94,9 @@ public final class WebIdOidcLogin {
     private final Duration timeout;
     private final SecureRandom random = new SecureRandom();
     private java.util.function.Supplier<TrustPolicy> issuers = () -> TrustPolicy.ALLOW_ALL;
-    private java.util.function.Supplier<TrustPolicy> webIdHosts = () -> TrustPolicy.ALLOW_ALL;
+    private java.util.function.Supplier<TrustPolicy> cidHosts = () -> TrustPolicy.ALLOW_ALL;
 
-    public WebIdOidcLogin(String configuredClientId, String redirectUri, boolean dynamicRegistration,
+    public CidOidcLogin(String configuredClientId, String redirectUri, boolean dynamicRegistration,
             Set<String> allowedHosts) {
         this(configuredClientId, redirectUri, dynamicRegistration, allowedHosts,
                 new CidResolver(), new OidcKeys(), new DynamicClientRegistrar(),
@@ -107,7 +106,7 @@ public final class WebIdOidcLogin {
     }
 
     /**
-     * Apply this deployment's trust policies to the WebID and the provider it nominates.
+     * Apply this deployment's trust policies to the CID URL and the provider it nominates.
      *
      * <p>A setter rather than another constructor argument: this class already has a nine-argument
      * test seam, and the policies default to allow-all so every existing caller — including the
@@ -116,10 +115,10 @@ public final class WebIdOidcLogin {
      *
      * @return this, for chaining at the call site
      */
-    public WebIdOidcLogin withTrust(java.util.function.Supplier<TrustPolicy> issuers,
-            java.util.function.Supplier<TrustPolicy> webIdHosts) {
+    public CidOidcLogin withTrust(java.util.function.Supplier<TrustPolicy> issuers,
+            java.util.function.Supplier<TrustPolicy> cidHosts) {
         this.issuers = issuers == null ? () -> TrustPolicy.ALLOW_ALL : issuers;
-        this.webIdHosts = webIdHosts == null ? () -> TrustPolicy.ALLOW_ALL : webIdHosts;
+        this.cidHosts = cidHosts == null ? () -> TrustPolicy.ALLOW_ALL : cidHosts;
         return this;
     }
 
@@ -127,11 +126,11 @@ public final class WebIdOidcLogin {
         return issuers.get();
     }
 
-    private TrustPolicy webIdHosts() {
-        return webIdHosts.get();
+    private TrustPolicy cidHosts() {
+        return cidHosts.get();
     }
 
-    WebIdOidcLogin(String configuredClientId, String redirectUri, boolean dynamicRegistration,
+    CidOidcLogin(String configuredClientId, String redirectUri, boolean dynamicRegistration,
             Set<String> allowedHosts, CidResolver cids, OidcKeys keys, DynamicClientRegistrar registrar,
             HttpClient http, Duration timeout) {
         this.configuredClientId = configuredClientId;
@@ -146,46 +145,46 @@ public final class WebIdOidcLogin {
     }
 
     /**
-     * Start a login for {@code webId}: dereference it, discover its OP, resolve a {@code client_id}
+     * Start a login for {@code cidUrl}: dereference it, discover its OP, resolve a {@code client_id}
      * (configured or dynamically registered), and build the Authorization-Code + PKCE redirect.
      *
-     * @throws WebIdLoginException if the WebID is malformed, names no OpenID Provider, discovery
+     * @throws CidLoginException if the CID URL is malformed, names no OpenID Provider, discovery
      *                            fails, or dynamic registration fails
      */
-    public Redirect begin(String webId) {
-        if (!isUrl(webId)) {
-            throw new WebIdLoginException("not an absolute http(s) CID URL: " + webId);
+    public Redirect begin(String cidUrl) {
+        if (!isUrl(cidUrl)) {
+            throw new CidLoginException("not an absolute http(s) CID URL: " + cidUrl);
         }
-        // Refuse a WebID this deployment does not accept before dereferencing it, so an
+        // Refuse a CID URL this deployment does not accept before dereferencing it, so an
         // unacceptable identifier costs no outbound request. Unset means allow all.
         try {
-            webIdHosts().require("CID host", webId);
+            cidHosts().require("CID host", cidUrl);
         } catch (TrustPolicy.RefusedException e) {
-            throw new WebIdLoginException(e.getMessage());
+            throw new CidLoginException(e.getMessage());
         }
         String issuer;
         try {
-            Model cid = cids.dereference(webId, allowedHosts);
-            issuer = cids.openIdProvider(cid, webId);
+            Model cid = cids.dereference(cidUrl, allowedHosts);
+            issuer = cids.openIdProvider(cid, cidUrl);
         } catch (SsrfGuard.BlockedException | CidResolver.CidException e) {
-            throw new WebIdLoginException("could not resolve the CID document: " + e.getMessage());
+            throw new CidLoginException("could not resolve the CID document: " + e.getMessage());
         }
         if (issuer == null) {
-            throw new WebIdLoginException("the CID document names no OpenIdProvider: " + webId);
+            throw new CidLoginException("the CID document names no OpenIdProvider: " + cidUrl);
         }
-        // The provider is named BY the WebID document, so it is the caller's choice, not ours.
+        // The provider is named BY the CID document, so it is the caller's choice, not ours.
         // This is where the deployment gets a say -- and it is checked before OIDC discovery, so a
         // provider we do not accept is never contacted.
         try {
             issuers().require("OpenID Provider", issuer);
         } catch (TrustPolicy.RefusedException e) {
-            throw new WebIdLoginException(e.getMessage());
+            throw new CidLoginException(e.getMessage());
         }
         OidcDiscovery disc;
         try {
             disc = OidcDiscovery.fetch(issuer, http, timeout, allowedHosts);
         } catch (SsrfGuard.BlockedException | OidcKeys.OidcException e) {
-            throw new WebIdLoginException("OpenID discovery failed for " + issuer + ": " + e.getMessage());
+            throw new CidLoginException("OpenID discovery failed for " + issuer + ": " + e.getMessage());
         }
         String clientId = resolveClientId(issuer, disc);
 
@@ -202,7 +201,7 @@ public final class WebIdOidcLogin {
                 + "&nonce=" + enc(nonce)
                 + "&code_challenge=" + enc(challenge(codeVerifier))
                 + "&code_challenge_method=S256";
-        return new Redirect(url, new Pending(state, nonce, codeVerifier, webId, issuer,
+        return new Redirect(url, new Pending(state, nonce, codeVerifier, cidUrl, issuer,
                 disc.tokenEndpoint(), clientId));
     }
 
@@ -212,33 +211,33 @@ public final class WebIdOidcLogin {
                 return registrar.clientId(issuer, disc.registrationEndpoint(), redirectUri,
                         allowedHosts, http, timeout);
             } catch (SsrfGuard.BlockedException | DynamicClientRegistrar.RegistrationException e) {
-                throw new WebIdLoginException("dynamic client registration failed at " + issuer
+                throw new CidLoginException("dynamic client registration failed at " + issuer
                         + ": " + e.getMessage());
             }
         }
         if (configuredClientId == null || configuredClientId.isBlank()) {
-            throw new WebIdLoginException("no client_id configured and dynamic registration is off");
+            throw new CidLoginException("no client_id configured and dynamic registration is off");
         }
         return configuredClientId;
     }
 
     /**
      * Complete the callback: check {@code state}, exchange {@code code} for an ID Token, validate it
-     * (signature via the OP's JWKS, issuer, nonce, expiry), and require it to assert the WebID this
+     * (signature via the OP's JWKS, issuer, nonce, expiry), and require it to assert the CID URL this
      * login was for — as its {@code sub} or a {@code webid} claim.
      *
-     * @return the authenticated WebID plus the validated ID Token and refresh token (see {@link Tokens})
-     * @throws WebIdLoginException on any mismatch or validation failure
+     * @return the authenticated CID URL plus the validated ID Token and refresh token (see {@link Tokens})
+     * @throws CidLoginException on any mismatch or validation failure
      */
     public Tokens complete(Pending pending, String code, String returnedState) {
         if (pending == null) {
-            throw new WebIdLoginException("no pending login for this callback");
+            throw new CidLoginException("no pending login for this callback");
         }
         if (returnedState == null || !constantTimeEquals(returnedState, pending.state())) {
-            throw new WebIdLoginException("state mismatch (possible CSRF)");
+            throw new CidLoginException("state mismatch (possible CSRF)");
         }
         if (code == null || code.isBlank()) {
-            throw new WebIdLoginException("the callback carried no authorization code");
+            throw new CidLoginException("the callback carried no authorization code");
         }
         SsrfGuard.verify(pending.tokenEndpoint(), allowedHosts);
         String form = "grant_type=authorization_code"
@@ -249,28 +248,28 @@ public final class WebIdOidcLogin {
         JsonObject tokenResponse = postForm(pending.tokenEndpoint(), form);
         String idToken = tokenResponse.getString("id_token", null);
         if (idToken == null) {
-            throw new WebIdLoginException("the token response contained no id_token");
+            throw new CidLoginException("the token response contained no id_token");
         }
-        Claims claims = validateIdToken(idToken, pending.issuer(), pending.webId());
+        Claims claims = validateIdToken(idToken, pending.issuer(), pending.cidUrl());
         String nonce = claims.get("nonce", String.class);
         if (nonce == null || !nonce.equals(pending.nonce())) {
-            throw new WebIdLoginException("id_token nonce mismatch (possible replay)");
+            throw new CidLoginException("id_token nonce mismatch (possible replay)");
         }
         String refreshToken = tokenResponse.getString("refresh_token", null);
-        return new Tokens(pending.webId(), idToken, refreshToken, pending.issuer(),
+        return new Tokens(pending.cidUrl(), idToken, refreshToken, pending.issuer(),
                 pending.tokenEndpoint(), pending.clientId());
     }
 
     /**
      * Refresh the ID Token with the stored refresh token (RFC 6749 §6). The new ID Token is validated
-     * exactly as a login one — signature via the OP's JWKS, issuer, expiry and the WebID binding —
+     * exactly as a login one — signature via the OP's JWKS, issuer, expiry and the CID URL binding —
      * minus the one-time {@code nonce}. Returns the new {@link Tokens} (rotated refresh token kept).
      *
-     * @throws WebIdLoginException if there is no refresh token, the OP refuses, or validation fails
+     * @throws CidLoginException if there is no refresh token, the OP refuses, or validation fails
      */
     public Tokens refresh(Tokens current) {
         if (current.refreshToken() == null || current.refreshToken().isBlank()) {
-            throw new WebIdLoginException("no refresh token for " + current.webId());
+            throw new CidLoginException("no refresh token for " + current.cidUrl());
         }
         SsrfGuard.verify(current.tokenEndpoint(), allowedHosts);
         String form = "grant_type=refresh_token"
@@ -280,12 +279,12 @@ public final class WebIdOidcLogin {
         JsonObject tokenResponse = postForm(current.tokenEndpoint(), form);
         String idToken = tokenResponse.getString("id_token", null);
         if (idToken == null) {
-            throw new WebIdLoginException("the refresh response contained no id_token");
+            throw new CidLoginException("the refresh response contained no id_token");
         }
-        validateIdToken(idToken, current.issuer(), current.webId());
+        validateIdToken(idToken, current.issuer(), current.cidUrl());
         // Keycloak rotates the refresh token on use; keep the new one (fall back to the old if absent).
         String refreshToken = tokenResponse.getString("refresh_token", current.refreshToken());
-        return new Tokens(current.webId(), idToken, refreshToken, current.issuer(),
+        return new Tokens(current.cidUrl(), idToken, refreshToken, current.issuer(),
                 current.tokenEndpoint(), current.clientId());
     }
 
@@ -293,7 +292,7 @@ public final class WebIdOidcLogin {
      * {@code current} if its ID Token is still valid, otherwise a refreshed copy. On any refresh
      * failure it returns {@code current} unchanged — the stale token then 401s at storage, prompting
      * re-login. Static so a retained {@link Tokens} can be refreshed without holding the originating
-     * {@link WebIdOidcLogin} (it needs no login-only state: no redirect URI, no PKCE, no nonce).
+     * {@link CidOidcLogin} (it needs no login-only state: no redirect URI, no PKCE, no nonce).
      */
     public static Tokens freshTokens(Tokens current, Set<String> allowedHosts) {
         if (current == null || current.idToken() == null) {
@@ -307,19 +306,19 @@ public final class WebIdOidcLogin {
             return current;
         }
         try {
-            return new WebIdOidcLogin(current.clientId(), null, false, allowedHosts).refresh(current);
+            return new CidOidcLogin(current.clientId(), null, false, allowedHosts).refresh(current);
         } catch (RuntimeException e) {
-            LOG.warn("CID URL login token refresh failed for {}: {}", current.webId(), e.getMessage());
+            LOG.warn("CID URL login token refresh failed for {}: {}", current.cidUrl(), e.getMessage());
             return current;
         }
     }
 
-    /** Validate an ID Token as this login's WebID credential: signed, JWKS-verified, issuer and expiry
-     *  correct, and asserting the WebID as {@code sub} or a {@code webid} claim. */
-    private Claims validateIdToken(String idToken, String issuer, String webId) {
+    /** Validate an ID Token as this login's CID URL credential: signed, JWKS-verified, issuer and expiry
+     *  correct, and asserting the CID URL as {@code sub} or a {@code webid} claim. */
+    private Claims validateIdToken(String idToken, String issuer, String cidUrl) {
         PresentedToken parsed = PresentedToken.parse("Bearer " + idToken);
         if (parsed.alg() == null || "none".equalsIgnoreCase(parsed.alg())) {
-            throw new WebIdLoginException("the id_token is not signed");
+            throw new CidLoginException("the id_token is not signed");
         }
         PublicKey key = keys.signingKey(issuer, parsed.kid(), parsed.alg(), allowedHosts);
         Claims claims;
@@ -332,17 +331,17 @@ public final class WebIdOidcLogin {
                     .parseSignedClaims(idToken)
                     .getPayload();
         } catch (JwtException | IllegalArgumentException e) {
-            throw new WebIdLoginException("the id_token did not validate: " + e.getMessage());
+            throw new CidLoginException("the id_token did not validate: " + e.getMessage());
         }
-        // The OP must assert the typed WebID — as sub (the LWS credential shape) or a webid claim.
-        boolean bound = webId.equals(claims.getSubject())
-                || webId.equals(claims.get("webid", String.class));
+        // The OP must assert the typed CID URL — as sub (the LWS credential shape) or a webid claim.
+        boolean bound = cidUrl.equals(claims.getSubject())
+                || cidUrl.equals(claims.get("webid", String.class));
         if (!bound) {
-            throw new WebIdLoginException("the id_token does not assert the requested CID URL <"
-                    + webId + "> (sub=" + claims.getSubject() + ")");
+            throw new CidLoginException("the id_token does not assert the requested CID URL <"
+                    + cidUrl + "> (sub=" + claims.getSubject() + ")");
         }
         if (claims.getExpiration() == null) {
-            throw new WebIdLoginException("the id_token has no exp");
+            throw new CidLoginException("the id_token has no exp");
         }
         return claims;
     }
@@ -375,16 +374,16 @@ public final class WebIdOidcLogin {
                             .build(),
                     HttpResponse.BodyHandlers.ofInputStream());
             if (resp.statusCode() != 200) {
-                throw new WebIdLoginException("the token endpoint returned HTTP " + resp.statusCode());
+                throw new CidLoginException("the token endpoint returned HTTP " + resp.statusCode());
             }
             try (InputStream in = resp.body(); JsonReader r = Json.createReader(in)) {
                 return r.readObject();
             }
         } catch (IOException e) {
-            throw new WebIdLoginException("token exchange failed: " + e);
+            throw new CidLoginException("token exchange failed: " + e);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new WebIdLoginException("interrupted during token exchange");
+            throw new CidLoginException("interrupted during token exchange");
         }
     }
 

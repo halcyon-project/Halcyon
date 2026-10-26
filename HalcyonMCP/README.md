@@ -127,7 +127,7 @@ reach Spring MVC:
 | `POST /mcp`, garbage bearer | `401`, `error="invalid_token"` |
 | `POST /mcp`, `Basic` scheme | `401` |
 | `POST /mcp`, valid-signature token from the **wrong realm** (master) | `401`, `error="invalid_token"` (issuer check) |
-| Token with `aud` covering the endpoint origin, `azp` = the client's own id | full handshake: `initialize` → `200` + `Mcp-Session-Id`, `notifications/initialized` → `202`, `tools/list` → both tools, `tools/call halcyon_version` → the running version, `tools/call halcyon_whoami` → **the token's own identity** (WebID/client/issuer), tool responses SSE-framed |
+| Token with `aud` covering the endpoint origin, `azp` = the client's own id | full handshake: `initialize` → `200` + `Mcp-Session-Id`, `notifications/initialized` → `202`, `tools/list` → both tools, `tools/call halcyon_version` → the running version, `tools/call halcyon_whoami` → **the token's own identity** (CID URL/client/issuer), tool responses SSE-framed |
 
 The positive path used a throwaway Keycloak client (with an
 `oidc-audience-mapper` naming the endpoint origin) and user, deleted

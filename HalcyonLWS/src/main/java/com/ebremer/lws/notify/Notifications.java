@@ -188,7 +188,7 @@ public final class Notifications {
             g.add(s, RDF.type, LWS.WebhookSubscription);
             g.add(s, LWSX.storage, ResourceFactory.createResource(cfg.storageRootUri()));
             g.add(s, LWS.subscription, g.createLiteral(inbox));
-            g.add(s, LWSX.ownedBy, ResourceFactory.createResource(agent.webId()));
+            g.add(s, LWSX.ownedBy, ResourceFactory.createResource(agent.cidUrl()));
             topics.forEach(t -> g.add(s, LWS.topic, ResourceFactory.createResource(t)));
 
             // The rest of the subscriber's context, so delivery can rebuild the exact agent that
@@ -210,7 +210,7 @@ public final class Notifications {
             // but not ordered, and a keyset cursor needs a key that only ever moves one way.
             g.add(s, LWSX.seq, typed(new ResourceRegistry(store, cfg).nextSeq()));
         });
-        LOG.info("subscription {} for {} -> {}", id, agent.webId(), inbox);
+        LOG.info("subscription {} for {} -> {}", id, agent.cidUrl(), inbox);
         return cfg.subscriptionsUri() + "/" + id;
     }
 
@@ -246,7 +246,7 @@ public final class Notifications {
             return List.of();
         }
         Model g = graph();
-        Resource me = ResourceFactory.createResource(agent.webId());
+        Resource me = ResourceFactory.createResource(agent.cidUrl());
         Resource here = ResourceFactory.createResource(cfg.storageRootUri());
 
         List<SubRef> out = new ArrayList<>();
@@ -346,7 +346,7 @@ public final class Notifications {
         Statement owner = g.getProperty(s, LWSX.ownedBy);
         return owner != null
                 && owner.getObject().isURIResource()
-                && owner.getObject().asResource().getURI().equals(agent.webId());
+                && owner.getObject().asResource().getURI().equals(agent.cidUrl());
     }
 
     /**
@@ -420,7 +420,7 @@ public final class Notifications {
     /**
      * Announce a change. Returns immediately; delivery happens off the request thread.
      *
-     * @param actor the WebID of the agent that made the change, or null — emitted only when
+     * @param actor the CID URL of the agent that made the change, or null — emitted only when
      *              {@code :LWSIncludeActor} is on (it discloses who touched the resource)
      */
     public void emit(String activityType, String resourceUri, boolean isContainer, String parent,
@@ -500,7 +500,7 @@ public final class Notifications {
     /**
      * The shared matcher: for each subscription, the activities it is both interested in (containment,
      * not URI prefix) AND authorized to read — judged against <em>this transaction's</em> state, with
-     * the subscriber's FULL context (not just the WebID), so a client-/issuer-/vc-scoped grant is
+     * the subscriber's FULL context (not just the CID URL), so a client-/issuer-/vc-scoped grant is
      * honoured at delivery exactly as interactively (M5) and a grant revoked since subscribe still
      * stops delivery (a subscription is not a capability). One envelope's worth of activities per
      * subscriber; a single change reproduces the previous behaviour, several is the batch filtered per
@@ -541,7 +541,7 @@ public final class Notifications {
                 }
                 if (!acp.allows(subscriber, c.resourceUri(), AccessMode.READ)) {
                     LOG.debug("suppressing notification about {} to {}: not readable",
-                            c.resourceUri(), subscriber.webId());
+                            c.resourceUri(), subscriber.cidUrl());
                     continue;
                 }
                 activities.add(activity(c, actor));

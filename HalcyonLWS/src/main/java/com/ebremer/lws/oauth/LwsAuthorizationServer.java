@@ -112,7 +112,7 @@ public final class LwsAuthorizationServer {
         LwsOidcSettings lws = LwsOidcSettings.load();
         suites.add(new com.ebremer.lws.auth.cid.SelfIssuedCidVerifier(
                 () -> java.util.Set.of(settings.issuer()), lws::allowedInternalHosts,
-                () -> com.ebremer.lws.config.LwsSettings.get().webIdHostPolicy()));
+                () -> com.ebremer.lws.config.LwsSettings.get().cidHostPolicy()));
         if (lws.enabled()) {
             suites.add(new LwsOidcVerifier(lws));
         }

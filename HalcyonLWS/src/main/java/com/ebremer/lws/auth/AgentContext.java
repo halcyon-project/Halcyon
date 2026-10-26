@@ -6,7 +6,7 @@ import java.util.Objects;
 /**
  * Who is making this request, as ACP needs to see them.
  *
- * <p>The agent is identified by a <strong>WebID</strong> — a URI — not by a
+ * <p>The agent is identified by a <strong>CID URL</strong> — a URI — not by a
  * Keycloak subject id or a username. That is what lws10-core requires ("This claim
  * MUST be a URI identifying the agent") and it is what makes an access control
  * policy portable: a policy naming {@code https://alice.example/#me} means the same
@@ -18,8 +18,8 @@ import java.util.Objects;
  * evaluator would leak authorization decisions between users.
  */
 public record AgentContext(
-        /** The agent's WebID, or null for an unauthenticated request. */
-        String webId,
+        /** The agent's CID URL, or null for an unauthenticated request. */
+        String cidUrl,
         /** The client application's identifier ({@code client_id}), if known. */
         String clientId,
         /** The issuer that vouched for the agent ({@code iss}). */
@@ -35,12 +35,12 @@ public record AgentContext(
     public static final AgentContext PUBLIC = new AgentContext(null, null, null, List.of());
 
     public boolean isAuthenticated() {
-        return webId != null && !webId.isBlank();
+        return cidUrl != null && !cidUrl.isBlank();
     }
 
     /** Pool key and cache key. Distinct agents must never share either. */
     public String key() {
-        return isAuthenticated() ? webId : "urn:lws:public";
+        return isAuthenticated() ? cidUrl : "urn:lws:public";
     }
 
     @Override
@@ -49,7 +49,7 @@ public record AgentContext(
             return true;
         }
         return o instanceof AgentContext a
-                && Objects.equals(webId, a.webId)
+                && Objects.equals(cidUrl, a.cidUrl)
                 && Objects.equals(clientId, a.clientId)
                 && Objects.equals(issuer, a.issuer)
                 && Objects.equals(vcTypes, a.vcTypes);
@@ -57,11 +57,11 @@ public record AgentContext(
 
     @Override
     public int hashCode() {
-        return Objects.hash(webId, clientId, issuer, vcTypes);
+        return Objects.hash(cidUrl, clientId, issuer, vcTypes);
     }
 
     @Override
     public String toString() {
-        return isAuthenticated() ? "agent[" + webId + "]" : "agent[public]";
+        return isAuthenticated() ? "agent[" + cidUrl + "]" : "agent[public]";
     }
 }

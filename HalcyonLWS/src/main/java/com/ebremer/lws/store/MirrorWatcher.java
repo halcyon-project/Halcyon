@@ -52,7 +52,7 @@ public final class MirrorWatcher {
     private volatile boolean running;
     private volatile ScheduledFuture<?> pending;
 
-    /** The WebID adopted resources are created and owned by, or null. */
+    /** The CID URL adopted resources are created and owned by, or null. */
     private final String owner;
 
     public MirrorWatcher(LwsStore store, LwsStorageConfig cfg, MirrorContentStore mirror,
@@ -60,7 +60,7 @@ public final class MirrorWatcher {
         this(store, cfg, mirror, content, com.ebremer.lws.config.LwsSettings.get().owner());
     }
 
-    /** @param owner the WebID adopted resources are created and owned by, or null */
+    /** @param owner the CID URL adopted resources are created and owned by, or null */
     public MirrorWatcher(LwsStore store, LwsStorageConfig cfg, MirrorContentStore mirror,
             ContentStore content, String owner) {
         this.owner = owner;

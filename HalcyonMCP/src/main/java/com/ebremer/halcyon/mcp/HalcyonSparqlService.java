@@ -13,11 +13,11 @@ import java.time.Duration;
  * <p>The contract an implementation MUST honour — this is the security
  * boundary, so it is stated, not assumed:
  * <ul>
- *   <li>Run the query <strong>as {@code callerWebId}</strong> against the
+ *   <li>Run the query <strong>as {@code callerCidUrl}</strong> against the
  *       <strong>secured</strong> dataset — the WAC layer decides which triples
- *       that WebID may see. The server's own identity must never be the one
+ *       that CID URL may see. The server's own identity must never be the one
  *       asking.</li>
- *   <li><strong>Fail closed</strong> for an unknown or unauthorized WebID:
+ *   <li><strong>Fail closed</strong> for an unknown or unauthorized CID URL:
  *       empty results, never an error and never a fallback to a broader
  *       view.</li>
  *   <li>Enforce {@code timeout} on execution and treat {@code maxRows} as a
@@ -35,10 +35,10 @@ import java.time.Duration;
 public interface HalcyonSparqlService {
 
     /**
-     * Execute a validated read-only query as {@code callerWebId} and return
+     * Execute a validated read-only query as {@code callerCidUrl} and return
      * the results as a JSON string: SPARQL Results JSON for {@code SELECT}/
      * {@code ASK}, or {@code {"turtle": "..."}} for {@code CONSTRUCT}/
      * {@code DESCRIBE}.
      */
-    String runReadOnly(String boundedSparql, String callerWebId, long maxRows, Duration timeout);
+    String runReadOnly(String boundedSparql, String callerCidUrl, long maxRows, Duration timeout);
 }

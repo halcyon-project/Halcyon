@@ -18,7 +18,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * The LWS 1.0 OpenID Connect credential verifier (resource-server side): an ID Token whose
- * {@code sub} is a WebID, trusted by dereferencing that WebID to a controlled identifier
+ * {@code sub} is a CID URL, trusted by dereferencing that CID URL to a controlled identifier
  * document (CID) that names the token's {@code iss} as its OpenID Provider.
  *
  * <p>This is the counterpart to Keycloak's own {@code /verify} endpoint — the same algorithm as
@@ -47,7 +47,7 @@ public final class LwsOidcVerifier implements CredentialVerifier {
 
     private final LwsOidcSettings settings;
     private final java.util.function.Supplier<TrustPolicy> issuers;
-    private final java.util.function.Supplier<TrustPolicy> webIdHosts;
+    private final java.util.function.Supplier<TrustPolicy> cidHosts;
     private final CidResolver cids;
     private final OidcKeys keys;
 
@@ -62,13 +62,13 @@ public final class LwsOidcVerifier implements CredentialVerifier {
         // identity provider can be revoked without a restart, and a value captured here would
         // outlive the reload that was supposed to remove it.
         this(settings, () -> com.ebremer.lws.config.LwsSettings.get().issuerPolicy(),
-                () -> com.ebremer.lws.config.LwsSettings.get().webIdHostPolicy());
+                () -> com.ebremer.lws.config.LwsSettings.get().cidHostPolicy());
     }
 
     public LwsOidcVerifier(LwsOidcSettings settings,
             java.util.function.Supplier<TrustPolicy> issuers,
-            java.util.function.Supplier<TrustPolicy> webIdHosts) {
-        this(settings, new CidResolver(), new OidcKeys(), issuers, webIdHosts);
+            java.util.function.Supplier<TrustPolicy> cidHosts) {
+        this(settings, new CidResolver(), new OidcKeys(), issuers, cidHosts);
     }
 
     /**
@@ -81,12 +81,12 @@ public final class LwsOidcVerifier implements CredentialVerifier {
 
     LwsOidcVerifier(LwsOidcSettings settings, CidResolver cids, OidcKeys keys,
             java.util.function.Supplier<TrustPolicy> issuers,
-            java.util.function.Supplier<TrustPolicy> webIdHosts) {
+            java.util.function.Supplier<TrustPolicy> cidHosts) {
         this.settings = settings;
         this.cids = cids;
         this.keys = keys;
         this.issuers = issuers == null ? () -> TrustPolicy.ALLOW_ALL : issuers;
-        this.webIdHosts = webIdHosts == null ? () -> TrustPolicy.ALLOW_ALL : webIdHosts;
+        this.cidHosts = cidHosts == null ? () -> TrustPolicy.ALLOW_ALL : cidHosts;
     }
 
     @Override
@@ -114,7 +114,7 @@ public final class LwsOidcVerifier implements CredentialVerifier {
         // any dereference, so a refused issuer costs no outbound request.
         try {
             issuers.get().require("OpenID Provider", iss);
-            webIdHosts.get().require("CID host", sub);
+            cidHosts.get().require("CID host", sub);
         } catch (TrustPolicy.RefusedException e) {
             LOG.debug("rejecting LWS credential for <{}>: {}", sub, e.getMessage());
             throw new InvalidBearerTokenException("invalid_token", e.getMessage());
@@ -165,7 +165,7 @@ public final class LwsOidcVerifier implements CredentialVerifier {
         }
     }
 
-    /** An absolute http(s) URL — the shape of a WebID / issuer. */
+    /** An absolute http(s) URL — the shape of a CID URL / issuer. */
     private static boolean isUrl(String s) {
         if (s == null) {
             return false;

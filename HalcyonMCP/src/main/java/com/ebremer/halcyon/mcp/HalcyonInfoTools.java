@@ -35,9 +35,9 @@ public class HalcyonInfoTools {
     public String whoami(ToolContext toolContext) {
         AgentContext agent = McpCallers.require(toolContext).agent();
         return Json.createObjectBuilder()
-                .add("cidUrl", agent.webId())
+                .add("cidUrl", agent.cidUrl())
                 // Deprecated: the same value under its pre-rename key, for clients that read it.
-                .add("webid", agent.webId())
+                .add("webid", agent.cidUrl())
                 .add("client", agent.clientId() == null ? "" : agent.clientId())
                 .add("issuer", agent.issuer() == null ? "" : agent.issuer())
                 .build().toString();

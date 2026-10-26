@@ -83,7 +83,7 @@ class AccessSharingRevokeTest {
             rootMatcher.addProperty(ACP.agent, acp.createResource(ALICE));
 
             // The attacker's grant on their own resource, exactly as installPolicy writes one --
-            // except the assignee is the storage root's ACR node rather than a WebID.
+            // except the assignee is the storage root's ACR node rather than a CID URL.
             Resource acr = acp.createResource(GRANT_ACR);
             Resource ac = acp.createResource(GRANT_ACR + "#ac");
             Resource policy = acp.createResource(GRANT_ACR + "#policy");

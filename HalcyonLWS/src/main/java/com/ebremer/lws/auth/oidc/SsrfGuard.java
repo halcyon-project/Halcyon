@@ -11,7 +11,7 @@ import java.util.Set;
  * Validates a URL before it is fetched, to prevent Server-Side Request Forgery.
  *
  * <p>The LWS-OIDC verifier dereferences URLs taken from an unverified credential (the
- * {@code sub} WebID, the {@code iss} it discovers, that issuer's {@code jwks_uri}). Before
+ * {@code sub} CID URL, the {@code iss} it discovers, that issuer's {@code jwks_uri}). Before
  * each fetch this guard requires an {@code http(s)} scheme and refuses any host that resolves
  * to a loopback / private / link-local / reserved address (including the
  * {@code 169.254.169.254} cloud-metadata endpoint), so a hostile credential cannot make the

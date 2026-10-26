@@ -299,7 +299,7 @@ public final class AcrStore {
      * its access controls, policies and matchers conventionally {@code {resource}.acr#…}; those nodes
      * are renamed wherever they occur, so the ACR is still served at {@code {new}.acr} and a later
      * {@link #replace} still reaches all of it. Nothing else is touched: an {@code acp:agent} that
-     * happens to be a WebID stored in the moved subtree names an agent, whose identity does not
+     * happens to be a CID URL stored in the moved subtree names an agent, whose identity does not
      * change with its profile document's address.
      *
      * <p>No epoch bump of its own: the move that calls this bumps it. Assumes the caller's write

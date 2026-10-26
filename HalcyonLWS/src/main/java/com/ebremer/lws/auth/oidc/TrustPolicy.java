@@ -7,14 +7,14 @@ import java.util.Locale;
 import java.util.Set;
 
 /**
- * An allow/deny list deciding which identity providers — and, optionally, which WebID hosts — this
+ * An allow/deny list deciding which identity providers — and, optionally, which CID hosts — this
  * deployment accepts.
  *
- * <p>Halcyon's WebID login establishes trust from the credential itself: the caller's own WebID
+ * <p>Halcyon's CID URL login establishes trust from the credential itself: the caller's own CID URL
  * document names its OpenID Provider, and the server checks only that the returned token is signed
- * by that self-nominated provider and asserts that same WebID. That is the right model for open
+ * by that self-nominated provider and asserts that same CID URL. That is the right model for open
  * federation, and it is why {@code acp:AuthenticatedAgent} otherwise means "anyone who can host a
- * WebID document and run an OP" rather than "someone this deployment knows". This is the lever that
+ * CID document and run an OP" rather than "someone this deployment knows". This is the lever that
  * narrows it without giving up federation.
  *
  * <p><strong>An issuer is matched as a whole URI, not by host.</strong> That is what OpenID Connect
@@ -32,7 +32,7 @@ import java.util.Set;
  * realms means several entries, which is more typing and exactly as much security as it looks like.
  * There is deliberately no wildcard for issuers.
  *
- * <p>WebID <em>hosts</em> are a different question and keep host semantics, including a
+ * <p>CID <em>hosts</em> are a different question and keep host semantics, including a
  * {@code *.example.org} wildcard: an identifier's location is a weaker signal than the provider that
  * vouches for it, and constraining it is optional.
  *
