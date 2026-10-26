@@ -7,14 +7,14 @@ part — across its **six** reactor modules:
 |---|---|
 | `jena-permissions` | In-house Apache Jena fork (upstream deprecated & removed the module in Jena 6.x): a triple/graph-level authorization engine that enforces access control by rewriting SPARQL algebra. |
 | `halcyon-core` | Digital-pathology core: medical-imaging file readers, RDF metadata extraction, and the shared vocabulary/namespace classes. |
-| `HalcyonLWS` | A standalone, conformant **W3C Linked Web Storage** protocol server (`lws10-core` / `lws10-index` / `lws10-notifications-webhook`) with an embedded LWS authorization server and its own OIDC / WebID authentication stack. |
+| `HalcyonLWS` | A standalone, conformant **W3C Linked Web Storage** protocol server (`lws10-core` / `lws10-index` / `lws10-notifications-webhook`) with an embedded LWS authorization server and its own OpenID Connect / CID authentication stack. |
 | `HalcyonLWS-S3` | An **Amazon S3** (and S3-compatible) `ContentStore` backend that plugs into the `HalcyonLWS` storage SPI (AWS SDK v2). |
 | `HalcyonMCP` | A **Model Context Protocol** server: a Streamable-HTTP `/mcp` endpoint (Spring AI) that exposes Halcyon's data as agent tools, each acting as the caller. |
 | `Halcyon` | The Spring Boot web application: Wicket UI, SPARQL endpoint, authentication, servlet host, and the LWS Storage UI (an LWS *client*). |
 
 Many of these standards are realized through well-known libraries (Apache Jena / Fuseki for RDF & SPARQL;
 dcm4che + TwelveMonkeys + the cygnus ImageIO plug-ins for imaging; `pac4j-oidc` + `jjwt` plus a bespoke
-WebID / Solid-OIDC + Dynamic-Client-Registration stack for auth; the Spring AI MCP SDK for MCP; AWS SDK v2
+LWS OpenID Connect (CID) + Dynamic-Client-Registration stack for auth; the Spring AI MCP SDK for MCP; AWS SDK v2
 for S3; Jetty for HTTP/TLS; Titanium for JSON-LD); where that is the case it is noted. The OpenID Provider
 itself is **Keycloak** — external to this codebase, reverse-proxied at `/auth` with its realm config
 bundled — so Halcyon implements only the *relying-party* / *resource-server* / *login-client* sides.
@@ -105,17 +105,17 @@ with every deliberate divergence from it, and how the
 ## Authentication & Identity
 
 The default OpenID Provider is Keycloak (external; realm config bundled and reverse-proxied at `/auth`).
-Halcyon implements the relying-party, resource-server, and WebID-login-client sides — a **fuller** stack than
+Halcyon implements the relying-party, resource-server, and CID-URL-login-client sides — a **fuller** stack than
 a plain bearer check: OIDC discovery, dynamic client registration, PKCE, refresh, and JWKS rotation.
 
 | Specification | Coverage | Module | Notes |
 |---|---|---|---|
-| OpenID Connect Core 1.0 | ● | Halcyon, HalcyonLWS, HalcyonMCP | RP login via `pac4j-oidc` + `KeycloakOidcConfiguration` (`Halcyon`); an interactive **WebID** Authorization-Code login (`auth/oidc/WebIdOidcLogin`); bearer resource-server validation with nonce/issuer/exp/audience checks (`auth/oidc/LwsOidcVerifier`, `auth/BearerTokenVerifier`). |
+| OpenID Connect Core 1.0 | ● | Halcyon, HalcyonLWS, HalcyonMCP | RP login via `pac4j-oidc` + `KeycloakOidcConfiguration` (`Halcyon`); an interactive **CID URL** Authorization-Code login (`auth/oidc/WebIdOidcLogin`); bearer resource-server validation with nonce/issuer/exp/audience checks (`auth/oidc/LwsOidcVerifier`, `auth/BearerTokenVerifier`). |
 | OpenID Connect Discovery 1.0 | ● | HalcyonLWS, HalcyonMCP | `/.well-known/openid-configuration` fetch with issuer self-consistency check; `kid`-keyed JWKS cache with rotation. `auth/oidc/OidcDiscovery`, `auth/oidc/OidcKeys`, `auth/JwksCache`. |
 | **RFC 8693 — OAuth 2.0 Token Exchange** | ● | HalcyonLWS | The grant lws10-core requires of an LWS authorization server: an authentication credential as `subject_token`, a storage as `resource`, an access token out. `oauth/TokenExchange`, `oauth/TokenEndpointServlet`. |
 | **RFC 9068 — JWT Profile for OAuth 2.0 Access Tokens** | ● | HalcyonLWS | Issued `typ: at+jwt`, `ES256`, with every claim lws10-core makes REQUIRED; validated on presentation. `oauth/AccessTokenKeys`, `auth/AccessTokenValidator`. |
 | **RFC 8414 — OAuth 2.0 Authorization Server Metadata** | ● | HalcyonLWS | Served at `/.well-known/lws-configuration` (the path lws10-core fixes), with the LWS-specific `subject_token_types_supported` and `subject_identifier_types_supported`. `oauth/AuthorizationServerMetadataServlet`. |
-| OpenID Connect / OAuth 2.0 Dynamic Client Registration (RFC 7591) | ● | HalcyonLWS | Registers a public client (PKCE, `token_endpoint_auth_method: none`, code grant) at a WebID-discovered OP; caches `client_id` per issuer. `auth/oidc/DynamicClientRegistrar`. |
+| OpenID Connect / OAuth 2.0 Dynamic Client Registration (RFC 7591) | ● | HalcyonLWS | Registers a public client (PKCE, `token_endpoint_auth_method: none`, code grant) at the OP a user's CID document names; caches `client_id` per issuer. `auth/oidc/DynamicClientRegistrar`. |
 | RFC 7636 — PKCE | ● | HalcyonLWS, Halcyon | `code_challenge`/`code_verifier`, `code_challenge_method=S256`, on every Authorization-Code flow. `auth/oidc/WebIdOidcLogin`, `server/WebIdLoginServlet`; Keycloak realm pins `pkce.code.challenge.method: S256`. |
 | RFC 6749 — OAuth 2.0 | ● | HalcyonLWS, Halcyon | Authorization-Code grant + refresh-token grant (`§6`); `state` (CSRF) & `nonce` (replay) defenses. `auth/oidc/WebIdOidcLogin`. |
 | RFC 6750 — OAuth 2.0 Bearer Token Usage | ● | HalcyonLWS, HalcyonMCP, Halcyon | `Authorization: Bearer`; `WWW-Authenticate` challenge with `error=` / `resource_metadata` semantics; no `error` code when nothing presented. `auth/InvalidBearerTokenException`, `mcp/McpBearerAuth`. |
@@ -125,9 +125,9 @@ a plain bearer check: OIDC discovery, dynamic client registration, PKCE, refresh
 | RFC 7517 — JSON Web Key / JWK Set | ● | HalcyonLWS, Halcyon | Consume the realm/OP JWKS (`kid`-aware, rotation) to obtain signing keys. `auth/oidc/OidcKeys`, `auth/JwksCache`, `fuseki/shiro/KeycloakPublicKeyFetcher`. |
 | RFC 7638 — JWK Thumbprint | ● | HalcyonLWS | The `kid` of both published keys — the webhook signing key and the access-token signing key — is the canonical JWK thumbprint. `auth/EcJwk`. |
 | RFC 9421 — HTTP Message Signatures | ● | HalcyonLWS | Signs outbound webhook deliveries (ECDSA P-256 / `ES256`); key published in the storage description. |
-| Solid-OIDC (WebID-OIDC profile) | ◐ | HalcyonLWS, Halcyon | Login binds a typed **WebID** to an OP discovered from the WebID's controlled-identifier document; the ID Token must assert that WebID as `sub` or a `webid` claim. An LWS profile ported from the `lws-authn` Keycloak extension. `auth/oidc/WebIdOidcLogin`, `auth/oidc/CidResolver`. |
-| WebID | ◐ | HalcyonLWS, Halcyon | Agent identity is a WebID URI; the identifier used in WAC/ACP policies. |
-| W3C Controlled Identifiers 1.0 (CID) | ◐ | HalcyonLWS | Two roles: the **storage description is a CID document** (`application/lws+cid`, `@context [cid/v1, lws/v1]`, `verificationMethod` + `authentication`), and WebID→OP resolution reads a subject's `service` / `serviceEndpoint` of type `lws:OpenIdProvider` (Turtle/JSON-LD/RDF-XML). `json/LwsJson`, `auth/oidc/CidResolver`. |
+| Solid-OIDC (WebID-OIDC profile) | ◐ | HalcyonLWS, Halcyon | Interop only. Login binds a typed **CID URL** to the OP its controlled identifier document names as `lws:OpenIdProvider` (the LWS mechanism; `solid:oidcIssuer` is not read), and accepts an ID Token that asserts that CID URL as `sub` or as the Solid-OIDC `webid` claim. An LWS profile ported from the `lws-authn` Keycloak extension. `auth/oidc/WebIdOidcLogin`, `auth/oidc/CidResolver`. |
+| WebID | ◐ | HalcyonLWS, Halcyon | Interop only. Agent identity is a URI (a CID URL under LWS), the identifier used in WAC/ACP policies; a Solid `webid` claim is honoured, and a WebID profile is read only as a CID document. |
+| W3C Controlled Identifiers 1.0 (CID) | ◐ | HalcyonLWS | Two roles: the **storage description is a CID document** (`application/lws+cid`, `@context [cid/v1, lws/v1]`, `verificationMethod` + `authentication`), and CID URL→OP resolution reads a subject's `service` / `serviceEndpoint` of type `lws:OpenIdProvider` (Turtle/JSON-LD/RDF-XML). `json/LwsJson`, `auth/oidc/CidResolver`. |
 | W3C Verifiable Credentials (data model) | ○ | HalcyonLWS | Only as an ACP matcher attribute (`acp:vc`) — VC identifiers usable when scoping a policy. `vocab/ACP`. |
 | SSRF-hardened outbound fetch | ◐ | HalcyonLWS | Every discovery/registration/CID fetch is guarded (private/loopback/CGN ranges refused, no redirects). *In-house control.* `auth/oidc/SsrfGuard`. |
 

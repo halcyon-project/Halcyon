@@ -13,14 +13,14 @@ conformant storage server inside Halcyon:
 - **[lws10-notifications-webhook](https://w3c.github.io/lws-protocol/lws10-notifications-webhook/)** —
   webhook subscriptions with RFC 9421 HTTP Message Signatures
 - **[lws10-authn-openid](https://w3c.github.io/lws-protocol/lws10-authn-openid/)** — an OpenID Connect
-  ID Token as an authentication credential, trusted by resolving the subject's WebID to a controlled
+  ID Token as an authentication credential, trusted by resolving the subject's CID URL to a controlled
   identifier document that names its provider
 
 Which revision of these drafts the code follows, and every deliberate divergence from it, is recorded
 in **[conformance.md](conformance.md)**.
 
 Authorization is **ACP** (Access Control Policy), enforced through Halcyon's in-house `jena-permissions`
-fork, with the agent's **WebID** as the identifier in the data. An agent reaches a storage by
+fork, with the agent's **CID URL** as the identifier in the data. An agent reaches a storage by
 exchanging an authentication credential for an access token at this instance's embedded authorization
 server, or — while `:LWSAcceptAuthenticationCredentials` is on — by presenting the credential
 directly.
@@ -124,7 +124,7 @@ curl -sk "$SITE/W3Clws/" -H "Authorization: Bearer $TOK" -H "Accept: text/turtle
 | [conformance.md](conformance.md) | The specification baseline (which editor's drafts the code follows), what changed in that revision, every deliberate divergence, and the open items |
 | [configuration.md](configuration.md) | `settings.ttl` declarations, storage roots, TDB2 location, owner bootstrap, Keycloak protocol mappers, running |
 | [http-api.md](http-api.md) | The full HTTP contract: endpoints, methods, status codes, headers, media types, negotiation, pagination, worked examples |
-| [security.md](security.md) | Authentication (Keycloak, WebID, tokens, audience) and authorization (the ACP model, ACRs, access requests & grants) |
+| [security.md](security.md) | Authentication (Keycloak, CID URLs, tokens, audience) and authorization (the ACP model, ACRs, access requests & grants) |
 | [notifications.md](notifications.md) | Webhook subscriptions, delivery, retry/expiry, and RFC 9421 signature verification |
 | [architecture.md](architecture.md) | Module layout, TDB2 and content-store design, write atomicity, cursors, the `QUERY` method, per-request security evaluator |
 | [ui.md](ui.md) | The storage UIs: the `/storage` browser and the `/lwscontainers` container tree (protocol-cursor pagination, media-type filter, right-click access properties, and the media-binding-driven preview pane with the Zephyr viewer) |

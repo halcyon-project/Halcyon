@@ -56,7 +56,7 @@ depends on who you are:
   Turtle, because a lossy rewrite of an access document is a security bug,
   not a rendering glitch.
 - **Everyone else files an access request.** The dialog POSTs an ODRL
-  `AccessRequest` (actions read/modify/create/delete, the user's WebID as
+  `AccessRequest` (actions read/modify/create/delete, the user's CID URL as
   assignee, the resource as target) to the storage's DataSharingService
   (`.access/requests`). It grants nothing by itself; a storage controller
   answers it with a grant — see [security.md](security.md).
@@ -168,7 +168,7 @@ every read it inherits the URI it was dereferenced from, so a container can
 be moved, mirrored or renamed without rewriting the stacks inside it; every
 reader (`RDFFileReader`, `Zephyr`, the browser) already parses with the
 resource URI as base. Anything outside the stack's container — a
-cross-container layer, the creator WebID — stays absolute: a reference that
+cross-container layer, the creator's CID URL — stays absolute: a reference that
 cannot travel with the container must not pretend it can. The flip side of
 the relative form is an assumption the writer honors: annotation-layer
 JSONs belong in the **stack's own container**, so Zephyr births new shape

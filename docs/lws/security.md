@@ -2,7 +2,7 @@
 
 Every request is authenticated (or treated as the public agent) and then authorized by **ACP**
 (Access Control Policy) evaluated through Halcyon's in-house `jena-permissions` fork. The two axes are
-independent: authentication establishes *who* the agent is (a WebID); authorization decides *what* modes
+independent: authentication establishes *who* the agent is (a URI, usually a CID URL); authorization decides *what* modes
 that agent holds on a resource.
 
 ## Authorization framework (lws10-core)
@@ -119,26 +119,28 @@ URL>"` challenge, followed by the legacy `as_uri="<issuer>", realm="<storage>"` 
 RFC 6750). The `401` also carries the `lws#storage` `Link`, which lws10-core makes a MUST: it is the
 storage a client names as the token request's `resource`.
 
-### The WebID
+### The agent identifier
 
-The agent is identified in policies by a **WebID** (a URI), not by Keycloak's opaque `sub` (which would
-make a policy meaningless outside one realm). The WebID is taken from:
+The agent is identified in policies by a **URI**, not by Keycloak's opaque `sub` (which would make a
+policy meaningless outside one realm). LWS calls it the subject identifier; for an LWS credential it is
+a **CID URL**, one that dereferences to the agent's controlled identifier document. On the Keycloak
+path it is taken from:
 
 1. a **`webid` claim** if present (the `account` client's `webid` protocol mapper exposes the user's
-   stored `webid` attribute); otherwise
+   stored `webid` attribute — Keycloak names, kept for compatibility); otherwise
 2. a stable URI **derived** from the username: `{proxyHost}/user/{preferred_username}#me` (lowercased),
    falling back to `sub` if there is no username.
 
 This lets policies be written and enforced today and keep working unchanged once the mapper is deployed
 everywhere. See [configuration.md](configuration.md) for the required Keycloak mappers.
 
-The agent context that reaches ACP carries the WebID plus the token's client id, issuer, and any
-verifiable-credential types — all four are matchable attributes (below).
+The agent context that reaches ACP carries the agent identifier plus the token's client id, issuer, and
+any verifiable-credential types — all four are matchable attributes (below).
 
 ### LWS-OIDC credentials (optional, off by default)
 
 In addition to the Keycloak bearer token above, a storage can accept an **LWS 1.0 OpenID Connect**
-credential: an ID Token whose `sub` is a **WebID**, trusted *dynamically* from the credential itself
+credential: an ID Token whose `sub` is a **CID URL**, trusted *dynamically* from the credential itself
 rather than against one pre-configured issuer. Both kinds are tried behind the same
 `Authorization: Bearer` header (a `CredentialChain`): a token whose `iss` is the configured Keycloak
 takes the path above, unchanged; otherwise, if its `sub` is an absolute URL, the LWS verifier runs:
@@ -149,8 +151,8 @@ takes the path above, unchanged; otherwise, if its `sub` is an absolute URL, the
 4. **OIDC discovery** on `iss`, confirm it self-identifies, fetch its JWKS;
 5. verify the signature (key pinned to the token's `alg`), the `iss` claim, and `exp`.
 
-The authenticated agent's WebID is the `sub` itself and its issuer is the *dynamically discovered* OP —
-both matchable in ACP, so a policy can name a WebID from any provider, or gate on `acp:issuer`:
+The authenticated agent's CID URL is the `sub` itself and its issuer is the *dynamically discovered* OP —
+both matchable in ACP, so a policy can name a CID URL from any provider, or gate on `acp:issuer`:
 
 ```turtle
 <#m> a acp:Matcher ; acp:agent <https://alice.example/#me> ;
@@ -169,13 +171,13 @@ accordingly (see also `PLAN.md`):
 
 - **SSRF.** Steps 2 and 4 go through `SsrfGuard`: only `http(s)`, and no host resolving to a
   loopback/private/link-local/reserved address (incl. the `169.254.169.254` metadata endpoint).
-  `allowedInternalHosts` opts specific hosts back in — needed only when a WebID is served on an
+  `allowedInternalHosts` opts specific hosts back in — needed only when a CID document is served on an
   internal address (e.g. the OP hosts its own CIDs behind the same reverse proxy). Fetches use normal
   CA-validated TLS (unlike the same-box Keycloak JWKS fetch) and never follow redirects. Residual,
   undefended: DNS rebinding and redirect-to-internal.
 - **Audience.** An LWS ID Token's `aud` is the OIDC *client*, not this storage, so the
   audience-covers-this-storage rule does **not** apply on this path — a bare bearer LWS credential
-  presented *directly* is replayable to any storage that trusts the WebID's OP. That is the weakness the
+  presented *directly* is replayable to any storage that trusts the agent's OP. That is the weakness the
   authorization framework above exists to remove: exchanged for an access token, the same identity
   arrives with an `aud` naming one storage and a 300-second life. Set
   `:LWSAcceptAuthenticationCredentials` to `false` to require that exchange; leaving it on is
@@ -183,45 +185,55 @@ accordingly (see also `PLAN.md`):
 - **Algorithm confusion.** The signing key is pinned to the token's `alg`; a symmetric / `none` /
   unknown `alg` never matches an RSA/EC verification key.
 
-### Interactive WebID login (optional, off by default)
+### Interactive CID URL login (optional, off by default)
 
 The credential path above verifies a token a client *already holds*. For a person at a browser with no
-token, the same trust model drives an **interactive login**: they type a WebID, and the storage
-discovers *their* OP from the WebID's CID and runs a standard OpenID Connect Authorization-Code + PKCE
-login against it (`/webid-login` → the OP → `/webid-callback`). On return the ID Token is validated as
+token, the same trust model drives an **interactive login**: they type a CID URL, and the storage
+discovers *their* OP from that CID document and runs a standard OpenID Connect Authorization-Code + PKCE
+login against it (`/cid-login` → the OP → `/cid-callback`). On return the ID Token is validated as
 above (signature via the OP's JWKS, `iss`, `nonce`, `exp`) and — crucially — must **assert the typed
-WebID**, as its `sub` or a `webid` claim; otherwise the login is refused. The seated session identity is
-that WebID, matchable in ACP exactly like a presented LWS credential.
+CID URL**, as its `sub` or a Solid-OIDC `webid` claim; otherwise the login is refused. The seated session
+identity is that CID URL, matchable in ACP exactly like a presented LWS credential.
 
 Authorization Code is OAuth's, not LWS's, so it needs a `client_id` at the OP. Two ways to get one,
 configured in the same `lws-oidc.json`:
 
-- **Pre-arranged** (default) — a `client_id` you registered at the OP, named by `webIdLoginClientId`
-  (default `halcyon-local`). Works only for OPs you control.
-- **Dynamic** (`"webIdLoginDynamicRegistration": true`) — the storage self-registers at the OP's
+- **Pre-arranged** (default) — a `client_id` you registered at the OP, named by `cidLoginClientId`
+  (default `halcyon-local`). Works only for OPs you control. Register `{site}/cid-callback` as its
+  redirect URI.
+- **Dynamic** (`"cidLoginDynamicRegistration": true`) — the storage self-registers at the OP's
   `registration_endpoint` (RFC 7591) at login time and caches the returned `client_id` per issuer, so
   the login works with **any** conformant OP with no pre-arrangement. The registration endpoint is
   `SsrfGuard`-checked like every other outbound call; the registered client is public (PKCE,
-  `token_endpoint_auth_method: none`), authorization-code only, with `/webid-callback` as its sole
+  `token_endpoint_auth_method: none`), authorization-code only, with `/cid-callback` as its sole
   redirect URI.
 
-  Registration only yields a `client_id`; the login still requires the OP to **assert the WebID** in the
-  ID Token. For a Keycloak OP that means the WebID mapper on a *default* client scope (so a
+  Registration only yields a `client_id`; the login still requires the OP to **assert the CID URL** in
+  the ID Token. For a Keycloak OP that means the `webid` mapper on a *default* client scope (so a
   dynamically-registered client inherits it) and a realm that permits anonymous client registration —
-  otherwise the callback's WebID binding fails even though registration succeeded.
+  otherwise the callback's CID URL binding fails even though registration succeeded.
 
-A WebID login establishes an **authenticated identity** (the WebID), which ACP matches per resource like
-any other. It does **not** grant *local* roles: an id_token's `groups`/roles are an assertion by whatever
-OP the WebID names, and trusting that to grant a role such as `admin` would let an arbitrary OP (worse,
-one reached via dynamic registration) seize local power. So local group membership for a WebID login is a
-**local policy**, a WebID→groups map in the same `lws-oidc.json` — the OP's token is never consulted for it:
+A CID URL login establishes an **authenticated identity** (the CID URL), which ACP matches per resource
+like any other. It does **not** grant *local* roles: an id_token's `groups`/roles are an assertion by
+whatever OP the CID document names, and trusting that to grant a role such as `admin` would let an
+arbitrary OP (worse, one reached via dynamic registration) seize local power. So local group membership
+for a CID URL login is a **local policy**, a CID URL→groups map in the same `lws-oidc.json` — the OP's
+token is never consulted for it:
 
 ```json
-{ "webIdGroups": { "https://ebremer.com/id/erich": ["admin"] } }
+{ "cidGroups": { "https://ebremer.com/id/erich": ["admin"] } }
 ```
 
-Only WebIDs you list here receive local groups; every other WebID logs in with none (authorized purely
-through ACP). The Keycloak-token path is unchanged — its groups still come from the verified access token.
+Only CID URLs you list here receive local groups; every other CID URL logs in with none (authorized
+purely through ACP). The Keycloak-token path is unchanged — its groups still come from the verified
+access token.
+
+**Older names, still accepted.** `/webid-login` and `/webid-callback` still route to the same login, the
+`?webid=` parameter is still read, and `lws-oidc.json` still reads `webIdLoginClientId`,
+`webIdLoginDynamicRegistration` and `webIdGroups`, each with a deprecation warning in the log. A new
+name wins when both are present. A pre-arranged client keeps sending `/webid-callback` as its redirect
+URI until `lws-oidc.json` names it with `cidLoginClientId`, so a registration made the old way keeps
+matching: register `{site}/cid-callback` at the OP first, then rename the key.
 
 ## Authorization (ACP)
 
@@ -297,7 +309,7 @@ curl -sk -X PUT "$LOC.acr" -H "Authorization: Bearer $TOK" \
   --data-binary @policy.ttl                                         # replace (Control), 428/412 apply
 ```
 
-An example policy granting one WebID read access to a resource:
+An example policy granting one CID URL read access to a resource:
 
 ```turtle
 @prefix acp: <http://www.w3.org/ns/solid/acp#> .

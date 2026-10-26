@@ -53,11 +53,11 @@ with `curl` and their own token is a bug. Concretely:
 | Tool | What it does |
 |---|---|
 | `halcyon_version` | Server name and version (no auth-sensitive data). |
-| `halcyon_whoami` | The caller as verified: WebID, OAuth client, issuer. |
+| `halcyon_whoami` | The caller as verified: CID URL (`cidUrl`; also under the deprecated `webid` key), OAuth client, issuer. |
 | `lws_storages` | The configured LWS storage roots + their type-search / access-request / IIIF / description endpoints. Start here. |
 | `lws_list` | One page of a container listing as the caller; follows the storage's opaque `first/prev/next/last` cursors. |
 | `lws_read` | Bounded 256 kB text read of a resource; binaries refused with the URI to open directly. |
-| `sparql_query` | Read-only SPARQL run as the caller's WebID against the WAC-secured dataset; updates & `SERVICE` refused, results row-capped and time-bounded. |
+| `sparql_query` | Read-only SPARQL run as the caller's CID URL against the WAC-secured dataset; updates & `SERVICE` refused, results row-capped and time-bounded. |
 | `find_slides` / `list_stacks` | ACP-filtered Type Search for `schema:ImageObject` slides / `zeph:Stack` annotation stacks. |
 | `iiif_info` / `iiif_thumbnail` | The IIIF `info.json` / a bounded base64 thumbnail, via the image's own storage `.iiif` endpoint as the caller. |
 | `lws_put` | Create or replace a TEXT resource as the caller — replace is a conditional `If-Match` compare-and-swap (conflicts surfaced, never overwritten), create is a `POST` to the parent. |
@@ -68,8 +68,8 @@ so ACP decides each answer and a 403 is rendered verbatim — none has a privile
 to the stores. `sparql_query` is the one exception to "over HTTP": it runs in-process
 against the secured dataset, **not** the Fuseki `/rdf` endpoint, whose verifier pins
 `azp==account` (Halcyon's own web client) and would reject an MCP client's own-`client_id`
-token; the caller's WebID is bound as the WAC identity via an explicit-principal
-`WACSecurityEvaluator`, so an unknown WebID is granted nothing.
+token; the caller's CID URL is bound as the WAC identity via an explicit-principal
+`WACSecurityEvaluator`, so an unknown CID URL is granted nothing.
 
 ### Output conventions
 
@@ -99,7 +99,7 @@ Every tool call is wrapped by `AuditingToolCallback`: an audit line (logger
 `com.ebremer.halcyon.mcp.audit`) names the **principal**, the tool, and the
 outcome, and — when a Micrometer `MeterRegistry` is on the context — a
 `halcyon.mcp.tool.calls` timer tagged by tool and outcome is recorded. A
-per-principal token bucket (`RateLimiter`, keyed by WebID, enforced in the auth
+per-principal token bucket (`RateLimiter`, keyed by CID URL, enforced in the auth
 filter after the token verifies) answers `429` to a caller over its rate;
 capacity and window are `halcyon.mcp.rate-limit.{capacity,window-seconds}`
 (default 120 / 60 s).

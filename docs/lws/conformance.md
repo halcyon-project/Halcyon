@@ -24,7 +24,7 @@ core test suite the README then linked (#213).
 | [lws10-core](https://w3c.github.io/lws-protocol/lws10-core/) | Resources, containers, operations, metadata, discovery, authentication, **authorization**, notifications, access requests & grants, media types, pagination | ● |
 | [lws10-index](https://w3c.github.io/lws-protocol/lws10-index/) | Type Index Service, Type Search Service | ● |
 | [lws10-notifications-webhook](https://w3c.github.io/lws-protocol/lws10-notifications-webhook/) | Webhook subscriptions, RFC 9421 signed delivery | ● |
-| [lws10-authn-openid](https://w3c.github.io/lws-protocol/lws10-authn-openid/) | ID Token as an authentication credential, WebID → CID → OpenID Provider | ● |
+| [lws10-authn-openid](https://w3c.github.io/lws-protocol/lws10-authn-openid/) | ID Token as an authentication credential, CID URL → CID document → OpenID Provider | ● |
 | [lws10-vocab](https://w3c.github.io/lws-protocol/lws10-vocab/) | The LWS vocabulary and the terms the JSON-LD context maps | ● |
 | [lws10-authn-ssi-cid](https://w3c.github.io/lws-protocol/lws10-authn-ssi-cid/) | Self-signed controlled-identifier credentials (HTTPS, `did:key`, `did:web` subjects) | ● `auth/cid/SelfIssuedCidVerifier` |
 | [lws10-authn-saml](https://w3c.github.io/lws-protocol/lws10-authn-saml/) | SAML 2.0 assertions as credentials | ○ not implemented |

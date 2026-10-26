@@ -76,7 +76,7 @@ Each delivery is a `POST` to the inbox with this body (ActivityStreams-flavored)
     One `Move` per move, never a `Delete` and a `Create`, batching or not; a moved container's
     descendants move with it and are not announced one by one.
 - `object.type` is `["DataResource"]` or `["Container"]`.
-- `actor` (the WebID of the agent that made the change) is **omitted by default** — the spec says it
+- `actor` (the identifier of the agent that made the change) is **omitted by default** — the spec says it
   SHOULD be, since telling every subscriber who touched a resource discloses more than the change itself
   does. Set **`:LWSIncludeActor true`** in `settings.ttl` to include it (the spec's "MAY make its
   inclusion configurable").
