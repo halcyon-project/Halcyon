@@ -44,6 +44,11 @@ subset — e.g. read-only, one profile, or client-of) · ○ vocabulary / refere
 > as `WD-lws10-core-20261019`): authorization-server discovery by RFC 9728 protected resource metadata
 > (#256), the LWS profile for container representations (#253), and moving resources between containers
 > (#237)._
+>
+> _Revised 2026-11-09: checked against the drafts of 9 November 2026 (`w3c/lws-protocol` @ `db64f56`,
+> published as `WD-lws10-core-20261109`). Their one normative change, #263 (a create in a container that
+> does not exist is *Target Not Found*, `404`), needed no code; the disk mirror's creating `PUT` is now
+> recorded as a divergence._
 
 ---
 
@@ -54,7 +59,7 @@ lws10-notifications-webhook"*); the `Halcyon` web app is an LWS *client* (the St
 `com.ebremer.halcyon.lws.*`).
 
 The LWS drafts are unofficial proposals and they move. The revision the code follows —
-[`w3c/lws-protocol`](https://github.com/w3c/lws-protocol) @ `9a08ff6`, **19 October 2026** — together
+[`w3c/lws-protocol`](https://github.com/w3c/lws-protocol) @ `db64f56`, **9 November 2026** — together
 with every deliberate divergence from it, and how the
 [LWS 1.0 test suite](https://github.com/lws-contrib/lws-test-suite) fares against it, is recorded in
 [`docs/lws/conformance.md`](docs/lws/conformance.md).

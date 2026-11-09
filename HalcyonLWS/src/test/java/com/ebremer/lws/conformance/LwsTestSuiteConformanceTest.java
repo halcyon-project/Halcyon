@@ -1104,6 +1104,87 @@ class LwsTestSuiteConformanceTest {
                 null).header("ETag").orElseThrow(), "the owner's listing did not");
     }
 
+    // --- Create in a missing container --------------------------------------
+
+    /**
+     * A create in a container that does not exist reports the <em>Target Not Found</em> outcome.
+     *
+     * <p>Not a suite entry. The core of 9 November 2026 (w3c/lws-protocol #263) replaced "MUST
+     * return a 404 error status unless another status code is more appropriate" with that outcome,
+     * which its status table maps to 404, and a note that a create adds a resource to one existing
+     * container. The core's own example comes first. Then every agent who may be told is told 404,
+     * and nothing is created on the way: the owner; an agent holding nothing here, as this storage
+     * answers a resource such an agent holds nothing on as one that is not there (the 404 for 403
+     * the status table allows); and an anonymous agent once the public holds something on the
+     * root. While the public holds nothing, an anonymous agent is challenged, as everywhere here.
+     *
+     * <p>A {@code PUT} is not lws10-core's create operation. On this storage, the disk mirror, it is
+     * a write to a path that makes the missing containers above it: an extension, divergence 17 of
+     * {@code docs/lws/conformance.md}, pinned last so that a change to it is a decision.
+     */
+    @Test
+    void createInAMissingContainerIsTargetNotFound() throws Exception {
+        givenContainer("/alice/tnf/", false);
+        givenAbsent("/alice/tnf/notes/");
+        Map<String, String> text = Map.of("Content-Type", "text/plain");
+        byte[] test = "test".getBytes(StandardCharsets.UTF_8);
+
+        Res post = send("POST", "/alice/tnf/notes/", owner(), text, test);
+        assertEquals(404, post.status(), post.text());
+        assertEquals("application/problem+json", post.mediaType(), "the status table's error details");
+        assertEquals(404, post.json().getInt("status"));
+        assertEquals(404, send("POST", "/alice/tnf/notes/deeper/", owner(), text, test).status());
+
+        Instant now = Instant.now();
+        String bob = accessToken("https://id.example/bob", now, now.plusSeconds(300));
+        assertEquals(404, send("POST", "/alice/tnf/notes/", bob, text, test).status());
+        assertEquals(404, send("POST", "/alice/tnf/", bob, text, test).status(),
+                "a container bob holds nothing on is answered as one that is not there");
+
+        Res anonymous = send("POST", "/alice/tnf/notes/", null, text, test);
+        assertEquals(401, anonymous.status(), anonymous.text());
+        assertConformingChallenge(anonymous, "/alice/tnf/notes/", null);
+
+        // The public given Read on the root, beside the owner's policy, and only for this.
+        String rootAcr = AcrStore.acrUri(STORAGE);
+        Res acr = send("GET", "/alice/.acr", owner(), Map.of("Accept", "text/turtle"), null);
+        assertEquals(200, acr.status(), acr.text());
+        String withPublic = acr.text() + """
+
+                @prefix acp: <http://www.w3.org/ns/solid/acp#> .
+                @prefix acl: <http://www.w3.org/ns/auth/acl#> .
+                <%1$s> acp:accessControl <%1$s#tnf-public> .
+                <%1$s#tnf-public> a acp:AccessControl ; acp:apply <%1$s#tnf-read> .
+                <%1$s#tnf-read> a acp:Policy ; acp:allOf <%1$s#tnf-anyone> ; acp:allow acl:Read .
+                <%1$s#tnf-anyone> a acp:Matcher ; acp:agent acp:PublicAgent .
+                """.formatted(rootAcr);
+        Res opened = send("PUT", "/alice/.acr", owner(), Map.of("Content-Type", "text/turtle",
+                "If-Match", acr.header("ETag").orElseThrow()), withPublic.getBytes(StandardCharsets.UTF_8));
+        assertEquals(204, opened.status(), opened.text());
+        try {
+            assertEquals(404, send("POST", "/alice/tnf/notes/", null, text, test).status(),
+                    "the public has standing here, so it is told the container is not there");
+        } finally {
+            String etag = send("GET", "/alice/.acr", owner(), Map.of("Accept", "text/turtle"), null)
+                    .header("ETag").orElseThrow();
+            Res restored = send("PUT", "/alice/.acr", owner(), Map.of("Content-Type", "text/turtle",
+                    "If-Match", etag), acr.body());
+            assertEquals(204, restored.status(), restored.text());
+        }
+        assertEquals(401, send("POST", "/alice/tnf/notes/", null, text, test).status(),
+                "the root's policy is back as it was");
+
+        assertEquals(404, send("GET", "/alice/tnf/notes/", owner(), Map.of(), null).status(),
+                "no container was created on the way");
+        Res listing = send("GET", "/alice/tnf/", owner(), Map.of("Accept", LWS_JSON), null);
+        assertEquals(0, listing.json().getInt("totalItems"), listing.text());
+
+        // Divergence 17: the mirror's PUT writes the path, missing containers included.
+        assertEquals(201, send("PUT", "/alice/tnf/notes/n1", owner(), text, test).status());
+        assertEquals(200, send("GET", "/alice/tnf/notes/", owner(), Map.of("Accept", LWS_JSON), null)
+                .status(), "the PUT made the container above it");
+    }
+
     // --- Authorization ------------------------------------------------------
 
     /**
