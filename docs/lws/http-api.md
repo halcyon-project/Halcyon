@@ -105,8 +105,12 @@ not become an existence oracle. `Allow` values:
 
 ### POST — create
 
-Creates a child **in the container posted to**. Creation is `POST`-only; `PUT` never creates. Requires
-`Append` on the container (so an append-only "inbox" — `Append` without `Read` — works).
+Creates a child **in the container posted to**: lws10-core's create operation. Requires `Append` on the
+container (so an append-only "inbox" — `Append` without `Read` — works). A container that does not
+exist is lws10-core's *Target Not Found*, `404` (or the `401` challenge, to an anonymous agent on a
+storage that grants the public nothing), and nothing is created on the way. On `/W3Clws` (the flat
+storage) `POST` is the only way to create; on `/W3ClwsSlash` (the disk mirror) a `PUT` can create too —
+see below.
 
 - `Link: <https://www.w3.org/ns/lws#Container>; rel="type"` → creates a **sub-container**; otherwise a
   **data resource** whose body bytes are stored and whose `Content-Type` is recorded as its media type.
@@ -127,8 +131,12 @@ Full replacement of an existing **data resource's** content (or an ACR — see b
   server demand it. The comparison happens inside the write transaction, making it a true
   compare-and-swap. See [Request headers](#request-headers).
 - Success: **`204 No Content`** + new `ETag`.
-- `405` on a container (membership is server-managed, not settable by `PUT`). `404` on a URI that does
-  not exist — `PUT` does not create.
+- `405` on a container (membership is server-managed, not settable by `PUT`).
+- On a URI that does not exist: on `/W3Clws` (the flat storage) `404` — `PUT` does not create. On
+  `/W3ClwsSlash` (the disk mirror) a `PUT` is a write to a path: it creates the data resource, and every
+  missing container above it, answering **`201 Created`** with `Location`; it needs `Append` on the
+  nearest existing ancestor. That is an extension beyond lws10-core, whose create is a `POST` into one
+  existing container ([conformance.md](conformance.md), divergence 17).
 
 ### PATCH
 

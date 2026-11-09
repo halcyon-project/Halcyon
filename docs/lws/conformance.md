@@ -2,16 +2,21 @@
 
 ## Specification baseline
 
-HalcyonLWS is tracked against the **W3C LWS Protocol editor's drafts as of 19 October 2026** —
-[`w3c/lws-protocol`](https://github.com/w3c/lws-protocol) @ `9a08ff6`, the text W3C published that day
-as the core Working Draft [`WD-lws10-core-20261019`](https://www.w3.org/TR/2026/WD-lws10-core-20261019/)
-(the OpenID, SAML and SSI-CID authentication suites were republished as Working Drafts of 15 October,
-with wording changes only). These are unofficial proposals, not Recommendations: they change, and this
-document records *which* revision the code follows so that a future reader can tell a deliberate
-divergence from a stale implementation.
+HalcyonLWS is tracked against the **W3C LWS Protocol editor's drafts as of 9 November 2026** —
+[`w3c/lws-protocol`](https://github.com/w3c/lws-protocol) @ `db64f56`, the text W3C published that day
+as the core Working Draft [`WD-lws10-core-20261109`](https://www.w3.org/TR/2026/WD-lws10-core-20261109/)
+(and the SAML suite's Working Draft of the same day, which fixed its example's XML; the OpenID and SSI-CID
+suites are still the Working Drafts of 15 October). These are unofficial proposals, not Recommendations:
+they change, and this document records *which* revision the code follows so that a future reader can
+tell a deliberate divergence from a stale implementation.
 
-Three changes since the previous baseline, `ef02548` (5 October), reach the wire, and all three are
-implemented ([the section below](#after-5-october-to-19-october)): **authorization-server discovery by
+One change since the previous baseline, `9a08ff6` (19 October), is normative, and it needed no code
+([the section below](#after-19-october-to-9-november)): #263 made a create in a container that does not
+exist the **Target Not Found** outcome, `404`. Checking it turned up an undocumented extension, the disk
+mirror's creating `PUT`, now divergence 17.
+
+Before that, `9a08ff6` brought three changes over `ef02548` (5 October) that reach the wire, all three
+implemented ([its section](#after-5-october-to-19-october)): **authorization-server discovery by
 RFC 9728 protected resource metadata** (#256), **the LWS profile** for container representations (#253),
 and **moving resources** between containers by their `up` link (#237). Before that, `ef02548` had
 brought one change, #255 (JSON Patch replaces JSON Merge Patch); the normative text at `9b03b32`
@@ -79,6 +84,15 @@ Everything in this table was a real difference on the wire, not a rewording.
 | [#237](https://github.com/w3c/lws-protocol/pull/237) | **Moving resources.** A resource moves to another container when a client changes the `up` link in its linkset with a JSON Patch (there is no `MOVE` method). A server that allows it MUST describe a `MoveResource` capability (`appliesTo` — absent means data resources only — and `preservesIdentifier`), and one that does not MUST refuse with a 4xx and describe none. The destination MUST be an existing container; no `up` left, a cycle, or a container move a server does not support MUST be refused; the change is atomic on both `items` lists and both containers' ETags; links the client may not modify are preserved; authorization is delete (recursive, for a container) on the resource plus create in the destination, for the whole subtree, never partially applied. Identifiers SHOULD be preserved; a server that does not MUST answer `200` with the new linkset and a `Content-Location`, and SHOULD `301` the previous URIs. A move SHOULD be one `Move` activity (`origin`, `target`, `object` after the move) | Every MUST, on both storage kinds (`http/MoveHandler`, a linkset JSON Patch or merge patch whose result changes `up`; `:LWSMoveAppliesTo`, both kinds by default, per storage or global). **Flat storages** (`uuid`, and S3) preserve the identifier — the spec's preferred case: `ResourceRegistry.reparent`, `204`, `preservesIdentifier: true`. **The disk mirror** cannot, since its URI is its path and the disk is authoritative: the subtree is renamed on disk atomically and every URI-keyed fact rewritten (`ResourceRegistry.rename`, `AcrStore.rename`, subscription topics), `200` + `Content-Location`, `301` from every previous URI (and its `.meta`/`.acr`) to an agent that may read the new one, `preservesIdentifier: false`; a name taken in the destination becomes `name-N` as a taken `Slug` does. All refusals are `409`, authorization failures `403`/`401`. One `Move` activity per move, a `Delete` to subscribers who can no longer read it. Cross-storage moves are refused (`409`), which the draft allows. The harness's `aJsonPatchCannotRedirectUp` (an `up` into another storage) now gets that `409` where it got `403` |
 | [#274](https://github.com/w3c/lws-protocol/pull/274), [#265](https://github.com/w3c/lws-protocol/pull/265), [#268](https://github.com/w3c/lws-protocol/pull/268) | Vocabulary: `MoveResource`, `appliesTo`, `preservesIdentifier`, `as:Move` and `AccessRequest` defined; scopes for the notification and access terms; `xsd:anyURI` ranges become IRIs; spec references corrected | The bundled context is the Working Group's build of this vocabulary |
 | [#275](https://github.com/w3c/lws-protocol/pull/275), [#264](https://github.com/w3c/lws-protocol/pull/264), [#269](https://github.com/w3c/lws-protocol/pull/269), [#270](https://github.com/w3c/lws-protocol/pull/270), [#271](https://github.com/w3c/lws-protocol/pull/271), [#273](https://github.com/w3c/lws-protocol/pull/273), [#257](https://github.com/w3c/lws-protocol/pull/257) | Editorial: core consistency edits and new Privacy/Security considerations text, a leftover name hint dropped from the create example, OpenID and SAML terminology, the SAML example's XML, SSI-CID wording, implementation reports | Nothing on the wire |
+
+### After 19 October, to 9 November
+
+| Upstream | Change | Here |
+|---|---|---|
+| [#263](https://github.com/w3c/lws-protocol/pull/263) (23 October; the core Working Draft of that day) | **A create in a container that does not exist.** "MUST return a 404 error status unless another status code is more appropriate" is gone. The create operation reports the **Target Not Found** outcome (now a defined term), and an example shows its `404`. The status table gains `401` Unknown Requester (`WWW-Authenticate` says how to authenticate), `403` Not Permitted and `404` Target Not Found, each with optional RFC 9457 details. A server that does not want to reveal whether a resource exists to a client not permitted to access it MAY answer `404` for `403`. A note: a create adds a resource to one existing container, and creating several levels of containers in one operation is not defined | **Nothing to change.** A `POST` into a missing container is `404` with problem details, to every agent that may be told: the owner, any authenticated agent (this storage answers a resource an agent holds nothing on as one that is not there, `LwsServlet.hidden`, which is the new MAY), and an anonymous one on a storage whose root grants the public anything. Elsewhere an anonymous agent gets the `401` challenge, as for every resource. Nothing is created on the way. Pinned by `createInAMissingContainerIsTargetNotFound`. The disk mirror's `PUT`, a write to a path that creates the missing containers above it, is outside the create operation; it was undocumented, and is now divergence 17 |
+| [#281](https://github.com/w3c/lws-protocol/pull/281) | Section references made dynamic (the numbering did not change); the IANA registrations cite the core's Authorization section | Nothing on the wire |
+| [#298](https://github.com/w3c/lws-protocol/pull/298) | The SAML example's closing `</ds:Signature>` | Nothing: SAML is not implemented |
+| [#300](https://github.com/w3c/lws-protocol/pull/300), [#302](https://github.com/w3c/lws-protocol/pull/302) | The preview's TODO link; CI actions | Nothing |
 
 ## The LWS test suite
 
@@ -227,6 +241,17 @@ Each of these is a choice, with the reason it was made. None is an oversight.
     is or holds a mount point — a copy-then-delete across disks would give up the atomicity the draft
     requires.
 
+17. **On the disk mirror, `PUT` creates, and makes the missing containers above the path.** lws10-core's
+    create operation is a `POST` into an existing container (a container that does not exist is *Target
+    Not Found*, `404`, as it is here), and the core of 9 November 2026 notes that it does not define
+    creating several levels of containers in one operation. `PUT` it defines only as an update: a `PUT`
+    meant to update a resource that does not exist is `404`, as it is on the flat storages. On the mirror
+    the URI is the file's path and the disk is the source of truth, so a `PUT` there is a write to a
+    path, the way the disk itself works and the way Halcyon's own clients place files: it creates the
+    resource and every missing container above it, authorized as an append on the nearest existing
+    ancestor (`LwsServlet.putMirror`). A client that follows lws10-core never meets it, as it creates
+    with `POST`, one level at a time.
+
 ## Open items
 
 - **lws10-authn-saml** — SAML 2.0 assertions. Not implemented, and there is no SAML relying party
@@ -240,7 +265,7 @@ Each of these is a choice, with the reason it was made. None is an oversight.
 - **The reset LWS test suite.** `lws-contrib/lws-test-suite` restarted on 11 October as a Turtle
   manifest of step-based tests (`lws10/manifest.ttl` @ `7a2ba98`); `LwsTestSuiteConformanceTest` still
   runs the entries of the YAML manifest it replaced. Port the new entries once the manifest settles —
-  it still carries a deliberately failing test.
+  on 9 November it was still `7a2ba98`, with its deliberately failing test.
 - **Moves on the disk mirror, the edges.** A crash between the rename on disk and the TDB2 commit (a
   window of milliseconds) leaves a rename the reconciler takes for an external one: the content is kept,
   the subtree's types, links, ACR and owner are not. A `POST`/`PUT` into a container *while* it is being
@@ -255,7 +280,7 @@ Each of these is a choice, with the reason it was made. None is an oversight.
   over the store and the profile RDF of a listing therefore name `size` differently. Aligning the
   store needs a migration of every resource graph.
 - **Re-check against newer drafts.** Clone `w3c/lws-protocol` fresh and
-  `git log 9a08ff6..` over `lws10-core`, `lws10-index`, `lws10-notifications-webhook`,
+  `git log db64f56..` over `lws10-core`, `lws10-index`, `lws10-notifications-webhook`,
   `lws10-authn-*` and `lws10-vocab` — and read each PR's *whole* diff, not its title: #228 was
   recorded here by its headline and its second half was missed. Then pull
   `lws-contrib/lws-test-suite` and `git log 7a2ba98..` over `lws10/`; a new or changed entry belongs

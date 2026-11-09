@@ -661,7 +661,8 @@ public class LwsServlet extends HttpServlet {
      * able to discover the existence of a specific resource instance … without the required
      * authorization" — and the core spec's delete section grants the licence to do it:
      * "In cases where revealing resource existence poses a security risk, the server MAY
-     * return 404 Not Found instead."
+     * return 404 Not Found instead." Since 9 November 2026 its status table says the same of
+     * every operation: a server "MAY respond with 404 Not Found instead of 403 Forbidden".
      *
      * <p>Which answer an anonymous agent gets turns on whether a challenge could tell it
      * anything. On a storage that grants the public nothing, 401 is the useful reply: it
@@ -669,8 +670,9 @@ public class LwsServlet extends HttpServlet {
      * answer — which is the entire purpose of a challenge. On a storage that already
      * grants the public access, it is a lie of omission. That agent is not short of
      * credentials; the resource it addressed is simply not there, and lws10-core wants that
-     * said plainly — a POST into a container that does not exist "MUST return a 404 error
-     * status unless another status code is more appropriate".
+     * said plainly — a POST into a container that does not exist is the <em>Target Not
+     * Found</em> outcome, 404 (#263; until 9 November 2026 "MUST return a 404 error status
+     * unless another status code is more appropriate").
      *
      * <p>The standing test is taken against the storage ROOT, never the resource in hand,
      * and that is what keeps the oracle shut. Asked of the resource it would answer 401 for
@@ -1648,10 +1650,13 @@ public class LwsServlet extends HttpServlet {
     /**
      * Create a resource in a container.
      *
-     * <p>POST-only, and the parent is the container posted to. PUT does not create: on
-     * a URI that does not exist it is a 404, exactly as the spec describes. That keeps
-     * one path on which a parent is ever assigned — which the flat storage requires,
-     * having no hierarchy in its URIs to infer one from.
+     * <p>The parent is the container posted to, and a container that does not exist is the
+     * <em>Target Not Found</em> outcome, a 404 (lws10-core of 9 November 2026, #263). On the
+     * flat storage PUT does not create: on a URI that does not exist it is a 404, exactly as
+     * the spec describes, which keeps one path on which a parent is ever assigned — the flat
+     * storage has no hierarchy in its URIs to infer one from. The disk mirror's PUT is a write
+     * to a path and does create, missing containers included ({@link #putMirror}): an
+     * extension beyond the spec's create operation (docs/lws/conformance.md, divergence 17).
      */
     private void post(Req rq, Target t, HttpServletRequest req, HttpServletResponse resp)
             throws IOException {
