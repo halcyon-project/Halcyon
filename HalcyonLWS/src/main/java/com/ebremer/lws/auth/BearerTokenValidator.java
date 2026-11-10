@@ -70,8 +70,13 @@ public final class BearerTokenValidator {
             return chain.authenticate(req);
         } catch (InvalidBearerTokenException e) {
             throw unauthorized(e.error(), e.getMessage());
+        } catch (CredentialUnavailableException e) {
+            throw Problem.serviceUnavailable(e.getMessage(), RETRY_AFTER_SECONDS);
         }
     }
+
+    /** The {@code Retry-After} of a {@code 503} for a credential that could not be checked now. */
+    static final int RETRY_AFTER_SECONDS = 5;
 
     /**
      * The 401, which is how a client discovers where to get a token, without a single hardcoded URI.

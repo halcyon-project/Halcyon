@@ -1,6 +1,7 @@
 package com.ebremer.lws.auth.oidc;
 
 import com.ebremer.lws.auth.AgentContext;
+import com.ebremer.lws.auth.CredentialUnavailableException;
 import com.ebremer.lws.auth.CredentialVerifier;
 import com.ebremer.lws.auth.InvalidBearerTokenException;
 import com.ebremer.lws.auth.PresentedToken;
@@ -159,7 +160,16 @@ public final class LwsOidcVerifier implements CredentialVerifier {
                     ? claims.get("azp", String.class)
                     : claims.get("client_id", String.class);
             return new AgentContext(sub, clientId, iss, List.of());
-        } catch (SsrfGuard.BlockedException | CidResolver.CidException | OidcKeys.OidcException e) {
+        } catch (CidResolver.CidException e) {
+            LOG.debug("rejecting LWS credential for <{}>: {}", sub, e.toString());
+            if (e.temporary()) {
+                // The document could not be fetched just now (its host unreachable, or 429/5xx):
+                // that says nothing about the credential, so it is not a 401 (CidResolver.CidException).
+                throw new CredentialUnavailableException("the LWS credential could not be checked now: "
+                        + "its subject's controlled identifier document could not be fetched");
+            }
+            throw new InvalidBearerTokenException("invalid_token", "the LWS credential could not be verified");
+        } catch (SsrfGuard.BlockedException | OidcKeys.OidcException e) {
             LOG.debug("rejecting LWS credential for <{}>: {}", sub, e.toString());
             throw new InvalidBearerTokenException("invalid_token", "the LWS credential could not be verified");
         }
