@@ -221,6 +221,11 @@ public final class Problem extends RuntimeException {
         return new Problem(500, "Internal Server Error", detail);
     }
 
+    /** Something this request depends on is unavailable for now; try again after {@code retryAfterSeconds}. */
+    public static Problem serviceUnavailable(String detail, int retryAfterSeconds) {
+        return new Problem(503, "Service Unavailable", detail).header("Retry-After", Integer.toString(retryAfterSeconds));
+    }
+
     public static Problem notImplemented(String detail) {
         return new Problem(501, "Not Implemented", detail);
     }

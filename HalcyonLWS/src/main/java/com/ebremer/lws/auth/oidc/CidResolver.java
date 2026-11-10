@@ -14,9 +14,13 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import org.apache.jena.query.ParameterizedSparqlString;
 import org.apache.jena.query.QueryExecution;
 import org.apache.jena.query.QueryExecutionFactory;
@@ -61,17 +65,50 @@ public final class CidResolver {
     private static final String ACCEPT =
             TURTLE + ", " + JSON_LD + ";q=0.9, " + N_TRIPLES + ";q=0.8, " + RDF_XML + ";q=0.7";
 
-    /** A CID could not be dereferenced or parsed. */
+    /**
+     * A CID could not be dereferenced or parsed. {@link #temporary()} is true when the failure says
+     * nothing about the credential: the document's host was unreachable, or answered {@code 429} or
+     * {@code 5xx}. The verifier then answers {@code 503}, not {@code 401}, so a client does not take
+     * a server that is busy for a credential that is wrong.
+     */
     public static final class CidException extends RuntimeException {
         private static final long serialVersionUID = 1L;
+        private final boolean temporary;
 
         public CidException(String message) {
-            super(message);
+            this(message, false);
         }
+
+        public CidException(String message, boolean temporary) {
+            super(message);
+            this.temporary = temporary;
+        }
+
+        public boolean temporary() {
+            return temporary;
+        }
+    }
+
+    /** How long a document is reused when its response names no {@code max-age}. */
+    static final Duration DEFAULT_TTL = Duration.ofSeconds(60);
+    /** The longest a document is reused, whatever its {@code max-age} says. */
+    static final Duration MAX_TTL = Duration.ofMinutes(5);
+    /** At most this many documents are kept; past it the expired ones go, and then all. */
+    static final int MAX_ENTRIES = 1024;
+
+    private record Cached(Model model, Instant expires) {
     }
 
     private final HttpClient http;
     private final Duration timeout;
+    private final Clock clock;
+    /**
+     * Documents already dereferenced, by URL. Every request that presents an ID token is verified
+     * against its subject's CID document, so without this a busy client costs its identity provider
+     * one fetch per request, and a provider that limits the rate (lws-authn does, per address)
+     * answers {@code 429} and the requests fail.
+     */
+    private final Map<String, Cached> cache = new ConcurrentHashMap<>();
 
     public CidResolver() {
         this(HttpClient.newBuilder()
@@ -81,8 +118,13 @@ public final class CidResolver {
     }
 
     CidResolver(HttpClient http, Duration timeout) {
+        this(http, timeout, Clock.systemUTC());
+    }
+
+    CidResolver(HttpClient http, Duration timeout, Clock clock) {
         this.http = http;
         this.timeout = timeout;
+        this.clock = clock;
     }
 
     /**
@@ -92,7 +134,13 @@ public final class CidResolver {
      * @throws CidException               on a transport error, non-200 status, or unparseable body
      */
     public Model dereference(String sub, Set<String> allowedHosts) {
+        // The guard runs on every call, cached or not: the hosts allowed may differ between calls.
         SsrfGuard.verify(sub, allowedHosts);
+        Instant now = clock.instant();
+        Cached hit = cache.get(sub);
+        if (hit != null && now.isBefore(hit.expires())) {
+            return copy(hit.model());
+        }
         HttpResponse<String> resp;
         try {
             HttpRequest req = HttpRequest.newBuilder(URI.create(sub))
@@ -102,17 +150,60 @@ public final class CidResolver {
                     .build();
             resp = http.send(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
         } catch (IOException e) {
-            throw new CidException("could not dereference <" + sub + ">: " + e);
+            throw new CidException("could not dereference <" + sub + ">: " + e, true);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new CidException("interrupted dereferencing <" + sub + ">");
+            throw new CidException("interrupted dereferencing <" + sub + ">", true);
         }
-        if (resp.statusCode() != 200) {
-            throw new CidException("dereferencing <" + sub + "> returned HTTP " + resp.statusCode());
+        int status = resp.statusCode();
+        if (status != 200) {
+            throw new CidException("dereferencing <" + sub + "> returned HTTP " + status,
+                    status == 429 || status >= 500);
         }
         String contentType = resp.headers().firstValue("Content-Type").orElse(null);
         String body = resp.body();
-        return isJsonLd(contentType, body) ? modelFromCompactJsonLd(body, sub) : parseRdf(body, contentType, sub);
+        Model model = isJsonLd(contentType, body) ? modelFromCompactJsonLd(body, sub) : parseRdf(body, contentType, sub);
+        Duration ttl = ttl(resp.headers().firstValue("Cache-Control").orElse(null));
+        if (!ttl.isZero()) {
+            if (cache.size() >= MAX_ENTRIES) {
+                cache.values().removeIf(c -> !now.isBefore(c.expires()));
+                if (cache.size() >= MAX_ENTRIES) {
+                    cache.clear();
+                }
+            }
+            cache.put(sub, new Cached(copy(model), now.plus(ttl)));
+        }
+        return model;
+    }
+
+    /**
+     * How long a response may be reused: its {@code max-age}, at most {@link #MAX_TTL}; nothing for
+     * {@code no-store} or {@code no-cache}; {@link #DEFAULT_TTL} when it says neither.
+     */
+    static Duration ttl(String cacheControl) {
+        if (cacheControl == null) {
+            return DEFAULT_TTL;
+        }
+        Duration ttl = DEFAULT_TTL;
+        for (String directive : cacheControl.toLowerCase(Locale.ROOT).split(",")) {
+            String d = directive.trim();
+            if (d.equals("no-store") || d.equals("no-cache")) {
+                return Duration.ZERO;
+            }
+            if (d.startsWith("max-age=")) {
+                try {
+                    long seconds = Long.parseLong(d.substring("max-age=".length()).replace("\"", ""));
+                    ttl = seconds <= 0 ? Duration.ZERO : Duration.ofSeconds(Math.min(seconds, MAX_TTL.toSeconds()));
+                } catch (NumberFormatException e) {
+                    ttl = DEFAULT_TTL;
+                }
+            }
+        }
+        return ttl;
+    }
+
+    private static Model copy(Model m) {
+        return ModelFactory.createDefaultModel().add(m);
     }
 
     /** Does {@code cid} declare {@code iss} as an {@code lws:OpenIdProvider} service for {@code sub}? */
