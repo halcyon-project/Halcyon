@@ -1104,6 +1104,23 @@ class LwsTestSuiteConformanceTest {
                 null).header("ETag").orElseThrow(), "the owner's listing did not");
     }
 
+    // --- The notification service's own challenge (Touchstone D-0113) -------
+
+    /**
+     * An anonymous subscription is the core's <em>Unknown Requester</em>: {@code 401} with a
+     * conforming challenge whose protected resource metadata is the subscription endpoint's own, not
+     * the {@code 403} it was answered with until 10 November 2026.
+     */
+    @Test
+    void anAnonymousSubscriptionIsChallenged() throws Exception {
+        String path = "/alice/.notifications/subscriptions";
+        Res r = send("POST", path, null, Map.of("Content-Type", LWS_JSON),
+                "{\"type\":\"WebhookSubscription\",\"topic\":[\"https://storage.example/alice/\"],\"inbox\":\"https://inbox.example/\"}"
+                        .getBytes(StandardCharsets.UTF_8));
+        assertEquals(401, r.status(), r.text());
+        assertConformingChallenge(r, path, null);
+    }
+
     // --- Create in a missing container --------------------------------------
 
     /**
