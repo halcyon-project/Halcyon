@@ -3099,6 +3099,12 @@ public class LwsServlet extends HttpServlet {
 
     private void subscribe(Req rq, HttpServletRequest req, HttpServletResponse resp)
             throws IOException {
+        // An anonymous subscription is the core's Unknown Requester: 401 with the challenge, which
+        // names this endpoint's protected resource metadata and links the storage, so a client
+        // learns where to get a token. A 403 (Not Permitted) is for an identity that is known.
+        if (!rq.agent().isAuthenticated()) {
+            throw auth.unauthenticated("authentication is required to subscribe");
+        }
         String ct = MediaTypes.bare(req.getContentType());
         if (!MediaTypes.LWS_JSON.equals(ct) && !MediaTypes.JSON.equals(ct)
                 && !MediaTypes.LD_JSON.equals(ct)) {
