@@ -157,8 +157,14 @@ public final class MirrorReconciler {
                         continue;   // shadowed: another (deeper) mount owns this key
                     }
                     if (Files.isDirectory(p)) {
-                        diskDirSet.add(key);
-                    } else if (Files.isRegularFile(p)) {
+                        diskDirSet.add(key);    // a container's URI ends in a slash: always its own
+                    } else if (Files.isRegularFile(p) && LwsStorageConfig.namesOwnResource(key, false)) {
+                        // Only a file whose URI answers with the file itself is adopted. One named like
+                        // an auxiliary resource (a sidecar "scan.svs.meta") or a reserved endpoint stays
+                        // on disk, unpublished: adopted, it would be listed but unreachable, and its
+                        // description would land in the named graph that is its primary's linkset.
+                        // An entry an earlier build adopted for such a file is left as it is — the file
+                        // is still on disk, so apply() spares it, and removing it would drop that graph.
                         diskFiles.put(key, new FileInfo(Files.size(p), Files.getLastModifiedTime(p).toInstant()));
                     }
                 }

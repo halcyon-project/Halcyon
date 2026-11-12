@@ -82,6 +82,50 @@ public record LwsStorageConfig(
     /** Suffix of a resource's ACP access control resource. Reserved like {@link #LINKSET_SUFFIX}. */
     public static final String ACR_SUFFIX = ".acr";
 
+    /** The reserved names a request path is answered by exactly, never as a resource. */
+    private static final List<String> RESERVED_PATHS = List.of(DESCRIPTION, TYPE_INDEX, TYPE_SEARCH,
+            SUBSCRIPTIONS, ACCESS_REQUESTS, ACCESS_GRANTS, IIIF);
+
+    /** The reserved collections whose direct members are service resources, never storage resources. */
+    private static final List<String> RESERVED_COLLECTIONS = List.of(SUBSCRIPTIONS, ACCESS_REQUESTS,
+            ACCESS_GRANTS);
+
+    /**
+     * Whether a path under the mount is answered as a container or data resource of its own:
+     * {@code false} for a path {@code Target.resolve} reads as one of the reserved service endpoints
+     * above (or an endpoint capability's {@link #IIIF}), or as the auxiliary resource
+     * ({@link #LINKSET_SUFFIX}, {@link #ACR_SUFFIX}) of another resource.
+     *
+     * <p>The API never mints such a path: {@code Slugs.sanitize} strips leading dots and breaks the
+     * suffixes. But the files of a disk-authoritative storage are named by whoever put them there —
+     * a slide archive that keeps a {@code scan.svs.meta} sidecar beside every {@code scan.svs}, say.
+     * Adopted, such a file would be counted and listed in its container while its URI answered with
+     * the linkset of {@code scan.svs}: listed, yet unreachable. So the mirror adopts only the paths
+     * this accepts, and leaves the rest on disk, untouched and unpublished.
+     *
+     * @param rel       the path under the mount, without a leading slash (a container's without its
+     *                  trailing slash)
+     * @param container whether it names a container, whose URI ends in a slash
+     */
+    public static boolean namesOwnResource(String rel, boolean container) {
+        if (rel == null || rel.isEmpty()) {
+            return false;                                   // the storage root, which is never adopted
+        }
+        String path = container ? rel + "/" : rel;          // what Target.resolve sees
+        if (RESERVED_PATHS.contains(path)) {
+            return false;
+        }
+        for (String collection : RESERVED_COLLECTIONS) {
+            if (path.startsWith(collection + "/")) {
+                String id = path.substring(collection.length() + 1);
+                if (!id.isEmpty() && !id.contains("/")) {
+                    return false;                           // a subscription, request or grant
+                }
+            }
+        }
+        return !path.endsWith(LINKSET_SUFFIX) && !path.endsWith(ACR_SUFFIX);
+    }
+
     public LwsStorageConfig {
         if (urlPath == null || !urlPath.startsWith("/")) {
             throw new IllegalArgumentException("lws urlPath must start with '/': " + urlPath);
