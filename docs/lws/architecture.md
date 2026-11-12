@@ -90,6 +90,21 @@ UUID key that names nothing on disk) is cleaned up too. It runs **hourly**, plus
 first pass is **backgrounded** on the shared sweeper thread so a large mirror tree does not block servlet
 `init()`. The scheduled sweep is storage-aware (mirror → reconcile, sharded → reap).
 
+It adopts only a file **whose URI answers with the file itself** (`LwsStorageConfig.namesOwnResource`, the
+mirror's copy of `Target.resolve`'s routing, pinned to it by `NamesOwnResourceTest`). A file named like an
+auxiliary resource — `scan.svs.meta` or `scan.svs.acr`, say, a sidecar some archives keep beside each slide
+— or like a reserved endpoint at the storage root (`.description`, `.types/index`, `.iiif`, a member of
+`.notifications/subscriptions/`, …) stays on disk, **unpublished**: adopted, it would be listed in its
+container while its URI answered with the linkset of `scan.svs`, and its description would land in the
+named graph that *is* that linkset. The API never mints such names (`Slugs.sanitize`). An entry an older
+build already adopted for such a file is left registered — the file is still on disk, and de-registering
+it would drop the graph it shares with its primary's linkset.
+
+The first pass over an existing tree **reads every file in full** to hash its ETag (later passes only
+re-hash files whose size or mtime changed), one file at a time, before the file is reachable: plan for
+the size of the tree, and on a disk shared with other services consider capping the process's reads
+(systemd `IOReadBandwidthMax=`) until it is done.
+
 `MirrorWatcher` makes it real-time: a `WatchService` over the tree **debounce-triggers a reconcile** on
 any change (~1.5 s, coalescing a burst such as a folder copy into one pass), registering new
 subdirectories as they appear (a `WatchService` is not recursive) and leaning on the periodic reconcile
