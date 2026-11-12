@@ -5,7 +5,7 @@ import com.ebremer.halcyon.datum.HalcyonPrincipal;
 import com.ebremer.halcyon.gui.HalcyonSession;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import com.ebremer.halcyon.wicket.BasePage;
-import com.ebremer.ns.VG;
+import com.ebremer.vandegraph.ns.VG;
 import com.ebremer.vandegraph.VandegraphApplication;
 import com.ebremer.vandegraph.media.MediaBindings;
 import com.ebremer.vandegraph.media.MediaViewContext;
