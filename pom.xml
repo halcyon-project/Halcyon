@@ -109,7 +109,7 @@
              a minor/major gets its own review (the MCP SDK moves fast and the
              transport-provider override in HalcyonMcpAutoConfiguration tracks
              Spring AI's own auto-config shape). -->
-        <spring-ai.version>2.0.1</spring-ai.version>
+        <spring-ai.version>2.0.2</spring-ai.version>
         <!-- S3 backend (module HalcyonLWS-S3). BOM-managed; the sync client rides
              the default apache-client. -->
         <awssdk.version>2.48.3</awssdk.version>
