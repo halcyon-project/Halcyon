@@ -8,7 +8,7 @@ ${AnsiColor.BRIGHT_YELLOW}
  |_|  |_/_/    \_\______\_____|  |_|  \_____/|__| \__|
 
 ${AnsiColor.BRIGHT_RED}
-Halcyon Version     :  (v1.1.0)
+Halcyon Version     :  (v0.9.0)
 Spring Boot Version : ${spring-boot.formatted-version}
 ${AnsiColor.BRIGHT_YELLOW}
 ============================================================
