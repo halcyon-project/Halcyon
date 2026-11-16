@@ -104,7 +104,7 @@
         <jts.version>1.20.0</jts.version>
         <twelvemonkeys.version>3.13.1</twelvemonkeys.version>
         <cygnus.version>0.1.0-SNAPSHOT</cygnus.version>
-        <vandegraph.version>0.2.0-SNAPSHOT</vandegraph.version>
+        <vandegraph.version>0.2.0</vandegraph.version>
         <!-- MCP server (module HalcyonMCP). Pin discipline: 2.0.x patches only;
              a minor/major gets its own review (the MCP SDK moves fast and the
              transport-provider override in HalcyonMcpAutoConfiguration tracks
