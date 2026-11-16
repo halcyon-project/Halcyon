@@ -89,7 +89,11 @@
         <exec.longClasspath>true</exec.longClasspath>
         <springboot.version>4.1.2</springboot.version>
 	<resteasy.version>6.2.15.Final</resteasy.version>
-        <jetty.version>12.1.10</jetty.version>
+        <!-- Must equal the jetty.version in spring-boot-dependencies:${springboot.version}.
+             This pins only some Jetty modules (see dependencyManagement); the rest
+             (http2, alpn, session, websocket) follow Boot's BOM. A mismatch mixes
+             Jetty versions and breaks HTTP/2 - browsers see a reset connection. -->
+        <jetty.version>12.1.14</jetty.version>
         <jena.version>6.2.0</jena.version>
         <wicket.ver>10.9.1</wicket.ver>
         <beakgraph.version>0.20.0</beakgraph.version>
