@@ -87,7 +87,7 @@
         <java.version>25</java.version>
         <maven.compiler.release>25</maven.compiler.release>
         <exec.longClasspath>true</exec.longClasspath>
-        <springboot.version>4.1.0</springboot.version>
+        <springboot.version>4.1.2</springboot.version>
 	<resteasy.version>6.2.15.Final</resteasy.version>
         <jetty.version>12.1.10</jetty.version>
         <jena.version>6.2.0</jena.version>
