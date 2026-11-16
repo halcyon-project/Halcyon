@@ -16,6 +16,7 @@ import java.awt.Graphics2D;
 import java.awt.Polygon;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -50,7 +51,15 @@ public class BeakGraphImageReader extends AbstractImageReader {
     private final URI uri;
     private final URI base;
     private static final Integer METAVERSION = 0;
-    private static final Pattern pattern = Pattern.compile("(\\d+)\\s+(\\d+)");
+    /** A WKT number: sign, decimals and exponent allowed. The stored WKT is
+     *  meant to be on the integer grid, but BeakGraph's repair of an invalid
+     *  polygon (JTS buffer(0)) adds fractional vertices such as
+     *  {@code 5838.666666666667 3535.5}: an integer-only pattern matched the
+     *  digits after the point, which overflowed parseInt (and dropped the rest
+     *  of the grid cell) or, with a short fraction, gave a wrong vertex. */
+    private static final String NUMBER = "[-+]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][-+]?\\d+)?";
+    /** One coordinate pair, "x y". */
+    private static final Pattern pattern = Pattern.compile("(" + NUMBER + ")\\s+(" + NUMBER + ")");
 
     public BeakGraphImageReader(URI uri, URI base) throws IOException {
         logger.trace("BeakGraphImageReader {} {}", uri, base);
@@ -242,17 +251,21 @@ public class BeakGraphImageReader extends AbstractImageReader {
     }
 
     /**
-     * Rescale integer WKT coordinates from a pyramid series' pixel space back
-     * to full resolution. Identity at scale 1 (the common case: a click
-     * inspection requests the region 1:1, which best-matches series 0).
+     * Rescale WKT coordinates from a pyramid series' pixel space back to full
+     * resolution. Identity at scale 1 (the common case: a click inspection
+     * requests the region 1:1, which best-matches series 0). Decimal
+     * arithmetic, so an integer stays an integer ("5838" x 2 = "11676") and a
+     * fractional vertex keeps its digits.
      */
-    private static String rescaleWKT(String wkt, int scale) {
+    static String rescaleWKT(String wkt, int scale) {
         if (scale <= 1) return wkt;
+        BigDecimal factor = BigDecimal.valueOf(scale);
         Matcher matcher = pattern.matcher(wkt);
         StringBuilder sb = new StringBuilder();
         while (matcher.find()) {
             matcher.appendReplacement(sb,
-                (Long.parseLong(matcher.group(1)) * scale) + " " + (Long.parseLong(matcher.group(2)) * scale));
+                new BigDecimal(matcher.group(1)).multiply(factor).toPlainString() + " "
+                + new BigDecimal(matcher.group(2)).multiply(factor).toPlainString());
         }
         matcher.appendTail(sb);
         return sb.toString();
@@ -260,21 +273,26 @@ public class BeakGraphImageReader extends AbstractImageReader {
 
     /**
      * Simple helper to extract coordinates from WKT POLYGON strings
-     * and convert them to relative tile coordinates.
+     * and convert them to relative tile coordinates. A fractional vertex is
+     * rounded to the nearest pixel (the integer grid the rest of the WKT is
+     * on); integer data gives exactly the polygon it always did, and so the
+     * same pixels: Graphics2D.fill(Shape) would rasterize edges differently
+     * from fillPolygon. All rings go into one polygon, as before; even-odd
+     * filling cancels the doubled edge between two closed rings, so holes and
+     * MULTIPOLYGON parts come out right.
      * @param wkt
      * @param offsetX
      * @param offsetY
-     * @return 
+     * @return
      */
-    private static Polygon parseWktToPolygon(String wkt, int offsetX, int offsetY) {
-      //  IO.println(offsetX+" "+offsetY+"  "+wkt);
+    static Polygon parseWktToPolygon(String wkt, int offsetX, int offsetY) {
         Matcher matcher = pattern.matcher(wkt);
         List<Integer> xPoints = new ArrayList<>();
-        List<Integer> yPoints = new ArrayList<>();       
+        List<Integer> yPoints = new ArrayList<>();
         while (matcher.find()) {
-            xPoints.add(Integer.parseInt(matcher.group(1)) - offsetX);
-            yPoints.add(Integer.parseInt(matcher.group(2)) - offsetY);
-        }        
+            xPoints.add(Math.toIntExact(Math.round(Double.parseDouble(matcher.group(1)))) - offsetX);
+            yPoints.add(Math.toIntExact(Math.round(Double.parseDouble(matcher.group(2)))) - offsetY);
+        }
         return new Polygon(
             xPoints.stream().mapToInt(i -> i).toArray(),
             yPoints.stream().mapToInt(i -> i).toArray(),
@@ -344,7 +362,7 @@ public class BeakGraphImageReader extends AbstractImageReader {
                                 QuerySolution qs = rs.next();
                                 wkt = qs.getLiteral("wkt").getString();
                               //  logger.trace("tile -> {} {} {} {}", i, j, offx, offy);
-                                g2d.fillPolygon( parseWktToPolygon( wkt, ir.getX(), ir.getY() ) );                                
+                                g2d.fillPolygon( parseWktToPolygon( wkt, ir.getX(), ir.getY() ) );
                             }                            
                         }
                     }            
