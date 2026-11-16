@@ -21,7 +21,7 @@ import org.springframework.web.util.HtmlUtils;
  *
  * <p>This used to return the view names {@code error401}/{@code error403}/{@code error500},
  * which exist nowhere in the application — so every error, including deliberate user-facing
- * {@code sendError} messages such as the WebID login's, dissolved into a masked
+ * {@code sendError} messages such as the CID URL login's, dissolved into a masked
  * {@code 404 "No static resource error500"}. Rendering directly, with no view resolution,
  * cannot miss.
  */

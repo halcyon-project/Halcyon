@@ -13,9 +13,9 @@ import java.time.Duration;
 import java.util.Set;
 
 /**
- * The OpenID Provider endpoints an interactive WebID login needs: the authorization and token
+ * The OpenID Provider endpoints an interactive CID URL login needs: the authorization and token
  * endpoints (to drive the Authorization-Code flow) plus the JWKS URI. Obtained by OIDC discovery
- * on an issuer that a WebID's CID vouched for — SSRF-guarded, and the discovered {@code issuer}
+ * on an issuer that a CID document vouched for — SSRF-guarded, and the discovered {@code issuer}
  * must match the one asked for (the OP must self-identify).
  *
  * <p>Distinct from {@link OidcKeys}, which caches JWKS for verification; this is a one-shot fetch

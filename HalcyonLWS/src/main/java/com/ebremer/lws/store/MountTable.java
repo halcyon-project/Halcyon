@@ -102,6 +102,21 @@ public final class MountTable {
     }
 
     /**
+     * Whether a mount is at {@code key} or anywhere beneath it ({@code inclusive}), or strictly
+     * beneath it. A rename that would carry a mount point along, or land something where a mount
+     * would then shadow it, is one the disk layout cannot express.
+     */
+    public boolean mountWithin(String key, boolean inclusive) {
+        for (WalkRoot w : byLength) {
+            String p = w.prefix();
+            if (inclusive && p.equals(key) || p.startsWith(key + "/")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * The prefix of the root that OWNS {@code key} ({@code ""} for the main
      * root). A disk walk keeps only the keys it owns: a same-named directory on
      * the main disk is shadowed by its mount, and a nested mount shadows the

@@ -1,14 +1,14 @@
 package com.ebremer.halcyon.fuseki.shiro;
 
 import com.ebremer.halcyon.datum.HalcyonPrincipal;
-import com.ebremer.halcyon.server.WebIdLogin;
+import com.ebremer.halcyon.server.CidLogin;
 import io.jsonwebtoken.Claims;
 import org.apache.shiro.authc.AuthenticationToken;
 
 public class JwtToken implements AuthenticationToken {
 
     private final String token;
-    /** The verified Keycloak claims, or {@code null} for a WebID (LWS-OIDC) credential. */
+    /** The verified Keycloak claims, or {@code null} for a CID URL (LWS-OIDC) credential. */
     private final Claims claims;
     private final HalcyonPrincipal principal;
 
@@ -30,16 +30,16 @@ public class JwtToken implements AuthenticationToken {
             this.principal = new HalcyonPrincipal(this, false);
             return;
         }
-        // Not a Keycloak token — try the LWS-OIDC (WebID login) credential, if enabled. Trust is
-        // established dynamically from the WebID's CID, so /rdf accepts tokens from issuers it was
+        // Not a Keycloak token — try the LWS-OIDC (CID URL login) credential, if enabled. Trust is
+        // established dynamically from the agent's CID document, so /rdf accepts tokens from issuers it was
         // never configured with (the same LwsOidcVerifier /rdf2 uses); the store's WAC authorises
-        // the WebID. The identity is the WebID, not Keycloak claims.
-        String webId = WebIdBearer.verify(token);
-        if (webId == null) {
+        // the CID URL. The identity is the CID URL, not Keycloak claims.
+        String cidUrl = CidBearer.verify(token);
+        if (cidUrl == null) {
             throw new IllegalArgumentException("JWT failed verification");
         }
         this.claims = null;
-        this.principal = new HalcyonPrincipal(webId, WebIdLogin.groupsFor(webId));
+        this.principal = new HalcyonPrincipal(cidUrl, CidLogin.groupsFor(cidUrl));
     }
 
     @Override

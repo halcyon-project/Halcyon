@@ -65,12 +65,18 @@ Each delivery is a `POST` to the inbox with this body (ActivityStreams-flavored)
 }
 ```
 
-- `activity.type` is one of `Create`, `Update`, or `Delete`:
+- `activity.type` is one of `Create`, `Update`, `Delete` or `Move`:
   - **`Create`** — a `POST` created a child. Emitted with `target` = the parent container.
   - **`Update`** — a `PUT` or `PATCH` changed a resource. Emitted with `target` = the parent.
   - **`Delete`** — a `DELETE` removed a resource. Emitted with **`origin`** (not `target`) = the parent.
+  - **`Move`** — a linkset `PATCH` changed the resource's `up` link, moving it to another container
+    (lws10-core since w3c/lws-protocol#237; see [http-api.md](http-api.md#moving-a-resource)). Emitted
+    with **`origin`** = the container it left, **`target`** = the container it joined, and `object` = the
+    resource as it is *after* the move — on the disk mirror, where a move changes the URI, its new URI.
+    One `Move` per move, never a `Delete` and a `Create`, batching or not; a moved container's
+    descendants move with it and are not announced one by one.
 - `object.type` is `["DataResource"]` or `["Container"]`.
-- `actor` (the WebID of the agent that made the change) is **omitted by default** — the spec says it
+- `actor` (the identifier of the agent that made the change) is **omitted by default** — the spec says it
   SHOULD be, since telling every subscriber who touched a resource discloses more than the change itself
   does. Set **`:LWSIncludeActor true`** in `settings.ttl` to include it (the spec's "MAY make its
   inclusion configurable").
@@ -79,6 +85,19 @@ Each delivery is a `POST` to the inbox with this body (ActivityStreams-flavored)
   `DELETE` uses this to announce the whole removed subtree at once; each subscriber still only ever
   receives the activities for resources it is authorized to read. Off (the default) → a recursive delete
   announces only the container itself, and `activity` is always a single object.
+
+### Who hears about a move
+
+A move changes where a resource sits, and so possibly who may read it, so its audience is worked out
+from both positions. A `Move` goes to every subscriber whose topic covers the resource **in its new
+position or the container it left** and who may read the resource **now** (after the move). A subscriber
+who could read it only in its old position — the move took it out of their sight — gets a `Delete` of
+the URI they knew instead, which is the truth from where they stand. Both audiences are computed inside
+the move's transaction and delivered after it commits.
+
+On the disk mirror, where a move renames the resource and its descendants, subscriptions whose topic
+named one of the renamed URIs are rewritten to the new URI in the same transaction, so a subscription
+follows the resource it watches.
 
 ## Verifying the signature (RFC 9421)
 
@@ -93,8 +112,10 @@ with signature parameters `created` (Unix seconds), `keyid`, and `alg`. The body
 `Content-Digest: sha-256=:<base64>:` header, which is one of the covered components — so the signature
 authenticates the body, not just the request line.
 
-The verifying key is published in the **storage description** (`GET {root}.description`), so a receiver
-needs no out-of-band key exchange:
+The verifying key is published in the **storage description**, so a receiver needs no out-of-band key
+exchange — and it needs no configuration either, because the `keyid` is itself the route to the key:
+strip the fragment and the remainder is the storage identifier, which dereferences to the description
+(`GET {root}` with `Accept: application/lws+cid`, or `GET {root}.description`):
 
 ```json
 "verificationMethod": [
@@ -107,13 +128,18 @@ needs no out-of-band key exchange:
 "authentication": [ "https://localhost:8888/W3Clws/#<kid>" ]
 ```
 
-- `keyid` in `Signature-Input` matches the JWK's `kid`, which is the **RFC 7638 JWK thumbprint** of the
-  public key — a stable identifier that survives restarts (the keypair is persisted, not regenerated on
-  boot).
+- `keyid` in `Signature-Input` is `{storage}#{thumbprint}` — lws10-notifications-webhook requires it to
+  be "a URL with a fragment component", which is what makes a signature self-describing rather than
+  something a receiver must be told about in advance. It is the same string as the verification method's
+  `id`, and the fragment is the JWK's `kid`: the **RFC 7638 JWK thumbprint** of the public key, a stable
+  identifier that survives restarts (the keypair is persisted, not regenerated on boot). A receiver may
+  match the method by the whole URL or by the fragment alone.
 - The raw signature is a `r‖s` pair (P1363 format), not a DER sequence — decode accordingly.
 
-To verify: reconstruct the signature base from the received components in the order listed in
-`Signature-Input`, look up the `kid` in the storage description's `verificationMethod`, and verify the
+To verify, as lws10-notifications-webhook sets out: take `keyid` from `Signature-Input`; strip its
+fragment to get the storage identifier; dereference that and confirm the description's `id` matches it;
+find the entry in `verificationMethod` whose `id` is the whole `keyid` or just its fragment; reconstruct
+the signature base from the received components in the order `Signature-Input` lists; and verify the
 `r‖s` signature with the P-256 public key.
 
 ## Delivery, retry, and expiry

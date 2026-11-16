@@ -28,10 +28,10 @@ public class HalSec {
      * {@code Txn} helper is the right tool: it joins the caller's transaction when
      * there is one and opens (and always closes) its own when there is not.
      */
-    public static boolean canCreateCollection(String webid) {
+    public static boolean canCreateCollection(String cidUrl) {
         ParameterizedSparqlString pss = new ParameterizedSparqlString("ask where {?s hal:canCreate hal:Collection}");
         pss.setNsPrefix("hal", HAL.NS);
-        pss.setIri("s", webid);
+        pss.setIri("s", cidUrl);
         // DataCore directly, not the old DatabaseLocator: that went through
         // Wicket's Application.get(), which THROWS off the Wicket request
         // thread — and this runs on Fuseki's threads via SecuredDatasetGraph.

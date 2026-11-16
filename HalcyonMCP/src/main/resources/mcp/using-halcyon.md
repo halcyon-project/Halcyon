@@ -3,12 +3,12 @@
 Halcyon is a whole-slide-image annotation, management and visualization system.
 This MCP server lets you work with its data **as yourself** — every tool acts
 with your own access rights, so you see exactly what the storage's access
-control (ACP) grants your WebID, and a refused request comes back as a plain
+control (ACP) grants your CID URL, and a refused request comes back as a plain
 `403` rather than being hidden.
 
 ## Orientation
 
-- `halcyon_whoami` — confirm who the server sees you as (WebID, client, issuer).
+- `halcyon_whoami` — confirm who the server sees you as (CID URL, client, issuer).
 - `lws_storages` — the storages this server hosts, and the endpoints on each.
   **Start here**; every other data tool works against a storage from this list.
 

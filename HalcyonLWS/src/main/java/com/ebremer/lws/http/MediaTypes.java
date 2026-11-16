@@ -5,40 +5,72 @@ package com.ebremer.lws.http;
  */
 public final class MediaTypes {
 
-    /**
-     * The LWS media type. Container representations and the storage description
-     * MUST use it.
-     */
+    /** The LWS media type. Container representations MUST support it. */
     public static final String LWS_JSON = "application/lws+json";
 
     /**
-     * lws10-core requires content negotiation across these three for container
-     * representations, and is explicit that "the response payload MUST be
-     * identical regardless of the requested media type — only the
-     * {@code Content-Type} response header varies". So they share one serializer;
-     * the negotiation only decides what to label the bytes.
+     * The storage-description media type: a document that is a specialization of a W3C
+     * Controlled Identifier document extended with the LWS vocabulary.
+     *
+     * <p>A request for the storage URI MUST be answered with this type unless content
+     * negotiation requires another (lws10-core §Discovery and Binding). It was
+     * {@code application/lws+json} until w3c/lws-protocol#183 made the description a CID
+     * document; the description is still offered as {@code application/lws+json} and Turtle
+     * through negotiation, which is the "other representations MAY be available" allowance.
+     */
+    public static final String LWS_CID = "application/lws+cid";
+
+    /**
+     * Two more labels for the {@code application/lws+json} document, which is JSON-LD and JSON.
+     *
+     * <p>Until the drafts of 19 October 2026 lws10-core made the three media types equivalent for a
+     * container and required all of them, the payload "identical regardless of the requested media
+     * type". w3c/lws-protocol#253 removed that: only {@code application/lws+json} is required. They
+     * are still offered, and still label the same bytes — as {@code application/ld+json} the
+     * document is in the {@link #LWS_PROFILE LWS profile} trivially, since its RDF is its own (see
+     * {@link Negotiation}).
      */
     public static final String LD_JSON = "application/ld+json";
     public static final String JSON = "application/json";
 
-    /** Considered equivalent to {@link #LWS_JSON} — LWS containers are a restricted JSON-LD profile. */
-    public static final String LD_JSON_LWS_PROFILE =
-            "application/ld+json; profile=\"https://www.w3.org/ns/lws/v1\"";
+    /**
+     * The LWS profile (lws10-core, LWS Profile; RFC 6906). "A representation of a container
+     * conforms to the LWS profile if it is RDF isomorphic to the {@code application/lws+json}
+     * representation of the same container state and page". A client asks for it with the
+     * {@code profile} parameter of an RDF media type, and a response in it names it the same way.
+     * It is also the URI of the LWS JSON-LD context, which is a separate matter.
+     */
+    public static final String LWS_PROFILE = "https://www.w3.org/ns/lws/v1";
 
-    /** Optional additional serialization offered through content negotiation. */
+    /**
+     * The RDF syntaxes an LWS document's RDF is offered in. lws10-core names all four, with
+     * {@code application/ld+json}, as RDF media types that define the {@code profile} parameter.
+     */
     public static final String TURTLE = "text/turtle";
+    public static final String N_TRIPLES = "application/n-triples";
+    public static final String N_QUADS = "application/n-quads";
+    public static final String TRIG = "application/trig";
 
     /** A resource's linkset (RFC 9264). */
     public static final String LINKSET_JSON = "application/linkset+json";
 
-    /** The minimum patch format a server MUST support, for resources and linksets alike. */
-    public static final String MERGE_PATCH_JSON = "application/merge-patch+json";
-
-    /** JSON Patch (RFC 6902) — accepted on JSON data resources, in addition to merge patch. */
+    /**
+     * JSON Patch (RFC 6902): the patch format a server MUST support and advertise, for resources
+     * and linksets alike, since w3c/lws-protocol#255 (the 5 October 2026 draft).
+     */
     public static final String JSON_PATCH = "application/json-patch+json";
 
-    /** {@code Accept-Patch} for a JSON data resource: both patch formats it accepts. */
-    public static final String ACCEPT_PATCH_JSON = MERGE_PATCH_JSON + ", " + JSON_PATCH;
+    /**
+     * JSON Merge Patch (RFC 7396, which obsoletes RFC 7386): the required format before #255, and
+     * still accepted, as an alternative format a server MAY support once it advertises it.
+     */
+    public static final String MERGE_PATCH_JSON = "application/merge-patch+json";
+
+    /**
+     * {@code Accept-Patch} for a JSON data resource and for a linkset: both formats it accepts,
+     * the required one first.
+     */
+    public static final String ACCEPT_PATCH_JSON = JSON_PATCH + ", " + MERGE_PATCH_JSON;
 
     /**
      * The baseline Type Search filter format, carried in the body of an HTTP
@@ -65,6 +97,9 @@ public final class MediaTypes {
      * <p>An absent {@code Accept}, or one that admits any type, counts as admitting
      * it: the search-index spec is explicit that "a request that omits
      * {@code Accept} or admits that media type never results in 406".
+     *
+     * <p>Used for the storage description, which keeps its own rule. The LWS documents — container
+     * listings, the type index, search pages, subscriptions — are negotiated by {@link Negotiation}.
      */
     public static boolean admitsLwsJson(String accept) {
         if (accept == null || accept.isBlank()) {
@@ -102,15 +137,53 @@ public final class MediaTypes {
     }
 
     /**
-     * Pick the {@code Content-Type} to label an LWS document with, given the
-     * request's {@code Accept}. The body is the same either way.
+     * True if the request asks for the storage description rather than a container listing.
+     *
+     * <p>The storage URI and the storage root container are the same resource here, so a GET on
+     * it has two honest answers. lws10-core settles which one is the default: "Requests for the
+     * storage URI MUST return a document that conforms to the storage description resource data
+     * model with a media type of {@code application/lws+cid}, unless content negotiation requires
+     * a different format." So the description is the answer to no {@code Accept}, to a wildcard,
+     * to a browser's default and to {@code application/lws+cid} itself; the container listing is
+     * the answer only when the client names one of the container's own formats
+     * ({@code application/lws+json}, {@code application/ld+json}, {@code application/json} or one
+     * of the RDF syntaxes, with or without the LWS profile) and not the CID type. Every container
+     * client names its format, which is how Halcyon's own {@code LwsClient} has always read the
+     * root.
      */
-    public static String negotiate(String accept) {
+    public static boolean prefersStorageDescription(String accept) {
         if (accept == null || accept.isBlank()) {
-            return LWS_JSON;
+            return true;
         }
         String a = accept.toLowerCase();
-        // Most specific first: a client asking for lws+json must get lws+json back.
+        if (a.contains(LWS_CID)) {
+            return true;
+        }
+        return !(a.contains(LWS_JSON) || a.contains(LD_JSON) || a.contains(JSON) || a.contains(TURTLE)
+                || a.contains(N_TRIPLES) || a.contains(N_QUADS) || a.contains(TRIG));
+    }
+
+    /**
+     * True if {@code accept} admits the storage description in one of the forms it is offered
+     * in: {@code application/lws+cid}, the JSON family, or Turtle.
+     */
+    public static boolean admitsStorageDescription(String accept) {
+        return admits(accept, LWS_CID) || admitsLwsJson(accept) || admits(accept, TURTLE);
+    }
+
+    /**
+     * Pick the {@code Content-Type} for the storage description. {@code application/lws+cid} is
+     * the default — the type lws10-core requires of a response to the storage URI — and the
+     * JSON forms are offered to a client that asks for one by name.
+     */
+    public static String negotiateDescription(String accept) {
+        if (accept == null || accept.isBlank()) {
+            return LWS_CID;
+        }
+        String a = accept.toLowerCase();
+        if (a.contains(LWS_CID)) {
+            return LWS_CID;
+        }
         if (a.contains(LWS_JSON)) {
             return LWS_JSON;
         }
@@ -120,7 +193,7 @@ public final class MediaTypes {
         if (a.contains(JSON)) {
             return JSON;
         }
-        return LWS_JSON;
+        return LWS_CID;
     }
 
     /**
@@ -128,10 +201,10 @@ public final class MediaTypes {
      * anything carrying the {@code +json} structured syntax suffix of RFC 6839:
      * {@code application/ld+json}, {@code application/lws+json}, {@code application/geo+json}.
      *
-     * <p>This is what decides whether a resource's content can be merge-patched at all. A
-     * JSON Merge Patch is defined by recursing into the target document's object tree, so
-     * there has to <em>be</em> an object tree: there is nothing in a TIFF for a patch to
-     * merge into.
+     * <p>This is what decides whether a resource's content can be patched at all. Both patch
+     * formats are defined over the target document's JSON tree, JSON Patch by pointing into it
+     * and JSON Merge Patch by recursing into it, so there has to <em>be</em> a tree: there is
+     * nothing in a TIFF for a patch to address.
      */
     public static boolean isJson(String mediaType) {
         String m = bare(mediaType);

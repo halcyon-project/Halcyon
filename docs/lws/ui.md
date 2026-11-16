@@ -23,7 +23,7 @@ time, uploads, deletes, and the Type Search console.
 `/lwscontainers` shows the container **hierarchy** of a selected storage as a
 tree, rooted at the storage root container (any configured storage can be
 selected). Opening a container lists its sub-containers and resources with
-the metadata the listing itself carried (`lws:mediaType`, size, discovered
+the metadata the listing itself carried (`format`, size, discovered
 RDF types).
 
 **Pagination follows the protocol.** The storage serves fixed-size pages
@@ -34,7 +34,7 @@ members fetched so far, pulling the next protocol page only when a window
 actually needs it; a container with numerous entries is never slurped whole,
 and "page N of M" grows a `+` until the membership has actually been walked.
 
-**The media-type filter** narrows resources by the `lws:mediaType` the
+**The media-type filter** narrows resources by the `format` the
 listings reported. Sub-containers always stay visible — the filter narrows
 content, never navigation.
 
@@ -56,7 +56,7 @@ depends on who you are:
   Turtle, because a lossy rewrite of an access document is a security bug,
   not a rendering glitch.
 - **Everyone else files an access request.** The dialog POSTs an ODRL
-  `AccessRequest` (actions read/modify/create/delete, the user's WebID as
+  `AccessRequest` (actions read/modify/create/delete, the user's CID URL as
   assignee, the resource as target) to the storage's DataSharingService
   (`.access/requests`). It grants nothing by itself; a storage controller
   answers it with a grant — see [security.md](security.md).
@@ -168,13 +168,13 @@ every read it inherits the URI it was dereferenced from, so a container can
 be moved, mirrored or renamed without rewriting the stacks inside it; every
 reader (`RDFFileReader`, `Zephyr`, the browser) already parses with the
 resource URI as base. Anything outside the stack's container — a
-cross-container layer, the creator WebID — stays absolute: a reference that
+cross-container layer, the creator's CID URL — stays absolute: a reference that
 cannot travel with the container must not pretend it can. The flip side of
 the relative form is an assumption the writer honors: annotation-layer
 JSONs belong in the **stack's own container**, so Zephyr births new shape
 files beside the stack (`stackContainer`, injected by `Zephyr`), and
-re-saving an edited layer carries `If-Match` because the storage refuses an
-unconditional overwrite (428).
+re-saving an edited layer carries `If-Match`, so an overwrite of a layer
+someone else changed meanwhile is refused (412) rather than silently lost.
 
 ## Where the pieces live
 

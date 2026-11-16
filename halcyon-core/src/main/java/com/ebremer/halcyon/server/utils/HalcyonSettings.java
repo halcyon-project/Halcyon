@@ -157,7 +157,7 @@ public final class HalcyonSettings {
      *
      * <p>Absence of {@code :AuthServer} in {@code settings.ttl} is the OFF switch for
      * the whole Keycloak stack — comment the line out and Halcyon runs entirely on the
-     * LWS auth system (WebID-OIDC via {@code lws-oidc.json}); put it back and Keycloak
+     * LWS auth system (LWS OpenID Connect via {@code lws-oidc.json}); put it back and Keycloak
      * returns exactly as it was. Nothing is deleted either way; see
      * {@link #isKeycloakEnabled()}.
      *

@@ -45,16 +45,16 @@ public final class AcrDoc {
         PUBLIC,
         /** Any signed-in agent ({@code acp:AuthenticatedAgent}). */
         AUTHENTICATED,
-        /** One agent, by WebID. */
-        WEBID
+        /** One agent, by CID URL. */
+        CID_URL
     }
 
     /** One editable rule: an agent, the modes allowed, and where it applies. */
     public static final class Row implements Serializable {
         private static final long serialVersionUID = 1L;
 
-        private AgentType agentType = AgentType.WEBID;
-        private String webid = "";
+        private AgentType agentType = AgentType.CID_URL;
+        private String cidUrl = "";
         private boolean read;
         private boolean write;
         private boolean append;
@@ -72,12 +72,12 @@ public final class AcrDoc {
             this.agentType = agentType;
         }
 
-        public String getWebid() {
-            return webid;
+        public String getCidUrl() {
+            return cidUrl;
         }
 
-        public void setWebid(String webid) {
-            this.webid = webid;
+        public void setCidUrl(String cidUrl) {
+            this.cidUrl = cidUrl;
         }
 
         public boolean isRead() {
@@ -131,7 +131,7 @@ public final class AcrDoc {
         /** True when the row grants nothing and should be skipped on build. */
         boolean empty() {
             boolean noModes = !read && !write && !append && !control;
-            boolean noAgent = agentType == AgentType.WEBID && (webid == null || webid.isBlank());
+            boolean noAgent = agentType == AgentType.CID_URL && (cidUrl == null || cidUrl.isBlank());
             boolean noScope = !self && !members;
             return noModes || noAgent || noScope;
         }
@@ -237,8 +237,8 @@ public final class AcrDoc {
                 } else if (ACP.AuthenticatedAgent.equals(agent)) {
                     row.setAgentType(AgentType.AUTHENTICATED);
                 } else if (agent.isURIResource()) {
-                    row.setAgentType(AgentType.WEBID);
-                    row.setWebid(agent.getURI());
+                    row.setAgentType(AgentType.CID_URL);
+                    row.setCidUrl(agent.getURI());
                 } else {
                     ok[0] = false;
                     continue;
@@ -305,7 +305,7 @@ public final class AcrDoc {
             m.add(matcher, ACP.agent, switch (row.getAgentType()) {
                 case PUBLIC -> ACP.PublicAgent;
                 case AUTHENTICATED -> ACP.AuthenticatedAgent;
-                case WEBID -> m.createResource(row.getWebid().trim());
+                case CID_URL -> m.createResource(row.getCidUrl().trim());
             });
 
             Resource policy = m.createResource();

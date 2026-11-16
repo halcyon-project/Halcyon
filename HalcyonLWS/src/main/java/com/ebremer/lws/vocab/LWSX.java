@@ -147,10 +147,10 @@ public final class LWSX {
 
     // --- Provenance ---------------------------------------------------------
 
-    /** WebID of the agent that created the resource. Backs {@code acp:CreatorAgent}. */
+    /** CID URL of the agent that created the resource. Backs {@code acp:CreatorAgent}. */
     public static final Property createdBy = prop("createdBy");
 
-    /** WebID of the agent that owns the resource. Backs {@code acp:OwnerAgent}. */
+    /** CID URL of the agent that owns the resource. Backs {@code acp:OwnerAgent}. */
     public static final Property ownedBy = prop("ownedBy");
 
     public static final Property created = prop("created");
@@ -167,6 +167,13 @@ public final class LWSX {
     public static final Property scanVersion = prop("scanVersion");
 
     /**
+     * A type the client declared with {@code Link: <T>; rel="type"} on create or PUT. System graph
+     * only: it records which of a resource's {@code rdf:type}s came from Link headers, so a later
+     * PUT that declares types replaces those and leaves the ones the scanner found in content.
+     */
+    public static final Property declaredType = prop("declaredType");
+
+    /**
      * The on-disk last-modified time (epoch millis) of a mirror-storage file at its last adoption.
      *
      * <p>Only the disk-authoritative mirror storage ({@code /W3ClwsSlash}) sets it. The periodic
@@ -178,6 +185,14 @@ public final class LWSX {
      */
     public static final Property sourceMtime = prop("sourceMtime");
 
+    /**
+     * Where a renamed resource is now: {@code <previous URI> lwsx:movedTo <current URI>}, so a
+     * request for the previous URI can answer {@code 301 Moved Permanently} (lws10-core, Moving
+     * Resources). Only a move on the mirror storage, whose URIs are paths, renames. Kept here, never
+     * served, and keyed by a URI at which nothing lives; see {@code MoveRecords}.
+     */
+    public static final Property movedTo = prop("movedTo");
+
     // --- Notification subscriptions ----------------------------------------
 
     /**
@@ -187,7 +202,7 @@ public final class LWSX {
      * stop delivery — but it can only reconstruct the agent from what was stored. Without these, a
      * policy that grants read only when {@code acp:client} or {@code acp:issuer} matches would
      * deny at delivery time even for an agent who can read the resource interactively: the
-     * notification would silently stop. So the whole context is persisted, not just the WebID.
+     * notification would silently stop. So the whole context is persisted, not just the CID URL.
      */
     public static final Property clientId = prop("clientId");
     public static final Property issuer = prop("issuer");
@@ -213,6 +228,17 @@ public final class LWSX {
      * added and nothing else. One triple per policy the grant created across its targets' ACRs.
      */
     public static final Property grantedPolicy = prop("grantedPolicy");
+
+    /**
+     * An access-grant constraint the ACP engine checks on every request (format, type, purpose,
+     * or a client constraint beyond the one {@code acp:client} matcher). On a grant's ACR node; the
+     * policy applies only while every one of them holds.
+     */
+    public static final Property constraint = prop("constraint");
+    /** A constraint's leftOperand: {@code client}, {@code format}, {@code type} or {@code purpose}. */
+    public static final Property leftOperand = prop("leftOperand");
+    /** One value a constraint accepts; several are its isAnyOf. */
+    public static final Property allowedValue = prop("allowedValue");
 
     /** Marks a storage root, so the bootstrap ACP policy is seeded exactly once. */
     public static final Resource StorageRoot = cls("StorageRoot");

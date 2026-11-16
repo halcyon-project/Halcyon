@@ -22,6 +22,7 @@ import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import org.apache.jena.datatypes.xsd.XSDDatatype;
@@ -35,21 +36,35 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * The DataSharingService (lws-access-requests): ODRL-style access requests and grants.
+ * The DataSharingService (lws10-core, Access Requests and Grants): ODRL-style access requests and
+ * grants.
  *
  * <p>An <strong>access request</strong> is a record: an agent asking a storage controller for
  * access. It grants nothing on its own. An <strong>access grant</strong> is the controller's answer,
- * and it is load-bearing — lws-access-requests: "When an access grant is created or revoked … it is
+ * and it is load-bearing — lws10-core: "When an access grant is created or revoked … it is
  * the responsibility of the server to adjust any underlying access policy to account for the
  * change." So creating a grant installs an ACP policy, and revoking one removes exactly that policy.
  *
- * <p><strong>Fail closed on any constraint this storage cannot enforce.</strong> A grant may carry
- * ODRL constraints — {@code purpose}, {@code dateTime}, {@code mediaType}, {@code type},
- * {@code client}. Only {@code client} maps onto something ACP evaluates ({@code acp:client}); the
- * others have no enforcement here. A grant is a promise that "all constraints MUST be satisfied", so
- * installing a policy that ignores a constraint it cannot honour would grant <em>more</em> than the
- * grant intends — the exact over-grant this whole module is built to avoid. Such a grant is refused
- * (422), never quietly under-enforced. A future engine could enforce time-boxing and the rest.
+ * <p><strong>Every access-profile constraint is enforced, and anything else fails closed.</strong>
+ * lws10-core's access profile defines five {@code leftOperand} values — {@code client},
+ * {@code format}, {@code type}, {@code purpose} and {@code dateTime} — and "a server advertising
+ * support for this profile MUST support" all five. A single {@code client eq} becomes an
+ * {@code acp:client} matcher, and {@code dateTime} the validity window the ACP engine honours. The
+ * rest are recorded on the grant's ACR node as {@link LWSX#constraint} nodes, which
+ * {@code AcpEngine} evaluates on every request against the resource as it is then: {@code format}
+ * against its media type, {@code type} against the LWS type its {@code rel="type"} link names,
+ * {@code client} against the requesting client. A grant is a promise that "all constraints MUST be
+ * satisfied", so each node must hold for the policy to apply. {@code purpose} is accepted and never
+ * satisfied: the draft does not say how a request states its purpose, so no request can show it
+ * meets one, and granting anyway would over-grant. An operand or operator outside the profile is
+ * still refused (422), never quietly under-enforced.
+ *
+ * <p><strong>The target matcher is checked, not assumed.</strong> A target object carries a
+ * {@code type} naming which Storage Resources its {@code value}s select — {@code lws:DataResource},
+ * {@code lws:Container} or {@code lws:StorageResource} — and this storage installs a policy only
+ * when the named resources actually are of that kind. A matcher it does not recognise is refused
+ * for the same reason an unenforceable constraint is: honouring the {@code value}s while ignoring
+ * the {@code type} would grant access to resources the grant did not describe.
  *
  * <p><strong>The grant's policy is its own ACR node, not the target's.</strong> The engine finds a
  * resource's policies by {@code acp:resource}, so a separate node
@@ -68,6 +83,42 @@ public final class AccessSharing {
 
     private static final Set<String> ACTIONS = Set.of("read", "modify", "create", "delete");
     private static final String PUBLIC_AGENT = "http://xmlns.com/foaf/0.1/Agent";
+
+    /** Which Storage Resources a grant's target matcher selects. */
+    private enum TargetMatcher {
+        DATA_RESOURCE(com.ebremer.lws.store.ResourceType.DATA_RESOURCE),
+        CONTAINER(com.ebremer.lws.store.ResourceType.CONTAINER),
+        /** {@code lws:StorageResource}, the common supertype: either kind will do. */
+        ANY(null);
+
+        private final com.ebremer.lws.store.ResourceType kind;
+
+        TargetMatcher(com.ebremer.lws.store.ResourceType kind) {
+            this.kind = kind;
+        }
+
+        boolean accepts(com.ebremer.lws.store.ResourceType actual) {
+            return kind == null || kind == actual;
+        }
+
+        String label() {
+            return this == CONTAINER ? "Container" : "DataResource";
+        }
+    }
+
+    /**
+     * The target matchers lws10-core's access profile defines, each accepted as the term the LWS
+     * context maps and as the full IRI the spec writes it with. A matcher outside this set is
+     * refused: a grant that named one and had its {@code value}s honoured anyway would govern
+     * resources it did not describe.
+     */
+    private static final Map<String, TargetMatcher> TARGET_MATCHERS = Map.of(
+            "DataResource", TargetMatcher.DATA_RESOURCE,
+            LWS.DataResource.getURI(), TargetMatcher.DATA_RESOURCE,
+            "Container", TargetMatcher.CONTAINER,
+            LWS.Container.getURI(), TargetMatcher.CONTAINER,
+            "StorageResource", TargetMatcher.ANY,
+            LWS.StorageResource.getURI(), TargetMatcher.ANY);
 
     /** The validity window a time-boxed grant records on its ACR node; the ACP engine enforces it. */
     private static final org.apache.jena.rdf.model.Property VALID_FROM =
@@ -117,20 +168,18 @@ public final class AccessSharing {
         }
         requireType(doc, "AccessRequest");
         requireContext(doc);
-        if (doc.getJsonArray("access") == null || doc.getJsonArray("access").isEmpty()) {
-            throw Problem.badRequest("an access request requires a non-empty \"access\" array");
-        }
+        requireDataModel(doc, "an access request");
         String id = UUID.randomUUID().toString();
         store.write(() -> {
             Model g = graph();
             Resource s = node(false, id);
             g.add(s, RDF.type, cls("AccessRequest"));
             g.add(s, LWSX.document, g.createLiteral(doc.toString()));
-            g.add(s, LWSX.ownedBy, res(agent.webId()));
+            g.add(s, LWSX.ownedBy, res(agent.cidUrl()));
             g.add(s, LWSX.storage, res(cfg.storageRootUri()));
             g.add(s, LWSX.seq, typedLong(new ResourceRegistry(store, cfg).nextSeq()));
         });
-        LOG.info("access request {} from {}", id, agent.webId());
+        LOG.info("access request {} from {}", id, agent.cidUrl());
         return cfg.accessRequestsUri() + "/" + id;
     }
 
@@ -147,17 +196,20 @@ public final class AccessSharing {
         }
         requireType(doc, "AccessGrant");
         requireContext(doc);
+        requireDataModel(doc, "an access grant");
         List<Policy> policies = parsePolicies(doc);   // validates + fails closed on constraints
 
         // Authorize: Control over every target. Read transaction — the decision is re-made under
         // the write below, but a cheap early refusal is friendlier than doing the parse work twice.
         store.read(() -> {
+            ResourceRegistry reg = new ResourceRegistry(store, cfg);
             for (Policy p : policies) {
                 for (String target : p.targets()) {
                     if (!acp.allows(agent, target, AccessMode.CONTROL)) {
                         throw Problem.forbidden("only an agent with Control over " + target
                                 + " may grant access to it");
                     }
+                    requireMatches(reg, p, target);
                 }
             }
         });
@@ -183,17 +235,17 @@ public final class AccessSharing {
             g.add(s, RDF.type, cls("AccessGrant"));
             g.add(s, LWSX.isGrant, ResourceFactory.createTypedLiteral(true));
             g.add(s, LWSX.document, g.createLiteral(doc.toString()));
-            g.add(s, LWSX.ownedBy, res(agent.webId()));
+            g.add(s, LWSX.ownedBy, res(agent.cidUrl()));
             g.add(s, LWSX.storage, res(cfg.storageRootUri()));
             g.add(s, LWSX.seq, typedLong(new ResourceRegistry(store, cfg).nextSeq()));
             installed.forEach(uri -> g.add(s, LWSX.grantedPolicy, res(uri)));
             store.bumpAcpEpoch();   // a policy changed; cached listings must revalidate (C6)
         });
         String grantUri = cfg.accessGrantsUri() + "/" + id;
-        LOG.info("access grant {} by {} installed {} policy node(s)", id, agent.webId(),
+        LOG.info("access grant {} by {} installed {} policy node(s)", id, agent.cidUrl(),
                 policies.size());
 
-        // SHOULD (lws-access-requests): tell each assignee they were granted access. Best-effort and
+        // SHOULD (lws10-core): tell each assignee they were granted access. Best-effort and
         // off-thread — the grant is already committed above, so a missing or unreachable inbox never
         // fails the grant. A public grant (foaf:Agent) has no assignee to notify.
         for (Policy p : policies) {
@@ -270,6 +322,17 @@ public final class AccessSharing {
             acp.add(acr, EXPIRES,
                     ResourceFactory.createTypedLiteral(p.notAfter(), XSDDatatype.XSDdateTime));
         }
+        // Every other constraint is a node AcpEngine checks against the resource and the request;
+        // the node URIs are minted here, under the ACR node, so revocation can find exactly them.
+        int k = 0;
+        for (Constraint c : p.constraints()) {
+            Resource cn = res(acrUri + "#c" + k++);
+            acp.add(acr, LWSX.constraint, cn);
+            acp.add(cn, LWSX.leftOperand, c.leftOperand());
+            for (String v : c.values()) {
+                acp.add(cn, LWSX.allowedValue, v);
+            }
+        }
         return acrUri;
     }
 
@@ -286,7 +349,7 @@ public final class AccessSharing {
      */
     public List<Ref> visible(AgentContext agent, boolean grants, boolean controller) {
         Model g = graph();
-        Resource me = agent.isAuthenticated() ? res(agent.webId()) : null;
+        Resource me = agent.isAuthenticated() ? res(agent.cidUrl()) : null;
         List<Ref> out = new ArrayList<>();
         for (var it = g.listSubjectsWithProperty(RDF.type, cls(grants ? "AccessGrant" : "AccessRequest"));
                 it.hasNext();) {
@@ -345,7 +408,7 @@ public final class AccessSharing {
         if (controller) {
             return true;
         }
-        Resource me = agent.isAuthenticated() ? res(agent.webId()) : null;
+        Resource me = agent.isAuthenticated() ? res(agent.cidUrl()) : null;
         return me != null && maySee(g, s, me, grant);
     }
 
@@ -363,7 +426,7 @@ public final class AccessSharing {
     /** Whether the agent owns (created) this request/grant — for cancel/revoke. Read txn. */
     public boolean ownedBy(AgentContext agent, boolean grant, String id) {
         return agent.isAuthenticated()
-                && graph().contains(node(grant, id), LWSX.ownedBy, res(agent.webId()));
+                && graph().contains(node(grant, id), LWSX.ownedBy, res(agent.cidUrl()));
     }
 
     public boolean exists(boolean grant, String id) {
@@ -410,6 +473,13 @@ public final class AccessSharing {
         if (base == null) {
             return;
         }
+        // The constraint nodes are base#c0, base#c1, ...: only those under this ACR node's own
+        // URI, never an object a client could have pointed elsewhere.
+        for (RDFNode cn : m.listObjectsOfProperty(m.getResource(base), LWSX.constraint).toList()) {
+            if (cn.isURIResource() && cn.asResource().getURI().startsWith(base + "#c")) {
+                m.removeAll(cn.asResource(), null, null);
+            }
+        }
         for (String uri : List.of(base, base + "#ac", base + "#policy", base + "#matcher")) {
             m.removeAll(m.getResource(uri), null, null);
         }
@@ -418,8 +488,14 @@ public final class AccessSharing {
     // --- Parsing and validation ---------------------------------------------
 
     /** A grant policy, reduced to what the ACP translation needs. */
+    /** @param matcher which Storage Resources this policy's targets are declared to be */
     private record Policy(Set<AccessMode> modes, boolean publicAgent, String assignee, String client,
-            List<String> targets, String notBefore, String notAfter, String inbox) {
+            List<String> targets, TargetMatcher matcher,
+            String notBefore, String notAfter, String inbox, List<Constraint> constraints) {
+    }
+
+    /** A constraint the ACP engine checks per request: its leftOperand and the values it accepts. */
+    private record Constraint(String leftOperand, List<String> values) {
     }
 
     private List<Policy> parsePolicies(JsonObject doc) {
@@ -432,12 +508,12 @@ public final class AccessSharing {
             if (v.getValueType() != JsonValue.ValueType.OBJECT) {
                 throw Problem.badRequest("each \"access\" entry must be an object");
             }
-            out.add(parsePolicy(v.asJsonObject()));
+            out.add(parsePolicy(v.asJsonObject(), inboxOf(doc)));
         }
         return out;
     }
 
-    private Policy parsePolicy(JsonObject ap) {
+    private Policy parsePolicy(JsonObject ap, String documentInbox) {
         // action -> modes
         JsonArray actions = ap.getJsonArray("action");
         if (actions == null || actions.isEmpty()) {
@@ -464,9 +540,11 @@ public final class AccessSharing {
         }
         boolean publicAgent = PUBLIC_AGENT.equals(assignee);
 
-        // target (required for a grant: we will not install a policy without knowing what it governs)
-        JsonObject target = ap.getJsonObject("target");
+        // target (required for a grant: we will not install a policy without knowing what it governs).
+        // requireDataModel has already refused a target that is not an object.
+        JsonObject target = ap.containsKey("target") ? ap.getJsonObject("target") : null;
         List<String> targets = new ArrayList<>();
+        TargetMatcher matcherKind = TargetMatcher.ANY;
         if (target != null) {
             JsonArray value = target.getJsonArray("value");
             if (value != null) {
@@ -474,6 +552,19 @@ public final class AccessSharing {
                     targets.add(asString(tv));
                 }
             }
+            // The matcher: "a term or absolute URL string identifying the type of target matcher",
+            // REQUIRED on a target object. One this storage does not know is refused rather than
+            // dropped -- honouring the values while ignoring the type would govern resources the
+            // grant never described.
+            String matcher = target.getString("type", null);
+            if (matcher == null || matcher.isBlank()) {
+                throw Problem.badRequest("a \"target\" needs a \"type\" naming the target matcher");
+            }
+            if (!TARGET_MATCHERS.containsKey(matcher)) {
+                throw Problem.unprocessable("this storage does not support the target matcher \""
+                        + matcher + "\"; it supports DataResource, Container and StorageResource");
+            }
+            matcherKind = TARGET_MATCHERS.get(matcher);
         }
         if (targets.isEmpty()) {
             throw Problem.unprocessable("an access grant must name a concrete \"target.value\"; "
@@ -486,53 +577,143 @@ public final class AccessSharing {
         }
 
         // An optional inbox to notify the assignee at when the grant is created (a spec SHOULD).
-        String inbox = ap.getString("inbox", null);
-        if (inbox != null && inbox.isBlank()) {
-            inbox = null;
+        // lws10-core puts inbox on the grant itself (11.2.3); a per-policy inbox, which this
+        // storage once read instead, is still honoured when the grant has none.
+        String inbox = documentInbox;
+        if (inbox == null && ap.get("inbox") != null) {
+            inbox = ap.getString("inbox", null);
+            if (inbox != null && !isAbsoluteUri(inbox)) {
+                throw Problem.badRequest("an \"inbox\" must be a URI");
+            }
         }
 
-        // constraints -- FAIL CLOSED on anything this storage cannot enforce. Enforceable here:
-        // client-eq (an acp:client matcher) and dateTime (a validity window the ACP engine honours).
-        // Anything else is refused rather than silently ignored, which would over-grant.
+        // constraints -- each one must hold. A lone client-eq becomes an acp:client matcher and
+        // dateTime the validity window; format, type, purpose and any further client constraint
+        // become constraint nodes the ACP engine checks per request. Anything outside the access
+        // profile is refused rather than silently ignored, which would over-grant.
         String client = null;
         String notBefore = null;
         String notAfter = null;
+        List<Constraint> checked = new ArrayList<>();
         JsonArray constraints = ap.getJsonArray("constraint");
         if (constraints != null) {
             for (JsonValue cv : constraints) {
+                if (cv.getValueType() != JsonValue.ValueType.OBJECT) {
+                    throw Problem.badRequest("each \"constraint\" entry must be an object");
+                }
                 JsonObject c = cv.asJsonObject();
                 String left = c.getString("leftOperand", "");
                 String op = c.getString("operator", "");
-                String right = c.getString("rightOperand", null);
+                JsonValue rv = c.get("rightOperand");
+                if (rv == null) {
+                    throw Problem.badRequest("a " + left + " constraint needs a rightOperand");
+                }
                 switch (left) {
-                    case "client" -> {
-                        if (!"eq".equals(op)) {
-                            throw Problem.unprocessable("a client constraint must use the eq operator");
+                    case "client", "format", "type", "purpose" -> {
+                        List<String> values = operandValues(left, op, rv);
+                        if (left.equals("client") && op.equals("eq") && client == null) {
+                            client = values.get(0);
+                        } else {
+                            checked.add(new Constraint(left, values));
                         }
-                        if (right == null) {
-                            throw Problem.badRequest("a client constraint needs a rightOperand");
-                        }
-                        client = right;
                     }
                     case "dateTime" -> {
-                        if (right == null) {
-                            throw Problem.badRequest("a dateTime constraint needs a rightOperand");
+                        if (rv.getValueType() != JsonValue.ValueType.STRING) {
+                            throw Problem.badRequest("a dateTime constraint's rightOperand is a dateTime string");
                         }
-                        String iso = parseDateTime(right).toString();   // canonical UTC; 400 if unparseable
+                        // canonical UTC; 400 if unparseable. Several bounds all hold, so the
+                        // tightest one wins: the latest start and the earliest end.
+                        java.time.Instant at = parseDateTime(((jakarta.json.JsonString) rv).getString());
                         switch (op) {
-                            case "lteq", "lt" -> notAfter = iso;    // valid until — the grant expires
-                            case "gteq", "gt" -> notBefore = iso;   // valid from — the grant starts
+                            case "lteq", "lt" -> {   // valid until -- the grant expires
+                                if (notAfter == null || at.isBefore(java.time.Instant.parse(notAfter))) {
+                                    notAfter = at.toString();
+                                }
+                            }
+                            case "gteq", "gt" -> {   // valid from -- the grant starts
+                                if (notBefore == null || at.isAfter(java.time.Instant.parse(notBefore))) {
+                                    notBefore = at.toString();
+                                }
+                            }
                             default -> throw Problem.unprocessable("a dateTime constraint supports "
                                     + "lteq/lt (valid until) or gteq/gt (valid from), not \"" + op + "\"");
                         }
                     }
-                    default -> throw Problem.unprocessable("this storage cannot enforce a \"" + left
-                            + "\" constraint and will not create a grant it could not honour; the "
-                            + "enforceable constraints are client-eq and dateTime (a validity window)");
+                    default -> throw Problem.unprocessable("\"" + left + "\" is not a leftOperand of "
+                            + "the access profile (client, format, type, purpose, dateTime); this storage "
+                            + "will not create a grant it could not honour");
                 }
             }
         }
-        return new Policy(modes, publicAgent, assignee, client, targets, notBefore, notAfter, inbox);
+        return new Policy(modes, publicAgent, assignee, client, targets, matcherKind,
+                notBefore, notAfter, inbox, List.copyOf(checked));
+    }
+
+    /**
+     * A client, format, type or purpose constraint's values: {@code eq} takes one string,
+     * {@code isAnyOf} an array of them (lws10-core 11.3.5). Client, type and purpose values are
+     * URIs; a format value is a media type, compared by its essence (type/subtype, lower case).
+     */
+    private static List<String> operandValues(String left, String op, JsonValue rv) {
+        List<JsonValue> raw = switch (op) {
+            case "eq" -> {
+                if (rv.getValueType() != JsonValue.ValueType.STRING) {
+                    throw Problem.badRequest("an eq " + left + " constraint's rightOperand is a string");
+                }
+                yield List.of(rv);
+            }
+            case "isAnyOf" -> {
+                if (rv.getValueType() != JsonValue.ValueType.ARRAY || rv.asJsonArray().isEmpty()) {
+                    throw Problem.badRequest("an isAnyOf " + left + " constraint's rightOperand is a "
+                            + "non-empty array");
+                }
+                yield rv.asJsonArray();
+            }
+            default -> throw Problem.unprocessable("a " + left + " constraint supports eq or isAnyOf, not \""
+                    + op + "\"");
+        };
+        List<String> out = new ArrayList<>();
+        for (JsonValue v : raw) {
+            if (v.getValueType() != JsonValue.ValueType.STRING) {
+                throw Problem.badRequest("a " + left + " constraint's values are strings");
+            }
+            String s = ((jakarta.json.JsonString) v).getString().trim();
+            if (left.equals("format")) {
+                out.add(com.ebremer.lws.acp.AcpEngine.mediaTypeEssence(s));
+            } else if (!isAbsoluteUri(s)) {
+                throw Problem.badRequest("a " + left + " constraint's values are URIs");
+            } else {
+                out.add(s);
+            }
+        }
+        return out;
+    }
+
+    /**
+     * A target must be the kind of Storage Resource its matcher names.
+     *
+     * <p>Checked against the store, not the grant: the matcher is the requester's description of
+     * what it is asking about, and a {@code DataResource} matcher pointed at a container would
+     * otherwise install a policy on a container — and a container's policy is inherited by
+     * everything beneath it, so the grant would reach far past what it described. Refused for the
+     * same reason an unenforceable constraint is.
+     *
+     * <p>Ordered after the Control check on purpose: an agent with no Control over the target learns
+     * only that, never whether the target exists or what kind it is.
+     */
+    private void requireMatches(ResourceRegistry reg, Policy p, String target) {
+        if (p.matcher() == TargetMatcher.ANY) {
+            return;   // lws:StorageResource — either kind will do
+        }
+        var found = reg.find(target);
+        if (found.isEmpty()) {
+            // Consistent with how this storage answers a resource an agent holds nothing on.
+            throw Problem.notFound("no such resource: " + target);
+        }
+        if (!p.matcher().accepts(found.get().type())) {
+            throw Problem.unprocessable("target " + target + " is not a " + p.matcher().label()
+                    + ", which is what this grant's target matcher names");
+        }
     }
 
     private static java.time.Instant parseDateTime(String lexical) {
@@ -545,6 +726,91 @@ public final class AccessSharing {
                 throw Problem.badRequest("could not parse the dateTime \"" + lexical + "\"");
             }
         }
+    }
+
+    /**
+     * The access data model, checked before anything is stored (lws10-core 11.2 and 11.3): the
+     * storage property is REQUIRED and names this storage; an inbox, if present, MUST be a URI;
+     * access is REQUIRED, a collection of one or more objects; and each access policy has a type
+     * including AccessPolicy, an action and an assignee, which are REQUIRED, and a target that,
+     * if present, MUST be an object. A document that breaks one is refused: storing it would
+     * serve an access request or grant that does not conform. (A non-object target used to reach
+     * getJsonObject and fail with a ClassCastException -- a 500.)
+     */
+    private void requireDataModel(JsonObject doc, String what) {
+        JsonValue storage = doc.get("storage");
+        if (storage == null || storage.getValueType() != JsonValue.ValueType.STRING) {
+            throw Problem.badRequest(what + " requires a \"storage\" naming the storage");
+        }
+        String named = ((jakarta.json.JsonString) storage).getString();
+        if (!named.equals(cfg.storageRootUri()) && !named.equals(cfg.baseUri())) {
+            throw Problem.unprocessable(what + " names storage " + named + ", not this storage ("
+                    + cfg.storageRootUri() + ")");
+        }
+        inboxOf(doc);   // validates
+        JsonValue access = doc.get("access");
+        if (access == null || access.getValueType() != JsonValue.ValueType.ARRAY
+                || access.asJsonArray().isEmpty()) {
+            throw Problem.badRequest(what + " requires a non-empty \"access\" array");
+        }
+        for (JsonValue v : access.asJsonArray()) {
+            if (v.getValueType() != JsonValue.ValueType.OBJECT) {
+                throw Problem.badRequest("each \"access\" entry must be an object");
+            }
+            JsonObject ap = v.asJsonObject();
+            if (!hasType(ap.get("type"), "AccessPolicy")) {
+                throw Problem.badRequest("an access policy's \"type\" must include \"AccessPolicy\"");
+            }
+            if (ap.get("action") == null) {
+                throw Problem.badRequest("an access policy requires an \"action\"");
+            }
+            if (ap.get("assignee") == null) {
+                throw Problem.badRequest("an access policy requires an \"assignee\"");
+            }
+            if (ap.get("target") != null && ap.get("target").getValueType() != JsonValue.ValueType.OBJECT) {
+                throw Problem.badRequest("an access policy's \"target\" must be an object");
+            }
+        }
+    }
+
+    /** The document's inbox, or null when it has none; one that is not a URI is refused. */
+    private static String inboxOf(JsonObject doc) {
+        JsonValue inbox = doc.get("inbox");
+        if (inbox == null || inbox.getValueType() == JsonValue.ValueType.NULL) {
+            return null;
+        }
+        String uri = inbox.getValueType() == JsonValue.ValueType.STRING
+                ? ((jakarta.json.JsonString) inbox).getString() : null;
+        if (uri == null || !isAbsoluteUri(uri)) {
+            throw Problem.badRequest("an \"inbox\" must be a URI");
+        }
+        return uri;
+    }
+
+    private static boolean isAbsoluteUri(String s) {
+        try {
+            java.net.URI u = new java.net.URI(s);
+            return u.isAbsolute() && u.getRawSchemeSpecificPart() != null
+                    && !u.getRawSchemeSpecificPart().isEmpty();
+        } catch (java.net.URISyntaxException e) {
+            return false;
+        }
+    }
+
+    /** True if a type value -- a string or an array of them -- includes {@code wanted}, as a term or LWS IRI. */
+    private static boolean hasType(JsonValue type, String wanted) {
+        if (type == null) {
+            return false;
+        }
+        List<JsonValue> values = type.getValueType() == JsonValue.ValueType.ARRAY
+                ? type.asJsonArray() : List.of(type);
+        for (JsonValue t : values) {
+            String v = asStringOrNull(t);
+            if (wanted.equals(v) || (LWS.NS + wanted).equals(v)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static void requireType(JsonObject doc, String type) {

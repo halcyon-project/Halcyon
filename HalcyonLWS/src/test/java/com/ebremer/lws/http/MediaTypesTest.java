@@ -100,12 +100,48 @@ class MediaTypesTest {
         assertFalse(MediaTypes.admitsLwsJson("text/html"));
     }
 
+    /**
+     * The storage URI is also the storage root container, so a GET on it has two honest answers.
+     * lws10-core makes the description the default ("unless content negotiation requires a
+     * different format"): only a client naming one of the container's formats gets the listing.
+     */
     @Test
-    void negotiatePicksTheLabelButNeverInventsOne() {
-        assertEquals(MediaTypes.LWS_JSON, MediaTypes.negotiate(null));
-        assertEquals(MediaTypes.LWS_JSON, MediaTypes.negotiate("application/lws+json"));
-        assertEquals(MediaTypes.LD_JSON, MediaTypes.negotiate("application/ld+json"));
-        assertEquals(MediaTypes.JSON, MediaTypes.negotiate("application/json"));
-        assertEquals(MediaTypes.LWS_JSON, MediaTypes.negotiate("text/nonsense"));
+    void theStorageDescriptionUnlessAContainerFormatIsAskedForByName() {
+        assertTrue(MediaTypes.prefersStorageDescription(null));
+        assertTrue(MediaTypes.prefersStorageDescription(""));
+        assertTrue(MediaTypes.prefersStorageDescription("*/*"));
+        assertTrue(MediaTypes.prefersStorageDescription("text/html,application/xhtml+xml,*/*;q=0.8"));
+        assertTrue(MediaTypes.prefersStorageDescription("application/lws+cid"));
+        assertTrue(MediaTypes.prefersStorageDescription(
+                "application/lws+cid, application/lws+json;q=0.5"));
+        assertFalse(MediaTypes.prefersStorageDescription("application/lws+json"));
+        assertFalse(MediaTypes.prefersStorageDescription("application/ld+json"));
+        assertFalse(MediaTypes.prefersStorageDescription("application/json"));
+        assertFalse(MediaTypes.prefersStorageDescription("text/turtle"));
+        assertFalse(MediaTypes.prefersStorageDescription("application/n-triples"));
+        assertFalse(MediaTypes.prefersStorageDescription(
+                "text/turtle; profile=\"https://www.w3.org/ns/lws/v1\""));
+        assertFalse(MediaTypes.prefersStorageDescription(
+                "application/ld+json; profile=\"https://www.w3.org/ns/lws/v1\""));
+    }
+
+    @Test
+    void theDescriptionIsLabelledLwsCidUnlessAnotherFormIsAskedForByName() {
+        assertEquals(MediaTypes.LWS_CID, MediaTypes.negotiateDescription(null));
+        assertEquals(MediaTypes.LWS_CID, MediaTypes.negotiateDescription("*/*"));
+        assertEquals(MediaTypes.LWS_CID, MediaTypes.negotiateDescription("application/lws+cid"));
+        assertEquals(MediaTypes.LWS_JSON, MediaTypes.negotiateDescription("application/lws+json"));
+        assertEquals(MediaTypes.LD_JSON, MediaTypes.negotiateDescription("application/ld+json"));
+        assertEquals(MediaTypes.JSON, MediaTypes.negotiateDescription("application/json"));
+    }
+
+    @Test
+    void theDescriptionIsOfferedInEveryFormItIsSerializableAs() {
+        assertTrue(MediaTypes.admitsStorageDescription(null));
+        assertTrue(MediaTypes.admitsStorageDescription("application/lws+cid"));
+        assertTrue(MediaTypes.admitsStorageDescription("application/lws+json"));
+        assertTrue(MediaTypes.admitsStorageDescription("text/turtle"));
+        assertFalse(MediaTypes.admitsStorageDescription("image/png"),
+                "a client that will take none of them gets a 406, not a mislabelled body");
     }
 }

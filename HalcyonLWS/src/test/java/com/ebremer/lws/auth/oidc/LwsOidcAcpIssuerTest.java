@@ -23,7 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * The end of the chain: an LWS-OIDC identity actually drives access on a real storage via an
  * {@code acp:issuer} policy. This wires the <em>real</em> {@link AcpEngine} over a real (temp)
  * TDB2 {@link LwsStore} and evaluates the {@link AgentContext} an LWS credential yields — the same
- * shape {@code LwsOidcVerifier} produced in the live check ({@code webId=https://ebremer.com/id/erich},
+ * shape {@code LwsOidcVerifier} produced in the live check ({@code cidUrl=https://ebremer.com/id/erich},
  * {@code issuer=…/realms/Halcyon}). A policy that grants Read to <em>any</em> identity from that
  * issuer lets the LWS agent read, while the public agent and an agent from a different issuer cannot.
  *
@@ -34,7 +34,7 @@ class LwsOidcAcpIssuerTest {
 
     private static final String TARGET = "https://storage.example/W3Clws/secret";
     private static final String ACL_READ = "http://www.w3.org/ns/auth/acl#Read";
-    private static final String WEBID = "https://ebremer.com/id/erich";
+    private static final String CID_URL = "https://ebremer.com/id/erich";
     private static final String ISSUER = "https://ebremer.com/auth/realms/Halcyon";
 
     private Path dir;
@@ -82,7 +82,7 @@ class LwsOidcAcpIssuerTest {
 
     @Test
     void anLwsIdentityFromTheNamedIssuerIsGrantedRead() {
-        AgentContext lws = new AgentContext(WEBID, "lws-app", ISSUER, List.of());
+        AgentContext lws = new AgentContext(CID_URL, "lws-app", ISSUER, List.of());
         assertTrue(canRead(lws),
                 "acp:issuer must grant Read to the LWS identity whose (discovered) issuer it names");
     }
@@ -94,7 +94,7 @@ class LwsOidcAcpIssuerTest {
 
     @Test
     void anIdentityFromAnotherIssuerIsNotGranted() {
-        AgentContext other = new AgentContext(WEBID, "lws-app", "https://someone-else.example", List.of());
-        assertFalse(canRead(other), "same WebID but a different issuer must not match the policy");
+        AgentContext other = new AgentContext(CID_URL, "lws-app", "https://someone-else.example", List.of());
+        assertFalse(canRead(other), "same CID URL but a different issuer must not match the policy");
     }
 }

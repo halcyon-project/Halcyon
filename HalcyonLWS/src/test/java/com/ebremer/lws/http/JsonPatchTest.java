@@ -9,8 +9,9 @@ import java.io.StringReader;
 import org.junit.jupiter.api.Test;
 
 /**
- * Unit tests for {@link LwsServlet#applyPatch}: the RFC 7386 (JSON Merge Patch) and RFC 6902
- * (JSON Patch) apply/dispatch/error-mapping behind {@code PATCH} on a JSON data resource.
+ * Unit tests for {@link LwsServlet#applyPatch}: the RFC 6902 (JSON Patch, the format lws10-core
+ * requires) and RFC 7396 (JSON Merge Patch) apply/dispatch/error-mapping behind {@code PATCH} on a
+ * JSON data resource.
  *
  * @author Erich Bremer
  */
@@ -24,7 +25,7 @@ class JsonPatchTest {
 
     @Test
     void mergePatchOverlaysAndRemovesNulls() {
-        // RFC 7386: a value replaces, a null deletes, absent keys are left untouched.
+        // RFC 7396: a value replaces, a null deletes, absent keys are left untouched.
         JsonValue out = LwsServlet.applyPatch(false,
                 json("{\"a\":2,\"b\":null}"),
                 json("{\"a\":1,\"b\":3,\"c\":4}"));
@@ -63,6 +64,35 @@ class JsonPatchTest {
                 json("[{\"op\":\"remove\",\"path\":\"/nope\"}]"),
                 json("{\"a\":1}")));
         assertEquals(409, p.status());
+    }
+
+    /** Touchstone's patch-json-patch-baseline: every pointer form, in order, with an append by "-". */
+    @Test
+    void jsonPatchTestsReplacesAddsRemovesAndAppends() {
+        JsonValue out = LwsServlet.applyPatch(true,
+                json("[{\"op\":\"test\",\"path\":\"/title\",\"value\":\"first\"},"
+                        + "{\"op\":\"replace\",\"path\":\"/title\",\"value\":\"second\"},"
+                        + "{\"op\":\"add\",\"path\":\"/added\",\"value\":42},"
+                        + "{\"op\":\"remove\",\"path\":\"/drop\"},"
+                        + "{\"op\":\"add\",\"path\":\"/tags/-\",\"value\":\"c\"}]"),
+                json("{\"title\":\"first\",\"keep\":true,\"drop\":\"gone\",\"tags\":[\"a\",\"b\"]}"));
+        assertEquals(json("{\"title\":\"second\",\"keep\":true,\"tags\":[\"a\",\"b\",\"c\"],\"added\":42}"), out);
+    }
+
+    /** A malformed operation is the client's mistake, a 400, not a 409 about the resource's state. */
+    @Test
+    void aMalformedJsonPatchOperationIs400() {
+        for (String patch : new String[] {
+                "[1]",
+                "[{\"path\":\"/a\"}]",
+                "[{\"op\":\"jump\",\"path\":\"/a\"}]",
+                "[{\"op\":\"add\",\"path\":7,\"value\":1}]",
+                "[{\"op\":\"add\",\"path\":\"/a\"}]",
+                "[{\"op\":\"move\",\"path\":\"/a\"}]"}) {
+            Problem p = assertThrows(Problem.class, () -> LwsServlet.applyPatch(true, json(patch),
+                    json("{\"a\":1}")), patch);
+            assertEquals(400, p.status(), patch);
+        }
     }
 
     @Test

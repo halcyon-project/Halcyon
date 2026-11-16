@@ -33,6 +33,7 @@ import com.ebremer.lws.store.naming.Slugs;
 import com.ebremer.lws.vocab.LWS;
 import com.ebremer.lws.vocab.LWSX;
 import jakarta.json.Json;
+import jakarta.json.JsonArray;
 import jakarta.json.JsonException;
 import jakarta.json.JsonObject;
 import jakarta.json.JsonReader;
@@ -109,15 +110,15 @@ public class LwsServlet extends HttpServlet {
     /** Cap on an inbound ACR document; policies are small and this is a parser guard. */
     private static final int MAX_ACR_BYTES = 1 << 20;
 
-    /** Cap on an inbound merge patch. A patch names only what changes, so it is small. */
+    /** Cap on an inbound patch. A patch names only what changes, so it is small. */
     private static final int MAX_PATCH_BYTES = 1 << 20;
 
     /**
-     * The largest resource a merge patch will be applied to.
+     * The largest resource a patch will be applied to.
      *
-     * <p>Not a limit better engineering could lift. RFC 7386 is defined over whole documents —
-     * the patch is walked against the target's object tree — so both have to be parsed into
-     * memory, and there is no such thing as a streaming merge patch. Parsing, applying and
+     * <p>Not a limit better engineering could lift. Both patch formats are defined over whole
+     * documents — the patch is walked against, or points into, the target's tree — so both have
+     * to be parsed into memory, and there is no such thing as a streaming patch. Parsing, applying and
      * re-serializing an N-byte document costs several times N in transient heap, and it costs
      * it <em>per concurrent request</em>, so this is deliberately far below what any single
      * request could survive.
@@ -180,6 +181,8 @@ public class LwsServlet extends HttpServlet {
     private transient BearerTokenValidator auth;
     private transient Notifications notify;
     private transient com.ebremer.lws.sharing.AccessSharing sharing;
+    /** Moves resources between containers when a linkset PATCH changes their {@code up} link. */
+    private transient MoveHandler moves;
 
     /**
      * Capabilities installed on this storage — the per-resource SPARQL endpoint, the IIIF Image
@@ -209,18 +212,24 @@ public class LwsServlet extends HttpServlet {
         this.content = store.contentStore(cfg);
         this.mirror = content instanceof com.ebremer.lws.store.PathKeyedStore p ? p : null;
         this.naming = NamingPolicy.of(cfg);
-        this.auth = new BearerTokenValidator(cfg);
-        this.notify = new Notifications(store, cfg);
-        this.sharing = new com.ebremer.lws.sharing.AccessSharing(store, cfg, notify);
-        store.initStorage(cfg);
-        AcpBootstrap.seed(store, cfg);
-        notify.backfillSeqs();
 
         // Load the persistent secrets now, at startup, so they are in hand before any request —
         // a first-use lazy load could need a write transaction while a paginating request already
-        // holds a read one, which cannot be done. Idempotent across the two storages. (M3.)
+        // holds a read one, which cannot be done. Idempotent across the storages. (M3.)
+        // The authorization server is among them (its signing key is persisted too) and must be up
+        // before the validator below, which names it in the storage's protected resource metadata
+        // and holds its verification key.
         com.ebremer.lws.search.Cursor.init(store);
         com.ebremer.lws.notify.HttpMessageSignatures.init(store);
+        com.ebremer.lws.oauth.LwsAuthorizationServer.init(store);
+
+        this.auth = new BearerTokenValidator(cfg);
+        this.notify = new Notifications(store, cfg);
+        this.sharing = new com.ebremer.lws.sharing.AccessSharing(store, cfg, notify);
+        this.moves = new MoveHandler(store, cfg, content, notify, LwsSettings.get().moveAppliesTo(cfg));
+        store.initStorage(cfg);
+        AcpBootstrap.seed(store, cfg);
+        notify.backfillSeqs();
 
         // Re-derive metadata for anything scanned by an older reader (grandfathering the
         // never-stamped without re-reading them). Cheap when there is nothing to do. (M7.)
@@ -309,6 +318,16 @@ public class LwsServlet extends HttpServlet {
         return cfg;
     }
 
+    /**
+     * The issuer whose access tokens this storage accepts, which its protected resource metadata
+     * names ({@link com.ebremer.lws.oauth.ProtectedResourceMetadataServlet}); {@code null} until
+     * {@link #init()} has run.
+     */
+    public String authorizationServer() {
+        BearerTokenValidator a = auth;
+        return a == null ? null : a.authorizationServer();
+    }
+
     private ResourceRegistry registry() {
         return new ResourceRegistry(store, cfg);
     }
@@ -329,7 +348,7 @@ public class LwsServlet extends HttpServlet {
             AgentContext agent = auth.authenticate(req);
             dispatch(new Req(agent, new AcpEngine(store)), req, resp);
         } catch (Problem p) {
-            p.writeTo(resp);
+            p.writeTo(req, resp);
         } catch (RuntimeException | IOException e) {
             LOG.error("LWS {} {} failed", req.getMethod(), req.getRequestURI(), e);
             Problem.internal(null).writeTo(resp);
@@ -362,10 +381,22 @@ public class LwsServlet extends HttpServlet {
             }
         }
         Target t = Target.resolve(cfg, req);
-        switch (req.getMethod().toUpperCase(Locale.ROOT)) {
+        String method = req.getMethod().toUpperCase(Locale.ROOT);
+        if (method.equals("GET") || method.equals("HEAD")) {
+            // "All responses to GET and HEAD requests targeting storage resources MUST include a
+            // Link header whose target is the canonical URI of the storage" — set once here, for
+            // every kind of target, so no individual responder can forget it. An error response
+            // resets the headers (see Problem.send) and carries its own; the 401 challenge adds
+            // this link itself, which is where the spec's SHOULD for 401 is met.
+            addStorageLink(resp);
+            if (redirectMoved(rq, t, resp)) {
+                return;
+            }
+        }
+        switch (method) {
             case "GET" -> get(rq, t, req, resp, true);
             case "HEAD" -> get(rq, t, req, resp, false);
-            case "OPTIONS" -> options(rq, t, resp);
+            case "OPTIONS" -> options(rq, t, req, resp);
             case "POST" -> post(rq, t, req, resp);
             case "PUT" -> put(rq, t, req, resp);
             case "DELETE" -> delete(rq, t, req, resp);
@@ -391,13 +422,7 @@ public class LwsServlet extends HttpServlet {
         View v = store.read(() -> {
             LwsResource r = known(rq, t.uri());
             demandOn(rq, r, AccessMode.READ);
-            var links = new java.util.LinkedHashMap<String, List<String>>();
-            links.put(LinkHeader.REL_TYPE, List.of(r.isContainer()
-                    ? LWS.Container.getURI() : LWS.DataResource.getURI()));
-            if (r.parent() != null) {
-                links.put(LinkHeader.REL_UP, List.of(r.parent()));
-            }
-            links.put(LinkHeader.REL_ACL, List.of(r.uri() + LwsStorageConfig.ACR_SUFFIX));
+            var links = serverLinks(r);
             links.putAll(LinksetStore.read(store, t.uri()));
             return new View(r, links, LinksetStore.etag(store, t.uri()));
         });
@@ -412,7 +437,7 @@ public class LwsServlet extends HttpServlet {
         resp.addHeader("Vary", "Accept");
         resp.setHeader("ETag", v.etag());
         resp.setHeader("Allow", "OPTIONS, HEAD, GET, PATCH");
-        resp.setHeader("Accept-Patch", MediaTypes.MERGE_PATCH_JSON);
+        resp.setHeader("Accept-Patch", MediaTypes.ACCEPT_PATCH_JSON);
         resp.addHeader("Link", LinkHeader.link(t.uri(), "describes"));
 
         if (Preconditions.isNotModified(req, v.etag(), null)) {
@@ -431,13 +456,27 @@ public class LwsServlet extends HttpServlet {
         }
     }
 
+    /** The server-managed relations of a resource's linkset, derived from the resource itself. */
+    private java.util.LinkedHashMap<String, List<String>> serverLinks(LwsResource r) {
+        var links = new java.util.LinkedHashMap<String, List<String>>();
+        links.put(LWS.REL_STORAGE, List.of(cfg.storageRootUri()));
+        links.put(LinkHeader.REL_TYPE, List.of(r.isContainer()
+                ? LWS.Container.getURI() : LWS.DataResource.getURI()));
+        if (r.parent() != null) {
+            links.put(LinkHeader.REL_UP, List.of(r.parent()));
+        }
+        links.put(LinkHeader.REL_ACL, List.of(r.uri() + LwsStorageConfig.ACR_SUFFIX));
+        return links;
+    }
+
     /**
      * PATCH applies to two different things, and they are genuinely different operations.
      *
      * <p>{@code PATCH {resource}.meta} edits the resource's <em>metadata</em> — the links in
      * its linkset. {@code PATCH {resource}} edits its <em>content</em>, the bytes themselves.
-     * Both are driven by JSON Merge Patch, which is the format lws10-core requires a server to
-     * support at minimum, but they touch different stores and fail in different ways.
+     * Both take JSON Patch, the format lws10-core requires a server to support at minimum
+     * (w3c/lws-protocol#255), and JSON Merge Patch, which it required before; but they touch
+     * different stores and fail in different ways.
      */
     private void patch(Req rq, Target t, HttpServletRequest req, HttpServletResponse resp)
             throws IOException {
@@ -451,57 +490,161 @@ public class LwsServlet extends HttpServlet {
     }
 
     /**
-     * Update a resource's metadata with a JSON Merge Patch.
+     * Update a resource's metadata with a JSON Patch or a JSON Merge Patch.
      *
-     * <p>A conditional request is mandatory here, and unusually so: metadata is the one
-     * thing several actors touch concurrently — a scanner adding types while an owner
-     * adds a license — so an unconditional patch is a lost update waiting to happen.
-     * Hence 428 when {@code If-Match} is absent, not merely 412 when it is stale.
+     * <p>A JSON Patch (RFC 6902), the format lws10-core requires (w3c/lws-protocol#255), applies to
+     * the linkset document a GET returns, so its operations point where the client read: {@code
+     * /linkset/0/license} is the resource's own link context object. What it leaves must still be
+     * a linkset document for this resource with its server-managed links unchanged, and its other
+     * relations become the resource's user-managed links ({@link LinksetJson#userLinks}). A merge
+     * patch, still accepted, overlays relations one at a time ({@link LinksetJson#relations}).
+     *
+     * <p>A patch that changes {@code up} asks to move the resource to another container
+     * (w3c/lws-protocol#237). Where this storage moves resources it is applied by {@link MoveHandler}
+     * in this same transaction, atomically with the patch's other link changes, and answered
+     * {@code 204} where the resource keeps its URI and {@code 200} with the linkset at its new place
+     * where it does not; elsewhere {@code up} stays server-managed, and changing it a {@code 403}.
+     *
+     * <p>Metadata is the one thing several actors touch concurrently — a scanner adding types
+     * while an owner adds a license — and lws10-core asks clients to make these writes
+     * conditional (SHOULD), rejecting a stale {@code If-Match} with 412. It no longer lets a
+     * server demand one (#228 removed the 428), and an unconditional patch loses nothing
+     * here: it is read, applied and replaced in one write transaction, so it applies to the
+     * linkset as it stands, never to a copy the client read earlier.
      */
     private void patchLinkset(Req rq, Target t, HttpServletRequest req, HttpServletResponse resp)
             throws IOException {
         String ct = MediaTypes.bare(req.getContentType());
-        if (!MediaTypes.MERGE_PATCH_JSON.equals(ct)) {
-            throw Problem.unsupportedMediaType("the linkset accepts " + MediaTypes.MERGE_PATCH_JSON)
-                    .header("Accept-Patch", MediaTypes.MERGE_PATCH_JSON);
+        boolean jsonPatch = MediaTypes.JSON_PATCH.equals(ct);
+        if (!jsonPatch && !MediaTypes.MERGE_PATCH_JSON.equals(ct)) {
+            throw Problem.unsupportedMediaType("the linkset accepts " + MediaTypes.ACCEPT_PATCH_JSON)
+                    .header("Accept-Patch", MediaTypes.ACCEPT_PATCH_JSON);
         }
 
         byte[] raw = readBounded(req.getInputStream(), MAX_PATCH_BYTES);
         DigestFields.verify(req.getHeader("Content-Digest"), raw);
-        JsonObject patch;
-        try (var r = jakarta.json.Json.createReader(new java.io.ByteArrayInputStream(raw))) {
-            patch = r.readObject();
-        } catch (RuntimeException e) {
-            throw Problem.badRequest("could not parse the merge patch as JSON");
+        JsonValue patch = parsePatch(raw);
+        JsonArray operations = jsonPatch ? jsonPatchOperations(patch) : null;
+        if (!jsonPatch && patch.getValueType() != JsonValue.ValueType.OBJECT) {
+            throw Problem.badRequest("a merge patch of a linkset is a JSON object");
         }
 
-        // Rejected BEFORE the write opens. Server-managed metadata "MUST NOT be
-        // overridden by client-provided links", and a request that is going to be
-        // refused must leave nothing behind: validating inside the transaction and
-        // throwing after it commits would still bump the linkset's entity tag, so a
-        // client retrying the corrected request would be met with a 412 caused by its
-        // own rejected attempt.
-        List<String> serverManaged = patch.keySet().stream()
-                .filter(LinksetJson.SERVER_MANAGED::contains)
-                .toList();
-        if (!serverManaged.isEmpty()) {
-            throw Problem.forbidden("these relations are server-managed and cannot be set: "
-                    + String.join(", ", serverManaged));
+        // Everything is decided inside the write, in RFC 9110's order: the precondition first
+        // (a stale If-Match is a 412 whatever the body says), then the body. A refusal throws
+        // before anything is replaced, and a throw aborts the transaction, so a rejected patch
+        // leaves the linkset -- and its entity tag -- exactly as they were.
+        record Outcome(String etag, MoveHandler.Moved moved, JsonObject linkset) {
         }
-
-        List<String> rejected = new ArrayList<>();
-        String etag = store.write(() -> {
-            demandOn(rq, known(rq, t.uri()), AccessMode.WRITE);
+        Outcome out = moves.write(() -> {
+            LwsResource r = known(rq, t.uri());
+            demandOn(rq, r, AccessMode.WRITE);
             // Compared inside the write transaction, so this is a compare-and-swap.
-            Preconditions.requireIfMatch(req, LinksetStore.etag(store, t.uri()));
+            Preconditions.evaluate(req, LinksetStore.etag(store, t.uri()));
 
+            // Server-managed metadata "MUST NOT be overridden by client-provided links".
+            var server = serverLinks(r);
             var current = LinksetStore.read(store, t.uri());
-            var updated = LinksetJson.mergePatch(current, patch, rejected);
-            return LinksetStore.replace(store, t.uri(), updated);
+            List<String> serverManaged = new ArrayList<>();
+            Map<String, List<String>> updated;
+            JsonValue result = null;
+            if (jsonPatch) {
+                var links = new LinkedHashMap<>(server);
+                links.putAll(current);
+                try {
+                    result = Json.createPatch(operations).apply(LinksetJson.build(t.uri(), links));
+                } catch (JsonException e) {
+                    throw Problem.conflict("the JSON Patch could not be applied to the linkset: "
+                            + e.getMessage());
+                }
+                try {
+                    updated = LinksetJson.userLinks(result, t.uri(), server, serverManaged);
+                } catch (IllegalArgumentException e) {
+                    throw Problem.unprocessable(e.getMessage());
+                }
+            } else {
+                JsonObject relations;
+                try {
+                    relations = LinksetJson.relations(patch.asJsonObject(), t.uri(), server, serverManaged);
+                } catch (IllegalArgumentException e) {
+                    throw Problem.unprocessable(e.getMessage());
+                }
+                updated = LinksetJson.mergePatch(current, relations, new ArrayList<>());
+            }
+            // A changed up link is a move where this storage moves resources (lws10-core, Moving
+            // Resources), and stays a server-managed relation everywhere else.
+            List<String> up = null;
+            if (serverManaged.contains(LinkHeader.REL_UP) && moves.enabled()) {
+                serverManaged.remove(LinkHeader.REL_UP);
+                up = jsonPatch ? LinksetJson.targets(result, LinkHeader.REL_UP)
+                        : LinksetJson.mergeTargets(patch.asJsonObject(), LinkHeader.REL_UP)
+                                .orElse(server.getOrDefault(LinkHeader.REL_UP, List.of()));
+            }
+            if (!serverManaged.isEmpty()) {
+                throw Problem.forbidden("these relations are server-managed and cannot be set: "
+                        + String.join(", ", serverManaged));
+            }
+            MoveHandler.Moved moved = up == null ? null
+                    : moves.move(r, up, t.linksetUri(), authority(rq), rq.agent().cidUrl());
+            String anchor = moved == null ? t.uri() : moved.uri();
+            String etag = LinksetStore.replace(store, anchor, updated);
+            JsonObject linkset = null;
+            if (moved != null && moved.renamed()) {
+                LwsResource now = registry().find(anchor)
+                        .orElseThrow(() -> Problem.internal("the resource vanished on move"));
+                var links = serverLinks(now);
+                links.putAll(LinksetStore.read(store, anchor));
+                linkset = LinksetJson.build(anchor, links);
+            }
+            return new Outcome(etag, moved, linkset);
         });
 
-        resp.setStatus(HttpServletResponse.SC_NO_CONTENT);
-        resp.setHeader("ETag", etag);
+        if (out.moved() != null) {
+            // Posted after the commit, so a notification describes a move that happened; planned
+            // inside the transaction, on the state before and after it.
+            notify.deliver(out.moved().plan());
+            resp.addHeader("Link", LinkHeader.link(out.moved().parent(), LinkHeader.REL_UP));
+        }
+        resp.setHeader("ETag", out.etag());
+        if (out.linkset() == null) {
+            resp.setStatus(HttpServletResponse.SC_NO_CONTENT);
+            return;
+        }
+        // "A server that does not preserve the identifier of a moved resource MUST respond with 200
+        // OK and a representation of the updated linkset resource whose anchor is the new identifier
+        // of the resource, and MUST include a Content-Location header field carrying the new
+        // identifier of the linkset resource itself."
+        byte[] bytes = out.linkset().toString().getBytes(StandardCharsets.UTF_8);
+        agentSpecific(resp);
+        resp.setStatus(HttpServletResponse.SC_OK);
+        resp.setHeader("Content-Location", out.moved().uri() + LwsStorageConfig.LINKSET_SUFFIX);
+        resp.setContentType(MediaTypes.LINKSET_JSON);
+        resp.setCharacterEncoding(StandardCharsets.UTF_8.name());
+        resp.setContentLength(bytes.length);
+        resp.getOutputStream().write(bytes);
+    }
+
+    /**
+     * Answer a request for a renamed resource's previous URI, or its linkset's or ACR's, with
+     * {@code 301} and the URI it has now, when the agent may read it there (see
+     * {@link MoveHandler#redirect}); otherwise leave the request to be answered as for any URI where
+     * nothing lives. Agent-specific, as every authorized response here is.
+     */
+    private boolean redirectMoved(Req rq, Target t, HttpServletResponse resp) {
+        String to = moves.redirect(t, uri -> may(rq, uri, AccessMode.READ));
+        if (to == null) {
+            return false;
+        }
+        agentSpecific(resp);
+        resp.setStatus(HttpServletResponse.SC_MOVED_PERMANENTLY);
+        resp.setHeader("Location", to);
+        resp.setContentLength(0);
+        return true;
+    }
+
+    /** The agent of a request, as {@link MoveHandler} asks about it: the modes it holds, and the refusal. */
+    private MoveHandler.Authority authority(Req rq) {
+        return new MoveHandler.Authority(uri -> rq.acp().modes(rq.agent(), uri),
+                (mode, what) -> refusal(rq, mode, what));
     }
 
     // --- Authorization ------------------------------------------------------
@@ -518,7 +661,8 @@ public class LwsServlet extends HttpServlet {
      * able to discover the existence of a specific resource instance … without the required
      * authorization" — and the core spec's delete section grants the licence to do it:
      * "In cases where revealing resource existence poses a security risk, the server MAY
-     * return 404 Not Found instead."
+     * return 404 Not Found instead." Since 9 November 2026 its status table says the same of
+     * every operation: a server "MAY respond with 404 Not Found instead of 403 Forbidden".
      *
      * <p>Which answer an anonymous agent gets turns on whether a challenge could tell it
      * anything. On a storage that grants the public nothing, 401 is the useful reply: it
@@ -526,8 +670,9 @@ public class LwsServlet extends HttpServlet {
      * answer — which is the entire purpose of a challenge. On a storage that already
      * grants the public access, it is a lie of omission. That agent is not short of
      * credentials; the resource it addressed is simply not there, and lws10-core wants that
-     * said plainly — a POST into a container that does not exist "MUST return a 404 error
-     * status unless another status code is more appropriate".
+     * said plainly — a POST into a container that does not exist is the <em>Target Not
+     * Found</em> outcome, 404 (#263; until 9 November 2026 "MUST return a 404 error status
+     * unless another status code is more appropriate").
      *
      * <p>The standing test is taken against the storage ROOT, never the resource in hand,
      * and that is what keeps the oracle shut. Asked of the resource it would answer 401 for
@@ -624,11 +769,16 @@ public class LwsServlet extends HttpServlet {
         if (granted) {
             return;
         }
+        throw refusal(rq, mode, what);
+    }
+
+    /** The refusal of {@code mode}: a challenge for an anonymous agent, 403 for one we know. */
+    private Problem refusal(Req rq, AccessMode mode, String what) {
         String verb = mode.name().toLowerCase(Locale.ROOT);
         if (!rq.agent().isAuthenticated()) {
-            throw auth.unauthenticated("authentication is required to " + verb + " " + what);
+            return auth.unauthenticated("authentication is required to " + verb + " " + what);
         }
-        throw Problem.forbidden("the agent may not " + verb + " " + what);
+        return Problem.forbidden("the agent may not " + verb + " " + what);
     }
 
     // --- Read ---------------------------------------------------------------
@@ -641,17 +791,21 @@ public class LwsServlet extends HttpServlet {
             // identical for every caller. Sharing it is the point of a discovery document, so
             // it is the only one marked public. The max-age stays short because the storage's
             // webhook verification key is published in it.
-            case DESCRIPTION -> {
-                resp.setHeader("Cache-Control", "public, max-age=60");
-                sendJson(req, resp,
-                        LwsJson.storageDescription(cfg, capabilities.descriptors(cfg)), body);
-            }
+            case DESCRIPTION -> sendDescription(req, resp, body);
             case TYPE_INDEX -> typeIndex(rq, req, resp, body);
-            // The GET form of Type Search: ?type=A,B&type=C. Superseded by QUERY in
-            // w3c/lws-protocol#179, which is not yet merged — the published draft still
-            // requires it, so it stays until that lands.
-            case TYPE_SEARCH -> typeSearch(rq, LwsQuery.fromQueryString(req.getParameterMap()),
-                    req, resp, body);
+            // A search is a QUERY, not a GET (w3c/lws-protocol#179). A GET is honoured only on
+            // a page link, which carries the filter it belongs to in the sealed `q` token; the
+            // bare endpoint answers 405 and names QUERY, so a client that followed a page link
+            // can page on while one that tried to search by URL is told how to.
+            case TYPE_SEARCH -> {
+                String token = req.getParameter(SEARCH_FILTER_PARAM);
+                if (token == null) {
+                    throw Problem.methodNotAllowed("a search is an HTTP QUERY with an "
+                            + MediaTypes.LWS_QUERY_JSON + " filter", ALLOW_SEARCH)
+                            .header("Accept-Query", MediaTypes.LWS_QUERY_JSON);
+                }
+                typeSearch(rq, LwsQuery.decode(token), req, resp, body);
+            }
             case ACR -> getAcr(rq, t, req, resp, body);
             case LINKSET -> getLinkset(rq, t, req, resp, body);
             // Only the subscriber may see their own subscription. It carries their inbox --
@@ -675,6 +829,19 @@ public class LwsServlet extends HttpServlet {
             case ACCESS_REQUEST -> getSharing(rq, t, req, resp, body, false);
             case ACCESS_GRANT -> getSharing(rq, t, req, resp, body, true);
             case STORAGE_ROOT, RESOURCE -> {
+                // The storage URI is this storage's root container, and lws10-core requires a
+                // request for the storage URI to answer with the storage description "unless
+                // content negotiation requires a different format". So the description is the
+                // default, and only an Accept naming a container format (lws+json, ld+json, json,
+                // an RDF syntax) without the CID type reads the container. The description is served
+                // unauthenticated exactly as it is at its own URI -- it is a discovery document,
+                // identical for every caller, and a client that cannot read it cannot learn how
+                // to authenticate.
+                if (t.kind() == Target.Kind.STORAGE_ROOT
+                        && MediaTypes.prefersStorageDescription(req.getHeader("Accept"))) {
+                    sendDescription(req, resp, body);
+                    return;
+                }
                 // A GET carrying ?query= against a queryable resource is a per-resource SPARQL
                 // request (a capability claims it); everything else is a normal read. HEAD never
                 // matches — the capability's marker is the GET method.
@@ -687,7 +854,7 @@ public class LwsServlet extends HttpServlet {
     }
 
     /** A container-listing snapshot: the page, its links, and the (possibly inexact) total. */
-    private record View(LwsResource r, long total, List<LwsJson.Item> items, long afterSeq,
+    private record View(LwsResource r, String etag, long total, List<LwsJson.Item> items, long afterSeq,
             Long prevAfter, Long nextAfter, Long lastAfter) {
     }
 
@@ -703,7 +870,7 @@ public class LwsServlet extends HttpServlet {
             LwsResource r = known(rq, t.uri());
             demandOn(rq, r, AccessMode.READ);
             if (!r.isContainer()) {
-                return new View(r, 0, List.of(), -1, null, null, null);
+                return new View(r, r.etag(), 0, List.of(), -1, null, null, null);
             }
 
             // Decoded after the authorization check, so that an unrecognised cursor cannot be
@@ -723,6 +890,7 @@ public class LwsServlet extends HttpServlet {
         addCommonHeaders(resp, r);
 
         if (!r.isContainer()) {
+            Preconditions.evaluateRead(req, r.etag(), r.modified());
             if (Preconditions.isNotModified(req, r.etag(), r.modified())) {
                 resp.setStatus(HttpServletResponse.SC_NOT_MODIFIED);
                 return;
@@ -735,41 +903,31 @@ public class LwsServlet extends HttpServlet {
         // entity tag across every page of a container is not a cosmetic flaw: a client holding
         // page 1's tag would be answered 304 when it asked for page 2, and would then serve
         // itself page 1 out of its own cache, forever.
-        String base = pageEtag(r.etag(), v.afterSeq());
+        String base = pageEtag(v.etag(), v.afterSeq());
         addPageLinks(resp, r.uri(), CONTAINER_CURSOR, v.prevAfter(), v.nextAfter(), v.lastAfter());
 
-        // A container's canonical representation is application/lws+json. Turtle is offered as an
-        // additional serialization (a MAY) for a client that accepts only an RDF type — which used
-        // to be a 406. The two serializations are distinct representations of the same page, so each
-        // carries its own entity tag (Turtle's is the JSON tag with a marker), and Vary: Accept
+        // A container's canonical representation is application/lws+json; the same page is also
+        // offered as application/ld+json and application/json, and its RDF in Turtle, N-Triples,
+        // N-Quads and TriG — all in the LWS profile, named in Content-Type when asked for
+        // (Negotiation). Negotiated first, because each RDF syntax is a distinct representation of
+        // the page and carries its own entity tag (the JSON tag with a marker), and Vary: Accept
         // tells a cache to key on the negotiated type.
-        boolean turtle = prefersTurtle(req);
-        String etag = turtle ? tagVariant(base, "ttl") : base;
+        Negotiation.Variant variant = Negotiation.container(req.getHeader("Accept"));
+        String etag = variant.tag(base);
         resp.setHeader("ETag", etag);
 
         // Validated on the entity tag alone. Last-Modified belongs to the container and is the
         // same on every page, so honouring If-Modified-Since here would answer 304 to a client
-        // asking for a page it has never seen. A 304 MUST still echo Vary (RFC 7232); the JSON 200
-        // gets Vary from sendJson, so each path emits it exactly once.
+        // asking for a page it has never seen. A 304 MUST still echo Vary (RFC 7232); the 200
+        // gets Vary from sendContainer, so each path emits it exactly once. If-Unmodified-Since, by
+        // contrast, asks about the container's state, not a page, so it is evaluated on that.
+        Preconditions.evaluateRead(req, etag, r.modified());
         if (Preconditions.isNotModified(req, etag, null)) {
             resp.addHeader("Vary", "Accept");
             resp.setStatus(HttpServletResponse.SC_NOT_MODIFIED);
             return;
         }
-        if (turtle) {
-            byte[] bytes = LwsRdf.toTurtle(LwsJson.container(r.uri(), v.total(), v.items()));
-            resp.addHeader("Vary", "Accept");
-            resp.setStatus(HttpServletResponse.SC_OK);
-            resp.setContentType(MediaTypes.TURTLE);
-            resp.setCharacterEncoding(StandardCharsets.UTF_8.name());
-            resp.setContentLength(bytes.length);
-            addBytesDigests(req, resp, bytes);
-            if (body) {
-                resp.getOutputStream().write(bytes);
-            }
-            return;
-        }
-        sendJson(req, resp, LwsJson.container(r.uri(), v.total(), v.items()), body);
+        sendContainer(req, resp, LwsJson.container(r.uri(), v.total(), v.items()), variant, body);
     }
 
     /**
@@ -866,14 +1024,6 @@ public class LwsServlet extends HttpServlet {
         return true;
     }
 
-    /** An entity tag for a variant serialization: the base tag with a marker before its closing quote. */
-    private static String tagVariant(String etag, String marker) {
-        if (etag != null && etag.length() > 1 && etag.endsWith("\"")) {
-            return etag.substring(0, etag.length() - 1) + "-" + marker + "\"";
-        }
-        return etag;
-    }
-
     /**
      * The exact listing for a container of ordinary size: the whole membership is filtered by
      * access, so {@code totalItems}, {@code prev}, {@code next} and {@code last} are all exact.
@@ -885,6 +1035,60 @@ public class LwsServlet extends HttpServlet {
      * before the window is chosen, so no page is short because of them and no cursor stalls on a run
      * of them.
      */
+    /**
+     * The entity tag of a container's listing as this agent sees it.
+     *
+     * <p>A listing shows only the members the agent may read, so two agents can be handed
+     * different bodies for the same container, and a policy change can change one agent's body
+     * without touching the container. The tag is the container's version when the agent sees every
+     * member -- an owner, say, whose view no grant can narrow -- and otherwise the version
+     * qualified by a digest of the members it does see. So it changes exactly when this agent's
+     * listing changes, and an access grant on some other resource leaves it alone; a module-wide
+     * policy epoch here made every such grant a 412 for every client holding a container's tag.
+     *
+     * <p>A container too large to list exactly ({@link #LIST_EXACT_CAP}) is not walked for this:
+     * its tag is qualified by the ACP epoch instead, as every container's used to be, which can
+     * only over-invalidate. Assumes an ambient transaction.
+     */
+    private String agentEtag(Req rq, ResourceRegistry reg, LwsResource r) {
+        List<ResourceRegistry.ChildRef> members = reg.childRefs(r.uri());
+        if (members.size() > LIST_EXACT_CAP) {
+            return epochEtag(r.etag());
+        }
+        List<ResourceRegistry.ChildRef> visible = new ArrayList<>();
+        for (ResourceRegistry.ChildRef ref : members) {
+            if (may(rq, ref.uri(), AccessMode.READ)) {
+                visible.add(ref);
+            }
+        }
+        return agentEtag(r.etag(), members, visible);
+    }
+
+    /** {@link #agentEtag(Req, ResourceRegistry, LwsResource)}, once the visible members are known. */
+    private static String agentEtag(String etag, List<ResourceRegistry.ChildRef> members,
+            List<ResourceRegistry.ChildRef> visible) {
+        if (visible.size() == members.size()) {
+            return etag;
+        }
+        try {
+            java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
+            for (ResourceRegistry.ChildRef ref : visible) {
+                md.update(ref.uri().getBytes(StandardCharsets.UTF_8));
+                md.update((byte) '\n');
+            }
+            return ResourceRegistry.qualify(etag,
+                    "v" + java.util.HexFormat.of().formatHex(md.digest(), 0, 8));
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 is always available", e);
+        }
+    }
+
+    /** {@code etag} qualified by the current ACP epoch; unchanged while no policy was ever written. */
+    private String epochEtag(String etag) {
+        long epoch = store.acpEpoch();
+        return epoch == 0 ? etag : ResourceRegistry.qualify(etag, String.valueOf(epoch));
+    }
+
     private View exactListing(Req rq, ResourceRegistry reg, LwsResource r,
             List<ResourceRegistry.ChildRef> members, Cursor cursor) {
         List<ResourceRegistry.ChildRef> visible = new ArrayList<>();
@@ -915,7 +1119,8 @@ public class LwsServlet extends HttpServlet {
             int lastStart = ((visible.size() - 1) / PAGE_SIZE) * PAGE_SIZE;
             last = lastStart == 0 ? -1L : visible.get(lastStart - 1).seq();
         }
-        return new View(r, visible.size(), items, cursor.afterSeq(), prev, next, last);
+        return new View(r, agentEtag(r.etag(), members, visible), visible.size(), items,
+                cursor.afterSeq(), prev, next, last);
     }
 
     /**
@@ -974,13 +1179,13 @@ public class LwsServlet extends HttpServlet {
             }
         }
 
-        return new View(r, members.size(), items, cur, prev, next, null);
+        return new View(r, epochEtag(r.etag()), members.size(), items, cur, prev, next, null);
     }
 
     /**
      * List the requesting agent's own webhook subscriptions.
      *
-     * <p>lws10-notifications, Subscription Management: the {@code serviceEndpoint} "MUST be a URL
+     * <p>lws10-notifications-webhook, Subscription Management: the {@code serviceEndpoint} "MUST be a URL
      * that supports GET operations to list a subscriber's active webhook subscriptions", its
      * serialization "MUST conform to the requirements for LWS Containers", and the response
      * "SHOULD support LWS Paging". This used to answer 405.
@@ -1042,21 +1247,25 @@ public class LwsServlet extends HttpServlet {
 
         // Digested from the body about to be sent, so it cannot fail to track it. There is no
         // version counter to lean on here, and the listing is per-agent anyway — two agents GET
-        // the same URI and get different bytes, which is what Vary: Authorization is for. Turtle is a
-        // distinct representation, so it validates against its own tag.
-        String etag = prefersTurtle(req) ? tagVariant(bodyEtag(doc), "ttl") : bodyEtag(doc);
+        // the same URI and get different bytes, which is what Vary: Authorization is for. The
+        // listing is a container, negotiated as one; each RDF syntax is a distinct representation,
+        // so it validates against its own tag.
+        Negotiation.Variant variant = Negotiation.container(req.getHeader("Accept"));
+        String etag = variant.tag(bodyEtag(doc));
 
         agentSpecific(resp);
+        addContainerTypeLink(resp);
         resp.setHeader("ETag", etag);
         resp.setHeader("Allow", "OPTIONS, HEAD, GET, POST");
         addPageLinks(resp, t.uri(), SUBSCRIPTIONS_CURSOR,
                 v.prevAfter(), v.nextAfter(), v.lastAfter());
 
         if (Preconditions.isNotModified(req, etag, null)) {
+            resp.addHeader("Vary", "Accept");
             resp.setStatus(HttpServletResponse.SC_NOT_MODIFIED);
             return;
         }
-        sendJson(req, resp, doc, body);
+        sendContainer(req, resp, doc, variant, body);
     }
 
     /** A strong entity tag over a document's exact bytes. */
@@ -1398,9 +1607,9 @@ public class LwsServlet extends HttpServlet {
     /**
      * Replace a resource's access control resource.
      *
-     * <p>Conditional, and this is the resource where that matters most. Every other mutable
-     * resource in the storage was already protected — 428 for an unconditional write, 412 for a
-     * stale tag — and the ACR, alone, was not. Two administrators editing a policy concurrently
+     * <p>Conditional, and mandatorily so: an unconditional write is 428 here, although the writes
+     * lws10-core defines may be unconditional. The ACR is this storage's, not the protocol's, and
+     * it is the resource where a lost update does the most harm. Two administrators editing a policy concurrently
      * would silently clobber one another, on the one resource in the system where a lost update
      * does the most damage: the loser's revocation simply evaporates, and nothing anywhere says
      * so. A grant that quietly comes back is worse than a failed request.
@@ -1421,7 +1630,8 @@ public class LwsServlet extends HttpServlet {
             // Read and compared inside the write transaction, which TDB2 serializes to a single
             // writer — so this is a genuine compare-and-swap and not a check the other editor can
             // invalidate between our reading it and our acting on it.
-            Preconditions.requireIfMatch(req, AcrStore.etag(store, t.uri()));
+            // Mandatory here, unlike the writes lws10-core defines: see requirePrecondition.
+            Preconditions.requirePrecondition(req, AcrStore.etag(store, t.uri()));
 
             AcrStore.replace(store, t.uri(), submitted);
 
@@ -1440,16 +1650,21 @@ public class LwsServlet extends HttpServlet {
     /**
      * Create a resource in a container.
      *
-     * <p>POST-only, and the parent is the container posted to. PUT does not create: on
-     * a URI that does not exist it is a 404, exactly as the spec describes. That keeps
-     * one path on which a parent is ever assigned — which the flat storage requires,
-     * having no hierarchy in its URIs to infer one from.
+     * <p>The parent is the container posted to, and a container that does not exist is the
+     * <em>Target Not Found</em> outcome, a 404 (lws10-core of 9 November 2026, #263). On the
+     * flat storage PUT does not create: on a URI that does not exist it is a 404, exactly as
+     * the spec describes, which keeps one path on which a parent is ever assigned — the flat
+     * storage has no hierarchy in its URIs to infer one from. The disk mirror's PUT is a write
+     * to a path and does create, missing containers included ({@link #putMirror}): an
+     * extension beyond the spec's create operation (docs/lws/conformance.md, divergence 17).
      */
     private void post(Req rq, Target t, HttpServletRequest req, HttpServletResponse resp)
             throws IOException {
         if (t.kind() == Target.Kind.TYPE_SEARCH) {
-            postTypeSearch(rq, req, resp);
-            return;
+            // The POST form of Type Search was removed from the spec by w3c/lws-protocol#179.
+            throw Problem.methodNotAllowed("a search is an HTTP QUERY with an "
+                    + MediaTypes.LWS_QUERY_JSON + " filter", ALLOW_SEARCH)
+                    .header("Accept-Query", MediaTypes.LWS_QUERY_JSON);
         }
         if (t.kind() == Target.Kind.SUBSCRIPTIONS) {
             subscribe(rq, req, resp);
@@ -1491,14 +1706,19 @@ public class LwsServlet extends HttpServlet {
 
         List<LinkHeader.Parsed> links = LinkHeader.parse(req);
         boolean makeContainer = LinkHeader.declaresType(links, LWS.Container.getURI());
+        // The "identity hint" lws10-core's create operation describes: "an optional suggestion for
+        // the new resource's identifier. The server may use this hint but is not required to." The
+        // spec names no header for it — w3c/lws-protocol#224 removed the Slug mentions it used to
+        // carry — so the header is this storage's choice, and Slug is the long-established one.
+        // The server still decides the final URI (see NamingPolicy and Slugs.sanitize).
         String slug = req.getHeader("Slug");
-        String webId = rq.agent().webId();
+        String cidUrl = rq.agent().cidUrl();
 
         LwsResource created;
         if (mirror != null) {
-            created = createMirror(rq, parent, makeContainer, slug, webId, req);
+            created = createMirror(rq, parent, makeContainer, slug, cidUrl, req);
         } else if (makeContainer) {
-            created = store.write(() -> commitCreation(rq, parent, slug, webId, true, null));
+            created = store.write(() -> commitCreation(rq, parent, slug, cidUrl, true, null));
         } else {
             // Extension from the slug, else from the media type. Without this fallback a
             // whole-slide image POSTed as image/tiff with no Slug had no extension for the reader
@@ -1523,7 +1743,7 @@ public class LwsServlet extends HttpServlet {
             verifyUpload(req, w, ext);
             try {
                 created = store.write(() ->
-                        commitCreation(rq, parent, slug, webId, false, new Content(w, mt, ext)));
+                        commitCreation(rq, parent, slug, cidUrl, false, new Content(w, mt, ext)));
             } catch (RuntimeException e) {
                 // Refused, or the store rejected it. The upload is discarded rather than left
                 // behind as an unreferenced blob.
@@ -1534,9 +1754,11 @@ public class LwsServlet extends HttpServlet {
             // to minutes, and a POST must not wait for it.
             LwsMetadataScanner.enrichAsync(store, cfg, content, created);
         }
+        declareTypes(req, created, true);
+        declareInitialLinks(req, created);
 
         notify.emit("Create", created.uri(), created.isContainer(), parent.uri(),
-                rq.agent().webId());
+                rq.agent().cidUrl());
 
         resp.setStatus(HttpServletResponse.SC_CREATED);
         resp.setHeader("Location", created.uri());
@@ -1577,7 +1799,66 @@ public class LwsServlet extends HttpServlet {
      * computed before the upload even started. A re-check against a cache of the thing being
      * re-checked is not a re-check.
      */
-    private LwsResource commitCreation(Req rq, LwsResource parent, String slug, String webId,
+    /**
+     * Records the types the request declares with {@code Link rel="type"} (lws10-index section 5:
+     * servers SHOULD derive resource types from the Link headers a client sends on creation or
+     * modification). A create takes whatever it declares; a PUT replaces the declared types only
+     * when it carries a {@code rel="type"} link, so an update that says nothing about types keeps
+     * them. A separate write after the one that stored the resource: index membership may be
+     * eventually consistent, and a hint the store cannot keep should not fail the write.
+     */
+    private void declareTypes(HttpServletRequest req, LwsResource r, boolean created) {
+        List<LinkHeader.Parsed> links = LinkHeader.parse(req);
+        boolean saysType = links.stream().anyMatch(l -> LinkHeader.REL_TYPE.equalsIgnoreCase(l.rel()));
+        List<String> types = LinkHeader.declaredTypes(links);
+        if (created ? types.isEmpty() : !saysType) {
+            return;
+        }
+        store.write(() -> registry().replaceDeclaredTypes(r.uri(), types));
+    }
+
+    /**
+     * Records the other relations a POST's {@code Link} headers carry as the new resource's linkset:
+     * "Clients MAY provide initial user-managed metadata for the new resource by including one or
+     * more Link headers in the POST request" (lws10-core 9.2). They used to be dropped, so a
+     * {@code describedby} sent on create was never searchable while the same link PATCHed into the
+     * linkset was, although lws10-index requires every relation source to be "treated identically"
+     * (Touchstone type-search-relation-from-link-header).
+     *
+     * <p>Written through {@link LinksetStore#replace}, the store a linkset PATCH writes and the Type
+     * Search reads, so the two sources cannot differ. Server-managed relations ({@code type},
+     * {@code up}, {@code linkset}, {@code acl}, the paging links, the storage link) are skipped, not
+     * refused: "Server-managed metadata ... MUST NOT be overridden by client-provided links", and a
+     * create must not fail for a hint it ignores. {@code type} is {@link #declareTypes}'s. Only
+     * absolute targets are kept, as there. A PUT or PATCH does not come here: it changes content
+     * only, and metadata only with {@code Prefer: set-linkset} (lws10-core 9.3). A separate write,
+     * like declareTypes', so a hint the store cannot keep does not fail the create.
+     */
+    private void declareInitialLinks(HttpServletRequest req, LwsResource r) {
+        Map<String, List<String>> links = new LinkedHashMap<>();
+        for (LinkHeader.Parsed p : LinkHeader.parse(req)) {
+            String rel = p.rel();
+            if (LinksetJson.SERVER_MANAGED.contains(rel.toLowerCase(java.util.Locale.ROOT))
+                    || !isAbsoluteUri(p.target())) {
+                continue;
+            }
+            links.computeIfAbsent(rel, k -> new ArrayList<>()).add(p.target());
+        }
+        if (!links.isEmpty()) {
+            store.write(() -> LinksetStore.replace(store, r.uri(), links));
+        }
+    }
+
+    private static boolean isAbsoluteUri(String s) {
+        try {
+            java.net.URI u = new java.net.URI(s);
+            return u.isAbsolute() && u.getRawSchemeSpecificPart() != null;
+        } catch (java.net.URISyntaxException e) {
+            return false;
+        }
+    }
+
+    private LwsResource commitCreation(Req rq, LwsResource parent, String slug, String cidUrl,
             boolean makeContainer, Content content) {
         ResourceRegistry reg = registry();
         Req now = new Req(rq.agent(), new AcpEngine(store));
@@ -1589,13 +1870,13 @@ public class LwsServlet extends HttpServlet {
         LwsResource r = makeContainer
                 ? new LwsResource(uri, ResourceType.CONTAINER, List.of(),
                         null, 0, when, ResourceRegistry.containerEtag(0),
-                        null, null, parent.uri(), reg.nextSeq(), webId, webId, null)
+                        null, null, parent.uri(), reg.nextSeq(), cidUrl, cidUrl, null)
                 : new LwsResource(uri, ResourceType.DATA_RESOURCE, List.of(),
                         content.mediaType(), content.written().size(), when,
                         ResourceRegistry.dataEtag(content.written().sha256(),
                                 content.mediaType(), content.written().size()),
                         content.written().key(), content.ext(), parent.uri(),
-                        reg.nextSeq(), webId, webId, content.written().sha256());
+                        reg.nextSeq(), cidUrl, cidUrl, content.written().sha256());
 
         reg.create(r, slug);
         return reg.find(uri).orElseThrow(() -> Problem.internal("the resource vanished on create"));
@@ -1683,14 +1964,14 @@ public class LwsServlet extends HttpServlet {
      * at the mirror of that URI ({@code writeAt} makes the parent directories on the way).
      */
     private LwsResource createMirror(Req rq, LwsResource parent, boolean makeContainer, String slug,
-            String webId, HttpServletRequest req) throws IOException {
+            String cidUrl, HttpServletRequest req) throws IOException {
         String uri = store.read(() -> naming.mint(parent.uri(), slug, makeContainer, registry()::exists));
         String key = keyForUri(uri);
 
         if (makeContainer) {
             mirror.mkdirs(key);
             return store.write(() ->
-                    commitMirrorCreate(rq, parent.uri(), uri, key, webId, true, null, null, null));
+                    commitMirrorCreate(rq, parent.uri(), uri, key, cidUrl, true, null, null, null));
         }
 
         String ext = extOfPath(key);
@@ -1710,7 +1991,7 @@ public class LwsServlet extends HttpServlet {
             ContentStore.Written w = staged.written();
             verifyUpload(req, w, fext);
             LwsResource created = store.write(() ->
-                    commitMirrorCreate(rq, parent.uri(), uri, key, webId, false, w, mt, fext));
+                    commitMirrorCreate(rq, parent.uri(), uri, key, cidUrl, false, w, mt, fext));
             staged.publish();
             LwsMetadataScanner.enrichAsync(store, cfg, content, created);
             return created;
@@ -1718,7 +1999,7 @@ public class LwsServlet extends HttpServlet {
     }
 
     private LwsResource commitMirrorCreate(Req rq, String parentUri, String uri, String key,
-            String webId, boolean makeContainer, ContentStore.Written w, String mediaType, String ext) {
+            String cidUrl, boolean makeContainer, ContentStore.Written w, String mediaType, String ext) {
         ResourceRegistry reg = registry();
         Req now = new Req(rq.agent(), new AcpEngine(store));
         demandOn(now, known(now, parentUri), AccessMode.APPEND);
@@ -1730,10 +2011,10 @@ public class LwsServlet extends HttpServlet {
         Instant when = Instant.now();
         LwsResource r = makeContainer
                 ? new LwsResource(uri, ResourceType.CONTAINER, List.of(), null, 0, when,
-                        ResourceRegistry.containerEtag(0), key, null, parentUri, reg.nextSeq(), webId, webId, null)
+                        ResourceRegistry.containerEtag(0), key, null, parentUri, reg.nextSeq(), cidUrl, cidUrl, null)
                 : new LwsResource(uri, ResourceType.DATA_RESOURCE, List.of(), mediaType, w.size(), when,
                         ResourceRegistry.dataEtag(w.sha256(), mediaType, w.size()), key, ext, parentUri,
-                        reg.nextSeq(), webId, webId, w.sha256());
+                        reg.nextSeq(), cidUrl, cidUrl, w.sha256());
         reg.create(r, null);
         return reg.find(uri).orElseThrow(() -> Problem.internal("the resource vanished on create"));
     }
@@ -1795,7 +2076,7 @@ public class LwsServlet extends HttpServlet {
         // Staged beside the file, not written over it. commitMirrorPut is where the client's
         // If-Match is compared, and it is compared inside the write transaction on purpose — so
         // the upload it guards has to still be undoable when it fails. Writing in place made the
-        // refusal meaningless: the 428 came back with the resource already overwritten, and the
+        // refusal meaningless: the 412 came back with the resource already overwritten, and the
         // rollback then deleted the file outright, leaving registered metadata pointing at
         // nothing. Nothing at `key` changes until the transaction has committed.
         try (PathKeyedStore.Staged staged = mirror.stageAt(key, req.getInputStream())) {
@@ -1805,9 +2086,10 @@ public class LwsServlet extends HttpServlet {
                     commitMirrorPut(rq, uri, key, req, mt, fext, w, setLinks));
             staged.publish();
 
+            declareTypes(req, out.r(), out.created());
             LwsMetadataScanner.enrichAsync(store, cfg, content, out.r());
             notify.emit(out.created() ? "Create" : "Update", out.r().uri(), false, out.r().parent(),
-                    rq.agent().webId());
+                    rq.agent().cidUrl());
 
             resp.setStatus(out.created()
                     ? HttpServletResponse.SC_CREATED : HttpServletResponse.SC_NO_CONTENT);
@@ -1831,7 +2113,7 @@ public class LwsServlet extends HttpServlet {
 
         if (cur != null) {
             demandOn(now, cur, AccessMode.WRITE);
-            Preconditions.requireIfMatch(req, cur.etag());
+            Preconditions.evaluate(req, cur.etag(), cur.modified());
             LwsResource r = new LwsResource(uri, ResourceType.DATA_RESOURCE, cur.extraTypes(), mt,
                     w.size(), when, ResourceRegistry.dataEtag(w.sha256(), mt, w.size()), key, ext,
                     cur.parent(), cur.seq(), cur.createdBy(), cur.ownedBy(), w.sha256());
@@ -1843,12 +2125,16 @@ public class LwsServlet extends HttpServlet {
                     () -> Problem.internal("the resource vanished on replace")), false);
         }
 
-        String webId = rq.agent().webId();
-        String parentUri = ensureContainerChain(now, reg, uri, webId);
+        String cidUrl = rq.agent().cidUrl();
+        String parentUri = ensureContainerChain(now, reg, uri, cidUrl);
         demandOn(now, known(now, parentUri), AccessMode.APPEND);
+        // After authorization, as RFC 9110 §13.2.1 orders it (a throw rolls back the chain above).
+        // Nothing is here yet, so an If-Match — which names a representation that would have to
+        // exist — is false, and If-None-Match: * is exactly the create this is.
+        Preconditions.evaluate(req, null);
         LwsResource r = new LwsResource(uri, ResourceType.DATA_RESOURCE, List.of(), mt, w.size(), when,
                 ResourceRegistry.dataEtag(w.sha256(), mt, w.size()), key, ext, parentUri,
-                reg.nextSeq(), webId, webId, w.sha256());
+                reg.nextSeq(), cidUrl, cidUrl, w.sha256());
         reg.create(r, null);
         if (setLinks != null) {
             applySetLinkset(uri, setLinks, false);
@@ -1885,7 +2171,7 @@ public class LwsServlet extends HttpServlet {
      * (each an Append on its parent, each inheriting the parent's ACP). Returns the resource's
      * immediate parent URI. Assumes an ambient write transaction.
      */
-    private String ensureContainerChain(Req now, ResourceRegistry reg, String resourceUri, String webId) {
+    private String ensureContainerChain(Req now, ResourceRegistry reg, String resourceUri, String cidUrl) {
         String base = cfg.storageRootUri();
         String rel = resourceUri.substring(base.length());
         int slash = rel.lastIndexOf('/');
@@ -1908,7 +2194,7 @@ public class LwsServlet extends HttpServlet {
                 }
                 LwsResource c = new LwsResource(childUri, ResourceType.CONTAINER, List.of(), null, 0,
                         Instant.now(), ResourceRegistry.containerEtag(0), key, null, cur,
-                        reg.nextSeq(), webId, webId, null);
+                        reg.nextSeq(), cidUrl, cidUrl, null);
                 reg.create(c, null);
             }
             cur = childUri;
@@ -1972,7 +2258,7 @@ public class LwsServlet extends HttpServlet {
      * Write set-linkset's links to the resource's linkset, inside the caller's content-write
      * transaction so the two changes commit together (the spec requires the combined update be
      * atomic). PUT replaces the linkset wholesale; PATCH partially updates it — a {@code Link} header
-     * can add or replace a relation, though not remove one (that needs the linkset's own merge patch).
+     * can add or replace a relation, though not remove one (that needs a PATCH of the linkset itself).
      */
     private void applySetLinkset(String uri, Map<String, List<String>> links, boolean patch) {
         if (patch) {
@@ -2050,7 +2336,7 @@ public class LwsServlet extends HttpServlet {
 
                 // Inside the write transaction, so this is a genuine compare-and-swap
                 // rather than a check something else can invalidate before we act.
-                Preconditions.requireIfMatch(req, cur.etag());
+                Preconditions.evaluate(req, cur.etag(), cur.modified());
 
                 LwsResource r = new LwsResource(cur.uri(), ResourceType.DATA_RESOURCE,
                         cur.extraTypes(), mt, w.size(), Instant.now(),
@@ -2071,8 +2357,9 @@ public class LwsServlet extends HttpServlet {
         if (res.oldKey() != null && !res.oldKey().equals(w.key())) {
             content.delete(res.oldKey(), ext);
         }
+        declareTypes(req, res.r(), false);
         LwsMetadataScanner.enrichAsync(store, cfg, content, res.r());
-        notify.emit("Update", res.r().uri(), false, res.r().parent(), rq.agent().webId());
+        notify.emit("Update", res.r().uri(), false, res.r().parent(), rq.agent().cidUrl());
 
         resp.setStatus(HttpServletResponse.SC_NO_CONTENT);
         resp.setHeader("ETag", res.r().etag());
@@ -2083,15 +2370,17 @@ public class LwsServlet extends HttpServlet {
     }
 
     /**
-     * Apply a JSON Merge Patch (RFC 7386) to a data resource's <em>content</em>.
+     * Apply a JSON Patch (RFC 6902) or a JSON Merge Patch (RFC 7396) to a data resource's
+     * <em>content</em>.
      *
-     * <p>lws10-core requires it: a server "MUST minimally support JSON Merge Patch" for partial
-     * updates. The point is to change one field of a document without re-uploading the whole
-     * thing — and, for two clients editing different fields, to let both succeed.
+     * <p>lws10-core requires the first: a server "MUST minimally support JSON Patch" for partial
+     * updates (w3c/lws-protocol#255; before it, the same sentence named JSON Merge Patch, which is
+     * still accepted). The point is to change one field of a document without re-uploading the
+     * whole thing — and, for two clients editing different fields, to let both succeed.
      *
-     * <p>It applies only to a JSON representation. A merge patch works by recursing into the
-     * target's object tree, and a TIFF has no object tree to recurse into; a resource whose
-     * content is not JSON therefore gets 415. That is the right code and not 405: the method is
+     * <p>It applies only to a JSON representation. Both formats work on the target's JSON tree,
+     * and a TIFF has no tree to point or recurse into; a resource whose content is not JSON
+     * therefore gets 415. That is the right code and not 405: the method is
      * understood and supported, it is the patch <em>format</em> that cannot apply to
      * <em>that</em> resource, which is precisely the case RFC 5789 §2.2 names 415 for.
      *
@@ -2182,18 +2471,19 @@ public class LwsServlet extends HttpServlet {
                 demandOn(now, cur, AccessMode.WRITE);
 
                 // The client's compare-and-swap, evaluated under the single writer.
-                Preconditions.requireIfMatch(req, cur.etag());
+                Preconditions.evaluate(req, cur.etag(), cur.modified());
 
-                // And the server's. A merge patch is computed against one specific document, so
+                // And the server's. A patch is computed against one specific document, so
                 // the document it was computed against must still be the one being replaced —
-                // and the client's If-Match does not always establish that. `If-Match: *` is
-                // satisfied by the resource merely existing, so without this a wildcard patch
+                // and the client's precondition does not always establish that. `If-Match: *` is
+                // satisfied by the resource merely existing, and an unconditional patch (which
+                // lws10-core allows) carries no precondition at all, so without this either one
                 // racing an update would overwrite that update with a document derived from the
                 // version it replaced: the exact lost update If-Match is there to prevent.
                 //
                 // A specific If-Match already implies this, because a data resource's entity tag
                 // is a digest of its content: an equal tag means equal bytes. So this only ever
-                // fires on the wildcard, and it is cheap.
+                // fires on the wildcard or on no precondition, and it is cheap.
                 if (!cur.etag().equals(base.etag())) {
                     throw Problem.preconditionFailed(
                             "the resource changed while the patch was being applied");
@@ -2229,7 +2519,7 @@ public class LwsServlet extends HttpServlet {
             content.delete(res.oldKey(), ext);
         }
         LwsMetadataScanner.enrichAsync(store, cfg, content, res.r());
-        notify.emit("Update", res.r().uri(), false, res.r().parent(), rq.agent().webId());
+        notify.emit("Update", res.r().uri(), false, res.r().parent(), rq.agent().cidUrl());
 
         resp.setStatus(HttpServletResponse.SC_NO_CONTENT);
         resp.setHeader("ETag", res.r().etag());
@@ -2255,8 +2545,8 @@ public class LwsServlet extends HttpServlet {
      * three as "this is not JSON". That is a lie for two of them, and an expensive one: it sends
      * the client hunting for a defect in a document that has none.
      *
-     * <p>Note {@code readValue()} rather than {@code readObject()}: RFC 7386 permits a patch
-     * that is not an object, in which case it replaces the target document wholesale.
+     * <p>Note {@code readValue()} rather than {@code readObject()}: a JSON Patch is an array, and
+     * RFC 7396 permits a merge patch that is not an object, which replaces the target wholesale.
      */
     private static JsonValue parsePatch(byte[] raw) {
         try (JsonReader r = Json.createReader(new java.io.ByteArrayInputStream(raw))) {
@@ -2276,11 +2566,11 @@ public class LwsServlet extends HttpServlet {
             return rd.readValue();
         } catch (JsonParsingException e) {
             throw Problem.conflict("this resource is labelled " + r.mediaType() + " but its "
-                    + "content is not valid JSON, so a merge patch cannot be applied to it: "
+                    + "content is not valid JSON, so a patch cannot be applied to it: "
                     + e.getMessage());
         } catch (RuntimeException e) {
             throw Problem.conflict("this resource's content is JSON that the parser will not "
-                    + "process, so a merge patch cannot be applied to it: " + e.getMessage());
+                    + "process, so a patch cannot be applied to it: " + e.getMessage());
         }
     }
 
@@ -2289,8 +2579,8 @@ public class LwsServlet extends HttpServlet {
      *
      * <p>The result comes back out of the parser, so a patch necessarily reformats the document
      * it touches — whitespace and indentation the client uploaded are not preserved. That is
-     * inherent to merge patch rather than a shortcut here: RFC 7386 is defined over parsed JSON
-     * values, and JSON has no canonical byte form to restore.
+     * inherent to patching rather than a shortcut here: RFC 6902 and RFC 7396 are defined over
+     * parsed JSON values, and JSON has no canonical byte form to restore.
      */
     private static byte[] serialize(JsonValue doc) {
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
@@ -2301,7 +2591,7 @@ public class LwsServlet extends HttpServlet {
     }
 
     /**
-     * Apply a JSON Merge Patch (RFC 7386) or a JSON Patch (RFC 6902) to a parsed JSON document.
+     * Apply a JSON Patch (RFC 6902) or a JSON Merge Patch (RFC 7396) to a parsed JSON document.
      *
      * <p>The two formats fail differently. A merge patch is a recursive overlay that never fails on
      * content. A JSON Patch is an array of operations, and an operation can fail — a {@code test}
@@ -2314,18 +2604,56 @@ public class LwsServlet extends HttpServlet {
         if (!jsonPatch) {
             return Json.createMergePatch(patch).apply(current);
         }
-        if (patch.getValueType() != JsonValue.ValueType.ARRAY) {
-            throw Problem.badRequest("a JSON Patch (RFC 6902) must be an array of operations");
-        }
+        JsonArray operations = jsonPatchOperations(patch);
         if (!(current instanceof JsonStructure target)) {
             throw Problem.conflict("a JSON Patch addresses into an object or array, but this "
                     + "resource's content is a JSON scalar");
         }
         try {
-            return Json.createPatch(patch.asJsonArray()).apply(target);
+            return Json.createPatch(operations).apply(target);
         } catch (JsonException e) {
             throw Problem.conflict("the JSON Patch could not be applied: " + e.getMessage());
         }
+    }
+
+    /** The operations RFC 6902 section 4 defines, and the member each needs besides op and path. */
+    private static final Map<String, String> JSON_PATCH_OPERATIONS = Map.of(
+            "add", "value", "remove", "", "replace", "value", "move", "from", "copy", "from",
+            "test", "value");
+
+    /**
+     * A JSON Patch document's operations, checked for shape before anything is applied.
+     *
+     * <p>A malformed patch document is a {@code 400} (RFC 5789 section 2.2), and an operation the
+     * resource's current state cannot take is a {@code 409}. The JSON-P implementation reports
+     * both as the same exception, and only when it reaches the operation, so the shape is checked
+     * here, where it is still the client's mistake: an array of objects, each with a known
+     * {@code op}, a string {@code path}, and the {@code value} or {@code from} the operation needs.
+     */
+    static JsonArray jsonPatchOperations(JsonValue patch) {
+        if (patch.getValueType() != JsonValue.ValueType.ARRAY) {
+            throw Problem.badRequest("a JSON Patch (RFC 6902) must be an array of operations");
+        }
+        for (JsonValue v : patch.asJsonArray()) {
+            if (v.getValueType() != JsonValue.ValueType.OBJECT) {
+                throw Problem.badRequest("each JSON Patch operation is an object");
+            }
+            JsonObject op = v.asJsonObject();
+            String name = op.get("op") instanceof jakarta.json.JsonString s ? s.getString() : null;
+            if (name == null || !JSON_PATCH_OPERATIONS.containsKey(name)) {
+                throw Problem.badRequest("a JSON Patch operation's op is one of "
+                        + String.join(", ", new java.util.TreeSet<>(JSON_PATCH_OPERATIONS.keySet())));
+            }
+            if (!(op.get("path") instanceof jakarta.json.JsonString)) {
+                throw Problem.badRequest("a JSON Patch " + name + " operation needs a string path");
+            }
+            String needs = JSON_PATCH_OPERATIONS.get(name);
+            if (needs.equals("value") && !op.containsKey("value")
+                    || needs.equals("from") && !(op.get("from") instanceof jakarta.json.JsonString)) {
+                throw Problem.badRequest("a JSON Patch " + name + " operation needs " + needs);
+            }
+        }
+        return patch.asJsonArray();
     }
 
     // --- Delete -------------------------------------------------------------
@@ -2407,20 +2735,12 @@ public class LwsServlet extends HttpServlet {
             List<LwsResource> tree = new ArrayList<>();
             collect(reg, r, tree, recursive, 0);
 
-            // checkIfMatch, NOT requireIfMatch: an unconditional DELETE is allowed to succeed.
-            //
-            // This used to demand the validator, which made every delete a 428 until the client
-            // had fetched the resource first. lws10-core mandates the 428 for unconditional PUT
-            // and for a linkset PUT/PATCH — nowhere else — and of DELETE says only that "on
-            // success, the server MUST respond with 204 No Content. Servers SHOULD support
-            // conditional requests." Requiring one inverted that MUST: the 204 the spec demands
-            // on success was unreachable, because success was.
-            //
-            // The compare-and-swap is undiminished for anyone who wants it. A client that sends
-            // a stale tag is still refused 412, still inside this write transaction, still under
-            // TDB2's single writer. What changes is only that not sending one is no longer an
-            // error — which is the client's call to make, as it always was for PUT's cousins.
-            Preconditions.checkIfMatch(req, r.etag());
+            // An unconditional DELETE is allowed to succeed, as every write lws10-core defines is.
+            // Of DELETE it says "on success, the server MUST respond with 204 No Content. Servers
+            // SHOULD support conditional requests" — an obligation to honour a validator that
+            // arrives, not to require one. A client that sends a stale tag is still refused 412,
+            // inside this write transaction, under TDB2's single writer.
+            Preconditions.evaluate(req, r.isContainer() ? agentEtag(rq, reg, r) : r.etag(), r.modified());
 
             // Authorize EVERY descendant before removing ANY of them.
             //
@@ -2452,7 +2772,7 @@ public class LwsServlet extends HttpServlet {
                 changes.add(new Notifications.Change(
                         "Delete", node.uri(), node.isContainer(), node.parent()));
             }
-            String actor = rq.agent().webId();
+            String actor = rq.agent().cidUrl();
             List<Notifications.Planned> plan = LwsSettings.get().batchNotifications()
                     ? notify.plan(changes, actor)
                     : notify.plan(List.of(new Notifications.Change(
@@ -2554,8 +2874,10 @@ public class LwsServlet extends HttpServlet {
         });
         JsonObject doc = LwsJson.container(t.uri(), items.size(), items);
         agentSpecific(resp);
+        addContainerTypeLink(resp);
         resp.setHeader("Allow", "OPTIONS, HEAD, GET, POST");
-        sendJson(req, resp, doc, body);
+        // "the access request and access grant endpoints are LWS containers": negotiated as one.
+        sendContainer(req, resp, doc, Negotiation.container(req.getHeader("Accept")), body);
     }
 
     /** Retrieve one access request/grant, if this agent is a party to it or the controller. */
@@ -2632,11 +2954,28 @@ public class LwsServlet extends HttpServlet {
      *          (a container takes POST, a data resource takes PUT). Null where the caller
      *          could not resolve it, which narrows the list to what holds for either.
      */
+    /**
+     * What the Type Search endpoint accepts. lws10-index's own OPTIONS example is exactly this:
+     * the {@code Allow} header is what tells a client the QUERY method is supported.
+     */
+    private static final String ALLOW_SEARCH = "OPTIONS, QUERY";
+
+    /** A page link additionally takes GET/HEAD — that is how a page is dereferenced. */
+    private static final String ALLOW_SEARCH_PAGE = "OPTIONS, HEAD, GET, QUERY";
+
+    /**
+     * The page-link parameter carrying a sealed filter. Deliberately not named {@code query}:
+     * Halcyon forwards any request bearing that parameter to the SPARQL surface.
+     */
+    private static final String SEARCH_FILTER_PARAM = "q";
+
     private static String allowFor(Target.Kind kind, LwsResource r) {
         return switch (kind) {
-            // QUERY is the form this service is built around; GET and POST remain
-            // because the published draft still requires them until #179 merges.
-            case TYPE_SEARCH -> "OPTIONS, HEAD, GET, POST, QUERY";
+            // QUERY is the only way to run a search: w3c/lws-protocol#179 replaced the GET
+            // and POST forms with it. GET is still how a *page* of a result set is fetched,
+            // but a page is a different URI — it carries the sealed filter — so the bare
+            // endpoint advertises only what it accepts. See allowForSearchPage.
+            case TYPE_SEARCH -> ALLOW_SEARCH;
             case LINKSET -> "OPTIONS, HEAD, GET, PATCH";
             case ACR -> "OPTIONS, HEAD, GET, PUT";
             case SUBSCRIPTIONS -> "OPTIONS, HEAD, GET, POST";
@@ -2658,22 +2997,26 @@ public class LwsServlet extends HttpServlet {
                     yield "OPTIONS, HEAD, GET, PUT, PATCH, DELETE";
                 }
                 // PATCH is left off deliberately. The server supports the method, but the
-                // only patch format it supports cannot apply to these bytes, so listing it
+                // patch formats it supports cannot apply to these bytes, so listing it
                 // would be a promise it would then break with a 415.
                 yield "OPTIONS, HEAD, GET, PUT, DELETE";
             }
         };
     }
 
-    private void options(Req rq, Target t, HttpServletResponse resp) {
+    private void options(Req rq, Target t, HttpServletRequest req, HttpServletResponse resp) {
         switch (t.kind()) {
             case TYPE_SEARCH -> {
-                resp.setHeader("Allow", allowFor(t.kind(), null));
+                resp.setHeader("Allow", req.getParameter(SEARCH_FILTER_PARAM) == null
+                        ? ALLOW_SEARCH : ALLOW_SEARCH_PAGE);
+                // Query FORMATS only. It must never disclose which link relations this storage
+                // indexes: those stay unobservable so the filter interface cannot be turned into
+                // a discovery oracle for the server's configuration.
                 resp.setHeader("Accept-Query", MediaTypes.LWS_QUERY_JSON);
             }
             case LINKSET -> {
                 resp.setHeader("Allow", allowFor(t.kind(), null));
-                resp.setHeader("Accept-Patch", MediaTypes.MERGE_PATCH_JSON);
+                resp.setHeader("Accept-Patch", MediaTypes.ACCEPT_PATCH_JSON);
             }
 
             // A resource -- including the storage root. This is gated like every other verb
@@ -2737,17 +3080,6 @@ public class LwsServlet extends HttpServlet {
                 allowFor(t.kind(), r));
     }
 
-    /** The POST form of Type Search, whose body is {@code application/lws+json}. */
-    private void postTypeSearch(Req rq, HttpServletRequest req, HttpServletResponse resp)
-            throws IOException {
-        String ct = MediaTypes.bare(req.getContentType());
-        if (!MediaTypes.LWS_JSON.equals(ct) && !MediaTypes.LD_JSON.equals(ct)
-                && !MediaTypes.JSON.equals(ct)) {
-            throw Problem.unsupportedMediaType("the POST form takes " + MediaTypes.LWS_JSON)
-                    .header("Accept-Query", MediaTypes.LWS_QUERY_JSON);
-        }
-        typeSearch(rq, parseFilter(req), req, resp, true);
-    }
 
     private LwsQuery parseFilter(HttpServletRequest req) throws IOException {
         byte[] raw = readBounded(req.getInputStream(), MAX_ACR_BYTES);
@@ -2767,6 +3099,12 @@ public class LwsServlet extends HttpServlet {
 
     private void subscribe(Req rq, HttpServletRequest req, HttpServletResponse resp)
             throws IOException {
+        // An anonymous subscription is the core's Unknown Requester: 401 with the challenge, which
+        // names this endpoint's protected resource metadata and links the storage, so a client
+        // learns where to get a token. A 403 (Not Permitted) is for an identity that is known.
+        if (!rq.agent().isAuthenticated()) {
+            throw auth.unauthenticated("authentication is required to subscribe");
+        }
         String ct = MediaTypes.bare(req.getContentType());
         if (!MediaTypes.LWS_JSON.equals(ct) && !MediaTypes.JSON.equals(ct)
                 && !MediaTypes.LD_JSON.equals(ct)) {
@@ -2796,7 +3134,7 @@ public class LwsServlet extends HttpServlet {
     /**
      * The Type Index: the distinct types this agent may know exist, paginated.
      *
-     * <p>lws10-searchindex describes it as "a paginated {@code TypeIndex}" with page URIs in Link
+     * <p>lws10-index describes it as "a paginated {@code TypeIndex}" with page URIs in Link
      * headers; it used to return every type in one response with none. In practice a storage has a
      * handful of types, so a second page is rare — but the cursor machinery H1 built for containers
      * makes doing it properly nearly free, and the keying is the same idea one step more general:
@@ -2831,8 +3169,10 @@ public class LwsServlet extends HttpServlet {
         }
 
         JsonObject doc = LwsJson.typeIndex(all.size(), pageTypes);
-        // Turtle is a distinct representation of this page, so it validates against its own tag.
-        String etag = prefersTurtle(req) ? tagVariant(bodyEtag(doc), "ttl") : bodyEtag(doc);
+        // Each RDF syntax is a distinct representation of this page, so it validates against its
+        // own tag. The index is not a container, so it is in no profile.
+        Negotiation.Variant variant = Negotiation.document(req.getHeader("Accept"));
+        String etag = variant.tag(bodyEtag(doc));
 
         agentSpecific(resp);
         resp.setHeader("ETag", etag);
@@ -2845,37 +3185,42 @@ public class LwsServlet extends HttpServlet {
         }
 
         if (Preconditions.isNotModified(req, etag, null)) {
+            resp.addHeader("Vary", "Accept");
             resp.setStatus(HttpServletResponse.SC_NOT_MODIFIED);
             return;
         }
-        sendJson(req, resp, doc, body);
+        sendDocument(req, resp, doc, variant, body);
     }
 
     private void typeSearch(Req rq, LwsQuery q, HttpServletRequest req, HttpServletResponse resp,
             boolean body) throws IOException {
-        if (!prefersTurtle(req) && !MediaTypes.admitsLwsJson(req.getHeader("Accept"))) {
-            throw Problem.notAcceptable("this service produces " + MediaTypes.LWS_JSON
-                    + " or " + MediaTypes.TURTLE);
-        }
+        // Negotiated before the search runs, so an unacceptable Accept costs nothing. A page of
+        // results is not a container, so it is in no profile.
+        Negotiation.Variant variant = Negotiation.document(req.getHeader("Accept"));
         String fp = q.fingerprint();
         Cursor cursor = Cursor.decode(req.getParameter("cursor"), cfg.typeSearchUri(), fp);
 
         SearchService svc = new SearchService(store, cfg, rq.agent(), rq.acp());
         SearchService.Page page = svc.search(q, cursor);
 
-        // Page URIs are opaque and travel only in Link headers, never in the body. The
-        // parameter is `cursor`, not `query`: on a resource URL `?query=` is the marker for
-        // the per-resource SPARQL capability, so pagination keeps its parameter distinct.
+        // Page URIs are opaque and travel only in Link headers, never in the body. Each carries
+        // the sealed filter (`q`) as well as the position (`cursor`), because the service keeps
+        // no per-search state: a page link is self-contained, and a GET on one is the only GET
+        // this endpoint honours. Neither parameter may be named `query` — on a resource URL that
+        // is the marker for the per-resource SPARQL capability.
         String base = cfg.typeSearchUri();
-        resp.addHeader("Link", LinkHeader.link(base, LinkHeader.REL_FIRST));
+        String filter = SEARCH_FILTER_PARAM + "="
+                + java.net.URLEncoder.encode(q.encode(), StandardCharsets.UTF_8);
+        resp.addHeader("Link", LinkHeader.link(base + "?" + filter, LinkHeader.REL_FIRST));
         if (page.more()) {
             String next = Cursor.at(base, fp, page.lastScannedSeq()).encode();
             resp.addHeader("Link", LinkHeader.link(
-                    base + "?cursor=" + java.net.URLEncoder.encode(next, StandardCharsets.UTF_8),
+                    base + "?" + filter + "&cursor="
+                            + java.net.URLEncoder.encode(next, StandardCharsets.UTF_8),
                     LinkHeader.REL_NEXT));
         }
         agentSpecific(resp);
-        sendJson(req, resp, LwsJson.containerPage(page.total(), page.items()), body);
+        sendDocument(req, resp, LwsJson.containerPage(page.total(), page.items()), variant, body);
     }
 
     // --- Response helpers ---------------------------------------------------
@@ -2904,7 +3249,7 @@ public class LwsServlet extends HttpServlet {
      * without the body.
      *
      * <p><strong>{@code Vary: Authorization}</strong> declares the dependency rather than
-     * leaving a cache to infer it from the URI alone. lws10-searchindex requires exactly this
+     * leaving a cache to infer it from the URI alone. lws10-index requires exactly this
      * of the search services — a server "MUST vary any cached entry on the credential that
      * scopes the result" — and the same reasoning applies to everything else here.
      */
@@ -2928,11 +3273,34 @@ public class LwsServlet extends HttpServlet {
         }
     }
 
+    /**
+     * The storage link: {@code Link: <{storage}>; rel="https://www.w3.org/ns/lws#storage"}.
+     *
+     * <p>The one discovery anchor lws10-core defines. Its target is the canonical URI of the
+     * storage — which in this module is also the storage root container, and which answers a
+     * request for {@code application/lws+cid} with the storage description. A client therefore
+     * needs no hardcoded path to reach the description: it follows this link and negotiates.
+     * (The older {@code lws#storageDescription} relation, which pointed at the description's own
+     * URI, is no longer a term of the vocabulary and is not emitted.)
+     */
+    private void addStorageLink(HttpServletResponse resp) {
+        resp.addHeader("Link", LinkHeader.link(cfg.storageRootUri(), LWS.REL_STORAGE));
+    }
+
+    /**
+     * The {@code rel="type"} link of a service endpoint whose listing is an LWS container: the
+     * access request and access grant endpoints ("an LWS container", lws10-core) and the
+     * subscription list. A client tells a container by this link, as on any stored container,
+     * not by sniffing the body's {@code type}.
+     */
+    private static void addContainerTypeLink(HttpServletResponse resp) {
+        resp.addHeader("Link", LinkHeader.link(LWS.Container.getURI(), LinkHeader.REL_TYPE));
+    }
+
     private void addCommonHeaders(HttpServletResponse resp, LwsResource r) {
         agentSpecific(resp);
         addPatchHeader(resp, r);
         resp.setHeader("Want-Content-Digest", DigestFields.WANT);
-        resp.addHeader("Link", LinkHeader.link(cfg.descriptionUri(), LWS.REL_STORAGE_DESCRIPTION));
         resp.addHeader("Link", LinkHeader.link(
                 r.isContainer() ? LWS.Container.getURI() : LWS.DataResource.getURI(),
                 LinkHeader.REL_TYPE));
@@ -2955,33 +3323,102 @@ public class LwsServlet extends HttpServlet {
     }
 
     /**
-     * Serialize an LWS document, negotiating between the JSON forms and Turtle. A client that accepts
-     * an RDF type but not the JSON family gets Turtle (an offered MAY); one that accepts neither gets a
-     * 406. The three JSON forms share one byte-identical body (a MUST) — only the Content-Type varies.
+     * The storage description, as {@code application/lws+cid}.
      *
-     * <p>Turtle is a distinct representation, so any caller that sets an entity tag and answers a
-     * conditional request before calling this MUST vary that tag by negotiated type (see
-     * {@link #prefersTurtle} and {@code tagVariant}); otherwise a client holding the JSON tag would be
-     * answered 304 to a Turtle request it has never seen. {@code Vary: Accept} is emitted here so a
-     * cache keys the two apart regardless.
+     * <p>Served from two URIs — the storage URI itself, which is what lws10-core requires, and the
+     * reserved {@code .description} path, which predates that requirement and is kept so an
+     * existing client keeps working. One responder for both, so the two cannot answer differently.
+     *
+     * <p>It is the one response here that does not depend on the caller: the description is how a
+     * client discovers where to authenticate, so requiring authentication to read it would be
+     * circular, and sharing it is the point of a discovery document. Hence the only
+     * {@code Cache-Control: public} in this servlet. The {@code max-age} stays short because the
+     * webhook verification key is published in it, and a rotated key must not linger in caches.
      */
-    private void sendJson(HttpServletRequest req, HttpServletResponse resp, JsonObject doc,
-            boolean body) throws IOException {
+    private void sendDescription(HttpServletRequest req, HttpServletResponse resp, boolean body)
+            throws IOException {
         String accept = req.getHeader("Accept");
         boolean turtle = prefersTurtle(req);
-        if (!turtle && !MediaTypes.admitsLwsJson(accept)) {
-            throw Problem.notAcceptable("this resource is available as " + MediaTypes.LWS_JSON
-                    + " or " + MediaTypes.TURTLE);
+        if (!turtle && !MediaTypes.admitsStorageDescription(accept)) {
+            throw Problem.notAcceptable("the storage description is available as "
+                    + MediaTypes.LWS_CID + ", " + MediaTypes.LWS_JSON + " or " + MediaTypes.TURTLE);
         }
-
+        JsonObject doc = LwsJson.storageDescription(cfg, descriptors());
         byte[] bytes;
         if (turtle) {
             bytes = LwsRdf.toTurtle(doc);
             resp.setContentType(MediaTypes.TURTLE);
         } else {
             bytes = doc.toString().getBytes(StandardCharsets.UTF_8);
-            resp.setContentType(MediaTypes.negotiate(accept));
+            resp.setContentType(MediaTypes.negotiateDescription(accept));
         }
+        resp.setStatus(HttpServletResponse.SC_OK);
+        resp.setHeader("Cache-Control", "public, max-age=60");
+        resp.setCharacterEncoding(StandardCharsets.UTF_8.name());
+        resp.setContentLength(bytes.length);
+        resp.addHeader("Vary", "Accept");
+        addBytesDigests(req, resp, bytes);
+        if (body) {
+            resp.getOutputStream().write(bytes);
+        }
+    }
+
+    /** The installed capabilities' descriptors, and the storage's own {@code MoveResource} if it moves. */
+    private List<com.ebremer.lws.capability.CapabilityDescriptor> descriptors() {
+        List<com.ebremer.lws.capability.CapabilityDescriptor> out =
+                new ArrayList<>(capabilities.descriptors(cfg));
+        var move = moves.descriptor();
+        if (move != null) {
+            out.add(move);
+        }
+        return out;
+    }
+
+    /**
+     * Serialize an LWS document that is not a container representation — a subscription, an access
+     * request or grant — in the representation {@link Negotiation#document} selects: the JSON
+     * document, labelled as asked, or its RDF in no profile; an {@code Accept} that admits none of
+     * them is a 406.
+     */
+    private void sendJson(HttpServletRequest req, HttpServletResponse resp, JsonObject doc,
+            boolean body) throws IOException {
+        sendDocument(req, resp, doc, Negotiation.document(req.getHeader("Accept")), body);
+    }
+
+    /**
+     * Serialize an LWS document that is not a container representation in {@code variant}: the
+     * JSON, or its RDF through {@link LwsRdf#toRdf}'s mapping.
+     *
+     * <p>Each RDF syntax is a distinct representation, so any caller that sets an entity tag and
+     * answers a conditional request before calling this MUST tag it with
+     * {@link Negotiation.Variant#tag}; otherwise a client holding the JSON tag would be answered 304
+     * to a Turtle request it has never seen. {@code Vary: Accept} is emitted here so a cache keys
+     * them apart regardless.
+     */
+    private void sendDocument(HttpServletRequest req, HttpServletResponse resp, JsonObject doc,
+            Negotiation.Variant variant, boolean body) throws IOException {
+        sendBytes(req, resp, variant.isRdf()
+                ? LwsRdf.toRdf(doc, variant.syntax().format())
+                : doc.toString().getBytes(StandardCharsets.UTF_8), variant, body);
+    }
+
+    /**
+     * Serialize a container representation in {@code variant}, which {@link Negotiation#container}
+     * selected: the lws+json document, or its RDF in the LWS profile — the same document read as
+     * JSON-LD ({@link LwsRdf#profileRdf}), so the RDF is isomorphic to the JSON of the same page by
+     * construction, as lws10-core's LWS profile requires. Tagging, as for {@link #sendDocument}, is
+     * the caller's.
+     */
+    private void sendContainer(HttpServletRequest req, HttpServletResponse resp, JsonObject doc,
+            Negotiation.Variant variant, boolean body) throws IOException {
+        sendBytes(req, resp, variant.isRdf()
+                ? LwsRdf.write(LwsRdf.profileRdf(doc, doc.getString("id")), variant.syntax().format())
+                : doc.toString().getBytes(StandardCharsets.UTF_8), variant, body);
+    }
+
+    private void sendBytes(HttpServletRequest req, HttpServletResponse resp, byte[] bytes,
+            Negotiation.Variant variant, boolean body) throws IOException {
+        resp.setContentType(variant.contentType());
         resp.setStatus(HttpServletResponse.SC_OK);
         resp.setCharacterEncoding(StandardCharsets.UTF_8.name());
         resp.setContentLength(bytes.length);
@@ -3038,7 +3475,10 @@ public class LwsServlet extends HttpServlet {
         }
     }
 
-    /** True when the client accepts an RDF (Turtle) representation but not the JSON family. */
+    /**
+     * True when the client accepts an RDF (Turtle) representation but not the JSON family: the
+     * storage description's rule. The other LWS documents are negotiated by {@link Negotiation}.
+     */
     private static boolean prefersTurtle(HttpServletRequest req) {
         String accept = req.getHeader("Accept");
         return !MediaTypes.admitsLwsJson(accept) && MediaTypes.admits(accept, MediaTypes.TURTLE);

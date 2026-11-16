@@ -31,7 +31,7 @@ public final class WACSecurityEvaluator implements SecurityEvaluator {
      * When set, the identity every WAC decision runs as — instead of the
      * Shiro subject / {@link HalcyonSession} that {@link #getPrincipal()}
      * otherwise resolves. This is how a non-web caller (the MCP SPARQL
-     * executor) runs a query AS a specific WebID: there is no Shiro subject
+     * executor) runs a query AS a specific CID URL: there is no Shiro subject
      * and no Wicket session on that thread, so the acting identity must be
      * supplied explicitly. Null keeps the original web behaviour untouched.
      */
@@ -44,10 +44,10 @@ public final class WACSecurityEvaluator implements SecurityEvaluator {
     /**
      * A WAC evaluator that decides as {@code principal} regardless of thread
      * state. Used off the web request path (MCP): the caller has already been
-     * authenticated by their bearer token, and this binds their WebID as the
-     * identity the security ASKs match on. An unknown WebID simply matches no
+     * authenticated by their bearer token, and this binds their CID URL as the
+     * identity the security ASKs match on. An unknown CID URL simply matches no
      * grant — CLOSED then denies — so this cannot widen access, only scope a
-     * query to exactly what that WebID was granted.
+     * query to exactly what that CID URL was granted.
      */
     public WACSecurityEvaluator(Level level, Principal principal) {
         this.level = level;

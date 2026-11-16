@@ -62,14 +62,14 @@ public class HalcyonSecurityFilter extends AbstractConfigFilter implements Secur
 
     @Override
     protected final void internalFilter( final HttpServletRequest request, final HttpServletResponse response, final FilterChain filterChain ) throws IOException, ServletException {
-        // Option B: a request already authenticated by the interactive WebID login (its callback set
+        // Option B: a request already authenticated by the interactive CID URL login (its callback set
         // this attribute only after complete() validated the OP's ID token and bound it to the typed
-        // WebID) carries its identity as a session attribute, not a pac4j/Keycloak profile. Without
+        // CID URL) carries its identity as a session attribute, not a pac4j/Keycloak profile. Without
         // this, pac4j finds no profile on a secured URL and redirects the signed-in user to Keycloak.
         // Let it through: the Wicket HalcyonAuthorizationStrategy still enforces per-page access
-        // (authenticated vs admin) from the seated WebID principal, and ACP enforces per resource.
-        HttpSession webidSession = request.getSession(false);
-        if (webidSession != null && webidSession.getAttribute(WebIdLogin.WEBID) != null) {
+        // (authenticated vs admin) from the seated CID URL principal, and ACP enforces per resource.
+        HttpSession cidSession = request.getSession(false);
+        if (cidSession != null && cidSession.getAttribute(CidLogin.CID_URL) != null) {
             filterChain.doFilter(request, response);
             return;
         }

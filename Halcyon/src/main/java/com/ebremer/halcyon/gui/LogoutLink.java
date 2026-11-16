@@ -12,7 +12,7 @@ import org.apache.wicket.request.http.handler.RedirectRequestHandler;
  *
  * <p>With Keycloak switched off (no {@code :AuthServer} in {@code settings.ttl}) there is
  * no such endpoint — {@code /auth/*} is not even mounted — so the redirect would land the
- * user on a 404 having, confusingly, actually logged them out. A WebID session lives
+ * user on a 404 having, confusingly, actually logged them out. A CID URL session lives
  * entirely in this server's session, so invalidating it IS the logout; the user goes home.
  */
 public class LogoutLink extends StatelessLink<Void> {

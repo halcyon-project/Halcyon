@@ -85,7 +85,7 @@ public class HalcyonMcpAutoConfiguration {
 
     /**
      * MCP-17: the per-principal rate limiter the auth filter enforces. Capacity
-     * and window are configurable; the defaults (120 calls / 60 s per WebID)
+     * and window are configurable; the defaults (120 calls / 60 s per CID URL)
      * are generous for an interactive agent and still cap a runaway.
      */
     @Bean

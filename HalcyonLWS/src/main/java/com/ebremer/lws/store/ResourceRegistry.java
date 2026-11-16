@@ -1,9 +1,9 @@
 package com.ebremer.lws.store;
 
 import com.ebremer.lws.config.LwsStorageConfig;
-import com.ebremer.lws.vocab.AS;
 import com.ebremer.lws.vocab.LWS;
 import com.ebremer.lws.vocab.LWSX;
+import com.ebremer.lws.vocab.Terms;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -87,10 +87,9 @@ public final class ResourceRegistry {
                 uri,
                 container ? ResourceType.CONTAINER : ResourceType.DATA_RESOURCE,
                 extra,
-                str(g, r, AS.mediaType),
-                lng(g, r, org.apache.jena.rdf.model.ResourceFactory
-                        .createProperty("https://schema.org/size"), 0L),
-                instant(g, r, AS.updated),
+                either(g, r, Terms.format, Terms.legacyMediaType),
+                lng(g, r, Terms.size, 0L),
+                instant(g, r, Terms.modified, Terms.legacyModified),
                 effectiveEtag(str(sys, r, LWSX.etag), container),
                 str(sys, r, LWSX.storageKey),
                 str(sys, r, LWSX.ext),
@@ -102,30 +101,28 @@ public final class ResourceRegistry {
     }
 
     /**
-     * A container's entity tag, with the ACP epoch folded in.
+     * The entity tag a resource is read with: the stored one, unchanged.
      *
-     * <p>Computed on read, never stored. Storing the composite would mean every ACR write had to
-     * rewrite every container's tag — and a second bump would compound onto the first
-     * (`"c5.7"` becoming `"c5.7.8"`). The stored value stays a plain version counter, and the
-     * epoch is applied here, at the one place every consumer of an entity tag goes through:
-     * the {@code ETag} response header, and the {@code If-Match} comparison in DELETE alike.
-     *
-     * <p>Data resources are untouched. Their tag is a digest of their content, and an agent that
-     * loses access to one is refused at {@code known()} before any validator is even considered.
-     * It is only the <em>container</em> whose body depends on who is asking.
+     * <p>A container's listing is filtered per agent, so the tag a client sees for a container is
+     * qualified for that agent by the servlet (see {@code LwsServlet.agentEtag}), not here. This
+     * registry used to fold the module-wide ACP epoch into every container's tag instead, which
+     * made any access-control change anywhere -- an access grant on an unrelated resource --
+     * invalidate every container's validator, and so turned a conditional DELETE racing a grant
+     * into a 412.
      */
     private String effectiveEtag(String stored, boolean container) {
-        if (!container || stored == null) {
-            return stored;
+        return stored;
+    }
+
+    /** {@code etag} with {@code qualifier} appended inside the quotes: {@code "c5"} to {@code "c5.q"}. */
+    public static String qualify(String etag, String qualifier) {
+        if (etag == null) {
+            return null;
         }
-        long epoch = store.acpEpoch();
-        if (epoch == 0) {
-            return stored;
-        }
-        String core = stored.length() > 1 && stored.startsWith("\"") && stored.endsWith("\"")
-                ? stored.substring(1, stored.length() - 1)
-                : stored;
-        return "\"" + core + "." + epoch + "\"";
+        String core = etag.length() > 1 && etag.startsWith("\"") && etag.endsWith("\"")
+                ? etag.substring(1, etag.length() - 1)
+                : etag;
+        return "\"" + core + "." + qualifier + "\"";
     }
 
     /** How many members a container has. */
@@ -227,7 +224,8 @@ public final class ResourceRegistry {
 
         Model g = ds().getNamedModel(root);
         g.add(r, RDF.type, LWS.Container);
-        g.add(r, AS.updated, ResourceFactory.createTypedLiteral(now.toString(), XSDDatatype.XSDdateTime));
+        g.add(r, Terms.modified,
+                ResourceFactory.createTypedLiteral(now.toString(), XSDDatatype.XSDdateTime));
     }
 
     /**
@@ -256,6 +254,8 @@ public final class ResourceRegistry {
         Resource s = res(r.uri());
         Instant now = r.modified() == null ? Instant.now() : r.modified();
 
+        // A resource that lives here takes precedence over the record of one that moved away.
+        MoveRecords.forgetFrom(sys, r.uri());
         sys.add(s, LWSX.storage, res(cfg.storageRootUri()));
         sys.add(s, LWSX.seq, typed(r.seq()));
         sys.add(s, LWSX.version, typed(0L));
@@ -295,6 +295,132 @@ public final class ResourceRegistry {
         }
     }
 
+    /**
+     * Move a resource to another container, keeping its identifier: the move a storage whose
+     * identifiers do not encode containment makes (lws10-core, Moving Resources: "the identity of the
+     * resource and its content are untouched by the change").
+     *
+     * <p>Only containment changes, and all of it here, in the caller's write transaction, which is
+     * what makes it atomic: the resource leaves the former container's {@code items} and joins the
+     * destination's, its {@link LWSX#parent} — from which the {@code up} link is derived — names the
+     * destination, and both containers and every container above either get a new version, so
+     * "the ETag of both containers MUST be updated". The resource takes a fresh {@link LWSX#seq},
+     * as a create would give it, so it lands past every existing page of the destination's listing
+     * instead of being slotted into a page a client has already read. Its content, links, types,
+     * creator, owner and access control resource are keyed by its URI and stay where they are; so
+     * does a container's membership, which moves with it.
+     */
+    public void reparent(String uri, String newParent) {
+        Model sys = store.system();
+        Resource s = res(uri);
+        String former = uriOf(sys, s, LWSX.parent);
+        if (former != null) {
+            ds().getNamedModel(former).remove(res(former), LWS.items, s);
+            bumpVersion(former);
+            touchAncestors(former);
+        }
+        sys.removeAll(s, LWSX.parent, null);
+        sys.add(s, LWSX.parent, res(newParent));
+        sys.removeAll(s, LWSX.seq, null);
+        sys.add(s, LWSX.seq, typed(nextSeq()));
+        ds().getNamedModel(newParent).add(res(newParent), LWS.items, s);
+        touchAncestors(uri);
+    }
+
+    /**
+     * Give resources new URIs: the first half of a move on a storage whose URI is the content's key
+     * (the disk mirror), where a moved resource, and everything beneath a moved container, cannot keep
+     * its identifier. {@link #reparent} then moves the renamed resource into its destination.
+     *
+     * <p>Everything this registry keys by a resource's URI is re-keyed: its facts in
+     * {@code urn:lws:system} (the {@link LWSX#parent} of a member of a renamed container follows its
+     * container, and the {@link LWSX#storageKey} becomes {@code keys}' entry), its named graph — whose
+     * name is the URI, the identity jena-permissions authorizes on — with the URI, any fragment of it
+     * and any other renamed URI it names (a container's {@code items}, a stored document's own
+     * metadata) rewritten, its linkset, re-anchored with its links as written, and the {@code items}
+     * entry of a container that is not itself renamed. Links a client wrote that point at a renamed
+     * URI are left as written, like any other reference a client made: a previous URI answers
+     * {@code 301}.
+     *
+     * @param renamed every renamed resource, previous URI to new
+     * @param keys    each renamed resource's new storage key, by previous URI
+     */
+    public void rename(java.util.Map<String, String> renamed, java.util.Map<String, String> keys) {
+        Model sys = store.system();
+        java.util.Set<String> renamedTo = new java.util.HashSet<>(renamed.values());
+        for (var e : renamed.entrySet()) {
+            String from = e.getKey();
+            String to = e.getValue();
+            Resource f = res(from);
+            Resource t = res(to);
+
+            List<Statement> facts = sys.listStatements(f, null, (org.apache.jena.rdf.model.RDFNode) null).toList();
+            sys.remove(facts);
+            for (Statement st : facts) {
+                org.apache.jena.rdf.model.RDFNode o = st.getPredicate().equals(LWSX.storageKey)
+                        && keys.containsKey(from)
+                        ? sys.createLiteral(keys.get(from))
+                        : renameNode(st.getObject(), renamed);
+                sys.add(t, st.getPredicate(), o);
+            }
+
+            moveGraph(from, to, renamed, true);
+            moveGraph(from + LwsStorageConfig.LINKSET_SUFFIX, to + LwsStorageConfig.LINKSET_SUFFIX,
+                    java.util.Map.of(from, to), false);
+
+            String parent = uriOf(sys, t, LWSX.parent);
+            if (parent != null && !renamedTo.contains(parent)) {
+                Model pg = ds().getNamedModel(parent);
+                if (pg.contains(res(parent), LWS.items, f)) {
+                    pg.remove(res(parent), LWS.items, f);
+                    pg.add(res(parent), LWS.items, t);
+                }
+            }
+        }
+    }
+
+    /**
+     * Move named graph {@code from} to {@code to}: every IRI in it renamed ({@code everywhere}), or only
+     * the subjects (a linkset, whose objects are a client's link targets).
+     */
+    private void moveGraph(String from, String to, java.util.Map<String, String> renamed,
+            boolean everywhere) {
+        if (!ds().containsNamedModel(from)) {
+            return;
+        }
+        Model src = ds().getNamedModel(from);
+        Model dst = ds().getNamedModel(to);
+        for (Statement st : src.listStatements().toList()) {
+            Resource s = st.getSubject().isURIResource()
+                    ? res(renameIri(st.getSubject().getURI(), renamed)) : st.getSubject();
+            org.apache.jena.rdf.model.RDFNode o = everywhere ? renameNode(st.getObject(), renamed)
+                    : st.getObject();
+            dst.add(s, st.getPredicate(), o);
+        }
+        ds().removeNamedModel(from);
+    }
+
+    private static org.apache.jena.rdf.model.RDFNode renameNode(org.apache.jena.rdf.model.RDFNode n,
+            java.util.Map<String, String> renamed) {
+        return n.isURIResource() ? res(renameIri(n.asResource().getURI(), renamed)) : n;
+    }
+
+    /** {@code iri} under its new name: a renamed URI, or a fragment of one, else itself. */
+    public static String renameIri(String iri, java.util.Map<String, String> renamed) {
+        String to = renamed.get(iri);
+        if (to != null) {
+            return to;
+        }
+        int hash = iri.indexOf('#');
+        if (hash > 0) {
+            String base = renamed.get(iri.substring(0, hash));
+            if (base != null) {
+                return base + iri.substring(hash);
+            }
+        }
+        return iri;
+    }
+
     /** Replace a data resource's content pointer. PUT always writes a fresh blob. */
     public void replaceContent(LwsResource r) {
         Model sys = store.system();
@@ -316,6 +442,30 @@ public final class ResourceRegistry {
 
         writeResourceGraph(r, now);
         touchAncestors(r.uri());
+    }
+
+    /**
+     * Replace the types the client declared by {@code Link rel="type"} (lws10-index section 5: a
+     * server SHOULD derive types from them). The previous declared types are removed from the
+     * resource's graph and the new ones added as {@code rdf:type}, where the Type Index and Type
+     * Search read types. A type the content also states comes back when the scanner, which every
+     * write starts, re-reads it. Assumes a write txn.
+     */
+    public void replaceDeclaredTypes(String uri, java.util.Collection<String> types) {
+        Model sys = store.system();
+        Model g = ds().getNamedModel(uri);
+        Resource s = res(uri);
+        for (org.apache.jena.rdf.model.RDFNode old : sys.listObjectsOfProperty(s, LWSX.declaredType).toList()) {
+            if (old.isURIResource() && !old.equals(LWS.Container) && !old.equals(LWS.DataResource)) {
+                g.remove(s, RDF.type, old);
+            }
+        }
+        sys.removeAll(s, LWSX.declaredType, null);
+        for (String t : types) {
+            g.add(s, RDF.type, res(t));
+            sys.add(s, LWSX.declaredType, res(t));
+        }
+        touchAncestors(uri);
     }
 
     /** Add types discovered by the file readers, leaving the structural type alone. */
@@ -363,6 +513,8 @@ public final class ResourceRegistry {
             ds().getNamedModel(parent).remove(res(parent), LWS.items, s);
         }
         sys.removeAll(s, null, null);
+        // Its previous URIs, if it was moved, lead nowhere now.
+        MoveRecords.forgetTo(sys, uri);
         ds().removeNamedModel(uri);
         // The linkset's lifetime is bound to the resource it describes.
         ds().removeNamedModel(uri + LwsStorageConfig.LINKSET_SUFFIX);
@@ -410,8 +562,9 @@ public final class ResourceRegistry {
         sys.add(s, LWSX.etag, sys.createLiteral(containerEtag(v)));
 
         Model g = ds().getNamedModel(uri);
-        g.removeAll(s, AS.updated, null);
-        g.add(s, AS.updated,
+        g.removeAll(s, Terms.modified, null);
+        g.removeAll(s, Terms.legacyModified, null);
+        g.add(s, Terms.modified,
                 ResourceFactory.createTypedLiteral(Instant.now().toString(), XSDDatatype.XSDdateTime));
     }
 
@@ -421,19 +574,23 @@ public final class ResourceRegistry {
 
         g.removeAll(s, RDF.type, LWS.Container);
         g.removeAll(s, RDF.type, LWS.DataResource);
-        g.removeAll(s, AS.mediaType, null);
-        g.removeAll(s, sizeProp(), null);
-        g.removeAll(s, AS.updated, null);
+        // Both spellings are cleared, so a resource written by the pre-#219 code converts to
+        // the current terms the first time it is touched and never carries two media types.
+        g.removeAll(s, Terms.format, null);
+        g.removeAll(s, Terms.legacyMediaType, null);
+        g.removeAll(s, Terms.size, null);
+        g.removeAll(s, Terms.modified, null);
+        g.removeAll(s, Terms.legacyModified, null);
 
         g.add(s, RDF.type, r.isContainer() ? LWS.Container : LWS.DataResource);
         if (r.mediaType() != null) {
-            g.add(s, AS.mediaType, g.createLiteral(r.mediaType()));
+            g.add(s, Terms.format, g.createLiteral(r.mediaType()));
         }
         if (!r.isContainer()) {
-            g.add(s, sizeProp(), ResourceFactory.createTypedLiteral(String.valueOf(r.size()),
+            g.add(s, Terms.size, ResourceFactory.createTypedLiteral(String.valueOf(r.size()),
                     XSDDatatype.XSDlong));
         }
-        g.add(s, AS.updated,
+        g.add(s, Terms.modified,
                 ResourceFactory.createTypedLiteral(now.toString(), XSDDatatype.XSDdateTime));
     }
 
@@ -451,9 +608,6 @@ public final class ResourceRegistry {
 
     // --- Small helpers ------------------------------------------------------
 
-    private static org.apache.jena.rdf.model.Property sizeProp() {
-        return ResourceFactory.createProperty("https://schema.org/size");
-    }
 
     private static Literal typed(long v) {
         return ResourceFactory.createTypedLiteral(String.valueOf(v), XSDDatatype.XSDlong);
@@ -483,8 +637,23 @@ public final class ResourceRegistry {
         }
     }
 
-    private static Instant instant(Model m, Resource s, org.apache.jena.rdf.model.Property p) {
-        String v = str(m, s, p);
+    /**
+     * The first of {@code ps} this resource carries: the current LWS term, then the spelling
+     * the pre-#219 code wrote. A store written by the older build therefore still reports its
+     * resources' media types and modification times.
+     */
+    private static String either(Model m, Resource s, org.apache.jena.rdf.model.Property... ps) {
+        for (org.apache.jena.rdf.model.Property p : ps) {
+            String v = str(m, s, p);
+            if (v != null) {
+                return v;
+            }
+        }
+        return null;
+    }
+
+    private static Instant instant(Model m, Resource s, org.apache.jena.rdf.model.Property... ps) {
+        String v = either(m, s, ps);
         if (v == null) {
             return null;
         }

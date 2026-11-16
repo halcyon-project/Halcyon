@@ -30,7 +30,7 @@ import org.slf4j.LoggerFactory;
  * The query view and result serialization are the module's — see {@link LwsSparql}.
  *
  * <p><strong>Never the raw dataset.</strong> Every request queries the CALLER's
- * ACP-secured view ({@link LwsSparql#securedUnion}) — the signed-in session's WebID,
+ * ACP-secured view ({@link LwsSparql#securedUnion}) — the signed-in session's CID URL,
  * or the public agent — so a query answers exactly what that agent's own LWS
  * {@code GET}s could fetch: the internal graphs (system, ACP, subscriptions, keys,
  * sharing) are unconditionally invisible, and a resource the agent may not read is
@@ -98,7 +98,7 @@ public class LwsSparqlServlet extends HttpServlet {
             return;
         }
 
-        // Who is asking. The session's WebID when signed in, else the public
+        // Who is asking. The session's CID URL when signed in, else the public
         // agent — the same identity model every LWS HTTP request resolves to.
         HalcyonPrincipal hp = RequestPrincipal.resolve(request, response);
         AgentContext agent = RequestPrincipal.isSignedIn(hp) && hp.getUserURI() != null

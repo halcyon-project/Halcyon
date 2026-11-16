@@ -54,7 +54,7 @@ public final class KeycloakEnabled implements Condition {
                     HalcyonSettings.getSettings().getAuthServer());
         } else {
             logger.warn("Keycloak authentication DISABLED — no :AuthServer in settings.ttl. "
-                    + "Sign-in runs on the LWS auth system (WebID-OIDC, lws-oidc.json); the "
+                    + "Sign-in runs on the LWS auth system (LWS OpenID Connect, lws-oidc.json); the "
                     + "Keycloak client, its /callback and logout filters and the /auth proxy "
                     + "are not registered. Restore the :AuthServer line to bring them back.");
         }

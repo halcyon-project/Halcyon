@@ -3,6 +3,7 @@ package com.ebremer.lws.scan;
 import com.ebremer.halcyon.filereaders.FileReader;
 import com.ebremer.halcyon.filereaders.FileReaderFactory;
 import com.ebremer.halcyon.filereaders.FileReaderFactoryProvider;
+import com.ebremer.halcyon.filereaders.RDFFileReader;
 import com.ebremer.halcyon.filereaders.RDFFileReaderFactory;
 import com.ebremer.lws.config.LwsStorageConfig;
 import com.ebremer.lws.store.ContentStore;
@@ -146,7 +147,12 @@ public final class LwsMetadataScanner {
         // metadata it emits is about the resource a client can actually dereference. For a
         // relative RDF document that base is load-bearing: a stored stack names itself <>.
         URI subject = URI.create(r.uri());
-        try (FileReader fr = factory.create(blob.toUri(), subject)) {
+        // An RDF document is read in the syntax its recorded extension names. The reader would
+        // otherwise guess from the file name and then the URI, and a resource POSTed as
+        // text/turtle has an extension on neither (its URI is minted, and the mirror store files
+        // it under that URI), so Jena refused it: "Failed to determine the RDF syntax" — and no
+        // type a Turtle document states about itself ever reached the Type Index.
+        try (FileReader fr = open(factory, ext, blob, subject)) {
             Model m = fr.getMeta(subject);
             if (m != null) {
                 discovered.add(m);
@@ -156,6 +162,13 @@ public final class LwsMetadataScanner {
                     factory.getClass().getSimpleName(), r.uri(), blob, e.toString());
         }
         return discovered;
+    }
+
+    /** The reader for a resource's blob: an RDF document in the syntax its extension names. */
+    static FileReader open(FileReaderFactory factory, String ext, Path blob, URI subject) {
+        return RDF_DOCUMENT_EXTS.contains(ext)
+                ? new RDFFileReader(blob.toUri(), subject, RDFFileReader.langForExtension(ext))
+                : factory.create(blob.toUri(), subject);
     }
 
     /** RDF documents: metadata comes from the document reader, never the image pipeline. */

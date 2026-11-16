@@ -1,6 +1,7 @@
 package com.ebremer.lws.auth.oidc;
 
 import com.ebremer.lws.auth.AgentContext;
+import com.ebremer.lws.auth.CredentialUnavailableException;
 import com.ebremer.lws.auth.CredentialVerifier;
 import com.ebremer.lws.auth.InvalidBearerTokenException;
 import com.ebremer.lws.auth.PresentedToken;
@@ -18,7 +19,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * The LWS 1.0 OpenID Connect credential verifier (resource-server side): an ID Token whose
- * {@code sub} is a WebID, trusted by dereferencing that WebID to a controlled identifier
+ * {@code sub} is a CID URL, trusted by dereferencing that CID URL to a controlled identifier
  * document (CID) that names the token's {@code iss} as its OpenID Provider.
  *
  * <p>This is the counterpart to Keycloak's own {@code /verify} endpoint — the same algorithm as
@@ -46,17 +47,47 @@ public final class LwsOidcVerifier implements CredentialVerifier {
     private static final long SKEW_SECONDS = 60;
 
     private final LwsOidcSettings settings;
+    private final java.util.function.Supplier<TrustPolicy> issuers;
+    private final java.util.function.Supplier<TrustPolicy> cidHosts;
     private final CidResolver cids;
     private final OidcKeys keys;
 
+    /**
+     * Uses this deployment's configured trust policies. The two-argument form exists so a test can
+     * supply its own without a settings file on disk — the surrounding code passes trust
+     * configuration as arguments ({@code CidResolver.dereference(sub, allowedHosts)}) rather than
+     * reading ambient state, and this follows it.
+     */
     public LwsOidcVerifier(LwsOidcSettings settings) {
-        this(settings, new CidResolver(), new OidcKeys());
+        // Suppliers, not snapshots: the policies live in settings.ttl precisely so a hostile
+        // identity provider can be revoked without a restart, and a value captured here would
+        // outlive the reload that was supposed to remove it.
+        this(settings, () -> com.ebremer.lws.config.LwsSettings.get().issuerPolicy(),
+                () -> com.ebremer.lws.config.LwsSettings.get().cidHostPolicy());
     }
 
+    public LwsOidcVerifier(LwsOidcSettings settings,
+            java.util.function.Supplier<TrustPolicy> issuers,
+            java.util.function.Supplier<TrustPolicy> cidHosts) {
+        this(settings, new CidResolver(), new OidcKeys(), issuers, cidHosts);
+    }
+
+    /**
+     * Seam for tests: trust policies default to allow-all, which is what this class did before they
+     * existed, so a test that does not care about them is unaffected and needs no settings file.
+     */
     LwsOidcVerifier(LwsOidcSettings settings, CidResolver cids, OidcKeys keys) {
+        this(settings, cids, keys, () -> TrustPolicy.ALLOW_ALL, () -> TrustPolicy.ALLOW_ALL);
+    }
+
+    LwsOidcVerifier(LwsOidcSettings settings, CidResolver cids, OidcKeys keys,
+            java.util.function.Supplier<TrustPolicy> issuers,
+            java.util.function.Supplier<TrustPolicy> cidHosts) {
         this.settings = settings;
         this.cids = cids;
         this.keys = keys;
+        this.issuers = issuers == null ? () -> TrustPolicy.ALLOW_ALL : issuers;
+        this.cidHosts = cidHosts == null ? () -> TrustPolicy.ALLOW_ALL : cidHosts;
     }
 
     @Override
@@ -66,6 +97,9 @@ public final class LwsOidcVerifier implements CredentialVerifier {
             return null; // not an LWS-OIDC credential; let another verifier try
         }
         String iss = token.iss();
+        if (sub.equals(iss)) {
+            return null; // self-issued: the CID suite's (SelfIssuedCidVerifier), not an OpenID credential
+        }
         if (!isUrl(iss)) {
             throw new InvalidBearerTokenException("invalid_token", "LWS credential has no dereferenceable issuer");
         }
@@ -74,6 +108,19 @@ public final class LwsOidcVerifier implements CredentialVerifier {
         if (alg == null || "none".equalsIgnoreCase(alg)) {
             throw new InvalidBearerTokenException("invalid_token", "LWS credential must be signed (alg is 'none')");
         }
+        // 1b. This deployment's own view of who may vouch for a user. The CID check below
+        // establishes that the subject NOMINATED this provider; it cannot establish that the
+        // provider is one we accept, because the nomination comes from the credential itself.
+        // Unset means allow all, so this is inert until an operator configures it. Checked before
+        // any dereference, so a refused issuer costs no outbound request.
+        try {
+            issuers.get().require("OpenID Provider", iss);
+            cidHosts.get().require("CID host", sub);
+        } catch (TrustPolicy.RefusedException e) {
+            LOG.debug("rejecting LWS credential for <{}>: {}", sub, e.getMessage());
+            throw new InvalidBearerTokenException("invalid_token", e.getMessage());
+        }
+
         try {
             // 2-3. Trust: the subject's CID must name iss as its OpenID Provider.
             Model cid = cids.dereference(sub, settings.allowedInternalHosts());
@@ -113,13 +160,22 @@ public final class LwsOidcVerifier implements CredentialVerifier {
                     ? claims.get("azp", String.class)
                     : claims.get("client_id", String.class);
             return new AgentContext(sub, clientId, iss, List.of());
-        } catch (SsrfGuard.BlockedException | CidResolver.CidException | OidcKeys.OidcException e) {
+        } catch (CidResolver.CidException e) {
+            LOG.debug("rejecting LWS credential for <{}>: {}", sub, e.toString());
+            if (e.temporary()) {
+                // The document could not be fetched just now (its host unreachable, or 429/5xx):
+                // that says nothing about the credential, so it is not a 401 (CidResolver.CidException).
+                throw new CredentialUnavailableException("the LWS credential could not be checked now: "
+                        + "its subject's controlled identifier document could not be fetched");
+            }
+            throw new InvalidBearerTokenException("invalid_token", "the LWS credential could not be verified");
+        } catch (SsrfGuard.BlockedException | OidcKeys.OidcException e) {
             LOG.debug("rejecting LWS credential for <{}>: {}", sub, e.toString());
             throw new InvalidBearerTokenException("invalid_token", "the LWS credential could not be verified");
         }
     }
 
-    /** An absolute http(s) URL — the shape of a WebID / issuer. */
+    /** An absolute http(s) URL — the shape of a CID URL / issuer. */
     private static boolean isUrl(String s) {
         if (s == null) {
             return false;

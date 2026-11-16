@@ -70,8 +70,8 @@ public class McpBearerAuthFilter extends OncePerRequestFilter {
             return;
         }
         // Per-principal rate limit, AFTER authentication so it is charged to a
-        // verified WebID (an anonymous flood was already refused above).
-        if (rateLimiter != null && !rateLimiter.tryAcquire(agent.webId(),
+        // verified CID URL (an anonymous flood was already refused above).
+        if (rateLimiter != null && !rateLimiter.tryAcquire(agent.cidUrl(),
                 System.currentTimeMillis())) {
             tooManyRequests(response);
             return;

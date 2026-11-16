@@ -1,7 +1,7 @@
 package com.ebremer.halcyon.lws;
 
 import com.ebremer.ns.HAL;
-import com.ebremer.ns.VG;
+import com.ebremer.vandegraph.ns.VG;
 import com.ebremer.ns.ZEPH;
 import com.ebremer.vandegraph.media.MediaBindings;
 import java.io.InputStream;

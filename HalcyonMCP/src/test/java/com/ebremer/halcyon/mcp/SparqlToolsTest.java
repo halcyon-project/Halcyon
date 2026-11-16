@@ -24,7 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * MCP-9 tool contract: refuse without a caller; fail closed with no executor;
  * refuse updates/SERVICE via the Guardrails gate BEFORE any executor call
  * (the executor must never see a non-read-only query); and, with an executor,
- * delegate the bounded query as the caller's WebID. Execution itself (the WAC
+ * delegate the bounded query as the caller's CID URL. Execution itself (the WAC
  * scoping) is the app bean's job and is runtime-verified.
  */
 class SparqlToolsTest {
@@ -85,20 +85,20 @@ class SparqlToolsTest {
     }
 
     @Test
-    void delegatesTheBoundedQueryAsTheCallerWebId() {
+    void delegatesTheBoundedQueryAsTheCallerCidUrl() {
         AtomicReference<String> gotQuery = new AtomicReference<>();
-        AtomicReference<String> gotWebId = new AtomicReference<>();
+        AtomicReference<String> gotCidUrl = new AtomicReference<>();
         AtomicReference<Duration> gotTimeout = new AtomicReference<>();
-        SparqlTools tool = new SparqlTools(provider((q, webid, rows, timeout) -> {
+        SparqlTools tool = new SparqlTools(provider((q, cidUrl, rows, timeout) -> {
             gotQuery.set(q);
-            gotWebId.set(webid);
+            gotCidUrl.set(cidUrl);
             gotTimeout.set(timeout);
             return "{\"head\":{},\"results\":{\"bindings\":[]}}";
         }));
         String out = tool.query("SELECT * WHERE { ?s ?p ?o }", callerContext());
 
-        assertEquals("https://localhost:8888/user/alice#me", gotWebId.get(),
-                "the query must run as the caller's WebID, not the server");
+        assertEquals("https://localhost:8888/user/alice#me", gotCidUrl.get(),
+                "the query must run as the caller's CID URL, not the server");
         assertTrue(gotQuery.get().toUpperCase().contains("LIMIT"),
                 "the query handed to the executor must carry the injected LIMIT: " + gotQuery.get());
         assertEquals(Guardrails.QUERY_TIMEOUT, gotTimeout.get());

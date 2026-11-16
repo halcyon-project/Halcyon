@@ -53,13 +53,34 @@ public class RDFFileReader extends AbstractFileReader {
         return EXT_TO_LANG.get(ext);
     }
 
+    /**
+     * The RDF syntax a file extension names ({@code ttl}, {@code nt}, {@code jsonld}, {@code rdf}),
+     * with or without its leading dot, or null.
+     */
+    public static Lang langForExtension(String ext) {
+        if (ext == null) {
+            return null;
+        }
+        String e = ext.startsWith(".") ? ext.substring(1) : ext;
+        return EXT_TO_LANG.get(e.toLowerCase(java.util.Locale.ROOT));
+    }
+
+    /**
+     * Reads {@code local}, guessing the syntax from its extension or, failing that, from the
+     * extension of {@code uri}. A file stored without an extension under a URI without one (an LWS
+     * resource POSTed as text/turtle) has neither; use {@link #RDFFileReader(URI, URI, Lang)}.
+     */
     public RDFFileReader(URI local, URI uri) {
+        this(local, uri, getLangFromUri(local) != null ? getLangFromUri(local) : getLangFromUri(uri));
+    }
+
+    /** Reads {@code local} as {@code lang}, describing it as {@code uri}. */
+    public RDFFileReader(URI local, URI uri, Lang lang) {
         super(uri);
         m = ModelFactory.createDefaultModel();
         String baseURI = uri.toString();     
         m.createResource(baseURI)
                 .addProperty(RDF.type, LWS.DataResource);
-        Lang lang = getLangFromUri(uri);
         try (FileInputStream fis = new FileInputStream(new File(local))) {
             RDFParser.create()
                     .source(fis)

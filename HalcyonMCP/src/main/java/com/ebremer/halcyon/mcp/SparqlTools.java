@@ -11,7 +11,7 @@ import org.springframework.beans.factory.ObjectProvider;
  * MCP-9: {@code sparql_query} — read-only SPARQL against Halcyon's secured RDF
  * dataset, run as the calling user. The tool owns the two guards; the
  * {@link HalcyonSparqlService} (app-provided) owns execution as the caller's
- * WebID:
+ * CID URL:
  *
  * <ol>
  *   <li>The query is parsed and bounded by {@link Guardrails#readOnlyQuery} —
@@ -19,8 +19,8 @@ import org.springframework.beans.factory.ObjectProvider;
  *       or clamped. This is the C2 lesson made mechanical (see
  *       {@link Guardrails}).</li>
  *   <li>Execution is delegated to the secured executor, which runs it as the
- *       caller's WebID against the WAC-secured dataset — the caller sees only
- *       what ACP grants their WebID. No executor registered → SPARQL is
+ *       caller's CID URL against the WAC-secured dataset — the caller sees only
+ *       what ACP grants their CID URL. No executor registered → SPARQL is
  *       reported disabled, the safe default.</li>
  * </ol>
  */
@@ -35,7 +35,7 @@ public class SparqlTools {
     @Tool(name = "sparql_query",
             description = "Run a read-only SPARQL query (SELECT/ASK/CONSTRUCT/DESCRIBE) over "
                     + "Halcyon's RDF dataset as the calling user - you see only triples ACP "
-                    + "grants your WebID. Updates and SERVICE clauses are refused; results are "
+                    + "grants your CID URL. Updates and SERVICE clauses are refused; results are "
                     + "row-capped and time-bounded. Returns SPARQL Results JSON, or Turtle for "
                     + "CONSTRUCT/DESCRIBE.")
     public String query(
@@ -63,7 +63,7 @@ public class SparqlTools {
         }
 
         try {
-            return svc.runReadOnly(q.toString(), caller.webId(),
+            return svc.runReadOnly(q.toString(), caller.cidUrl(),
                     Guardrails.MAX_ROWS, Guardrails.QUERY_TIMEOUT);
         } catch (RuntimeException e) {
             return err("query execution failed: " + e.getMessage());

@@ -140,6 +140,8 @@ class HalcyonMcpAutoConfigurationTest {
                             exchange)));
             assertTrue(out.contains("alice#me"),
                     "whoami must echo the transport-verified caller, got: " + out);
+            assertTrue(out.contains("cidUrl") && out.contains("webid"),
+                    "whoami names the caller as cidUrl and, deprecated, as webid, got: " + out);
 
             assertThrows(Exception.class,
                     () -> whoami.call("{}", new org.springframework.ai.chat.model.ToolContext(java.util.Map.of())),

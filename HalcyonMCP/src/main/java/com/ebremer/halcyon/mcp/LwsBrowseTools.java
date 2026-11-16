@@ -115,7 +115,7 @@ public class LwsBrowseTools {
         JsonObjectBuilder m = Json.createObjectBuilder()
                 .add("uri", o.getString("id", ""))
                 .add("kind", container ? "container" : "resource")
-                .add("mediaType", o.getString("mediaType", ""))
+                .add("mediaType", com.ebremer.lws.json.LwsJson.formatOf(o))
                 .add("types", types);
         if (o.containsKey("size")) {
             m.add("size", o.getJsonNumber("size").longValue());

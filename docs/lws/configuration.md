@@ -14,7 +14,7 @@ namespace):
     # Halcyon's :RDFStoreLocation. Keep it on fast storage — see the note below.
     :LWSStoreLocation "lws-tdb2" ;
 
-    # WebID of the storage controller. If omitted, the bootstrap grants full control
+    # CID URL of the storage controller. If omitted, the bootstrap grants full control
     # to ANY authenticated agent (a warning is logged). Anonymous is never granted.
     :LWSOwner <https://alice.example/profile#me> ;
 
@@ -25,9 +25,12 @@ namespace):
                      :storageRoot <file:///E:/W3CLWS/slash/> ;   :namingPolicy "slug" ] ;
 
     # Optional spec MAYs, all default false (omit to leave off):
-    # :LWSIncludeActor       true ;   # put the acting agent's WebID as `actor` on a notification
+    # :LWSIncludeActor       true ;   # put the acting agent's identifier as `actor` on a notification
     # :LWSBatchNotifications true ;   # a bulk op's activities in one envelope (`activity` → array)
     # :LWSSetLinkset         true ;   # honour `Prefer: set-linkset` (combined content + linkset update)
+
+    # Moving resources by their `up` link: both kinds by default; "" turns it off. Also per storage.
+    # :LWSMoveAppliesTo "DataResource Container" ;
 ```
 
 ### Properties
@@ -35,15 +38,22 @@ namespace):
 | Property | Meaning |
 |---|---|
 | `:LWSStoreLocation` | Directory for the module's TDB2 (metadata + ACP + internal graphs). A path relative to the working directory or absolute. |
-| `:LWSOwner` | WebID granted full `Read`/`Write`/`Append`/`Control` on the storage root, inherited to everything. Optional — see [Owner bootstrap](#owner-bootstrap). |
+| `:LWSOwner` | CID URL granted full `Read`/`Write`/`Append`/`Control` on the storage root, inherited to everything. Optional — see [Owner bootstrap](#owner-bootstrap). |
+| `:AllowedIssuer` / `:DeniedIssuer` | Optional, repeatable. Whole issuer URIs of the OpenID Providers that may vouch for an agent. Unset allows every provider a CID document names; denied wins over allowed. Reloadable without a restart. |
+| `:AllowedCidHost` / `:DeniedCidHost` | Optional, repeatable. Hosts that may serve the CID documents agents present, checked before any is fetched. Unset allows all. The older names `:AllowedWebIdHost` / `:DeniedWebIdHost` still count, with a deprecation warning. Reloadable without a restart. |
 | `:hasLWSStorage` | One blank node per storage. Repeat it to mount more storages. |
 | `:urlPath` | The mount path. `/W3Clws` and `/W3ClwsSlash` in the default deployment. |
 | `:storageRoot` | A `file://` URI for the directory the sharded content blobs live under. For a storage with a pluggable backend (`:hasBackend`, below) this is the **local materialization-cache root** instead — the blobs themselves rest in the backend. |
 | `:hasBackend` | Optional. A blank node describing a pluggable content backend (SPI: `ContentStoreProvider`); omit it for the two built-in disk stores. The node's `rdf:type` selects the provider — see [S3-backed storages](#s3-backed-storages-halcyonlws-s3). A declared backend no provider on the classpath recognises is refused at boot (that one storage is not mounted; the app boots on). |
 | `:namingPolicy` | `"uuid"` — the flat, **TDB2-authoritative** object store: no trailing slash, opaque sharded-UUID blobs; the `Slug` is honored best-effort as a flat, storage-unique name (disambiguated `name-1`/`-2`, UUID fallback). Or `"slug"` — the hierarchical, **disk-authoritative** file gateway: the URI mirrors to a real path, PUT creates (with implicit parent containers), and files dropped straight onto disk are adopted by the reconciler + watcher. See [architecture.md](architecture.md). |
-| `:LWSIncludeActor` | Optional (default `false`). Include the acting agent's WebID as `actor` on a notification. The spec says omit it by default (it discloses who touched a resource) but MAY be configurable. See [notifications.md](notifications.md). |
+| `:LWSIncludeActor` | Optional (default `false`). Include the acting agent's identifier as `actor` on a notification. The spec says omit it by default (it discloses who touched a resource) but MAY be configurable. See [notifications.md](notifications.md). |
 | `:LWSBatchNotifications` | Optional (default `false`). Deliver a bulk operation's activities as one batched envelope (`activity` becomes an array). A recursive `DELETE` then announces the whole removed subtree at once, each subscriber filtered to what it may read. |
 | `:LWSSetLinkset` | Optional (default `false`). Honor `Prefer: set-linkset`: a `PUT`/`PATCH` to a resource carrying `Link` headers updates the content **and** the linkset atomically. Off → the preference is ignored (spec-permitted). See [http-api.md](http-api.md). |
+| `:LWSAuthorizationServer` | Optional (default `true`). Run this instance's embedded LWS authorization server: RFC 8414 metadata at `/.well-known/lws-configuration`, an RFC 8693 token endpoint at `/lws-as/token`, and its `jwks_uri` at `/lws-as/jwks`. lws10-core makes an authorization server the baseline way to obtain an access token, so leave it on unless a **separate** authorization server fronts these storages. Inert when no storage is mounted. Each storage's protected resource metadata (RFC 9728, `/.well-known/oauth-protected-resource{urlPath}/…`) names this issuer in `authorization_servers`, and is mounted whether this is on or off (off, it names the issuer discovered from Keycloak). See [security.md](security.md). |
+| `:LWSMoveAppliesTo` | Optional (default both kinds). Which resources may be moved between containers by changing the `up` link in their linkset (lws10-core since w3c/lws-protocol#237): `"DataResource"` and/or `"Container"` (terms or full IRIs, as separate literals or one comma/space-separated literal). `""` or `"none"` turns moves off: no `MoveResource` capability, and a changed `up` is refused `403` as before. On the settings node it applies to every storage; on a `:hasLWSStorage` node it applies to that storage and wins. An unknown value is logged and ignored, so a typo narrows what may move rather than widening it. E.g. `:hasLWSStorage [ … ; :LWSMoveAppliesTo "DataResource" ]` lets that storage move data resources but not containers. See [http-api.md](http-api.md#moving-a-resource). |
+| `:LWSLegacyChallenge` | Optional (default `true`). Keep `as_uri` and `realm` in the `401` challenge, after the `resource_metadata` parameter the drafts of 19 October 2026 require — for clients written against earlier drafts, which read the authorization server from `as_uri`. Set `false` to send only `resource_metadata` (and `error`). See [http-api.md](http-api.md#protected-resource-metadata). |
+| `:LWSAccessTokenLifetime` | Optional (default `300`). Seconds an issued access token lives — lws10-core's RECOMMENDED ceiling. A token never outlives the credential it was exchanged for, whatever this says. |
+| `:LWSAcceptAuthenticationCredentials` | Optional (default `true`). Also accept an authentication credential (an ID Token, a Keycloak access token) presented directly as the bearer token, alongside exchanged access tokens. lws10-core permits it as an additional mechanism. Set `false` to require the exchange — which is what makes an access token's audience confinement actually bite, at the cost of invalidating every credential existing clients hold. |
 
 ### Where to put the TDB2
 
@@ -132,7 +142,7 @@ classpath entirely; `:hasBackend [ a :S3 … ]` declarations are then refused at
 
 At storage initialization, `AcpBootstrap.seed()` writes the storage root's ACP access-control resource:
 
-- **`:LWSOwner` set** → a policy grants that WebID full `Read`/`Write`/`Append`/`Control`, applied both
+- **`:LWSOwner` set** → a policy grants that CID URL full `Read`/`Write`/`Append`/`Control`, applied both
   to the root (`acp:accessControl`) and to all descendants (`acp:memberAccessControl`).
 - **`:LWSOwner` unset** → the same policy is granted to **any authenticated agent**
   (`acp:AuthenticatedAgent`), and a warning is logged:
@@ -161,15 +171,19 @@ is constructed:
 
 | Off | Consequence |
 |---|---|
-| pac4j `KeycloakOidcClient`, `Config`, `/callback` + logout filters, and the security filters over `URLControl.getSecuredURLs()`/`getAdminURLs()` | Wicket pages are guarded by `HalcyonAuthorizationStrategy` alone, off the WebID seated by the interactive login |
+| pac4j `KeycloakOidcClient`, `Config`, `/callback` + logout filters, and the security filters over `URLControl.getSecuredURLs()`/`getAdminURLs()` | Wicket pages are guarded by `HalcyonAuthorizationStrategy` alone, off the CID URL seated by the interactive login |
 | the `/auth/*` reverse proxy to `localhost:8080` | the path is not mounted at all, rather than 502-ing |
 | `BearerTokenVerifier` in every storage's `CredentialChain` | no OIDC discovery at startup — which is the real reason to skip it, since that call would otherwise hang waiting on a Keycloak that is not running |
-| the "Login" menu item, the Account page's Keycloak console link, and the logout redirect to the end-session endpoint | "WebID Login" is the way in; logout invalidates the session and goes home |
+| the "Login" menu item, the Account page's Keycloak console link, and the logout redirect to the end-session endpoint | "CID URL Login" is the way in; logout invalidates the session and goes home |
 
-Authentication then runs entirely on the LWS stack — WebID-OIDC, enabled in `lws-oidc.json` — for both
-bearer tokens (`LwsOidcVerifier`) and interactive sign-in (`/webid-login`). The `WWW-Authenticate`
-challenge's required `as_uri` becomes `{site}/webid-login`, because under WebID-OIDC the issuer is
-whichever OP the agent's own WebID nominates and cannot be named before one is presented.
+Authentication then runs entirely on the LWS stack — LWS OpenID Connect, enabled in `lws-oidc.json` — for
+both bearer tokens (`LwsOidcVerifier`) and interactive sign-in (`/cid-login`). With the embedded
+authorization server on (the default) a client still gets its token there, and the protected resource
+metadata names it. Only if `:LWSAuthorizationServer` is off as well does the metadata's
+`authorization_servers` (and the legacy `as_uri`) become `{site}/cid-login` — or the site, with
+`lws-oidc.json` off too — because under LWS OpenID Connect the issuer is whichever OP the agent's own CID
+document nominates and cannot be named before one is presented; that value is not an issuer, so a client
+following lws10-core's discovery cannot get a token in that configuration.
 
 **Nothing is deleted.** Every class, bean and filter is still there; restoring the `:AuthServer` line
 brings the whole subsystem back exactly as it was. The gate is `@Conditional(KeycloakEnabled.class)`,
@@ -191,11 +205,12 @@ Tokens are validated per storage by `BearerTokenValidator`. The realm is **`Halc
 `keycloak.json`; note the module deliberately does **not** use `HalcyonSettings.getRealm()`, which
 returns a hardcoded `"master"` that does not describe this deployment).
 
-The `account` client needs two protocol mappers for LWS tokens to be accepted and to carry a WebID:
+The `account` client needs two protocol mappers for LWS tokens to be accepted and to carry the agent's
+CID URL:
 
 | Mapper | Purpose |
 |---|---|
-| `webid` | Maps the user's `webid` attribute to a `webid` token claim. This becomes the agent identifier in ACP policies. |
+| `webid` | Maps the user's `webid` attribute to a `webid` token claim. This becomes the agent identifier in ACP policies. The mapper, attribute and claim keep the Solid-OIDC name `webid`; the value is the user's CID URL. |
 | `halcyon-audience` | Adds `https://localhost:8888` (the site) to the token's `aud`. Without it a token names no audience the storage covers and is rejected `401`. |
 
 Token endpoint (password grant, for scripts/tests):
@@ -209,7 +224,7 @@ grant_type=password&client_id=account&username=<user>&password=<pw>
 
 The issuer and JWKS URI are found by OIDC discovery at
 `{authServer}/realms/Halcyon/.well-known/openid-configuration` at startup (with a constructed fallback
-if discovery is unreachable). See [security.md](security.md) for how the WebID, audience, and issuer are
+if discovery is unreachable). See [security.md](security.md) for how the agent identifier, audience, and issuer are
 validated.
 
 ## Servlet mounting & Wicket
@@ -222,6 +237,23 @@ Wicket would answer the home page (HTTP 200 HTML) instead of letting the request
 > Wicket's `ignorePaths` is a raw prefix match with **no segment boundary**, so `/W3Clws` already
 > ignores `/W3ClwsSlash` — but keep both listed for clarity, and never mount a Wicket page at a path
 > that starts with a storage prefix.
+
+The same configuration mounts the embedded authorization server's three endpoints when
+`:LWSAuthorizationServer` is on, and `/lws-as/` and `/.well-known/` are both in the Wicket ignores for
+the same reason: a token request answered with the home page would fail every client's login with
+HTTP 200.
+
+It also mounts each storage's **protected resource metadata** (RFC 9728), the document every `401`
+points to, at `/.well-known/oauth-protected-resource{urlPath}/*` — one servlet per storage, never one on
+the whole `/.well-known/oauth-protected-resource/` tree, which would shadow the MCP endpoint's metadata at
+`/.well-known/oauth-protected-resource/mcp` (a Spring MVC route in HalcyonMCP).
+
+**Behind a proxy that maps a path** (`:ProxyHostName` `https://host/app`, the proxy stripping `/app`),
+RFC 9728 puts a resource's metadata *outside* that path: the metadata of `https://host/app/W3Clws/x` is
+`https://host/.well-known/oauth-protected-resource/app/W3Clws/x`. Route
+`/.well-known/oauth-protected-resource/app/` to this server's `/.well-known/oauth-protected-resource/`,
+stripping `/app`, exactly as `/.well-known/lws-configuration/app` is routed to
+`/.well-known/lws-configuration`.
 
 ## A trap to know: the `?query=` filter
 

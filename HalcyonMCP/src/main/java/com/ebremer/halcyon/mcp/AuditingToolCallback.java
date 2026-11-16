@@ -54,7 +54,7 @@ public final class AuditingToolCallback implements ToolCallback {
     public String call(String toolInput, ToolContext toolContext) {
         String tool = getToolDefinition().name();
         McpCaller caller = McpCallers.peek(toolContext);
-        String who = caller == null || caller.webId() == null ? "unknown" : caller.webId();
+        String who = caller == null || caller.cidUrl() == null ? "unknown" : caller.cidUrl();
         long start = System.nanoTime();
         String outcome = "ok";
         try {

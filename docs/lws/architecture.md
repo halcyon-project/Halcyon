@@ -36,7 +36,7 @@ choice decides whether TDB2 or the filesystem is the source of truth — see
 ### One named graph per resource
 
 Client-visible metadata for a resource lives in a **named graph whose URI is the resource URI**:
-`rdf:type` (`lws:DataResource`/`lws:Container` plus any types the file readers discover), `as:mediaType`,
+`rdf:type` (`lws:DataResource`/`lws:Container` plus any types the file readers discover), `dcterms:format`,
 `schema:size`, `as:updated`, and for containers `lws:items <child>`.
 
 Graph URI == resource URI is the load-bearing choice: `jena-permissions` receives the resource URI
@@ -51,7 +51,7 @@ Never served, and unconditionally hidden from `listGraphNodes()` and every `Node
 
 | Graph | Holds |
 |---|---|
-| `urn:lws:system` | storage key, parent pointer, per-storage monotonic sequence, ETag, scan version |
+| `urn:lws:system` | storage key, parent pointer, per-storage monotonic sequence, ETag, scan version; `movedTo` records of renamed resources |
 | `urn:lws:acp` | all ACRs, policies, matchers |
 | `urn:lws:subscriptions` | webhook subscriptions |
 | `urn:lws:keys` | the webhook signing keypair and the cursor HMAC secret (**private key material**) |
@@ -90,6 +90,21 @@ UUID key that names nothing on disk) is cleaned up too. It runs **hourly**, plus
 first pass is **backgrounded** on the shared sweeper thread so a large mirror tree does not block servlet
 `init()`. The scheduled sweep is storage-aware (mirror → reconcile, sharded → reap).
 
+It adopts only a file **whose URI answers with the file itself** (`LwsStorageConfig.namesOwnResource`, the
+mirror's copy of `Target.resolve`'s routing, pinned to it by `NamesOwnResourceTest`). A file named like an
+auxiliary resource — `scan.svs.meta` or `scan.svs.acr`, say, a sidecar some archives keep beside each slide
+— or like a reserved endpoint at the storage root (`.description`, `.types/index`, `.iiif`, a member of
+`.notifications/subscriptions/`, …) stays on disk, **unpublished**: adopted, it would be listed in its
+container while its URI answered with the linkset of `scan.svs`, and its description would land in the
+named graph that *is* that linkset. The API never mints such names (`Slugs.sanitize`). An entry an older
+build already adopted for such a file is left registered — the file is still on disk, and de-registering
+it would drop the graph it shares with its primary's linkset.
+
+The first pass over an existing tree **reads every file in full** to hash its ETag (later passes only
+re-hash files whose size or mtime changed), one file at a time, before the file is reachable: plan for
+the size of the tree, and on a disk shared with other services consider capping the process's reads
+(systemd `IOReadBandwidthMax=`) until it is done.
+
 `MirrorWatcher` makes it real-time: a `WatchService` over the tree **debounce-triggers a reconcile** on
 any change (~1.5 s, coalescing a burst such as a folder copy into one pass), registering new
 subdirectories as they appear (a `WatchService` is not recursive) and leaning on the periodic reconcile
@@ -101,6 +116,44 @@ reconcile re-adopts the empty dir as the container you just deleted), and PUT-cr
 name against the filesystem** (`validateMirrorPath`: reserved device names, illegal characters, trailing
 dot/space, length, `.meta`/`.acr` suffix; a case-only clash on case-insensitive Windows is a 409) — POST
 needs none, since `SlugNaming` mints a legal name.
+
+### Moving resources
+
+A move (lws10-core since w3c/lws-protocol#237) is a linkset `PATCH` that changes `up`; the wire side is
+in [http-api.md](http-api.md#moving-a-resource). `http/MoveHandler` decides and applies it inside the
+linkset's write transaction, and the two content backends are again what decides the shape:
+
+- **Key-minting stores** (sharded, S3) — the URI is the identity and the bytes sit under an opaque key,
+  so a move is `ResourceRegistry.reparent`: the parent pointer changes, the resource leaves one `items`
+  and joins the other with a fresh sequence number, both containers and their ancestors get a version
+  bump, and the ACP epoch is bumped because inherited access may have changed. Nothing else moves —
+  content, linkset, ACR, types and owner stay with the URI. The capability says `preservesIdentifier:
+  true`.
+- **The disk mirror** — the disk path *is* the URI and the disk is authoritative, so the identifier
+  cannot be kept: the resource (and a container's whole subtree) is renamed under the destination,
+  keeping its last segment (`name-N.ext` if that is taken, by a resource or by an unadopted file). The
+  store side is `PathKeyedStore.supportsMove/moveRefusal/move` — the mirror's is one atomic
+  `Files.move(ATOMIC_MOVE)` without replace, refused across mounts or file systems
+  (`MountTable.mountWithin`) — and the index side is `ResourceRegistry.rename`, which rewrites every fact
+  keyed by URI: the system graph (parents, storage keys), each resource's named graph (its URI,
+  `#fragments`, `items`), the linkset graphs, the ACRs (`AcrStore.rename`: `acp:resource` objects and
+  every `{uri}.acr` node, so installed grant policies follow), and subscription topics
+  (`Notifications.renameTopics`). `store/MoveRecords` keeps an `<old> lwsx:movedTo <new>` triple in
+  `urn:lws:system` per renamed resource, which is what answers the old URIs with `301`. The capability
+  says `preservesIdentifier: false`.
+
+**The rename happens inside the transaction, last** (`MoveHandler.write`): a body that fails undoes it
+while the transaction still holds the writer, and a commit that fails undoes it right after. **The
+reconciler cannot undo a move**: `MirrorReconciler` is split into `survey()` (walk the disk and the index)
+and `apply()`, and each de-registration or adoption re-checks its facts in its own write transaction — a
+resource is de-registered only if it is still registered and still absent on disk, a path adopted only if
+it is still unregistered and still on disk. With one writer that check runs before the move or after its
+commit, never in between, so the watcher's events for a rename find nothing to do. The one window left
+is a crash between the rename and the commit (milliseconds): the reconciler then sees an external move,
+keeps the content and loses the subtree's metadata.
+
+The Halcyon app keys its IIIF engine by URI, path *and* entity tag (`LwsIiifBridge`), so a resource
+created at a moved-from URI is never served the previous image's cached tiles.
 
 ## Write atomicity
 
@@ -123,7 +176,7 @@ registry entry, and never a container pointing at a resource that does not exist
 
 **The mirror storage inverts steps 3 and 4, and has to.** Its key IS the resource's path, so there is no
 new key to write under: step 3 would land the new bytes *on the live file*, and the transaction in step 4
-is where the client's `If-Match` is compared. A refused write — 428, 412, a lost re-authorization — would
+is where the client's `If-Match` is compared. A refused write — a 412, a lost re-authorization — would
 then have already destroyed the resource it was refused permission to replace. So the mirror **stages**
 (steps 1–2, into a `.tmp-{uuid}` beside the target), commits the transaction, and only then moves the
 staged file into place (`PathKeyedStore.Staged`). The crash window that buys is the harmless direction:
@@ -143,7 +196,7 @@ Stored explicitly in `urn:lws:system`, never derived from a file mtime.
 
 - **Data resource** — a strong tag over the content digest, computed while streaming the upload.
 - **Container** — an opaque version counter bumped on every membership change. Because a listing carries
-  each member's `type`/`mediaType`/`size`/`modified`, a member's own `PUT` changes the *parent's*
+  each member's `type`/`format`/`size`/`modified`, a member's own `PUT` changes the *parent's*
   representation — so a member content change bumps the whole ancestor chain (`sys:parent+`, the same
   walk ACP does), not just add/remove.
 - **Linkset** — its own counter, independent of the resource's content ETag.

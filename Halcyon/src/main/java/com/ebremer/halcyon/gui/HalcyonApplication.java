@@ -13,7 +13,7 @@ import com.ebremer.halcyon.lws.ZephyrMediaPanel;
 import com.ebremer.halcyon.wicket.ethereal.Graph3D;
 import com.ebremer.multiviewer.MultiViewer;
 import com.ebremer.ns.HAL;
-import com.ebremer.ns.VG;
+import com.ebremer.vandegraph.ns.VG;
 import com.ebremer.vandegraph.VandegraphApplication;
 import com.ebremer.vandegraph.media.MediaBindings;
 import org.apache.jena.query.Dataset;

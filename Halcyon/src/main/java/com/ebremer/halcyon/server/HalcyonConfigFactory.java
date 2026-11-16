@@ -24,7 +24,7 @@ import org.springframework.context.annotation.Lazy;
  *
  * <p>Keycloak-only, so the whole class is conditional: with no {@code :AuthServer} in
  * {@code settings.ttl} none of these beans exist, and authentication is the LWS
- * WebID-OIDC stack instead. Nothing here is removed — restoring the setting restores the
+ * LWS OpenID Connect stack instead. Nothing here is removed — restoring the setting restores the
  * class. See {@link KeycloakEnabled}.
  */
 @Configuration

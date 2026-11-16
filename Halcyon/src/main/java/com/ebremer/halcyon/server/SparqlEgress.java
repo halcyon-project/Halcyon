@@ -3,9 +3,7 @@ package com.ebremer.halcyon.server;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import com.ebremer.lws.auth.oidc.LwsOidcSettings;
 import com.ebremer.lws.sparql.SparqlGuard;
-import java.net.URI;
 import java.util.LinkedHashSet;
-import java.util.Locale;
 import java.util.Set;
 import org.apache.jena.query.Query;
 import org.slf4j.Logger;
@@ -86,41 +84,11 @@ public final class SparqlEgress {
     }
 
     /**
-     * The host part of a configured origin. {@code :ProxyHostName} is written as a full origin
-     * ({@code https://localhost:8888}), but tolerate a bare {@code host:port} or {@code host}.
+     * The host part of a configured origin, delegated to {@link com.ebremer.lws.auth.oidc.TrustPolicy#hostOf} so there is one
+     * implementation rather than two. There were two, briefly, and both got the bracketed IPv6 case
+     * wrong in different ways.
      */
     static String hostOf(String origin) {
-        if (origin == null || origin.isBlank()) {
-            return null;
-        }
-        String s = origin.trim();
-        try {
-            if (s.contains("://")) {
-                String h = URI.create(s).getHost();
-                return h == null ? null : h.toLowerCase(Locale.ROOT);
-            }
-        } catch (RuntimeException e) {
-            // fall through to the textual form
-        }
-        int slash = s.indexOf('/');
-        if (slash >= 0) {
-            s = s.substring(0, slash);
-        }
-        // A bracketed IPv6 literal first: it contains colons of its own, so the host:port rule
-        // below cannot tell its address apart from a port and would leave the ":8888" attached --
-        // a host string that matches nothing, silently dropping this server from its own
-        // allow-list. Brackets included, because that is what URI.getHost() returns for an IPv6
-        // authority and therefore what SsrfGuard compares against.
-        if (s.startsWith("[")) {
-            int close = s.indexOf(']');
-            if (close > 0) {
-                return s.substring(0, close + 1).toLowerCase(Locale.ROOT);
-            }
-        }
-        int colon = s.lastIndexOf(':');
-        if (colon > 0 && s.indexOf(':') == colon) {
-            s = s.substring(0, colon);   // host:port
-        }
-        return s.isBlank() ? null : s.toLowerCase(Locale.ROOT);
+        return com.ebremer.lws.auth.oidc.TrustPolicy.hostOf(origin);
     }
 }

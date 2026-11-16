@@ -3,6 +3,7 @@ package com.ebremer.halcyon.server;
 import com.ebremer.halcyon.gui.PageAccess;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import com.ebremer.lws.config.LwsSettings;
+import com.ebremer.lws.oauth.AuthorizationServerSettings;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -63,8 +64,11 @@ public class URLControl {
             "/h2",
             "/skunkworks/",
             "/login",
-            // Interactive WebID login (Option B): the entry point and the OP's redirect target.
-            // Anonymous servlets (see Main.java), so Wicket must not claim their URL trees.
+            // Interactive CID URL login (Option B): the entry point and the OP's redirect target,
+            // under their names and their pre-rename aliases. Anonymous servlets (see Main.java),
+            // so Wicket must not claim their URL trees.
+            "/cid-login",
+            "/cid-callback",
             "/webid-login",
             "/webid-callback",
             "/auth",
@@ -92,6 +96,14 @@ public class URLControl {
             // are Spring MVC routes; if the Wicket filter claims them the
             // protocol answers with rendered HTML instead of JSON-RPC.
             "/mcp",
+            // The embedded LWS authorization server's token endpoint and jwks_uri (its RFC 8414
+            // metadata is under /.well-known/, below). Anonymous servlets mounted by
+            // LwsStorageConfiguration; if the Wicket filter claimed them, a token request would get
+            // the home page and every client would fail to authenticate with HTTP 200.
+            //
+            // Taken from the constant the servlets are mounted on rather than spelled again here:
+            // a second spelling is what lets the two drift, and the failure would be silent.
+            AuthorizationServerSettings.BASE_PATH + "/",
             "/.well-known/"
         };
         // The LWS data servlets (annotation save/fetch, LDP resources) are

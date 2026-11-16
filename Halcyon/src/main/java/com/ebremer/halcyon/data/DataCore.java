@@ -129,7 +129,7 @@ public final class DataCore {
      * A secured view whose WAC decisions run as {@code principal}, not the
      * ambient Shiro/session identity — for callers off the web request path
      * (the MCP SPARQL executor) that have authenticated their user some other
-     * way and must scope the query to that user's WebID. An unknown WebID is
+     * way and must scope the query to that user's CID URL. An unknown CID URL is
      * granted nothing, so this can only narrow, never widen.
      */
     public Dataset getSecuredDataset(Level level, java.security.Principal principal) {

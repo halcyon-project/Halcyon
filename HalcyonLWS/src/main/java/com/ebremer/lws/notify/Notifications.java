@@ -40,7 +40,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Webhook subscriptions and delivery (lws10-notifications).
+ * Webhook subscriptions and delivery (lws10-notifications-webhook; the notification data model
+ * itself moved into lws10-core in w3c/lws-protocol#185).
  *
  * <p>Two authorization checks, and both are load-bearing:
  * <ul>
@@ -187,7 +188,7 @@ public final class Notifications {
             g.add(s, RDF.type, LWS.WebhookSubscription);
             g.add(s, LWSX.storage, ResourceFactory.createResource(cfg.storageRootUri()));
             g.add(s, LWS.subscription, g.createLiteral(inbox));
-            g.add(s, LWSX.ownedBy, ResourceFactory.createResource(agent.webId()));
+            g.add(s, LWSX.ownedBy, ResourceFactory.createResource(agent.cidUrl()));
             topics.forEach(t -> g.add(s, LWS.topic, ResourceFactory.createResource(t)));
 
             // The rest of the subscriber's context, so delivery can rebuild the exact agent that
@@ -209,11 +210,11 @@ public final class Notifications {
             // but not ordered, and a keyset cursor needs a key that only ever moves one way.
             g.add(s, LWSX.seq, typed(new ResourceRegistry(store, cfg).nextSeq()));
         });
-        LOG.info("subscription {} for {} -> {}", id, agent.webId(), inbox);
+        LOG.info("subscription {} for {} -> {}", id, agent.cidUrl(), inbox);
         return cfg.subscriptionsUri() + "/" + id;
     }
 
-    // --- Listing (lws10-notifications, Subscription Management) --------------
+    // --- Listing (lws10-notifications-webhook, Subscription Management) ------
 
     /** A subscription, reduced to what ordering and paging need. */
     public record SubRef(String id, long seq) {
@@ -245,7 +246,7 @@ public final class Notifications {
             return List.of();
         }
         Model g = graph();
-        Resource me = ResourceFactory.createResource(agent.webId());
+        Resource me = ResourceFactory.createResource(agent.cidUrl());
         Resource here = ResourceFactory.createResource(cfg.storageRootUri());
 
         List<SubRef> out = new ArrayList<>();
@@ -345,7 +346,7 @@ public final class Notifications {
         Statement owner = g.getProperty(s, LWSX.ownedBy);
         return owner != null
                 && owner.getObject().isURIResource()
-                && owner.getObject().asResource().getURI().equals(agent.webId());
+                && owner.getObject().asResource().getURI().equals(agent.cidUrl());
     }
 
     /**
@@ -378,16 +379,48 @@ public final class Notifications {
         graph().removeAll(sub(id), null, null);
     }
 
+    /**
+     * Follow renamed resources with the subscriptions whose topics name them. A topic is the
+     * resource a subscriber asked to hear about, and a move that renames it (on a storage whose URIs
+     * are paths) is still that resource: without this its subscribers would stop hearing about it at
+     * the moment it moved, the Move included. Assumes the move's write transaction.
+     *
+     * @param renamed every renamed resource, previous URI to new
+     */
+    public void renameTopics(java.util.Map<String, String> renamed) {
+        Model g = graph();
+        for (var e : renamed.entrySet()) {
+            Resource from = ResourceFactory.createResource(e.getKey());
+            for (Resource s : g.listSubjectsWithProperty(LWS.topic, from).toList()) {
+                g.remove(s, LWS.topic, from);
+                g.add(s, LWS.topic, ResourceFactory.createResource(e.getValue()));
+            }
+        }
+    }
+
     // --- Delivery -----------------------------------------------------------
 
-    /** One change to announce: an activity about a resource. */
-    public record Change(String activityType, String resourceUri, boolean isContainer, String parent) {
+    /**
+     * One change to announce: an activity about a resource.
+     *
+     * @param parent the container the resource is in after the change: the {@code target} of a
+     *               Create or a Move, and the {@code origin} of a Delete (the container it was in)
+     * @param origin the container a Move took the resource out of; {@code null} for every other
+     *               activity
+     */
+    public record Change(String activityType, String resourceUri, boolean isContainer, String parent,
+            String origin) {
+
+        /** A change that is not a move: one container is all it has. */
+        public Change(String activityType, String resourceUri, boolean isContainer, String parent) {
+            this(activityType, resourceUri, isContainer, parent, null);
+        }
     }
 
     /**
      * Announce a change. Returns immediately; delivery happens off the request thread.
      *
-     * @param actor the WebID of the agent that made the change, or null — emitted only when
+     * @param actor the CID URL of the agent that made the change, or null — emitted only when
      *              {@code :LWSIncludeActor} is on (it discloses who touched the resource)
      */
     public void emit(String activityType, String resourceUri, boolean isContainer, String parent,
@@ -467,7 +500,7 @@ public final class Notifications {
     /**
      * The shared matcher: for each subscription, the activities it is both interested in (containment,
      * not URI prefix) AND authorized to read — judged against <em>this transaction's</em> state, with
-     * the subscriber's FULL context (not just the WebID), so a client-/issuer-/vc-scoped grant is
+     * the subscriber's FULL context (not just the CID URL), so a client-/issuer-/vc-scoped grant is
      * honoured at delivery exactly as interactively (M5) and a grant revoked since subscribe still
      * stops delivery (a subscription is not a capability). One envelope's worth of activities per
      * subscriber; a single change reproduces the previous behaviour, several is the batch filtered per
@@ -502,12 +535,13 @@ public final class Notifications {
             AcpEngine acp = new AcpEngine(store);
             List<JsonObject> activities = new ArrayList<>();
             for (Change c : changes) {
-                if (!covered(topics, c.resourceUri())) {
+                if (!covered(topics, c.resourceUri())
+                        && (c.origin() == null || !coveredContainer(topics, c.origin()))) {
                     continue;
                 }
                 if (!acp.allows(subscriber, c.resourceUri(), AccessMode.READ)) {
                     LOG.debug("suppressing notification about {} to {}: not readable",
-                            c.resourceUri(), subscriber.webId());
+                            c.resourceUri(), subscriber.cidUrl());
                     continue;
                 }
                 activities.add(activity(c, actor));
@@ -619,6 +653,20 @@ public final class Notifications {
         if (topics.contains(uri)) {
             return true;
         }
+        return ancestorIn(topics, uri);
+    }
+
+    /**
+     * Is a change in container {@code container} covered: the container itself is a topic, or an
+     * ancestor of it is. How a Move reaches the subscribers of the container it left, as well as
+     * those of the one it joined, whom {@link #covered} finds from where the resource is now.
+     */
+    private boolean coveredContainer(List<String> topics, String container) {
+        return topics.contains(container) || ancestorIn(topics, container);
+    }
+
+    /** Whether a container above {@code uri}, walking {@link LWSX#parent}, is one of {@code topics}. */
+    private boolean ancestorIn(List<String> topics, String uri) {
         Model sys = store.system();
         Resource cur = ResourceFactory.createResource(uri);
         for (int i = 0; i < 256; i++) {
@@ -647,7 +695,13 @@ public final class Notifications {
                 .add("type", Json.createArrayBuilder().add(c.activityType()))
                 .add("object", object)
                 .add("published", Instant.now().toString());
-        if (c.parent() != null) {
+        if (c.origin() != null) {
+            // A move: the container it was removed from, and the one it was added to (lws10-core,
+            // Activity Types: "The origin field indicates the container from which the resource
+            // was removed, and the target field indicates the container into which it was added").
+            activity.add("origin", c.origin());
+            activity.add("target", c.parent());
+        } else if (c.parent() != null) {
             // `target` for a create, `origin` for a delete: where it went, or came from.
             activity.add("Delete".equals(c.activityType()) ? "origin" : "target", c.parent());
         }
@@ -700,7 +754,7 @@ public final class Notifications {
         for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
             try {
                 long created = Instant.now().getEpochSecond();
-                var signed = HttpMessageSignatures.sign("POST", target,
+                var signed = HttpMessageSignatures.sign(cfg.storageRootUri(), "POST", target,
                         "application/lws+json", body, created);
 
                 HttpRequest req = HttpRequest.newBuilder(target)

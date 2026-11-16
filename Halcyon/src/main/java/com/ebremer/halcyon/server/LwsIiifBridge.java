@@ -25,10 +25,14 @@ import java.util.concurrent.ConcurrentHashMap;
  * ({@link #serve}).
  *
  * <p>Imaging without weakening H9 (the reader pool refuses {@code file:} identifiers because the IIIF
- * URL is attacker-controlled): each (resource, content path) pair gets an unguessable synthetic
+ * URL is attacker-controlled): each (resource, content path, entity tag) gets an unguessable synthetic
  * {@code urn:lws-iiif:} key, registered through the pool's trusted-source channel and used as the
  * engine-side identity. The key never leaves the server, so the public {@code /iiif} servlet cannot
- * name it; a replaced blob gets a fresh key, so tile and reader caches can never serve stale content.
+ * name it; different content gets a fresh key, so tile and reader caches can never serve stale content.
+ * The entity tag is a digest of the content, and it is what makes that hold on the disk mirror, whose
+ * content path is the URI: there a replaced file keeps its path, and a URI a resource was moved away
+ * from (w3c/lws-protocol#237) or deleted at can be taken by a new resource with the same path — which
+ * would otherwise be served the tiles cached for the one that left.
  */
 public final class LwsIiifBridge implements EndpointCapability {
 
@@ -36,7 +40,7 @@ public final class LwsIiifBridge implements EndpointCapability {
     private static final String IIIF_IMAGE_API = "http://iiif.io/api/image";
 
     private final ImageServer engine = new ImageServer();
-    /** (imageUri | content path) → the synthetic engine key registered for it. */
+    /** (imageUri | content path | entity tag) → the synthetic engine key registered for it. */
     private final ConcurrentHashMap<String, URI> keys = new ConcurrentHashMap<>();
 
     @Override
@@ -64,7 +68,8 @@ public final class LwsIiifBridge implements EndpointCapability {
     public void serve(CapabilityRequest cr) {
         String imageUri = cr.resource().uri();
         Path content = cr.content();
-        URI key = keys.computeIfAbsent(imageUri + "|" + content, k -> {
+        String identity = imageUri + "|" + content + "|" + cr.resource().etag();
+        URI key = keys.computeIfAbsent(identity, k -> {
             URI minted = URI.create("urn:lws-iiif:" + UUID.randomUUID());
             ImageReaderPoolFactory.registerTrustedSource(minted, content);
             return minted;

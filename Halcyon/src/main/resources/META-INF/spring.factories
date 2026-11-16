@@ -1,0 +1,4 @@
+# Spring Boot 4 still loads FailureAnalyzer from spring.factories; the
+# META-INF/spring/*.imports mechanism covers auto-configuration only.
+org.springframework.boot.diagnostics.FailureAnalyzer=\
+com.ebremer.halcyon.server.UnownedStorageFailureAnalyzer

@@ -5,7 +5,7 @@ import com.ebremer.halcyon.datum.HalcyonPrincipal;
 import com.ebremer.halcyon.gui.HalcyonSession;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import com.ebremer.halcyon.wicket.BasePage;
-import com.ebremer.ns.VG;
+import com.ebremer.vandegraph.ns.VG;
 import com.ebremer.vandegraph.VandegraphApplication;
 import com.ebremer.vandegraph.media.MediaBindings;
 import com.ebremer.vandegraph.media.MediaViewContext;
@@ -470,7 +470,7 @@ public class LWSContainers extends BasePage {
         }
     }
 
-    private static String currentWebId() {
+    private static String currentCidUrl() {
         HalcyonPrincipal hp = HalcyonSession.get().getHalcyonPrincipal();
         return hp == null || hp.isAnon() ? null : hp.getUserURI();
     }
@@ -613,7 +613,7 @@ public class LWSContainers extends BasePage {
         return new Entry(
                 o.getString("id", ""),
                 container,
-                o.getString("mediaType", ""),
+                com.ebremer.lws.json.LwsJson.formatOf(o),
                 o.containsKey("size") ? o.getJsonNumber("size").longValue() : null,
                 o.getString("modified", ""),
                 Set.copyOf(types));
@@ -1178,7 +1178,7 @@ public class LWSContainers extends BasePage {
                                     return switch (t) {
                                         case PUBLIC -> "Public (everyone)";
                                         case AUTHENTICATED -> "Any signed-in user";
-                                        case WEBID -> "WebID →";
+                                        case CID_URL -> "CID URL →";
                                     };
                                 }
 
@@ -1193,7 +1193,7 @@ public class LWSContainers extends BasePage {
                                     return id == null ? null : AcrDoc.AgentType.valueOf(id);
                                 }
                             }));
-                    item.add(new TextField<>("webid", new PropertyModel<>(row, "webid")));
+                    item.add(new TextField<>("cidUrl", new PropertyModel<>(row, "cidUrl")));
                     item.add(new CheckBox("read", new PropertyModel<>(row, "read")));
                     item.add(new CheckBox("write", new PropertyModel<>(row, "write")));
                     item.add(new CheckBox("append", new PropertyModel<>(row, "append")));
@@ -1328,9 +1328,9 @@ public class LWSContainers extends BasePage {
 
             Form<Void> form = new Form<>("form");
             add(form);
-            // The markup nests "webid" inside <form wicket:id="form">, so it must be added to the
+            // The markup nests "cidUrl" inside <form wicket:id="form">, so it must be added to the
             // form, not the panel (Wicket matches the component tree to the markup tree exactly).
-            form.add(new Label("webid", String.valueOf(currentWebId())));
+            form.add(new Label("cidUrl", String.valueOf(currentCidUrl())));
             form.add(new CheckBox("read", new PropertyModel<>(this, "read")));
             form.add(new CheckBox("modify", new PropertyModel<>(this, "modify")));
             form.add(new CheckBox("create", new PropertyModel<>(this, "create")));
@@ -1348,10 +1348,10 @@ public class LWSContainers extends BasePage {
         }
 
         private void submit() {
-            String webid = currentWebId();
+            String cidUrl = currentCidUrl();
             String endpoint = accessRequestsEndpoint();
-            if (webid == null || endpoint == null) {
-                message = "No signed-in WebID or no Data Sharing Service for this storage.";
+            if (cidUrl == null || endpoint == null) {
+                message = "No signed-in CID URL or no Data Sharing Service for this storage.";
                 return;
             }
             var actions = Json.createArrayBuilder();
@@ -1369,7 +1369,7 @@ public class LWSContainers extends BasePage {
                     .add("type", "AccessRequest")
                     .add("access", Json.createArrayBuilder().add(Json.createObjectBuilder()
                             .add("action", actions)
-                            .add("assignee", webid)
+                            .add("assignee", cidUrl)
                             .add("target", Json.createObjectBuilder()
                                     .add("value", Json.createArrayBuilder().add(uri)))))
                     .build();
@@ -1384,8 +1384,8 @@ public class LWSContainers extends BasePage {
 
     /**
      * The context menu's "Delete…": states plainly what will be destroyed, then
-     * issues the LWS {@code DELETE}. The entity tag is read first because the
-     * storage answers 428 to an unconditional delete, and a container goes with
+     * issues the LWS {@code DELETE}. The entity tag is read first and sent as
+     * {@code If-Match}, so a resource that changed meanwhile is a 412, and a container goes with
      * {@code Depth: infinity} — without it a non-empty container is a 409.
      * Whether the user <em>may</em> delete is the storage's ACP decision alone;
      * a refusal is rendered verbatim. The storage root gets no button at all —
@@ -1426,9 +1426,8 @@ public class LWSContainers extends BasePage {
 
         private void doDelete(AjaxRequestTarget target) {
             LwsClient c = client();
-            // The storage answers 428 to an unconditional delete, so the entity
-            // tag is read first — its protection against destroying what changed
-            // underneath this dialog.
+            // The entity tag is read first and sent as If-Match — the protection
+            // against destroying what changed underneath this dialog.
             LwsClient.Result r = c.delete(uri, c.etag(uri), container);
             if (r.ok()) {
                 modal.setVisible(false);

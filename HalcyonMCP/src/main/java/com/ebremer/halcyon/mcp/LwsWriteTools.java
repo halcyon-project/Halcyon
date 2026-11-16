@@ -18,8 +18,7 @@ import org.springframework.ai.tool.annotation.ToolParam;
  *   <li><strong>Replace</strong> an existing resource: the entity tag is read
  *       first ({@code HEAD}) and the {@code PUT} carries it as {@code If-Match}
  *       — a genuine compare-and-swap. If the resource changed underneath,
- *       the storage answers 412 (or 428 for an unconditional write); either
- *       is surfaced verbatim, never retried blind. This is the case that can
+ *       the storage answers 412, surfaced verbatim, never retried blind. This is the case that can
  *       lose data, so it is the case that is protected.</li>
  *   <li><strong>Create</strong> a resource that does not exist: a {@code POST}
  *       to the parent container with the target's name as {@code Slug} — the

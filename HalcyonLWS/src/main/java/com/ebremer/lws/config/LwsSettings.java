@@ -64,7 +64,16 @@ public final class LwsSettings {
     private final boolean includeActor;
     private final boolean batchNotifications;
     private final boolean setLinkset;
+    private final boolean authorizationServerEnabled;
+    private final long accessTokenLifetimeSeconds;
+    private final boolean acceptAuthenticationCredentials;
+    private final boolean legacyChallenge;
     private final String userDataStoragePath;
+    private final java.util.Set<com.ebremer.lws.store.ResourceType> moveAppliesTo;
+    private final java.util.Map<String, java.util.Set<com.ebremer.lws.store.ResourceType>>
+            moveAppliesToByStorage;
+    private volatile com.ebremer.lws.auth.oidc.TrustPolicy issuerPolicy;
+    private volatile com.ebremer.lws.auth.oidc.TrustPolicy cidHostPolicy;
 
     private LwsSettings() {
         Model m = load();
@@ -74,7 +83,17 @@ public final class LwsSettings {
         this.includeActor = readBoolean(m, "LWSIncludeActor", false);
         this.batchNotifications = readBoolean(m, "LWSBatchNotifications", false);
         this.setLinkset = readBoolean(m, "LWSSetLinkset", false);
+        this.authorizationServerEnabled = readBoolean(m, "LWSAuthorizationServer", true);
+        this.accessTokenLifetimeSeconds = readLong(m, "LWSAccessTokenLifetime", 300L);
+        this.acceptAuthenticationCredentials =
+                readBoolean(m, "LWSAcceptAuthenticationCredentials", true);
+        this.legacyChallenge = readBoolean(m, "LWSLegacyChallenge", true);
         this.userDataStoragePath = readString(m, "LWSUserDataStorage");
+        this.moveAppliesTo = readMoveAppliesTo(m);
+        this.moveAppliesToByStorage = readMoveAppliesToByStorage(m);
+        this.issuerPolicy = com.ebremer.lws.auth.oidc.TrustPolicy.forIssuers(
+                readAll(m, "AllowedIssuer"), readAll(m, "DeniedIssuer"));
+        this.cidHostPolicy = cidHostPolicy(m);
     }
 
     public static synchronized LwsSettings get() {
@@ -82,6 +101,90 @@ public final class LwsSettings {
             instance = new LwsSettings();
         }
         return instance;
+    }
+
+    /**
+     * Re-read the trust policies from {@code settings.ttl} without restarting.
+     *
+     * <p>Deliberately narrow. Reloading the WHOLE settings file at runtime is not safe — the store
+     * location and the storage mounts are bound into live objects at startup, and swapping them
+     * under a running server is a different and much larger problem. The trust policies are the one
+     * part that must be revocable at speed: when an identity provider turns out to be hostile, the
+     * answer cannot be "schedule a restart". So only these two fields are swapped, and they are
+     * volatile for that reason.
+     *
+     * <p>A malformed entry throws and leaves the previous policy in place, because a typo during an
+     * incident must not silently widen access — the same reason {@link
+     * com.ebremer.lws.auth.oidc.TrustPolicy} refuses an unreadable entry at startup rather than
+     * dropping it.
+     *
+     * @return a short description of what is now in force, for logging back to the operator
+     */
+    public synchronized String reloadTrustPolicies() {
+        Model m = load();
+        var issuers = com.ebremer.lws.auth.oidc.TrustPolicy.forIssuers(
+                readAll(m, "AllowedIssuer"), readAll(m, "DeniedIssuer"));
+        var hosts = cidHostPolicy(m);
+        // Both parsed: swap together, so a half-applied policy is never observable.
+        this.issuerPolicy = issuers;
+        this.cidHostPolicy = hosts;
+        String desc = "issuers=" + issuers + ", cidHosts=" + hosts;
+        LOG.info("trust policies reloaded from {}: {}", SETTINGS_FILE, desc);
+        return desc;
+    }
+
+    /**
+     * Which OpenID Providers may vouch for a user, from {@code :AllowedIssuer} and
+     * {@code :DeniedIssuer}.
+     *
+     * <p>Entries are whole issuer URIs ({@code https://id.example.org/auth/realms/Halcyon}), not
+     * hosts. OpenID Connect requires the {@code iss} claim to equal the issuer identifier exactly,
+     * and on a multi-tenant identity server two realms on one host are different trust domains, so
+     * a host-level list would read as a restriction while imposing almost none.
+     *
+     * <p>This is what gives {@code acp:AuthenticatedAgent} a defensible meaning. The CID URL login
+     * takes the provider from the caller's OWN CID document, so without a policy here
+     * "authenticated" means "anyone who can host a CID document and run an OP" — which is correct
+     * for open federation and useless as a trust tier. Naming the providers you accept turns the
+     * middle tier into "someone an identity provider I named vouches for".
+     *
+     * <p>Unset means allow all, so this changes nothing until it is configured.
+     */
+    public com.ebremer.lws.auth.oidc.TrustPolicy issuerPolicy() {
+        return issuerPolicy;
+    }
+
+    /**
+     * Which hosts may serve a CID document, from {@code :AllowedCidHost} and {@code :DeniedCidHost}.
+     *
+     * <p>Separate from {@link #issuerPolicy()} and usually not needed: the provider is the trust
+     * anchor, since it is what signs the token, and a provider you trust will not vouch for a CID URL
+     * it does not control. Constrain this as well when the deployment also wants the identifiers
+     * themselves to live somewhere it recognises. Unset means allow all.
+     */
+    public com.ebremer.lws.auth.oidc.TrustPolicy cidHostPolicy() {
+        return cidHostPolicy;
+    }
+
+    /**
+     * The CID host policy in {@code m}. The deprecated names {@code :AllowedWebIdHost} and
+     * {@code :DeniedWebIdHost} still count, added to the new ones, so a settings file written before
+     * the rename neither loosens nor tightens.
+     */
+    static com.ebremer.lws.auth.oidc.TrustPolicy cidHostPolicy(Model m) {
+        return com.ebremer.lws.auth.oidc.TrustPolicy.forHosts(
+                readAliased(m, "AllowedCidHost", "AllowedWebIdHost"),
+                readAliased(m, "DeniedCidHost", "DeniedWebIdHost"));
+    }
+
+    private static java.util.List<String> readAliased(Model m, String localName, String deprecated) {
+        java.util.List<String> out = new java.util.ArrayList<>(readAll(m, localName));
+        java.util.List<String> old = readAll(m, deprecated);
+        if (!old.isEmpty()) {
+            LOG.warn("{}: :{} is deprecated; rename it to :{}", SETTINGS_FILE, deprecated, localName);
+            out.addAll(old);
+        }
+        return out;
     }
 
     /** The configured storages, in declaration order. Possibly empty. */
@@ -95,7 +198,7 @@ public final class LwsSettings {
     }
 
     /**
-     * WebID of the storage controller, from {@code :LWSOwner}.
+     * CID URL of the storage controller, from {@code :LWSOwner}.
      *
      * <p>Null when unset, in which case the bootstrap policy grants full control to
      * any <em>authenticated</em> agent instead. That is a deliberate development
@@ -111,7 +214,7 @@ public final class LwsSettings {
     /**
      * Whether a notification includes the {@code actor} — the agent that made the change.
      *
-     * <p>From {@code :LWSIncludeActor}, default {@code false}. lws10-notifications says the
+     * <p>From {@code :LWSIncludeActor}, default {@code false}. lws10-core says the
      * {@code actor} "SHOULD be omitted by default" (it discloses who touched a resource) but a
      * server "MAY make its inclusion configurable"; this is that switch. See
      * {@link com.ebremer.lws.notify.Notifications}.
@@ -123,7 +226,7 @@ public final class LwsSettings {
     /**
      * Whether a bulk operation delivers its activities as one batched envelope.
      *
-     * <p>From {@code :LWSBatchNotifications}, default {@code false}. lws10-notifications lets a
+     * <p>From {@code :LWSBatchNotifications}, default {@code false}. lws10-core lets a
      * server "combine multiple activities into a single notification envelope by providing an array
      * of activity objects" (a MAY). When off, a recursive delete notifies only about the container
      * itself, as before; when on, it notifies about the whole removed subtree in one envelope per
@@ -144,6 +247,83 @@ public final class LwsSettings {
      */
     public boolean setLinkset() {
         return setLinkset;
+    }
+
+    /**
+     * Which kinds of resource a client may move between containers in {@code cfg}'s storage, by
+     * changing the {@code up} link in their linkset (lws10-core, Moving Resources,
+     * w3c/lws-protocol#237). Empty means moving is off: the storage describes no
+     * {@code MoveResource} capability and refuses a changed {@code up} as server-managed.
+     *
+     * <p>From {@code :LWSMoveAppliesTo}, whose values are {@code "DataResource"} and
+     * {@code "Container"} (as separate literals, or in one literal separated by commas or spaces),
+     * defaulting to both. An empty value (or {@code "none"}) turns moving off. Set on the settings
+     * node it applies to every storage; set on a {@code :hasLWSStorage} node it applies to that
+     * storage alone and wins over the other. The draft asks a server to describe the capability
+     * "only where their deployment requires it" and to restrict {@code appliesTo} "to the resource
+     * types they need to support", which is what the per-storage form is for: a mirror storage, where
+     * a move renames files on disk, can be left out while a flat one moves freely.
+     */
+    public java.util.Set<com.ebremer.lws.store.ResourceType> moveAppliesTo(LwsStorageConfig cfg) {
+        return moveAppliesToByStorage.getOrDefault(cfg.urlPath(), moveAppliesTo);
+    }
+
+    /**
+     * Whether this instance runs the embedded LWS authorization server.
+     *
+     * <p>From {@code :LWSAuthorizationServer}, default {@code true}. lws10-core makes an OAuth 2.0
+     * authorization server the baseline mechanism for obtaining an access token, so a conforming
+     * deployment needs one; the switch exists for a deployment that puts a <em>separate</em>
+     * authorization server in front of these storages, where a second one answering on the same
+     * origin would only confuse discovery.
+     *
+     * <p>It has no effect when no storage is mounted: there would be nothing to issue tokens for.
+     */
+    public boolean authorizationServerEnabled() {
+        return authorizationServerEnabled;
+    }
+
+    /**
+     * How long an issued access token lives, in seconds.
+     *
+     * <p>From {@code :LWSAccessTokenLifetime}, default 300 — lws10-core's RECOMMENDED ceiling
+     * ("Authorization servers SHOULD issue tokens with short lifetimes … to limit exposure from
+     * token theft"). A token never outlives the credential it was exchanged for regardless of this
+     * value.
+     */
+    public long accessTokenLifetimeSeconds() {
+        return accessTokenLifetimeSeconds;
+    }
+
+    /**
+     * Whether a storage still accepts a bare authentication credential (an ID Token, a Keycloak
+     * access token) presented directly as a bearer token, alongside an exchanged access token.
+     *
+     * <p>From {@code :LWSAcceptAuthenticationCredentials}, default {@code true}. lws10-core permits
+     * it — "a server MAY support additional authorization mechanisms beyond this baseline" — and the
+     * default is on because turning it off invalidates every credential existing clients of this
+     * deployment hold. Turning it off is what makes an exchanged token's audience confinement
+     * actually bite: while a credential is accepted directly, a client can skip the exchange, and so
+     * can anyone who captures that credential.
+     */
+    public boolean acceptAuthenticationCredentials() {
+        return acceptAuthenticationCredentials;
+    }
+
+    /**
+     * Whether a storage's {@code 401} challenge still carries {@code as_uri} and {@code realm} after
+     * {@code resource_metadata}.
+     *
+     * <p>From {@code :LWSLegacyChallenge}, default {@code true}. Since the drafts of 19 October 2026
+     * (w3c/lws-protocol#256) a conforming challenge names the requested resource's protected resource
+     * metadata (RFC 9728), which names the authorization server, and the two parameters the earlier
+     * drafts required are no longer mentioned. lws10-core still lets a challenge carry other
+     * parameters, so they stay by default for clients written against those drafts, which read the
+     * authorization server from {@code as_uri}; turning this off sends the challenge the current
+     * draft describes and nothing else.
+     */
+    public boolean legacyChallenge() {
+        return legacyChallenge;
     }
 
     /**
@@ -185,6 +365,31 @@ public final class LwsSettings {
         return null;
     }
 
+    private static long readLong(Model m, String localName, long dflt) {
+        ParameterizedSparqlString pss = new ParameterizedSparqlString(
+                "select ?v where { ?s :" + localName + " ?v }");
+        pss.setNsPrefix("", HAL.NS);
+        try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m)) {
+            ResultSet rs = qe.execSelect();
+            if (rs.hasNext()) {
+                var n = rs.next().get("v");
+                if (n != null && n.isLiteral()) {
+                    try {
+                        return n.asLiteral().getLong();
+                    } catch (RuntimeException e) {
+                        try {
+                            return Long.parseLong(n.asLiteral().getString().trim());
+                        } catch (NumberFormatException nfe) {
+                            LOG.warn(":{} is not a number; using {}", localName, dflt);
+                            return dflt;
+                        }
+                    }
+                }
+            }
+        }
+        return dflt;
+    }
+
     private static boolean readBoolean(Model m, String localName, boolean dflt) {
         ParameterizedSparqlString pss = new ParameterizedSparqlString(
                 "select ?v where { ?s :" + localName + " ?v }");
@@ -203,6 +408,115 @@ public final class LwsSettings {
             }
         }
         return dflt;
+    }
+
+    /** Every value of a repeatable settings property, in declaration order. */
+    private static java.util.List<String> readAll(Model m, String localName) {
+        ParameterizedSparqlString pss = new ParameterizedSparqlString(
+                "select ?o where { ?s :" + localName + " ?o }");
+        pss.setNsPrefix("", HAL.NS);
+        java.util.List<String> out = new java.util.ArrayList<>();
+        try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m)) {
+            ResultSet rs = qe.execSelect();
+            while (rs.hasNext()) {
+                var n = rs.next().get("o");
+                if (n == null) {
+                    continue;
+                }
+                out.add(n.isURIResource() ? n.asResource().getURI() : n.asLiteral().getString());
+            }
+        }
+        return out;
+    }
+
+    /** Both kinds: what {@code :LWSMoveAppliesTo} means when it is not set at all. */
+    private static final java.util.Set<com.ebremer.lws.store.ResourceType> MOVE_BOTH =
+            java.util.Collections.unmodifiableSet(java.util.EnumSet.allOf(
+                    com.ebremer.lws.store.ResourceType.class));
+
+    /** {@code :LWSMoveAppliesTo} on the settings node, i.e. on any subject that is not a storage. */
+    private static java.util.Set<com.ebremer.lws.store.ResourceType> readMoveAppliesTo(Model m) {
+        ParameterizedSparqlString pss = new ParameterizedSparqlString("""
+            select ?v where {
+                ?s :LWSMoveAppliesTo ?v
+                filter not exists { ?x :hasLWSStorage ?s }
+            }
+            """);
+        pss.setNsPrefix("", HAL.NS);
+        List<String> values = new ArrayList<>();
+        try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m)) {
+            ResultSet rs = qe.execSelect();
+            while (rs.hasNext()) {
+                values.add(lexical(rs.next().get("v")));
+            }
+        }
+        return values.isEmpty() ? MOVE_BOTH : parseMoveAppliesTo(values, "the settings node");
+    }
+
+    /** {@code :LWSMoveAppliesTo} on each {@code :hasLWSStorage} node, keyed by its url path. */
+    private static java.util.Map<String, java.util.Set<com.ebremer.lws.store.ResourceType>>
+            readMoveAppliesToByStorage(Model m) {
+        ParameterizedSparqlString pss = new ParameterizedSparqlString("""
+            select ?urlPath ?v where {
+                ?s :hasLWSStorage ?st .
+                ?st :urlPath ?urlPath ; :LWSMoveAppliesTo ?v
+            }
+            """);
+        pss.setNsPrefix("", HAL.NS);
+        java.util.Map<String, List<String>> values = new java.util.LinkedHashMap<>();
+        try (QueryExecution qe = QueryExecutionFactory.create(pss.toString(), m)) {
+            ResultSet rs = qe.execSelect();
+            while (rs.hasNext()) {
+                QuerySolution sol = rs.next();
+                String path = sol.getLiteral("urlPath").getString();
+                // Normalised as LwsStorageConfig normalises it, so the lookup by cfg.urlPath() finds it.
+                while (path.length() > 1 && path.endsWith("/")) {
+                    path = path.substring(0, path.length() - 1);
+                }
+                values.computeIfAbsent(path, k -> new ArrayList<>()).add(lexical(sol.get("v")));
+            }
+        }
+        java.util.Map<String, java.util.Set<com.ebremer.lws.store.ResourceType>> out =
+                new java.util.HashMap<>();
+        values.forEach((path, v) -> out.put(path, parseMoveAppliesTo(v, "storage " + path)));
+        return java.util.Map.copyOf(out);
+    }
+
+    private static String lexical(org.apache.jena.rdf.model.RDFNode n) {
+        if (n == null) {
+            return "";
+        }
+        return n.isLiteral() ? n.asLiteral().getString() : n.isURIResource() ? n.asResource().getURI() : "";
+    }
+
+    /**
+     * The resource kinds named by {@code :LWSMoveAppliesTo}'s values: {@code DataResource} and
+     * {@code Container}, as the terms or as their IRIs, any number to a literal. Anything else is
+     * logged and ignored, so a typo narrows what moves rather than widening it; values that name
+     * nothing at all (an empty literal, {@code "none"}) turn moving off.
+     */
+    static java.util.Set<com.ebremer.lws.store.ResourceType> parseMoveAppliesTo(List<String> values,
+            String where) {
+        java.util.EnumSet<com.ebremer.lws.store.ResourceType> out =
+                java.util.EnumSet.noneOf(com.ebremer.lws.store.ResourceType.class);
+        for (String value : values) {
+            for (String token : value.split("[,\\s]+")) {
+                String t = token.trim();
+                if (t.startsWith(com.ebremer.lws.vocab.LWS.NS)) {
+                    t = t.substring(com.ebremer.lws.vocab.LWS.NS.length());
+                }
+                switch (t) {
+                    case "", "none" -> {
+                        // names nothing
+                    }
+                    case "DataResource" -> out.add(com.ebremer.lws.store.ResourceType.DATA_RESOURCE);
+                    case "Container" -> out.add(com.ebremer.lws.store.ResourceType.CONTAINER);
+                    default -> LOG.warn(":LWSMoveAppliesTo on {} names '{}', which is neither "
+                            + "DataResource nor Container; ignored", where, t);
+                }
+            }
+        }
+        return java.util.Collections.unmodifiableSet(out);
     }
 
     private static String readOwner(Model m) {
