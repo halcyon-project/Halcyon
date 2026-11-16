@@ -6,17 +6,17 @@ name: ci
 # develop indefinitely. That is exactly how the JDK-21-vs-`--release 25` breakage
 # (H15) survived: no build ever ran to notice it.
 #
-# `next` is listed because it is where development actually lands: master was 127
-# commits behind it, so every branch this workflow watched was dormant. The gap was
-# not theoretical — BeakGraphQueryCapabilityTest kept calling the 13-argument
-# LwsResource constructor after the record gained a 14th component (sha256), and
-# that testCompile failure sat on next unnoticed because no workflow built it.
+# Development lands on master. `next` and `develop` were listed too while work
+# landed there (master once trailed next by 127 commits, and a testCompile failure,
+# BeakGraphQueryCapabilityTest calling the 13-argument LwsResource constructor after
+# the record gained a 14th component, sat on next unnoticed because no workflow
+# built it); both were merged into master and deleted on 2026-11-16.
 # Any branch developers push to belongs in both lists below.
 on:
   push:
-    branches: [ master, next, develop ]
+    branches: [ master ]
   pull_request:
-    branches: [ master, next, develop ]
+    branches: [ master ]
   workflow_dispatch:
 
 concurrency:
