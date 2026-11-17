@@ -3,6 +3,11 @@ import { pickActiveLayer as getMousePosition, addAnnotation, removeAnnotation } 
 import { getColorAndType } from "../helpers/colorPalette.js";
 import { createAnnotationLine } from "../helpers/annotationShapes.js";
 import { pushCommand, commandCreate } from "../helpers/history.js";
+import { invalidate } from "../renderLoop.js";
+
+// One unit circle serves every stamp of every stroke (scaled to the brush
+// radius per stamp). Never disposed.
+const _stampGeometry = new THREE.CircleGeometry(1, 32);
 
 /**
  * Brush-outline tool: stamps circles along the stroke, unions them with JSTS
@@ -16,6 +21,7 @@ export function hollowBrush(manager) {
   let pointerActive = false;
   let circles = []; // Array to store circle data for JSTS union
   let lastBrushPoint = null; // last stamped circle centre (for decimation)
+  let strokeMaterial = null; // shared by the stamps of the stroke in progress
   const canvas = renderer.domElement;
   let color = "#0000ff"; // Default color
   let type = "";
@@ -102,6 +108,15 @@ export function hollowBrush(manager) {
     pointerActive = true;
     lastBrushPoint = null;
     brushShapeGroup = new THREE.Group();
+    // The stroke in progress. Drawn like every finished annotation — no depth
+    // test, on top — because the stamps lie in the image's own plane, and the
+    // image tiles are depth-biased toward the camera: depth-tested stamps lost
+    // to them and the stroke stayed invisible until release. Stamps overlap
+    // (quarter-radius steps), so the low per-stamp opacity builds up to a
+    // clearly tinted swath that still shows the tissue underneath.
+    strokeMaterial = new THREE.MeshBasicMaterial({
+      color, transparent: true, opacity: 0.15, depthTest: false, depthWrite: false, side: THREE.DoubleSide
+    });
     addAnnotation(scene, brushShapeGroup);
     stamp(event.clientX, event.clientY);
   }
@@ -122,11 +137,12 @@ export function hollowBrush(manager) {
     if (lastBrushPoint && lastBrushPoint.distanceTo(point) < brushSize * 0.25) return;
     lastBrushPoint = point.clone();
 
-    const brushGeometry = new THREE.CircleGeometry(brushSize, 32);
-    const brushMaterial = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.1 });
-    const brushCircle = new THREE.Mesh(brushGeometry, brushMaterial);
+    const brushCircle = new THREE.Mesh(_stampGeometry, strokeMaterial);
+    brushCircle.scale.set(brushSize, brushSize, 1);
     brushCircle.position.set(point.x, point.y, 0);
+    brushCircle.renderOrder = 998; // just under finished annotations (999)
     brushShapeGroup.add(brushCircle);
+    invalidate();
 
     // Store the center point and radius of each drawn circle in a way that JSTS can use to calculate unions
     circles.push({ center: { x: point.x, y: point.y }, radius: brushSize });
@@ -151,11 +167,11 @@ export function hollowBrush(manager) {
   function clearStroke() {
     circles = [];
     // Remove all circles from the scene and dispose of their resources
-    while (brushShapeGroup.children.length > 0) {
-      let child = brushShapeGroup.children[0];
-      if (child.geometry) child.geometry.dispose();
-      if (child.material) child.material.dispose();
-      brushShapeGroup.remove(child);
+    // (the stamps share _stampGeometry, which is kept, and one material)
+    brushShapeGroup.clear();
+    if (strokeMaterial) {
+      strokeMaterial.dispose();
+      strokeMaterial = null;
     }
     removeAnnotation(scene, brushShapeGroup);
   }
