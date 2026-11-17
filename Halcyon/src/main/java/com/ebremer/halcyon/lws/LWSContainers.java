@@ -840,7 +840,10 @@ public class LWSContainers extends BasePage {
             select.setVisible(!isContainer);
             add(select);
 
-            ExternalLink open = new ExternalLink("open", node.uri());
+            // Through /lwsopen (as the signed-in user); the storage URI itself answers a
+            // browser tab 401 for anything not public.
+            ExternalLink open = new ExternalLink("open",
+                    com.ebremer.halcyon.server.LwsOpenServlet.href(node.uri()));
             open.setVisible(!isContainer);
             add(open);
 
@@ -959,7 +962,8 @@ public class LWSContainers extends BasePage {
                 meta += (meta.isEmpty() ? "" : " · ") + human(e.size());
             }
             add(new Label("vmedia", meta).setVisible(has && !meta.isEmpty()));
-            add(new ExternalLink("vopen", has ? selectedUri : "about:blank").setVisible(has));
+            add(new ExternalLink("vopen", has
+                    ? com.ebremer.halcyon.server.LwsOpenServlet.href(selectedUri) : "about:blank").setVisible(has));
             // ⛶ Full screen — pure client-side (see renderHead); its label and
             // the in-fullscreen sizing ride on the wrapper's :fullscreen state.
             add(new WebMarkupContainer("vfull").setVisible(has));

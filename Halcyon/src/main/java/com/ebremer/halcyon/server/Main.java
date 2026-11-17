@@ -131,6 +131,19 @@ public class Main {
         return srb;
     }
 
+    // /lwsopen: opens a storage resource in a browser tab as the signed-in user
+    // (a tab pointed at the storage URI itself carries no bearer token: 401).
+    @Lazy(true)
+    @Bean
+    ServletRegistrationBean LwsOpenServletRegistration() {
+        ServletRegistrationBean srb = new ServletRegistrationBean();
+        srb.setLoadOnStartup(3);
+        srb.setOrder(Ordered.HIGHEST_PRECEDENCE + 9);
+        srb.setServlet(new LwsOpenServlet());
+        srb.setUrlMappings(Arrays.asList(LwsOpenServlet.PATH));
+        return srb;
+    }
+
     // /colorclasses: the Zephyr palette's session-authenticated relay to the
     // user's LWS color-classes resource (with lazy migration off the old store).
     @Lazy(true)

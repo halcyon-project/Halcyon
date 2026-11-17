@@ -68,6 +68,8 @@ public class URLControl {
             "/savestack",
             // Zephyr's annotation-layer relay servlet (session-authenticated).
             "/annotationlayer",
+            // The storage browsers' open-in-a-tab relay servlet.
+            LwsOpenServlet.PATH,
             "/invalidateSession",
             "/callback",
             "/h2",

@@ -512,7 +512,10 @@ public class StoragePage extends BasePage {
                 open.setVisible(row.isContainer());
                 cf.add(open);
 
-                ExternalLink raw = new ExternalLink("raw", row.getId(), shorten(row.getId()));
+                // Through /lwsopen, not the storage URI itself: a tab pointed at the storage
+                // carries no bearer token, so anything not public answered 401.
+                ExternalLink raw = new ExternalLink("raw",
+                        com.ebremer.halcyon.server.LwsOpenServlet.href(row.getId()), shorten(row.getId()));
                 raw.setVisible(!row.isContainer());
                 cf.add(raw);
                 cell.add(cf);
