@@ -112,10 +112,10 @@ export function hollowBrush(manager) {
     // test, on top — because the stamps lie in the image's own plane, and the
     // image tiles are depth-biased toward the camera: depth-tested stamps lost
     // to them and the stroke stayed invisible until release. Stamps overlap
-    // (quarter-radius steps), so the low per-stamp opacity builds up to a
+    // (quarter-radius steps), so the per-stamp opacity builds up to a
     // clearly tinted swath that still shows the tissue underneath.
     strokeMaterial = new THREE.MeshBasicMaterial({
-      color, transparent: true, opacity: 0.15, depthTest: false, depthWrite: false, side: THREE.DoubleSide
+      color, transparent: true, opacity: 0.3, depthTest: false, depthWrite: false, side: THREE.DoubleSide
     });
     addAnnotation(scene, brushShapeGroup);
     stamp(event.clientX, event.clientY);
