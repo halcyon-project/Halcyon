@@ -66,6 +66,8 @@ public class URLControl {
             "/lws/",
             "/HalcyonStorage",
             "/savestack",
+            // Zephyr's annotation-layer relay servlet (session-authenticated).
+            "/annotationlayer",
             "/invalidateSession",
             "/callback",
             "/h2",

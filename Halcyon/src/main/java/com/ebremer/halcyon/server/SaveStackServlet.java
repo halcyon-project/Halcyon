@@ -155,6 +155,12 @@ public class SaveStackServlet extends HttpServlet {
             }
             String slug = graph.substring(graph.lastIndexOf('/') + 1);
             r = client.post(container, slug, "text/turtle", bytes, false);
+            if (r.status() == 404 && cfg.naming() == com.ebremer.lws.config.NamingPolicyType.SLUG) {
+                // The container is not there yet — a user's first stack in their own area
+                // (StackHome). The path-mirroring storage creates on PUT, with any missing
+                // containers above the target, and the URI is the one the stack was built for.
+                r = client.put(graph, "text/turtle", bytes, null);
+            }
             if (r.ok() && r.location() != null && !graph.equals(r.location())) {
                 // The flat storage honors slugs best-effort; a collision would
                 // strand a document whose root subject is not its URI.

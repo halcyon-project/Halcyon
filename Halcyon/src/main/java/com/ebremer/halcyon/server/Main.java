@@ -118,6 +118,19 @@ public class Main {
         return srb;
     }
 
+    // /annotationlayer: Zephyr's session-authenticated relay to an annotation
+    // layer's JSON file in an LWS storage (the browser has no bearer token).
+    @Lazy(true)
+    @Bean
+    ServletRegistrationBean AnnotationLayerServletRegistration() {
+        ServletRegistrationBean srb = new ServletRegistrationBean();
+        srb.setLoadOnStartup(3);
+        srb.setOrder(Ordered.HIGHEST_PRECEDENCE + 7);
+        srb.setServlet(new AnnotationLayerServlet());
+        srb.setUrlMappings(Arrays.asList("/annotationlayer"));
+        return srb;
+    }
+
     // /colorclasses: the Zephyr palette's session-authenticated relay to the
     // user's LWS color-classes resource (with lazy migration off the old store).
     @Lazy(true)

@@ -51,11 +51,23 @@ export function save(scene) {
 }
 
 /**
+ * The server's relay for an annotation layer's file (GET reads it, PUT saves
+ * it). The file lives in an LWS storage, which takes bearer tokens only — and
+ * the page has none, by design — so a direct fetch of `url` answers 401. The
+ * relay makes the request with the signed-in session's own token.
+ */
+function layerEndpoint(url, container) {
+    const params = new URLSearchParams({ uri: url });
+    if (container) params.set('container', container);
+    return `/annotationlayer?${params}`;
+}
+
+/**
  * Fetch a persisted annotation set by URL and build its shapes into a specific
  * target group — used to reload a stack's annotation layers on open.
  */
 export async function loadAnnotationSetInto(url, targetGroup) {
-    const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    const res = await fetch(layerEndpoint(url), { headers: { 'Accept': 'application/json' } });
     if (res.redirected) throw new Error('not signed in (redirected to sign-in)');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
@@ -136,36 +148,30 @@ export async function saveAllAnnotationLayers(registry) {
         const payload = collectAnnotations(e.object3d, imageId, w, h);
         if (!payload) continue; // empty layer — nothing to save
         let url = e.src;
-        const isNew = !url;
+        let container = null;
         if (!url) {
             // The saved stack Turtle references its annotation JSONs
             // RELATIVELY — a reader assumes they sit in the SAME container as
             // the stack file. So a new shape file is born beside the stack
             // when one is known (stackContainer, injected by Zephyr); only a
             // stack-less page falls back to the image's own container.
-            const container = cfg('stackContainer')
+            container = cfg('stackContainer')
                 || imageId.substring(0, imageId.lastIndexOf('/') + 1);
             url = `${container}${crypto.randomUUID()}.json`;
         }
         try {
-            const headers = { 'Content-Type': 'application/json' };
-            if (!isNew) {
-                // Replacing an existing file: the LWS storage refuses an
-                // unconditional overwrite (428 without If-Match), so carry the
-                // entity tag of what is being replaced. No ETag (legacy LDP)
-                // means no header — that path stays unconditional.
-                const head = await fetch(url, { method: 'HEAD' });
-                const etag = head.ok ? head.headers.get('ETag') : null;
-                if (etag) headers['If-Match'] = etag;
-            }
-            const res = await fetch(url, {
+            // Through the relay: it replaces an existing file conditionally
+            // (on its current entity tag) or creates a new one, and answers
+            // with the URI the file ended up at.
+            const res = await fetch(layerEndpoint(url, container), {
                 method: 'PUT',
-                headers,
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
             if (res.redirected) throw new Error('redirected to sign-in (not signed in)');
             if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-            e.src = url;
+            const saved = await res.json().catch(() => null);
+            e.src = (saved && saved.uri) || url;
             e.dirty = false;
         } catch (err) {
             console.error('Zephyr: failed to save annotation layer', e.name, err);

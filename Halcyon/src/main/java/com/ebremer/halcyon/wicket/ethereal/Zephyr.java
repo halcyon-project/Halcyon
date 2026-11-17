@@ -6,6 +6,7 @@ import com.ebremer.halcyon.datum.HalcyonPrincipal;
 import com.ebremer.halcyon.gui.HalcyonSession;
 import com.ebremer.lws.client.LwsClient;
 import com.ebremer.halcyon.server.SaveStackServlet;
+import com.ebremer.halcyon.server.StackHome;
 import com.ebremer.halcyon.server.utils.HalcyonSettings;
 import com.ebremer.halcyon.wicket.BasePage;
 import com.ebremer.halcyon.wicket.JsSafe;
@@ -151,7 +152,8 @@ public class Zephyr extends BasePage {
      * Mint an LWS-native stack URI for a stack seeded from an LWS image, or
      * {@code null} when the image is not an LWS resource. The stack goes in
      * the image's own container (discovered from the API's {@code rel="up"}
-     * link); in the flat storage the URI never nests, so the name hangs off
+     * link) — or, when that container cannot be written, in the user's own
+     * area ({@link StackHome}); in the flat storage the URI never nests, so the name hangs off
      * the base while the container is remembered for the create — stashed in
      * the HTTP session for {@link SaveStackServlet} to consume on first save.
      */
@@ -178,9 +180,26 @@ public class Zephyr extends BasePage {
         if (!parent.endsWith("/")) {
             parent = parent + "/";
         }
+        // Beside the image when that container can be written; otherwise (a storage laid over a
+        // read-only image archive) in the user's own area of the user-data storage. See StackHome.
+        LwsStorageConfig home = cfg;
+        if (!StackHome.writable(cfg, parent)) {
+            LwsStorageConfig userData = LwsSettings.get().userDataStorage();
+            String user = HalcyonSession.get().getUser();
+            if (userData != null && userData.naming() == NamingPolicyType.SLUG
+                    && user != null && !user.isBlank()) {
+                home = userData;
+                parent = StackHome.userContainer(userData, user);
+                logger.info("{} is read-only; the new stack for {} goes to {}",
+                        cfg.urlPath(), imageUri, parent);
+            } else {
+                logger.warn("{} is read-only and there is no user-data storage to hold a stack for {}",
+                        cfg.urlPath(), imageUri);
+            }
+        }
         String name = "stack-" + UUID.randomUUID().toString().substring(0, 8) + ".ttl";
-        String stackUri = cfg.naming() == NamingPolicyType.UUID
-                ? cfg.baseUri() + "/" + name
+        String stackUri = home.naming() == NamingPolicyType.UUID
+                ? home.baseUri() + "/" + name
                 : parent + name;
         stashPendingContainer(stackUri, parent);
         return new Minted(stackUri, parent);
