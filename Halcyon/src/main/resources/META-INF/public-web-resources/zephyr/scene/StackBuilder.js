@@ -1,5 +1,5 @@
 import { Group, Box3, Vector3 } from 'three';
-import { makeImageViewer, disposeSubtree } from './imageLayer.js';
+import { makeImageViewer, disposeSubtree, imageBounds } from './imageLayer.js';
 import { LayerEntry, applyBlendMode } from './LayerRegistry.js';
 import { createAnnotationLayer, createImageAnnotationLayer } from '../helpers/annotationTarget.js';
 import { loadAnnotationSetInto } from '../helpers/save.js';
@@ -49,7 +49,12 @@ export function buildStack(store, rootSubject, renderer, registry, options = {})
     registry.views = readViews(store, rootSubject, zeph, so);
 
     const ready = Promise.all(promises).then(() => {});
-    const bounds = () => new Box3().setFromObject(group);
+    // The images' own extents; fall back to everything in the group when no
+    // image has loaded (e.g. every layer failed).
+    const bounds = () => {
+        const box = imageBounds(group);
+        return box.isEmpty() ? new Box3().setFromObject(group) : box;
+    };
     return { group, ready, bounds };
 }
 

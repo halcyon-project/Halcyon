@@ -13,7 +13,8 @@ import {
     Frustum,
     Matrix4,
     Vector3,
-    Sphere
+    Sphere,
+    Box3
 } from 'three';
 
 import { tileLoader } from '../TileLoader.js';
@@ -134,6 +135,47 @@ function pow2Span(width, height, tilex) {
     let span = tilex;
     while (span < width || span < height) span *= 2;
     return span;
+}
+
+/**
+ * Fit a root node's tile pyramid to its image. The pyramid tiles a SQUARE of
+ * `span` pixels (pow2Span) whose top-left corner is the image's; the node's
+ * unit quad, though, stands for the image itself (width x height — what the
+ * layer's scale, annotations, feature lookup and camera framing all assume).
+ * Drawn 1:1 in that quad the square was squeezed into it, so the picture
+ * filled only width/span x height/span of its frame, pinned to the top-left
+ * corner and compressed differently on each axis. Scaling the pyramid by
+ * span/width, span/height and re-anchoring its top-left corner on the quad's
+ * makes the image fill the quad exactly; the overhang beyond the image edge
+ * lands outside it (and renders nothing). Identity (1, 1) for inner nodes.
+ */
+function fitToImage(object, fitX, fitY) {
+    object.scale.set(fitX, fitY, 1);
+    object.position.x = (fitX - 1) / 2;
+    object.position.y = -(fitY - 1) / 2;
+    object.updateMatrix();
+}
+
+/**
+ * World-space bounds of the image layers under `root`: each layer's unit quad
+ * (its image), NOT its tile meshes — a root tile covers the whole power-of-two
+ * square, which overhangs the image to the right and below, so Box3
+ * .setFromObject would report a box that is too big and off-centre.
+ */
+export function imageBounds(root, box = new Box3()) {
+    box.makeEmpty();
+    root.updateWorldMatrix(true, true);
+    const visit = (o) => {
+        if (o.isImageViewer) {
+            for (const [x, y] of [[-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5], [0.5, 0.5]]) {
+                box.expandByPoint(_center.set(x, y, 0).applyMatrix4(o.matrixWorld));
+            }
+            return; // the pyramid below is this same image
+        }
+        o.children.forEach(visit);
+    };
+    visit(root);
+    return box;
 }
 
 function tileURL(src, x, y, w, h, scale, hasAlpha) {
@@ -389,6 +431,10 @@ export class ImageViewer extends LOD {
         this.lowMesh = low;
         this.edistance = width / Math.pow(2, level); // initial guess; update() recomputes per frame
         this.addLevel(low, this.edistance);
+        // Root only: the pyramid's square -> this node's image-sized quad.
+        this.fitX = (level === 0) ? ts / width : 1;
+        this.fitY = (level === 0) ? ts / height : 1;
+        fitToImage(low, this.fitX, this.fitY);
 
         /**
          * Build the four child quadrants. Cheap since children fetch lazily;
@@ -487,6 +533,7 @@ export class ImageViewer extends LOD {
                 });
             }
             high.frustumCulled = true;
+            fitToImage(high, this.fitX, this.fitY);
             this.addLevel(high, 0); // the real switch distance lives on the low level
             this.high = high;
             this.childrenReady = false;
@@ -503,7 +550,9 @@ export class ImageViewer extends LOD {
         // so its world size is its matrixWorld scale; switch to children when
         // the tile's on-screen size (device px) would exceed its texel count.
         _scale.setFromMatrixScale(this.matrixWorld);
-        const worldSpan = Math.max(_scale.x, _scale.y);
+        // The tile spans the pyramid's square, which on the root is larger
+        // than the node's own (image-sized) quad by fitX, fitY.
+        const worldSpan = Math.max(_scale.x * this.fitX, _scale.y * this.fitY);
         let switchDist = this.edistance;
         if (camera.isPerspectiveCamera) {
             const viewportPx = (typeof window !== 'undefined')
@@ -670,7 +719,7 @@ export class ImageViewer extends LOD {
             // (#28), but only NEAR-VIEW children gate the hold-until-ready
             // switch — an off-screen ring tile that hasn't arrived must not
             // keep the parent underlay pinned.
-            _sphere.center.copy(child.position).applyMatrix4(this.matrixWorld);
+            _sphere.center.copy(child.position).applyMatrix4(this.high.matrix).applyMatrix4(this.matrixWorld);
             _sphere.radius = 0.9 * parentSpan; // child half-diagonal ~0.35 + ring
             if (_frustum.intersectsSphere(_sphere)) {
                 if (tile.state === 'pending') child.requestTile(camera);

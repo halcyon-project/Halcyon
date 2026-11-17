@@ -9,7 +9,7 @@ import {
     CanvasTexture
 } from 'three';
 
-import { makeImageViewer, Square, showViewerError } from './scene/imageLayer.js';
+import { makeImageViewer, Square, showViewerError, imageBounds } from './scene/imageLayer.js';
 import { buildStack } from './scene/StackBuilder.js';
 import { LayerRegistry, LayerEntry } from './scene/LayerRegistry.js';
 import { initLayerPanel } from './scene/LayerPanel.js';
@@ -71,7 +71,7 @@ export function CreateImageViewer(renderer, scene, url, offset = 0) {
             scene.add(lod);
             registry._emit('change');
             document.dispatchEvent(new CustomEvent('zephyr:stackready', {
-                detail: { registry, object: lod }
+                detail: { registry, object: lod, bounds: imageBounds(lod) }
             }));
             invalidate();
         })
