@@ -6,7 +6,9 @@ import com.ebremer.lws.config.LwsSettings;
 import com.ebremer.lws.oauth.AuthorizationServerSettings;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  *
@@ -53,6 +55,11 @@ public class URLControl {
     }
 
     public static String getWicketIgnores() {
+        return wicketIgnores(mountPaths());
+    }
+
+    /** {@link #getWicketIgnores()} for the given mount paths (each without a trailing slash). */
+    static String wicketIgnores(List<String> mounts) {
         String[] src = {
             "/users",
             "/ldp",
@@ -114,20 +121,55 @@ public class URLControl {
         // unparseable HTML. Append the configured paths so a settings change
         // (e.g. the historic /ldp -> /lws rename) cannot re-break this.
         List<String> ignores = new ArrayList<>(Arrays.asList(src));
-        HalcyonSettings.getSettings().GetResourceHandlers().forEach(rh -> {
-            if (!ignores.contains(rh.urlPath())) {
-                ignores.add(rh.urlPath());
-            }
-        });
-        // Same hazard, same fix, for the W3C Linked Web Storage mounts
-        // (:hasLWSStorage). These are served by the HalcyonLWS module and are
-        // unrelated to the resource handlers above, but the Wicket filter is
-        // mapped on /* and would claim them just the same.
-        LwsSettings.get().storages().forEach(st -> {
-            if (!ignores.contains(st.urlPath())) {
-                ignores.add(st.urlPath());
+        // Wicket matches an ignore entry as a plain string prefix, so a mount is listed as its
+        // tree ("/lws/"), never as the bare path: "/lws" would also swallow the Wicket page
+        // /lwscontainers (and anything else that merely starts with those characters), which
+        // then fell through to a 404. The bare path itself — the mount with no trailing slash —
+        // is kept from Wicket by getWicketIgnoredExactPaths(), which the filter checks exactly.
+        mounts.forEach(path -> {
+            String tree = path + "/";
+            if (!ignores.contains(tree)) {
+                ignores.add(tree);
             }
         });
         return String.join(",", ignores);
+    }
+
+    /**
+     * The mount paths, with no trailing slash, that the Wicket filter must hand on untouched when
+     * a request names one exactly (e.g. {@code /lws}). Their trees ({@code /lws/...}) are covered
+     * by {@link #getWicketIgnores()}; the two together claim the mount and nothing beside it.
+     */
+    public static Set<String> getWicketIgnoredExactPaths() {
+        return new LinkedHashSet<>(mountPaths());
+    }
+
+    /**
+     * The URL paths of the configured data mounts, each without a trailing slash: the settings
+     * file's resource handlers (annotation save/fetch, LDP resources) and the W3C Linked Web
+     * Storage mounts (:hasLWSStorage, served by the HalcyonLWS module). The Wicket filter is
+     * mapped on /* and must never claim these trees, or their GET/PUT requests render the home
+     * page (HTTP 200 HTML) instead of reaching the servlet — data appears to save but never
+     * lands, and reads return unparseable HTML. Read from the settings so a change there (e.g.
+     * the historic /ldp -> /lws rename) cannot re-break this.
+     */
+    private static List<String> mountPaths() {
+        List<String> paths = new ArrayList<>();
+        HalcyonSettings.getSettings().GetResourceHandlers().forEach(rh -> paths.add(rh.urlPath()));
+        LwsSettings.get().storages().forEach(st -> paths.add(st.urlPath()));
+        return paths.stream()
+                .filter(p -> p != null && !p.isBlank())
+                .map(URLControl::withoutTrailingSlash)
+                .filter(p -> !p.isEmpty())
+                .distinct()
+                .toList();
+    }
+
+    private static String withoutTrailingSlash(String path) {
+        String p = path.trim();
+        while (p.endsWith("/")) {
+            p = p.substring(0, p.length() - 1);
+        }
+        return p;
     }
 }
